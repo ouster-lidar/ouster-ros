@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake)
 include(DefaultBuildType)
 
 # ==== Project Name ====
@@ -37,7 +37,7 @@ add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;../ouster_client/include;../ouster_client/include/optional-lite")
+  "include;ouster-sdk/ouster_client/include;ouster-sdk/ouster_client/include/optional-lite")
 
 catkin_package(
   INCLUDE_DIRS
