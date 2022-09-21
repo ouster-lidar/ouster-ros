@@ -1,8 +1,38 @@
-# ouster_ros
+# Official ROS driver for Ouster sensors
+
+[Overview](#overview) |
+[Getting Started](#getting-started) |
+[Usage](#usage)
+
+
+## Overview
+<p align="center"><img width="20%" src="doc/images/logo.png" /></p>
 
 ## Requirements
-- Ubuntu 18|20
-- ROS Melodic|Noetic
+- ROS Melodic or ROS Noetic
+
+
+## Getting Started
+To build the driver using ROS you need to clone the project in the `src` folder of a catkin workspace
+To do so use the following steps:
+
+```bash
+mkdir -p catkin_ws/src && cd catkin_ws/src
+git clone --recurse-submodules https://github.com/ouster-lidar/ouster-ros.git
+```
+
+Next to compile the driver you need to source the ROS environemt into the active termainl:
+```bash
+source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'melodic' or 'noetic'
+```
+
+Finally, invoke `catkin_make` command from within the catkin workspace as shown below:
+```bash
+cd catkin_ws
+catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release
+```
+Specifying `Release` as the build type is important to have a reasonable performance of the driver.
+
 
 ## Usage
 
