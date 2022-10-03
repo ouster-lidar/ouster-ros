@@ -1,20 +1,41 @@
 # Official ROS driver for Ouster sensors
 
-[Overview](#overview) |
-[Getting Started](#getting-started) |
-[Usage](#usage)
+[Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
 
-## Overview
-<p align="center"><img width="20%" src="doc/images/logo.png" /></p>
+This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
+will configure and connect to the selected sensor device, once connected the driver will handle
+incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages on the
+topics of `/ouster/imu` and `/ouster/points`. In the case the sensor supports dual return and it was
+configured to use this capability, then another topic will published named `/ouster/points2` which
+corresponds to the second point cloud.
+<p align="right"><img width="20%" src="doc/images/logo.png" /></p>
 
 ## Requirements
-- ROS Melodic or ROS Noetic
+This driver only supports Melodic and Noetic ROS distros.
 
+In addition to the base ROS installation, the following ROS packages are required:
+```bash
+sudo apt install -y                     \
+    ros-$ROS_DISTRO-pcl-ros             \
+    ros-$ROS_DISTRO-rviz                \
+    ros-$ROS_DISTRO-tf2-geometry-msgs
+```
+
+where `$ROS-DISTRO` is either ``melodic`` or ``noetic``.
+
+Additional dependenices:
+```bash
+sudo apt install -y \
+    build-essential \
+    libeigen3-dev   \
+    libjsoncpp-dev  \
+    cmake
+```
 
 ## Getting Started
-To build the driver using ROS you need to clone the project in the `src` folder of a catkin workspace
-To do so use the following steps:
+To build the driver using ROS you need to clone the project into the `src` folder of a catkin workspace
+as shown below:
 
 ```bash
 mkdir -p catkin_ws/src && cd catkin_ws/src
@@ -35,12 +56,14 @@ Specifying `Release` as the build type is important to have a reasonable perform
 
 
 ## Usage
+The package supports three modes of interaction, you can connect to a live senosr, replay a recorded bag or record a new
+bag file using the corresponding launch files. The commands are listed below
 
 ### Sensor Mode
 ```bash
 roslaunch ouster_ros sensor.launch      \
     sensor_hostname:=<sensor host name> \
-    metadata:=<json file name>
+    metadata:=<json file name>              # metadata is optional
 ```
 
 ### Replay Mode
@@ -58,33 +81,8 @@ roslaunch ouster_ros record.launch      \
     bag_file:=<optional bag file name>
 ```
 
-## Services
-The ROS driver currently advertises three services `/ouster/get_metadata`,
-`/ouster/get_config`, and `/ouster/set_config`. The first one is available
-in all three modes of operation: Sensor, Replay, and Recording. The latter two,
-however, are only available in Sensor and Recording modes. i.e. when connected
-to a sensor.
+For further detailed instructions refer to the [main guide](./doc/index.rst)
 
-The usage of the three services is described below:
-* `/ouster/get_metadata`: This service takes no parameters and returns the
-current sensor metadata, you may use as follow:
-```bash
-rosservice call /ouster/get_metadata "{}"
-```
-This will return a json string that contains the sensor metadata
 
-* `/ouster/get_config`: This service takes no parameters and returns the
-current sensor configuration, you may use as follow:
-```bash
-rosservice call /ouster/get_config "{}"
-```
-This will return a json string represting the current configuration
-
-* `/ouster/set_config`: Takes a single parameter and also returns the updated
-sensor configuration. You may use as follows:
-```bash
-rosservice call /ouster/set_config "config_file: '<path to sensor config>'"
-```
-It is not guranteed that all requested configuration are applied to the sensor,
-thus it is the caller responsibilty to examine the returned json object and
-check which of the sensor configuration parameters were successfully applied.
+## License
+[License File](./LICENSE)
