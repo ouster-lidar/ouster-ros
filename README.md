@@ -3,13 +3,14 @@
 [Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
 
+<p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
+
 This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
 will configure and connect to the selected sensor device, once connected the driver will handle
 incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages on the
 topics of `/ouster/imu` and `/ouster/points`. In the case the sensor supports dual return and it was
 configured to use this capability, then another topic will published named `/ouster/points2` which
 corresponds to the second point cloud.
-<p align="right"><img width="20%" src="doc/images/logo.png" /></p>
 
 ## Requirements
 This driver only supports Melodic and Noetic ROS distros.
@@ -81,7 +82,7 @@ roslaunch ouster_ros record.launch      \
     bag_file:=<optional bag file name>
 ```
 
-For further detailed instructions refer to the [main guide](./doc/index.rst)
+For further detailed instructions refer to the [main guide](./docs/index.rst)
 
 
 ## License
