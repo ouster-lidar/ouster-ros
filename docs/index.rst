@@ -27,7 +27,7 @@ where ``<ROS-DISTRO>`` is ``melodic`` or ``noetic``.
 
 Alternatively, if you would like to install dependencies with `rosdep`::
 
-    rosdep install --from-paths <path to ouster example>
+    rosdep install --from-paths <path to ouster-ros package>
 
 To build::
 
