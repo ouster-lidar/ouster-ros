@@ -1,15 +1,13 @@
 .. title:: ROS Guide
 
-================
-Example ROS Code
-================
+=================
+Ouster ROS driver
+=================
 
-The sample code include tools for publishing sensor data as standard ROS topics. Since ROS uses
-its own build system, it must be compiled separately from the rest of the sample code.
-
-The provided ROS code has been tested on ROS Melodic on Ubuntu 18, and ROS Noetic Ubuntu 20. Use
-the `installation instructions <http://wiki.ros.org/ROS/Installation>`_ to get started with ROS
-on your platform.
+The driver publishes Ouster sensor data as standard ROS topics. The driver supports ROS Melodic on
+Ubuntu 18, and ROS Noetic for Ubuntu 20.
+Follow `ROS installation guide <http://wiki.ros.org/ROS/Installation>`_ to get started using ROS on
+your platform.
 
 Building ROS Driver
 ====================
@@ -31,15 +29,12 @@ Alternatively, if you would like to install dependencies with `rosdep`::
 
     rosdep install --from-paths <path to ouster example>
 
-
 To build::
 
     mkdir -p catkin_ws/src && cd catkin_ws/src
     git clone --recurse-submodules https://github.com/ouster-lidar/ouster-ros.git
     source /opt/ros/<ROS-VERSION>/setup.bash
     catkin_make -DCMAKE_BUILD_TYPE=Release
-
-
 
 .. warning::
     Do not create your workspace directory inside the cloned ouster_example repository,
@@ -48,7 +43,7 @@ To build::
 For each command in the following sections, make sure to first set up the ROS environment in each
 new terminal by running::
 
-        source catkin_ws/devel/setup.bash
+    source catkin_ws/devel/setup.bash
 
 Running ROS Nodes with a Sensor
 ================================
