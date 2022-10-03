@@ -68,7 +68,12 @@ Additionally, the launch file has following list of arguments that you can use:
   in the current directory you may use the absolute path instead, such as ``metadata:=$PWD/meta.json``
 - ``udp_dest:=<hostname>`` to specify the hostname or IP to which the sensor should send data
 - ``lidar_mode:=<mode>`` where mode is one of ``512x10``, ``512x20``, ``1024x10``, ``1024x20``, or
-  ``2048x10``, and
+  ``2048x10``
+- ``timestamp_mode`` choose any value of the following timestamp modes: ``TIME_FROM_INTERNAL_OSC``,
+  ``TIME_FROM_SYNC_PULSE_IN``, ``TIME_FROM_PTP_1588``, or ``TIME_FROM_ROS_TIME``. You can read about
+  the first three modes in `Ouster Sensor Guide <https://static.ouster.dev/sensor-docs/>`_. The last
+  mode ``TIME_FROM_ROS_TIME`` is specific to the ouster_ros driver; when this mode is set, the
+  driver uses ROS time as the timestamp for published IMU and Lidar messages.
 - ``viz:=true/false`` to visualize the sensor output, if you have the rviz ROS package installed
 
 
