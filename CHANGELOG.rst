@@ -2,13 +2,14 @@
 Changelog
 =========
 
-[202209XX]
+[20221004]
 ==========
 
 ouster_ros
 ----------
 * Moved ouster-ros into separate repo
+* Refresh the docker file
 
-ouster_client
---------------
+ouster_sdk
+----------
 * Removed ouster_ros
