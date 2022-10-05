@@ -105,8 +105,7 @@ install(
 
 install(
   FILES
-    ../LICENSE
-    ../LICENSE-bin
+    LICENSE
     nodelets_os.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

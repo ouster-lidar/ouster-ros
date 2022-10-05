@@ -2,6 +2,10 @@
 Changelog
 =========
 
+[Unreleased]
+============
+* Update LICENSE installation.
+
 [20221004]
 ==========
 
