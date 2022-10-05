@@ -23,4 +23,4 @@ jobs:
         docker build .                              \
           --build-arg ROS_DISTRO=${{ matrix.node }} \
           --file Dockerfile                         \
-          --tag ouster-ros-${{ matrix.node }}:$(date +%s)
+          --tag "ouster-ros-${{ matrix.node }}:$(date +%s)"
