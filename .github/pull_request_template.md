@@ -1,4 +1,4 @@
-## Related PRs
+## Related Issues & PRs
 
 ## Summary of Changes
 

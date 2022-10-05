@@ -9,12 +9,18 @@ on:
 jobs:
 
   build:
-
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [melodic, noetic]
 
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag ouster-ros-docker:$(date +%s)
+      run: |
+        docker build .                              \
+          --build-arg ROS_DISTRO=${{ matrix.node }} \
+          --file Dockerfile                         \
+          --tag ouster-ros-${{ matrix.node }}:$(date +%s)
