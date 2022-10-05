@@ -14,5 +14,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag ouster-ros-docker:$(date +%s)

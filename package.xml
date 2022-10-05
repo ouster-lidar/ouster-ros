@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>ouster_ros</name>
-  <version>0.5.1</version>
-  <description>Ouster example ROS client</description>
+  <version>0.5.2</version>
+  <description>Ouster ROS driver</description>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
-  <license>BSD</license>
+  <license file="LICENSE">BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>roscpp</depend>
