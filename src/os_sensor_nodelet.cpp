@@ -79,7 +79,7 @@ class OusterSensor : public OusterClientBase {
 
     void save_metadata(ros::NodeHandle& nh) {
         auto meta_file = nh.param("metadata", std::string{});
-        if (!meta_file.size()) {
+        if (is_arg_set(meta_file)) {
             meta_file =
                 hostname.substr(0, hostname.rfind('.')) + "-metadata.json";
             NODELET_WARN_STREAM(
@@ -141,7 +141,7 @@ class OusterSensor : public OusterClientBase {
     std::shared_ptr<sensor::client> create_client(const std::string& hostname,
                                                   int lidar_port,
                                                   int imu_port) {
-        if (!hostname.size()) {
+        if (hostname.empty()) {
             auto error_msg = "Must specify a sensor hostname";
             NODELET_ERROR_STREAM(error_msg);
             throw std::runtime_error(error_msg);
@@ -167,16 +167,14 @@ class OusterSensor : public OusterClientBase {
     std::pair<sensor::sensor_config, int> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
-        auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
-        auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
         auto lidar_port = nh.param("lidar_port", 0);
         auto imu_port = nh.param("imu_port", 0);
-
-        std::string udp_profile_lidar_arg;
-        nh.param<std::string>("udp_profile_lidar", udp_profile_lidar_arg, "");
+        auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
+        auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
+        auto udp_profile_lidar_arg = nh.param("udp_profile_lidar", std::string{});
 
         optional<sensor::UDPProfileLidar> udp_profile_lidar;
-        if (!udp_profile_lidar_arg.empty()) {
+        if (is_arg_set(udp_profile_lidar_arg)) {
             // set lidar profile from param
             udp_profile_lidar =
                 sensor::udp_profile_lidar_of_string(udp_profile_lidar_arg);
@@ -190,7 +188,7 @@ class OusterSensor : public OusterClientBase {
 
         // set lidar mode from param
         sensor::lidar_mode lidar_mode = sensor::MODE_UNSPEC;
-        if (!lidar_mode_arg.empty()) {
+        if (is_arg_set(lidar_mode_arg)) {
             lidar_mode = sensor::lidar_mode_of_string(lidar_mode_arg);
             if (!lidar_mode) {
                 auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
@@ -201,7 +199,7 @@ class OusterSensor : public OusterClientBase {
 
         // set timestamp mode from param
         sensor::timestamp_mode timestamp_mode = sensor::TIME_FROM_UNSPEC;
-        if (!timestamp_mode_arg.empty()) {
+        if (is_arg_set(timestamp_mode_arg)) {
             // In case the option TIME_FROM_ROS_TIME is set then leave the
             // sensor timestamp_mode unmodified
             if (timestamp_mode_arg == "TIME_FROM_ROS_TIME") {
@@ -230,7 +228,7 @@ class OusterSensor : public OusterClientBase {
 
         uint8_t config_flags = 0;
 
-        if (udp_dest.size()) {
+        if (is_arg_set(udp_dest)) {
             NODELET_INFO("Will send UDP data to %s", udp_dest.c_str());
             config.udp_dest = udp_dest;
         } else {

@@ -31,11 +31,15 @@ using namespace std::chrono_literals;
 namespace nodelets_os {
 class OusterCloud : public nodelet::Nodelet {
    private:
+
+    bool is_arg_set(const std::string& arg) {
+        return arg.find_first_not_of(' ') != std::string::npos;
+    }
+
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
-
         auto tf_prefix = pnh.param("tf_prefix", std::string{});
-        if (!tf_prefix.empty() && tf_prefix.back() != '/')
+        if (is_arg_set(tf_prefix) && tf_prefix.back() != '/')
             tf_prefix.append("/");
         sensor_frame = tf_prefix + "os_sensor";
         imu_frame = tf_prefix + "os_imu";

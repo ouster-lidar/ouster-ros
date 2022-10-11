@@ -2,16 +2,16 @@
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="sensor_hostname" default="" doc="hostname or IP in dotted decimal form of the sensor"/>
-  <arg name="udp_dest" default="" doc="hostname or IP where the sensor will send data packets"/>
+  <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send data packets"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>
-  <arg name="udp_profile_lidar" default="" doc="lidar packet profile; possible values: {
+  <arg name="udp_profile_lidar" default=" " doc="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16_DUAL,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8
     }"/>
-  <arg name="lidar_mode" default="" doc="resolution and rate; possible vaules: {
+  <arg name="lidar_mode" default=" " doc="resolution and rate; possible vaules: {
     512x10,
     512x20,
     1024x10,
@@ -19,7 +19,7 @@
     2048x10,
     4096x5
     }"/>
-  <arg name="timestamp_mode" default="" doc="method used to timestamp measurements; possible values: {
+  <arg name="timestamp_mode" default=" " doc="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,
     TIME_FROM_SYNC_PULSE_IN,
     TIME_FROM_PTP_1588,
@@ -29,7 +29,7 @@
   <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
-  <arg name="tf_prefix" default="" doc="namespace for tf transforms"/>
+  <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
