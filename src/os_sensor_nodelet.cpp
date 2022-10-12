@@ -79,7 +79,7 @@ class OusterSensor : public OusterClientBase {
 
     void save_metadata(ros::NodeHandle& nh) {
         auto meta_file = nh.param("metadata", std::string{});
-        if (is_arg_set(meta_file)) {
+        if (!is_arg_set(meta_file)) {
             meta_file =
                 hostname.substr(0, hostname.rfind('.')) + "-metadata.json";
             NODELET_WARN_STREAM(

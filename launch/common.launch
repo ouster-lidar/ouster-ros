@@ -1,10 +1,10 @@
 <launch>
 
-  <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="viz" default="false" doc="whether to run a rviz"/>
-  <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
-  <arg name="tf_prefix" default="" doc="namespace for tf transforms"/>
-  <arg name="timestamp_mode" default=""/>
+  <arg name="ouster_ns" doc="Override the default namespace of all ouster nodes"/>
+  <arg name="viz" doc="whether to run a rviz"/>
+  <arg name="rviz_config" doc="optional rviz config file"/>
+  <arg name="tf_prefix" doc="namespace for tf transforms"/>
+  <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"

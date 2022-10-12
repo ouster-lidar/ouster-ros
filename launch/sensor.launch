@@ -1,7 +1,7 @@
 <launch>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="sensor_hostname" default="" doc="hostname or IP in dotted decimal form of the sensor"/>
+  <arg name="sensor_hostname" doc="hostname or IP in dotted decimal form of the sensor"/>
   <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send data packets"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>

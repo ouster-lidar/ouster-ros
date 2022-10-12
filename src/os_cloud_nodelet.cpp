@@ -45,7 +45,7 @@ class OusterCloud : public nodelet::Nodelet {
         imu_frame = tf_prefix + "os_imu";
         lidar_frame = tf_prefix + "os_lidar";
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
-        use_ros_time = (timestamp_mode_arg == "TIME_FROM_ROS_TIME");
+        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
 
         auto& nh = getNodeHandle();
         ouster_ros::GetMetadata metadata{};

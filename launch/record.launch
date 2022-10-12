@@ -1,7 +1,7 @@
 <launch>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="sensor_hostname" default="" doc="hostname or IP in dotted decimal form of the sensor"/>
+  <arg name="sensor_hostname" doc="hostname or IP in dotted decimal form of the sensor"/>
   <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send data packets"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>
@@ -25,8 +25,8 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="metadata" default="" doc="path to write metadata file when receiving sensor data"/>
-  <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
+  <arg name="metadata" doc="path to write metadata file when receiving sensor data"/>
+  <arg name="bag_file" doc="file name to use for the recorded bag file"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
   <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
