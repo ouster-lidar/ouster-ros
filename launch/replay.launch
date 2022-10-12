@@ -2,7 +2,7 @@
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
-  <arg name="bag_file" doc="file name to use for the recorded bag file"/>
+  <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
   <arg name="timestamp_mode" default=" " doc="A parameter that allows you to override the timestamp measurements;
     possible values: {
     TIME_FROM_ROS_TIME
