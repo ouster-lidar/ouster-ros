@@ -1,10 +1,15 @@
 <launch>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="metadata" default="" doc="path to read metadata file when replaying sensor data"/>
+  <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
+  <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
+  <arg name="timestamp_mode" default=" " doc="A parameter that allows you to override the timestamp measurements;
+    possible values: {
+    TIME_FROM_ROS_TIME
+    }"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
-  <arg name="tf_prefix" default="" doc="namespace for tf transforms"/>
+  <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
@@ -23,10 +28,11 @@
   </group>
 
   <include file="$(find ouster_ros)/launch/common.launch">
-    <arg name="ouster_ns" default="$(arg ouster_ns)"/>
-    <arg name="viz" default="$(arg viz)"/>
-    <arg name="rviz_config" default="$(arg rviz_config)"/>
-    <arg name="tf_prefix" default="$(arg tf_prefix)"/>
+    <arg name="ouster_ns" value="$(arg ouster_ns)"/>
+    <arg name="viz" value="$(arg viz)"/>
+    <arg name="rviz_config" value="$(arg rviz_config)"/>
+    <arg name="tf_prefix" value="$(arg tf_prefix)"/>
+    <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
   </include>
 
   <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>

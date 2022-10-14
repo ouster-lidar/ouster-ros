@@ -19,6 +19,10 @@ class OusterClientBase : public nodelet::Nodelet {
     virtual void onInit() override;
 
    protected:
+    bool is_arg_set(const std::string& arg) {
+        return arg.find_first_not_of(' ') != std::string::npos;
+    }
+
     void display_lidar_info(const ouster::sensor::sensor_info& info);
 
    protected:
