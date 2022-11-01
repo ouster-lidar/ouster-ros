@@ -11,7 +11,7 @@
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8
     }"/>
-  <arg name="lidar_mode" default=" " doc="resolution and rate; possible vaules: {
+  <arg name="lidar_mode" default=" " doc="resolution and rate; possible values: {
     512x10,
     512x20,
     1024x10,

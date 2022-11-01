@@ -2,9 +2,10 @@
 Changelog
 =========
 
-[Unreleased]
+[unreleased]
 ============
-* Update LICENSE installation.
+* correct LICENSE file installation path.
+* bug fix: ros driver doesn't use correct udp_dest given by user during launch
 
 [20221004]
 ==========
