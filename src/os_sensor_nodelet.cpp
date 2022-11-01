@@ -31,11 +31,12 @@ class OusterSensor : public OusterClientBase {
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
         hostname = pnh.param("sensor_hostname", std::string{});
-        auto lidar_port = pnh.param("lidar_port", 0);
-        auto imu_port = pnh.param("imu_port", 0);
         auto sensor_conf = create_sensor_config_rosparams(pnh);
         configure_sensor(hostname, sensor_conf.first, sensor_conf.second);
-        sensor_client = create_client(hostname, lidar_port, imu_port);
+        auto udp_dest = pnh.param("udp_dest", std::string{});
+        auto lidar_port = pnh.param("lidar_port", 0);
+        auto imu_port = pnh.param("imu_port", 0);
+        sensor_client = create_client(hostname, udp_dest, lidar_port, imu_port);
         update_config_and_metadata(*sensor_client);
         save_metadata(pnh);
         OusterClientBase::onInit();
@@ -139,6 +140,7 @@ class OusterSensor : public OusterClientBase {
     }
 
     std::shared_ptr<sensor::client> create_client(const std::string& hostname,
+                                                  const std::string& udp_dest,
                                                   int lidar_port,
                                                   int imu_port) {
         if (hostname.empty()) {
@@ -152,7 +154,7 @@ class OusterSensor : public OusterClientBase {
 
         // use no-config version of init_client to allow for random ports
         auto cli =
-            sensor::init_client(hostname, "", sensor::MODE_UNSPEC,
+            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
                                 sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
 
         if (!cli) {
