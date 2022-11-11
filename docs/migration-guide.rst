@@ -29,8 +29,8 @@ If a user wishes to maintain the old topic names then they can achieve that by u
 ``<remap>`` tag in ros launch files. For example, let's say we want to remap the three topics
 published by ``os_cloud_node`` to their old names when connecting to a sensor through the
 ``sensor.launch`` file. To do so, we need to edit the ``sensor.launch`` file and add the three
-following remap tags right before any node is instantiated (i.e. the <remap> tag defintions should
-precede any ``<node>`` tags in the launch file)::
+following remap tags right before any node is instantiated (i.e. the ``<remap>`` tag defintions
+should precede any ``<node>`` tags in the launch file)::
 
     <remap from="/$(arg ouster_ns)/imu" to="/os_cloud_node/imu"/>
     <remap from="/$(arg ouster_ns)/points" to="/os_cloud_node/points"/>
