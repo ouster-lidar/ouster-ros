@@ -21,9 +21,9 @@ for more details on the different cases of usage.
 
 Topics:
 =======
-Rather than having each topic published by ouster-ros be prefixed with the name of the ros node that
-published it, the topic names of the different ros nodes that compose the ouster-ros driver have been
-combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
+Rather than having each topic published by ``ouster-ros`` be prefixed with the name of the ros node
+that publisheds it, the topic names of all ros nodes that compose the ``ouster-ros`` driver have
+been combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
 
 If a user wishes to maintain the old topic names then they can achieve that by utilizing the <remap>
 tag in ros launch files. For example, let's say we want to remap the three topics published by
