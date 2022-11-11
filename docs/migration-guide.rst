@@ -16,7 +16,7 @@ parameters that are relevant to their functional use. For example, the ``sensor_
 is only valid and required when using the ``sensor.launch`` and ``record.launch`` launch files.
 The ``metadata`` argument however is no longer required when connecting to the sensor in live mode.
 It is still required when using ``record.launch`` and ``replay.launch``. Refer to the `main
-documentation <./index.rst>` for more details on the different cases of usage.
+documentation <./doc/index.rst>`_ for more details on the different cases of usage.
 
 Topics:
 =======

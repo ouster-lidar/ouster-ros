@@ -10,7 +10,7 @@ Ubuntu 18, and ROS Noetic for Ubuntu 20. Follow `ROS installation guide
 
 .. note::
   If you have been using a release prior to 20220826, then check `our migration guide
-  <./migration-guide.rst>` which covers all the breaking changes and how to migtigate them. 
+  <./doc/migration-guide.rst>` which covers all the breaking changes and how to migtigate them. 
 
 
 Building ROS Driver
