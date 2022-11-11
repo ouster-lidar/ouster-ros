@@ -5,8 +5,8 @@
 Migrating from 20220608 to 20220826
 ===================================
 The ``20220826`` release brought several improvements to the ``ouster-ros``, however, these
-improvements included several breaking changes that are summarized in this guide and how to mitigate
-each one.
+improvements included several breaking changes. This guide summarizes these change and how to
+mitigate each one.
 
 Launch Files:
 =============
@@ -15,15 +15,14 @@ The ``ouster.launch`` has been split into three functionally different launch fi
 parameters that are relevant to their functional use. For example, the ``sensor_hostname`` argument
 is only valid and required when using the ``sensor.launch`` and ``record.launch`` launch files.
 The ``metadata`` argument however is no longer required when connecting to the sensor in live mode.
-It is still required when using ``record.launch`` and ``replay.launch``. Refer to the documentation
-for more details on the different cases of usage.
-
+It is still required when using ``record.launch`` and ``replay.launch``. Refer to the `main
+documentation <./index.rst>` for more details on the different cases of usage.
 
 Topics:
 =======
 Rather than having each topic published by ``ouster-ros`` be prefixed with the name of the ros node
-that publisheds it, the topic names of all ros nodes that compose the ``ouster-ros`` driver have
-been combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
+that publishes it, the topic names of all ros nodes that compose the ``ouster-ros`` driver have been
+combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
 
 If a user wishes to maintain the old topic names then they can achieve that by utilizing the
 ``<remap>`` tag in ros launch files. For example, let's say we want to remap the three topics
@@ -49,7 +48,7 @@ Services:
 This update brought two additional ros services and changed the name of the only ros service that
 existed prior to this release. The service name was ``/os_config`` and when it is invoked it would
 retrive the sensor metadata. This service was also combined under the unifed namespace ``ouster``
-and was renamde to ``get_metadata`` to match its actual functionality. In case the user wish to
+and was renamed to ``get_metadata`` to match its actual functionality. In case the user wish to
 maintain the old name they can achieve so in similar manner that was described in the previous
 section. In short edit the launch files and add the following ```<remap>`` tag prior to the 
 instantiation of any of the three nodes::
