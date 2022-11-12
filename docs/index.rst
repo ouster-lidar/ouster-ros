@@ -5,9 +5,13 @@ Ouster ROS driver
 =================
 
 The driver publishes Ouster sensor data as standard ROS topics. The driver supports ROS Melodic on
-Ubuntu 18, and ROS Noetic for Ubuntu 20.
-Follow `ROS installation guide <http://wiki.ros.org/ROS/Installation>`_ to get started using ROS on
-your platform.
+Ubuntu 18, and ROS Noetic for Ubuntu 20. Follow `ROS installation guide
+<http://wiki.ros.org/ROS/Installation>`_ to get started using ROS on your platform.
+
+.. note::
+  If you have been using a release prior to 20220826, then check `our migration guide
+  <./doc/migration-guide.rst>`_ which covers all the breaking changes and how to mitigate them. 
+
 
 Building ROS Driver
 ====================
