@@ -70,4 +70,4 @@ maintain the old name they can achieve so in similar manner that was described i
 section. In short edit the launch files and add the following ```<remap>`` tag prior to the 
 instantiation of any of the three nodes::
 
-    <remap from="/$(arg ouster_ns)/get_metadata" to="/get_metadata"/>
+    <remap from="/$(arg ouster_ns)/get_metadata" to="/os_config"/>
