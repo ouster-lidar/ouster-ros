@@ -23,6 +23,7 @@ Topics
 
 Topics Renaming
 ---------------
+
 Rather than having each topic published by **ouster-ros** be prefixed with the name of the ros node
 that publishes it, the topic names of all ros nodes that compose the **ouster-ros** driver have been
 combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
@@ -48,7 +49,9 @@ This is shown below as well::
 
 Topics Dropped
 --------------
+
 Additionally, the following two topic have been dropped::
+
     /os1_node/imu_packets
     /os1_node/lidar_packets
 
