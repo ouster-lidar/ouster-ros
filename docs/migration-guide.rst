@@ -4,7 +4,7 @@
 ===================================
 Migrating from 20220608 to 20220826
 ===================================
-The ``20220826`` release brought several improvements to the ``ouster-ros``, however, these
+The ``20220826`` release brought several improvements to the **ouster-ros**, however, these
 improvements included several breaking changes. This guide summarizes these change and how to
 mitigate each one.
 
@@ -18,10 +18,13 @@ The ``metadata`` argument however is no longer required when connecting to the s
 It is still required when using ``record.launch`` and ``replay.launch``. Refer to the `main
 documentation <./doc/index.rst>`_ for more details on the different cases of usage.
 
-Topics:
-=======
-Rather than having each topic published by ``ouster-ros`` be prefixed with the name of the ros node
-that publishes it, the topic names of all ros nodes that compose the ``ouster-ros`` driver have been
+Topics
+======
+
+Topic Renaming
+--------------
+Rather than having each topic published by **ouster-ros** be prefixed with the name of the ros node
+that publishes it, the topic names of all ros nodes that compose the **ouster-ros** driver have been
 combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
 
 If a user wishes to maintain the old topic names then they can achieve that by utilizing the
@@ -43,8 +46,19 @@ This is shown below as well::
     <remap from="/$(arg ouster_ns)/reflec_image" to="/img_node/reflec_image"/>
     <remap from="/$(arg ouster_ns)/signal_image" to="/img_node/signal_image"/>
 
-Services:
-=========
+Topics Dropped
+--------------
+Additionally, the following two topic have been dropped::
+    /os1_node/imu_packets
+    /os1_node/lidar_packets
+
+These two topics are a duplicates of the ``/os_node/imu_packets`` and ``/os_node/lidar_packets``,
+which both have been renamed to  ``/ouster/imu_packets`` and ``/ouster/lidar_packets`` respectively.
+If you rely on these specific topics names in your integration then you could easily follow same
+steps described in the `Topic Renaming` section.
+
+Services
+========
 This update brought two additional ros services and changed the name of the only ros service that
 existed prior to this release. The service name was ``/os_config`` and when it is invoked it would
 retrive the sensor metadata. This service was also combined under the unifed namespace ``ouster``
