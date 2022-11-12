@@ -21,8 +21,8 @@ documentation <./doc/index.rst>`_ for more details on the different cases of usa
 Topics
 ======
 
-Topic Renaming
---------------
+Topics Renaming
+---------------
 Rather than having each topic published by **ouster-ros** be prefixed with the name of the ros node
 that publishes it, the topic names of all ros nodes that compose the **ouster-ros** driver have been
 combined under a single namespace. Thus all topics would appear prefixed by the new namespace.
@@ -55,7 +55,7 @@ Additionally, the following two topic have been dropped::
 These two topics are a duplicates of the ``/os_node/imu_packets`` and ``/os_node/lidar_packets``,
 which both have been renamed to  ``/ouster/imu_packets`` and ``/ouster/lidar_packets`` respectively.
 If you rely on these specific topics names in your integration then you could easily follow same
-steps described in the `Topic Renaming` section.
+steps described in the `Topics Renaming`_ section.
 
 Services
 ========
