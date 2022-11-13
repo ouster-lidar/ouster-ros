@@ -1,14 +1,14 @@
 /**
- * Copyright (c) 2022, Ouster, Inc.
+ * Copyright (c) 2018-2022, Ouster, Inc.
  * All rights reserved.
  *
  * @file os_client_base_nodelet.cpp
- * @brief Implementatin of OusterClientBase
+ * @brief implementation of OusterClientBase interface
  */
 
 #include "ouster_ros/os_client_base_nodelet.h"
 
-#include "ouster/impl/build.h"
+#include <ouster/impl/build.h>
 #include "ouster_ros/GetMetadata.h"
 
 namespace sensor = ouster::sensor;

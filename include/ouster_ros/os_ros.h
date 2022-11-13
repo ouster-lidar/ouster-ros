@@ -1,8 +1,8 @@
 /**
- * Copyright (c) 2018, Ouster, Inc.
+ * Copyright (c) 2018-2022, Ouster, Inc.
  * All rights reserved.
  *
- * @file
+ * @file os_ros.h
  * @brief Higher-level functions to read data from the ouster sensors as ROS
  * messages
  */
@@ -21,11 +21,12 @@
 #include <chrono>
 #include <string>
 
-#include "ouster/client.h"
-#include "ouster/lidar_scan.h"
-#include "ouster/types.h"
+#include <ouster/client.h>
+#include <ouster/lidar_scan.h>
+#include <ouster/types.h>
+
 #include "ouster_ros/PacketMsg.h"
-#include "ouster_ros/point.h"
+#include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
 
@@ -118,9 +119,11 @@ sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
  * @param[in] mat transformation matrix return by sensor
  * @param[in] frame the parent frame of the published transform
  * @param[in] child_frame the child frame of the published transform
+ * @param[in] timestamp value to set as the timestamp of the generated
+ * TransformStamped message
  * @return ROS message suitable for publishing as a transform
  */
 geometry_msgs::TransformStamped transform_to_tf_msg(
     const ouster::mat4d& mat, const std::string& frame,
-    const std::string& child_frame);
+    const std::string& child_frame, ros::Time timestamp = ros::Time::now());
 }  // namespace ouster_ros

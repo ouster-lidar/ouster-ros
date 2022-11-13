@@ -1,8 +1,8 @@
 /**
- * Copyright (c) 2018, Ouster, Inc.
+ * Copyright (c) 2018-2022, Ouster, Inc.
  * All rights reserved.
  *
- * @file
+ * @file point.h
  * @brief PCL point datatype for use with ouster sensors
  */
 
@@ -13,7 +13,7 @@
 #include <Eigen/Core>
 #include <chrono>
 
-#include "ouster/lidar_scan.h"
+#include <ouster/lidar_scan.h>
 
 namespace ouster_ros {
 

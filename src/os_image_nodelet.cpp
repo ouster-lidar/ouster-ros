@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2022, Ouster, Inc.
+ * Copyright (c) 2018-2022, Ouster, Inc.
  * All rights reserved.
  *
  * @file os_image_nodelet.cpp
@@ -11,7 +11,11 @@
  * vision applications, use higher bit depth values in /os_cloud_node/points
  */
 
-#include "ouster_ros/ros.h"
+// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// header file needs to be the first include due to PCL_NO_PRECOMPILE flag
+// clang-format off
+#include "ouster_ros/os_ros.h"
+// clang-format on
 
 #include <nodelet/nodelet.h>
 #include <pcl/conversions.h>

@@ -4,8 +4,8 @@
 ===================================
 Migrating from 20220608 to 20220826
 ===================================
-The ``20220826`` release brought several improvements to the **ouster-ros**, however, these
-improvements included several breaking changes. This guide summarizes these change and how to
+The ``20220826`` release brought several improvements to the **ouster-ros** driver, however, these
+improvements brought also several breaking changes. This guide summarizes these change and how to
 mitigate each one.
 
 Launch Files:
