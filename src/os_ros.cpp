@@ -1,9 +1,16 @@
 /**
- * Copyright (c) 2018, Ouster, Inc.
+ * Copyright (c) 2018-2022, Ouster, Inc.
  * All rights reserved.
+ * 
+ * @file ros.cpp
+ * @brief A nodelet that connects to a live ouster sensor
  */
 
-#include "ouster_ros/ros.h"
+// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// header file needs to be the first include due to PCL_NO_PRECOMPILE flag
+// clang-format off
+#include "ouster_ros/os_ros.h"
+// clang-format on
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
@@ -175,13 +182,13 @@ sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud, ns ts,
 
 geometry_msgs::TransformStamped transform_to_tf_msg(
     const ouster::mat4d& mat, const std::string& frame,
-    const std::string& child_frame) {
+    const std::string& child_frame, ros::Time timestamp) {
     Eigen::Affine3d aff;
     aff.linear() = mat.block<3, 3>(0, 0);
     aff.translation() = mat.block<3, 1>(0, 3) * 1e-3;
 
     geometry_msgs::TransformStamped msg = tf2::eigenToTransform(aff);
-    msg.header.stamp = ros::Time::now();
+    msg.header.stamp = timestamp;
     msg.header.frame_id = frame;
     msg.child_frame_id = child_frame;
 

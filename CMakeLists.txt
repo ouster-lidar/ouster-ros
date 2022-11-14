@@ -73,7 +73,7 @@ include_directories(${_ouster_ros_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
 
-add_library(ouster_ros src/ros.cpp)
+add_library(ouster_ros src/os_ros.cpp)
 target_link_libraries(ouster_ros PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common PRIVATE
   -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
