@@ -19,7 +19,7 @@
   <build_depend>eigen</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>tf2_eigen</build_depend>
-  <build_depend>libpcl-common</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
   <build_depend>pcl_conversions</build_depend>
   <build_depend>curl</build_depend>
   <build_depend>spdlog</build_depend>
