@@ -13,6 +13,7 @@
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>curl</depend>
+  <depend>spdlog</depend>
 
   <build_depend>boost</build_depend>
   <build_depend>nodelet</build_depend>
