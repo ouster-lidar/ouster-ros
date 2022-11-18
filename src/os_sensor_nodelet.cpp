@@ -163,8 +163,8 @@ class OusterSensor : public OusterClientBase {
 
         std::shared_ptr<sensor::client> cli;
         if (lidar_port != 0 && imu_port != 0) {
-            // the use no-config version of init_client to bind to
-            // pre-configured ports
+            // use no-config version of init_client to bind to pre-configured
+            // ports
             cli = sensor::init_client(hostname, lidar_port, imu_port);
         } else {
             // use the full init_client to generate and assign random ports to
