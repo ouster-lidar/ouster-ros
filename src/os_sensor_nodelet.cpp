@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <string>
+#include <tuple>
 
 #include "ouster_ros/GetConfig.h"
 #include "ouster_ros/PacketMsg.h"
@@ -34,13 +35,12 @@ class OusterSensor : public OusterClientBase {
    private:
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
-        hostname = pnh.param("sensor_hostname", std::string{});
-        auto sensor_conf = create_sensor_config_rosparams(pnh);
-        configure_sensor(hostname, sensor_conf.first, sensor_conf.second);
-        auto udp_dest = pnh.param("udp_dest", std::string{});
-        auto lidar_port = pnh.param("lidar_port", 0);
-        auto imu_port = pnh.param("imu_port", 0);
-        sensor_client = create_client(hostname, udp_dest, lidar_port, imu_port);
+        sensor_hostname = get_sensor_hostname(pnh);
+        sensor::sensor_config config;
+        u_int8_t flags;
+        std::tie(config, flags) = create_sensor_config_rosparams(pnh);
+        configure_sensor(sensor_hostname, config, flags);
+        sensor_client = create_sensor_client(sensor_hostname, config);
         update_config_and_metadata(*sensor_client);
         save_metadata(pnh);
         OusterClientBase::onInit();
@@ -49,9 +49,20 @@ class OusterSensor : public OusterClientBase {
         start_connection_loop();
     }
 
+    std::string get_sensor_hostname(ros::NodeHandle& nh) {
+        auto hostname = nh.param("sensor_hostname", std::string{});
+        if (!is_arg_set(hostname)) {
+            auto error_msg = "Must specify a sensor hostname";
+            NODELET_ERROR_STREAM(error_msg);
+            throw std::runtime_error(error_msg);
+        }
+
+        return hostname;
+    }
+
     bool update_config_and_metadata(sensor::client& cli) {
         sensor::sensor_config config;
-        auto success = get_config(hostname, config);
+        auto success = get_config(sensor_hostname, config);
         if (!success) {
             NODELET_ERROR("Failed to collect sensor config");
             cached_config.clear();
@@ -85,8 +96,8 @@ class OusterSensor : public OusterClientBase {
     void save_metadata(ros::NodeHandle& nh) {
         auto meta_file = nh.param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
-            meta_file =
-                hostname.substr(0, hostname.rfind('.')) + "-metadata.json";
+            meta_file = sensor_hostname.substr(0, sensor_hostname.rfind('.')) +
+                        "-metadata.json";
             NODELET_WARN_STREAM(
                 "No metadata file was specified, using: " << meta_file);
         }
@@ -129,10 +140,8 @@ class OusterSensor : public OusterClientBase {
                     }
 
                     try {
-                        configure_sensor(hostname, config, 0);
-                    } catch (const std::runtime_error& e) {
-                        return false;
-                    } catch (const std::invalid_argument& ia) {
+                        configure_sensor(sensor_hostname, config, 0);
+                    } catch (const std::exception& e) {
                         return false;
                     }
                     success = update_config_and_metadata(*sensor_client);
@@ -143,23 +152,28 @@ class OusterSensor : public OusterClientBase {
         NODELET_INFO("set_config service created");
     }
 
-    std::shared_ptr<sensor::client> create_client(const std::string& hostname,
-                                                  const std::string& udp_dest,
-                                                  int lidar_port,
-                                                  int imu_port) {
-        if (hostname.empty()) {
-            auto error_msg = "Must specify a sensor hostname";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
+    std::shared_ptr<sensor::client> create_sensor_client(
+        const std::string& hostname, const sensor::sensor_config& config) {
         NODELET_INFO_STREAM("Starting sensor " << hostname
                                                << " initialization...");
 
-        // use no-config version of init_client to allow for random ports
-        auto cli =
-            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
-                                sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
+        int lidar_port =
+            config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
+        int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
+
+        std::shared_ptr<sensor::client> cli;
+        if (lidar_port != 0 && imu_port != 0) {
+            // the use no-config version of init_client to bind to
+            // pre-configured ports
+            cli = sensor::init_client(hostname, lidar_port, imu_port);
+        } else {
+            // use the full init_client to generate and assign random ports to
+            // sensor
+            auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
+            cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+                                      sensor::TIME_FROM_UNSPEC, lidar_port,
+                                      imu_port);
+        }
 
         if (!cli) {
             auto error_msg = "Failed to initialize client";
@@ -170,14 +184,31 @@ class OusterSensor : public OusterClientBase {
         return cli;
     }
 
-    std::pair<sensor::sensor_config, int> create_sensor_config_rosparams(
+    std::pair<sensor::sensor_config, u_int8_t> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
         auto lidar_port = nh.param("lidar_port", 0);
         auto imu_port = nh.param("imu_port", 0);
         auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
         auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
-        auto udp_profile_lidar_arg = nh.param("udp_profile_lidar", std::string{});
+        auto udp_profile_lidar_arg =
+            nh.param("udp_profile_lidar", std::string{});
+
+        if (lidar_port < 0 || lidar_port > 65535) {
+            auto error_msg =
+                "Invalid lidar port number! port value should be in the range "
+                "[0, 65535].";
+            NODELET_ERROR_STREAM(error_msg);
+            throw std::runtime_error(error_msg);
+        }
+
+        if (imu_port < 0 || imu_port > 65535) {
+            auto error_msg =
+                "Invalid imu port number! port value should be in the range "
+                "[0, 65535].";
+            NODELET_ERROR_STREAM(error_msg);
+            throw std::runtime_error(error_msg);
+        }
 
         optional<sensor::UDPProfileLidar> udp_profile_lidar;
         if (is_arg_set(udp_profile_lidar_arg)) {
@@ -225,8 +256,22 @@ class OusterSensor : public OusterClientBase {
         }
 
         sensor::sensor_config config;
-        config.udp_port_imu = imu_port;
-        config.udp_port_lidar = lidar_port;
+        if (lidar_port == 0) {
+            NODELET_WARN(
+                "lidar port set to zero, the client will assign a random port "
+                "number!");
+        } else {
+            config.udp_port_lidar = lidar_port;
+        }
+
+        if (imu_port == 0) {
+            NODELET_WARN(
+                "imu port set to zero, the client will assign a random port "
+                "number!");
+        } else {
+            config.udp_port_imu = imu_port;
+        }
+
         config.udp_profile_lidar = udp_profile_lidar;
         config.operating_mode = sensor::OPERATING_NORMAL;
         if (lidar_mode) config.ld_mode = lidar_mode;
@@ -254,11 +299,8 @@ class OusterSensor : public OusterClientBase {
                 NODELET_ERROR_STREAM(err_msg);
                 throw std::runtime_error(err_msg);
             }
-        } catch (const std::runtime_error& e) {
+        } catch (const std::exception& e) {
             NODELET_ERROR("Error setting config:  %s", e.what());
-            throw;
-        } catch (const std::invalid_argument& ia) {
-            NODELET_ERROR("Error setting config: %s", ia.what());
             throw;
         }
 
@@ -382,7 +424,7 @@ class OusterSensor : public OusterClientBase {
     ros::Publisher imu_packet_pub;
     std::shared_ptr<sensor::client> sensor_client;
     ros::Timer timer_;
-    std::string hostname;
+    std::string sensor_hostname;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
     std::string cached_config;
