@@ -14,6 +14,7 @@ ouster_ros
   active timestamp mode.
 * breaking change: renamed ``ouster_ros/ros.h`` to ``ouster_ros/os_ros.h`` and
   ``ouster_ros/point.h`` to ``ouster_ros/os_point.h``.
+* validate lidar and imu port values. warn users when assigning random port numbers.
 
 ouster_client
 --------------
