@@ -31,6 +31,7 @@ sudo apt install -y \
     build-essential \
     libeigen3-dev   \
     libjsoncpp-dev  \
+    libspdlog-dev   \
     cmake
 ```
 

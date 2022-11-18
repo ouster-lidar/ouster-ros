@@ -11,12 +11,15 @@ RUN set -xue \
 # Turn off installing extra packages globally to slim down rosdep install
 && echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend \
 && apt-get update \
-&& apt-get install -y \
- build-essential cmake \
- fakeroot dpkg-dev debhelper \
- $PY-rosdep $PY-rospkg $PY-bloom
-
-RUN apt-get install -y curl libcurl4-openssl-dev
+&& apt-get install -y       \
+    build-essential         \
+    cmake                   \
+    fakeroot                \
+    dpkg-dev                \
+    debhelper               \
+    $PY-rosdep              \
+    $PY-rospkg              \
+    $PY-bloom
 
 # Set up non-root build user
 ARG BUILD_UID=1000
