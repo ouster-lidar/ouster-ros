@@ -94,6 +94,27 @@ void scan_to_cloud(const ouster::XYZLut& xyz_lut,
                    ouster_ros::Cloud& cloud, int return_index = 0);
 
 /**
+ * Populate a PCL point cloud from a LidarScan.
+ * @param[in, out] points The points parameters is used to store the results of
+ * the cartesian product before it get's packed into the cloud object.
+ * @param[in] lut_direction the direction of the xyz lut (with single precision)
+ * @param[in] lut_offset the offset of the xyz lut (with single precision)
+ * @param[in] scan_ts scan start used to caluclate relative timestamps for
+ * points
+ * @param[in] ls input lidar data
+ * @param[out] cloud output pcl pointcloud to populate
+ * @param[in] return_index index of return desired starting at 0
+ */
+void scan_to_cloud_f(ouster::PointsF& points,
+                const ouster::PointsF& lut_direction,
+                const ouster::PointsF& lut_offset,
+                ouster::LidarScan::ts_t scan_ts,
+                const ouster::LidarScan& ls,
+                ouster_ros::Cloud& cloud,
+                int return_index);
+
+
+/**
  * Serialize a PCL point cloud to a ROS message
  * @param[in] cloud the PCL point cloud to convert
  * @param[in] timestamp the timestamp to apply to the resulting ROS message
