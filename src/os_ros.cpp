@@ -21,9 +21,10 @@
 #include <string>
 #include <vector>
 
-namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
+
+namespace ouster_ros {
 
 bool read_imu_packet(const sensor::client& cli, PacketMsg& pm,
                      const sensor::packet_format& pf) {

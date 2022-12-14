@@ -96,7 +96,7 @@ void scan_to_cloud(const ouster::XYZLut& xyz_lut,
 /**
  * Populate a PCL point cloud from a LidarScan.
  * @param[in, out] points The points parameters is used to store the results of
- * the cartesian product before it get's packed into the cloud object.
+ * the cartesian product before it gets packed into the cloud object.
  * @param[in] lut_direction the direction of the xyz lut (with single precision)
  * @param[in] lut_offset the offset of the xyz lut (with single precision)
  * @param[in] scan_ts scan start used to caluclate relative timestamps for
