@@ -7,14 +7,20 @@ Changelog
 
 ouster_ros
 ----------
+* breaking change: renamed ``ouster_ros/ros.h`` to ``ouster_ros/os_ros.h`` and
+  ``ouster_ros/point.h`` to ``ouster_ros/os_point.h``.
+* breaking change: change the type of the ring field within ``ouster::Point`` from ``uint8_t`` to
+  ``uint16_t``
 * correct LICENSE file installation path.
 * update code files copyrights period.
 * bug fix: ros driver doesn't use correct udp_dest given by user during launch
 * update published TF transforms time with senosr or ros time based on the
   active timestamp mode.
-* breaking change: renamed ``ouster_ros/ros.h`` to ``ouster_ros/os_ros.h`` and
-  ``ouster_ros/point.h`` to ``ouster_ros/os_point.h``.
 * validate lidar and imu port values. warn users when assigning random port numbers.
+* switch to using the cartesianT method when populating pcl point cloud for performance and reduced
+  cpu utilization
+* reduce dynamic memory allocation within the driver for performance and driver stability
+* add ``pcl_ros`` as a dependency to ``package.xml``
 
 ouster_client
 --------------
@@ -31,6 +37,9 @@ ouster_client
 * added a new method ``init_logger()`` to provide control over the logs emitted by ``ouster_client``.
 * add parsing for new FW 3.0 thermal features shot_limiting and thermal_shutdown statuses and countdowns
 * add frame_status to LidarScan
+* introduce a new method ``cartesianT()`` which speeds up the computation of point projecion from range
+  image, the method also can process the cartesian product with single float precision. A new unit test
+  ``cartesian_test`` which shows achieved speed up gains by the number of valid returns in lidar scan.
 
 [20221004]
 ==========

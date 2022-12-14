@@ -19,6 +19,7 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <algorithm>
 #include <chrono>
@@ -87,7 +88,14 @@ class OusterCloud : public nodelet::Nodelet {
             lidar_pubs[i] = pub;
         }
 
-        xyz_lut = ouster::make_xyz_lut(info);
+        // The ouster_ros drive currently only uses single precision when it
+        // produces the point cloud. So it isn't of a benefit to compute point
+        //  cloud xyz coordinates using double precision (for the time being).
+        auto xyz_lut = ouster::make_xyz_lut(info);
+        lut_direction = xyz_lut.direction.cast<float>();
+        lut_offset = xyz_lut.offset.cast<float>();
+        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
+        pc_ptr = boost::make_shared<sensor_msgs::PointCloud2>();
 
         ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
         cloud = ouster_ros::Cloud{W, H};
@@ -104,14 +112,20 @@ class OusterCloud : public nodelet::Nodelet {
             "imu_packets", 100, &OusterCloud::imu_handler, this);
     }
 
+    void pcl_toROSMsg(const ouster_ros::Cloud &pcl_cloud, sensor_msgs::PointCloud2 &cloud) {
+        // TODO: remove the staging step in the future
+        static pcl::PCLPointCloud2 pcl_pc2;
+        pcl::toPCLPointCloud2(pcl_cloud, pcl_pc2);
+        pcl_conversions::moveFromPCL(pcl_pc2, cloud);
+    }
+
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const ros::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
-            scan_to_cloud(xyz_lut, scan_ts, ls, cloud, i);
-            sensor_msgs::PointCloud2 pc =
-                ouster_ros::cloud_to_cloud_msg(cloud, msg_ts, sensor_frame);
-            sensor_msgs::PointCloud2Ptr pc_ptr =
-                boost::make_shared<sensor_msgs::PointCloud2>(pc);
+            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls, cloud, i);
+            pcl_toROSMsg(cloud, *pc_ptr);
+            pc_ptr->header.stamp = msg_ts;
+            pc_ptr->header.frame_id = sensor_frame;
             lidar_pubs[i].publish(pc_ptr);
         }
 
@@ -172,11 +186,15 @@ class OusterCloud : public nodelet::Nodelet {
     std::vector<ros::Publisher> lidar_pubs;
     ros::Subscriber imu_packet_sub;
     ros::Publisher imu_pub;
+    sensor_msgs::PointCloud2::Ptr pc_ptr;
+
 
     sensor::sensor_info info;
     int n_returns = 0;
 
-    ouster::XYZLut xyz_lut;
+    ouster::PointsF lut_direction;
+    ouster::PointsF lut_offset;
+    ouster::PointsF points;
     ouster::LidarScan ls;
     ouster_ros::Cloud cloud;
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
@@ -189,6 +207,7 @@ class OusterCloud : public nodelet::Nodelet {
 
     bool use_ros_time;
 };
+
 }  // namespace nodelets_os
 
 PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterCloud, nodelet::Nodelet)
