@@ -98,7 +98,7 @@ class OusterSensor : public OusterClientBase {
         if (!is_arg_set(meta_file)) {
             meta_file = sensor_hostname.substr(0, sensor_hostname.rfind('.')) +
                         "-metadata.json";
-            NODELET_WARN_STREAM(
+            NODELET_INFO_STREAM(
                 "No metadata file was specified, using: " << meta_file);
         }
 
@@ -304,7 +304,7 @@ class OusterSensor : public OusterClientBase {
             throw;
         }
 
-        NODELET_WARN_STREAM("Sensor " << hostname
+        NODELET_INFO_STREAM("Sensor " << hostname
                                       << " configured successfully");
     }
 

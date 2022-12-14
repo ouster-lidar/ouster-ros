@@ -30,9 +30,9 @@ void OusterClientBase::onInit() {
 }
 
 void OusterClientBase::display_lidar_info(const sensor::sensor_info& info) {
-    NODELET_WARN("Client version: %s", ouster::SDK_VERSION_FULL);
-    NODELET_WARN("Using lidar_mode: %s", sensor::to_string(info.mode).c_str());
-    NODELET_WARN("%s sn: %s firmware rev: %s", info.prod_line.c_str(),
+    NODELET_INFO("Client version: %s", ouster::SDK_VERSION_FULL);
+    NODELET_INFO("Using lidar_mode: %s", sensor::to_string(info.mode).c_str());
+    NODELET_INFO("%s sn: %s firmware rev: %s", info.prod_line.c_str(),
                  info.sn.c_str(), info.fw_rev.c_str());
 }
 
