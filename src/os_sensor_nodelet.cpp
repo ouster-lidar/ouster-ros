@@ -365,8 +365,7 @@ class OusterSensor : public OusterClientBase {
         } else {
             NODELET_WARN(
                 "Failed to write metadata to %s; check that the path is valid. "
-                "If "
-                "you provided a relative path, please note that the working "
+                "If you provided a relative path, please note that the working "
                 "directory of all ROS nodes is set by default to $ROS_HOME",
                 meta_file.c_str());
             return false;
