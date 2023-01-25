@@ -7,8 +7,6 @@
  *
  */
 
-#include <pluginlib/class_list_macros.h>
-
 #include "ouster_ros/os_client_base_nodelet.h"
 
 namespace sensor = ouster::sensor;
@@ -16,6 +14,15 @@ namespace sensor = ouster::sensor;
 namespace nodelets_os {
 
 class OusterReplay : public OusterClientBase {
+   public:
+    COMPOSITION_PUBLIC
+    
+    explicit OusterSensor(const rclcpp::NodeOptions & options)
+    : Node("os_replay", options)
+    {
+        onInit();
+    }
+
    private:
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
@@ -42,4 +49,6 @@ class OusterReplay : public OusterClientBase {
 
 }  // namespace nodelets_os
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterReplay, nodelet::Nodelet)
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(nodelets_os::OusterReplay)

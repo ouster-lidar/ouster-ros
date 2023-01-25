@@ -13,9 +13,8 @@
 // clang-format on
 
 #include <pcl_conversions/pcl_conversions.h>
-#include <ros/ros.h>
 #include <tf2/LinearMath/Transform.h>
-#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 #include <chrono>
 #include <string>
@@ -23,6 +22,7 @@
 
 
 namespace sensor = ouster::sensor;
+using ouster_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
 
@@ -38,12 +38,12 @@ bool read_lidar_packet(const sensor::client& cli, PacketMsg& pm,
     return read_lidar_packet(cli, pm.buf.data(), pf);
 }
 
-sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
-                                   const ros::Time& timestamp,
+sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
+                                   const rclcpp::Time& timestamp,
                                    const std::string& frame,
                                    const sensor::packet_format& pf) {
     const double standard_g = 9.80665;
-    sensor_msgs::Imu m;
+    sensor_msgs::msg::Imu m;
     const uint8_t* buf = pm.buf.data();
 
     m.header.stamp = timestamp;
@@ -73,14 +73,6 @@ sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
     }
 
     return m;
-}
-
-sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
-                                   const std::string& frame,
-                                   const sensor::packet_format& pf) {
-    ros::Time timestamp;
-    timestamp.fromNSec(pf.imu_gyro_ts(pm.buf.data()));
-    return packet_to_imu_msg(pm, timestamp, frame, pf);
 }
 
 struct read_and_cast {
@@ -233,31 +225,24 @@ void scan_to_cloud_f(ouster::PointsF& points,
                        signal);
 }
 
-sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
-                                            const ros::Time& timestamp,
+sensor_msgs::msg::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
+                                            const rclcpp::Time& timestamp,
                                             const std::string& frame) {
-    sensor_msgs::PointCloud2 msg{};
+    sensor_msgs::msg::PointCloud2 msg{};
     pcl::toROSMsg(cloud, msg);
     msg.header.frame_id = frame;
     msg.header.stamp = timestamp;
     return msg;
 }
 
-sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud, ns ts,
-                                            const std::string& frame) {
-    ros::Time timestamp;
-    timestamp.fromNSec(ts.count());
-    return cloud_to_cloud_msg(cloud, timestamp, frame);
-}
-
-geometry_msgs::TransformStamped transform_to_tf_msg(
+geometry_msgs::msg::TransformStamped transform_to_tf_msg(
     const ouster::mat4d& mat, const std::string& frame,
-    const std::string& child_frame, ros::Time timestamp) {
+    const std::string& child_frame, rclcpp::Time timestamp) {
     Eigen::Affine3d aff;
     aff.linear() = mat.block<3, 3>(0, 0);
     aff.translation() = mat.block<3, 1>(0, 3) * 1e-3;
 
-    geometry_msgs::TransformStamped msg = tf2::eigenToTransform(aff);
+    geometry_msgs::msg::TransformStamped msg = tf2::eigenToTransform(aff);
     msg.header.stamp = timestamp;
     msg.header.frame_id = frame;
     msg.child_frame_id = child_frame;

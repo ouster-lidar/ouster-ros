@@ -7,16 +7,21 @@
  *
  */
 
-#include <nodelet/nodelet.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <ouster/types.h>
 
+#include "ouster_ros/srv/get_metadata.hpp"
+
 namespace nodelets_os {
 
-class OusterClientBase : public nodelet::Nodelet {
+class OusterClientBase : public rclcpp::Node {
    protected:
-    virtual void onInit() override;
+    explicit OusterClientBase(const std::string& name, const rclcpp::NodeOptions& options)
+    : rclcpp::Node(name, options) {
+    }
+
+    virtual void onInit();
 
    protected:
     bool is_arg_set(const std::string& arg) {
@@ -27,7 +32,7 @@ class OusterClientBase : public nodelet::Nodelet {
 
    protected:
     ouster::sensor::sensor_info info;
-    ros::ServiceServer get_metadata_srv;
+    rclcpp::Service<ouster_ros::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
 };
 
