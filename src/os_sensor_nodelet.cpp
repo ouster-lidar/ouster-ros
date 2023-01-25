@@ -37,7 +37,7 @@ class OusterSensor : public OusterClientBase {
         auto& pnh = getPrivateNodeHandle();
         sensor_hostname = get_sensor_hostname(pnh);
         sensor::sensor_config config;
-        u_int8_t flags;
+        uint8_t flags;
         std::tie(config, flags) = create_sensor_config_rosparams(pnh);
         configure_sensor(sensor_hostname, config, flags);
         sensor_client = create_sensor_client(sensor_hostname, config);
@@ -184,7 +184,7 @@ class OusterSensor : public OusterClientBase {
         return cli;
     }
 
-    std::pair<sensor::sensor_config, u_int8_t> create_sensor_config_rosparams(
+    std::pair<sensor::sensor_config, uint8_t> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
         auto lidar_port = nh.param("lidar_port", 0);
@@ -386,7 +386,7 @@ class OusterSensor : public OusterClientBase {
 
         timer_ = nh.createTimer(
             ros::Duration(0),
-            boost::bind(&OusterSensor::timer_callback, this, _1), true);
+            [this](const ros::TimerEvent&) { timer_callback(); }, true);
     }
 
     void connection_loop(sensor::client& cli, const sensor::sensor_info& info) {
@@ -411,7 +411,7 @@ class OusterSensor : public OusterClientBase {
         }
     }
 
-    void timer_callback(const ros::TimerEvent&) {
+    void timer_callback() {
         connection_loop(*sensor_client, info);
         timer_.stop();
         timer_.start();
