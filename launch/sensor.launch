@@ -25,6 +25,7 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  <arg name="ptp_utc_tai_offset_secs" default="-37" doc="UTC/TAI offset to apply when using TIME_FROM_PTP_1588"/>
   <arg name="metadata" default=" " doc="path to write metadata file when receiving sensor data"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
@@ -49,6 +50,7 @@
       <param name="~/udp_profile_lidar" type="str" value="$(arg udp_profile_lidar)"/>
       <param name="~/lidar_mode" type="str" value="$(arg lidar_mode)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/ptp_utc_tai_offset_secs" type="int" value="$(arg ptp_utc_tai_offset_secs)"/>
       <param name="~/metadata" type="str" value="$(arg metadata)"/>
     </node>
   </group>
@@ -59,6 +61,7 @@
     <arg name="rviz_config" value="$(arg rviz_config)"/>
     <arg name="tf_prefix" value="$(arg tf_prefix)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
+    <arg name="ptp_utc_tai_offset_secs" value="$(arg ptp_utc_tai_offset_secs)"/>
   </include>
 
 </launch>

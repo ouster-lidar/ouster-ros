@@ -5,6 +5,7 @@
   <arg name="rviz_config" doc="optional rviz config file"/>
   <arg name="tf_prefix" doc="namespace for tf transforms"/>
   <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
+  <arg name="ptp_utc_tai_offset_secs" doc="UTC/TAI offset to apply when using TIME_FROM_PTP_1588"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
@@ -13,6 +14,7 @@
       args="load nodelets_os/OusterCloud os_nodelet_mgr">
       <param name="~/tf_prefix" type="str" value="$(arg tf_prefix)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/ptp_utc_tai_offset_secs" type="int" value="$(arg ptp_utc_tai_offset_secs)"/>
     </node>
   </group>
 
