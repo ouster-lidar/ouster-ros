@@ -10,7 +10,6 @@ project(ouster_ros)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
@@ -64,7 +63,7 @@ target_link_libraries(ouster_ros_library
     pcl_common
   # PRIVATE
   -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
-ament_target_dependencies(ouster_ros_library "rclcpp" "std_msgs" "sensor_msgs" "geometry_msgs" "ouster_msgs")
+ament_target_dependencies(ouster_ros_library "rclcpp" "sensor_msgs" "geometry_msgs" "ouster_msgs")
 
 # ==== os_sensor_compnent ====
 add_library(os_sensor_component SHARED
@@ -77,7 +76,6 @@ ament_target_dependencies(os_sensor_component
   "rclcpp"
   "class_loader"
   "rclcpp_components"
-  "std_msgs"
   "sensor_msgs"
   "geometry_msgs"
 )
@@ -95,7 +93,6 @@ ament_target_dependencies(os_cloud_component
   "rclcpp"
   "class_loader"
   "rclcpp_components"
-  "std_msgs"
   "sensor_msgs"
   "geometry_msgs"
   "tf2"
@@ -115,7 +112,6 @@ ament_target_dependencies(os_image_component
   "rclcpp"
   "class_loader"
   "rclcpp_components"
-  "std_msgs"
   "sensor_msgs"
   "geometry_msgs"
   "tf2"
