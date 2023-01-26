@@ -142,7 +142,8 @@ class OusterCloud : public nodelet::Nodelet {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
         if (idx == ts_v.data() + ts_v.size()) return;
-        // ls used for relative timestamp in comparison to scan_ts, so only adjust msg_ts
+        // scan_ts is used elsewhere for finding relative timestamp
+        // in lidar scan, so only adjust msg_ts to account for utc/tai offset
         auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
         auto msg_ts = to_ros_time(apply_ptp_utc_tai_offset(scan_ts));
         convert_scan_to_pointcloud_publish(scan_ts, msg_ts);
@@ -163,11 +164,14 @@ class OusterCloud : public nodelet::Nodelet {
 
     void imu_handler(const PacketMsg::ConstPtr& packet) {
         auto pf = sensor::get_format(info);
-        auto imu_gyro_ts = std::chrono::nanoseconds(pf.imu_gyro_ts(packet->buf.data()));
-        imu_gyro_ts = apply_ptp_utc_tai_offset(imu_gyro_ts);
-        ros::Time msg_ts =
-            use_ros_time ? ros::Time::now()
-                         : to_ros_time(imu_gyro_ts);
+        ros::Time msg_ts = ros::Time::now();
+        if (!use_ros_time)
+        {
+            auto imu_gyro_ts =
+                std::chrono::nanoseconds(pf.imu_gyro_ts(packet->buf.data()));
+            imu_gyro_ts = apply_ptp_utc_tai_offset(imu_gyro_ts);
+            msg_ts = to_ros_time(imu_gyro_ts);
+        }
         sensor_msgs::Imu imu_msg =
             ouster_ros::packet_to_imu_msg(*packet, msg_ts, imu_frame, pf);
         sensor_msgs::ImuPtr imu_msg_ptr =
