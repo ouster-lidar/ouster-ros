@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
  * @file os_client_base_node.cpp
@@ -14,7 +14,7 @@
 namespace sensor = ouster::sensor;
 using ouster_ros::srv::GetMetadata;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 void OusterClientBase::onInit() {
     get_metadata_srv = create_service<GetMetadata>(
@@ -36,4 +36,4 @@ void OusterClientBase::display_lidar_info(const sensor::sensor_info& info) {
                  info.sn.c_str(), info.fw_rev.c_str());
 }
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros

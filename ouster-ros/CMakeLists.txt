@@ -108,21 +108,28 @@ create_ros2_component(os_sensor_component
   "src/os_client_base_node.cpp;src/os_sensor_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_sensor_component "nodelets_os::OusterSensor")
+rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterSensor")
+
+# ==== os_replay_compnent ====
+create_ros2_component(os_replay_component
+  "src/os_client_base_node.cpp;src/os_replay_node.cpp"
+  ""
+)
+rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterSensor")
 
 # ==== os_cloud_compnent ====
 create_ros2_component(os_cloud_component
   "src/os_cloud_node.cpp"
   "tf2;tf2_ros"
 )
-rclcpp_components_register_nodes(os_cloud_component "nodelets_os::OusterCloud")
+rclcpp_components_register_nodes(os_cloud_component "ouster_ros::OusterCloud")
 
 # ==== os_image_compnent ====
 create_ros2_component(os_image_component
   "src/os_image_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_image_component "nodelets_os::OusterImage")
+rclcpp_components_register_nodes(os_image_component "ouster_ros::OusterImage")
 
 # ==== Install ====
 install(

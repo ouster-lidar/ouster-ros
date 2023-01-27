@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_sensor_nodelet.cpp
- * @brief A nodelet that connects to a live ouster sensor
+ * @file os_sensor_node.cpp
+ * @brief A node that connects to a live ouster sensor
  */
 
 // prevent clang-format from altering the location of "ouster_ros/ros.h", the
@@ -28,12 +28,12 @@ using ouster_msgs::msg::PacketMsg;
 using ouster_ros::srv::GetConfig;
 using ouster_ros::srv::SetConfig;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterSensor : public OusterClientBase {
    public:
     OUSTER_ROS_PUBLIC
-    explicit OusterSensor(const rclcpp::NodeOptions & options)
+    explicit OusterSensor(const rclcpp::NodeOptions& options)
     : OusterClientBase("os_sensor", options) {
         onInit();
     }
@@ -446,8 +446,8 @@ class OusterSensor : public OusterClientBase {
     std::string cached_config;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
 #include <rclcpp_components/register_node_macro.hpp>
 
-RCLCPP_COMPONENTS_REGISTER_NODE(nodelets_os::OusterSensor)
+RCLCPP_COMPONENTS_REGISTER_NODE(ouster_ros::OusterSensor)

@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_image_nodelet.cpp
- * @brief A nodelet to decode range, near ir and signal images from ouster
+ * @file os_image_node.cpp
+ * @brief A node to decode range, near ir and signal images from ouster
  * point cloud
  *
  * Publishes ~/range_image, ~/nearir_image, and ~/signal_image.  Please bear
@@ -41,7 +41,7 @@ using ouster_ros::srv::GetMetadata;
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterImage : public rclcpp::Node {
    public:
@@ -219,8 +219,8 @@ class OusterImage : public rclcpp::Node {
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
 };
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
 #include <rclcpp_components/register_node_macro.hpp>
 
-RCLCPP_COMPONENTS_REGISTER_NODE(nodelets_os::OusterImage)
+RCLCPP_COMPONENTS_REGISTER_NODE(ouster_ros::OusterImage)

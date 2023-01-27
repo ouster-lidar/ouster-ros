@@ -1,8 +1,8 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file point.h
+ * @file os_point.h
  * @brief PCL point datatype for use with ouster sensors
  */
 

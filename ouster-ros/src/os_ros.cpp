@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file ros.cpp
- * @brief A nodelet that connects to a live ouster sensor
+ * @file os_ros.cpp
+ * @brief A utilty file that contains helper methods
  */
 
 // prevent clang-format from altering the location of "ouster_ros/ros.h", the

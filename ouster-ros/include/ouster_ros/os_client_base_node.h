@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_client_base_nodelet.h
- * @brief Base class for ouster_ros sensor and replay nodelets
+ * @file os_client_base_node.h
+ * @brief Base class for ouster_ros sensor and replay nodes
  *
  */
 
@@ -13,7 +13,7 @@
 
 #include "ouster_ros/srv/get_metadata.hpp"
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterClientBase : public rclcpp::Node {
    protected:
@@ -36,4 +36,4 @@ class OusterClientBase : public rclcpp::Node {
     std::string cached_metadata;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros

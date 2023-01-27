@@ -18,7 +18,7 @@ def generate_launch_description():
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
-                    plugin='nodelets_os::OusterSensor',
+                    plugin='ouster_ros::OusterSensor',
                     name='os_sensor',
                     parameters=[
                         {'sensor_hostname' : 'os-122151001683.local'},
@@ -42,7 +42,7 @@ def generate_launch_description():
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
-                    plugin='nodelets_os::OusterCloud',
+                    plugin='ouster_ros::OusterCloud',
                     name='os_cloud',
                     parameters=[
                         {'tf_prefix' : ' '},
@@ -62,7 +62,7 @@ def generate_launch_description():
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
-                    plugin='nodelets_os::OusterImage',
+                    plugin='ouster_ros::OusterImage',
                     name='os_image'
                 )
             ],

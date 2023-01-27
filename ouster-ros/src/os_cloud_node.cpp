@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_cloud_nodelet.cpp
- * @brief A nodelet to publish point clouds and imu topics
+ * @file os_cloud_node.cpp
+ * @brief A node to publish point clouds and imu topics
  */
 
 // prevent clang-format from altering the location of "ouster_ros/ros.h", the
@@ -30,7 +30,7 @@ using sensor::UDPProfileLidar;
 using ouster_msgs::msg::PacketMsg;
 using ouster_ros::srv::GetMetadata;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterCloud : public rclcpp::Node {
    public:
@@ -229,8 +229,8 @@ class OusterCloud : public rclcpp::Node {
     bool use_ros_time;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
 #include <rclcpp_components/register_node_macro.hpp>
 
-RCLCPP_COMPONENTS_REGISTER_NODE(nodelets_os::OusterCloud)
+RCLCPP_COMPONENTS_REGISTER_NODE(ouster_ros::OusterCloud)
