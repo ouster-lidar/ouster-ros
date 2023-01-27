@@ -24,7 +24,6 @@ find_package(Boost REQUIRED)
 # ==== Options ====
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# for gdb add_compile_options(-Wall -Wextra -g -O0)
 add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
@@ -56,30 +55,49 @@ include_directories(${_ouster_ros_INCLUDE_DIRS})
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
 
-add_library(ouster_ros_library src/os_ros.cpp)
+add_library(ouster_ros_library SHARED
+  src/os_ros.cpp
+)
+ament_target_dependencies(ouster_ros_library
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  ouster_msgs
+)
 target_link_libraries(ouster_ros_library
   # PUBLIC
     ouster_build
     pcl_common
   # PRIVATE
-  -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
-ament_target_dependencies(ouster_ros_library "rclcpp" "sensor_msgs" "geometry_msgs" "ouster_msgs")
+  -Wl,--whole-archive ouster_client -Wl,--no-whole-archive
+)
 
 function(create_ros2_component component_lib_name component_name src_list additonal_dependencies)
-  add_library(${component_lib_name} SHARED ${src_list})
-  target_compile_definitions(${component_lib_name} PRIVATE
-    "OUSTER_ROS_BUILDING_DLL")
+  add_library(${component_lib_name} SHARED
+    ${src_list})
+  target_compile_definitions(${component_lib_name}
+    PRIVATE
+      "OUSTER_ROS_BUILDING_DLL"
+  )
   ament_target_dependencies(${component_lib_name}
-    "rclcpp"
-    "class_loader"
-    "rclcpp_components"
-    "sensor_msgs"
-    "geometry_msgs"
+    rclcpp
+    class_loader
+    rclcpp_components
+    sensor_msgs
+    geometry_msgs
     ${additonal_dependencies}
   )
-  rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-  target_link_libraries(${component_lib_name} ouster_ros_library "${cpp_typesupport_target}")
-  rclcpp_components_register_nodes(${component_lib_name} ${component_name})
+  rosidl_get_typesupport_target(cpp_typesupport_target
+    ${PROJECT_NAME}
+    rosidl_typesupport_cpp
+  )
+  target_link_libraries(${component_lib_name}
+    ouster_ros_library
+    ${cpp_typesupport_target}
+  )
+  rclcpp_components_register_nodes(${component_lib_name}
+    ${component_name}
+  )
 endfunction()
 
 # ==== os_sensor_compnent ====

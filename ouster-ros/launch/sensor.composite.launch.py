@@ -14,7 +14,6 @@ def generate_launch_description():
             namespace='ouster_ns',
             package='rclcpp_components',
             executable='component_container_mt',
-            # prefix=['xterm -fa "Monospace" -fs 14 -e gdb -ex run --args'],    # enable -g in CMakeLists.txt
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
@@ -37,6 +36,11 @@ def generate_launch_description():
                     parameters=[
                         {'tf_prefix' : ' '},
                         {'timestamp_mode' : ' '}]
+                ),
+                ComposableNode(
+                    package='ouster_ros',
+                    plugin='nodelets_os::OusterImage',
+                    name='os_image'
                 )
             ],
             output='screen',
