@@ -14,8 +14,7 @@ def generate_launch_description():
             name='os_sensor_container',
             namespace='ouster_ns',
             package='rclcpp_components',
-            executable='component_container_mt',
-            # prefix=['xterm -fa "Monospace" -fs 14 -e gdb -ex run --args'],    # enable -g in CMakeLists.txt
+            executable='component_container',
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
@@ -39,8 +38,7 @@ def generate_launch_description():
             name='os_cloud_container',
             namespace='ouster_ns',
             package='rclcpp_components',
-            executable='component_container_mt',
-            # prefix=['xterm -fa "Monospace" -fs 14 -e gdb -ex run --args'],    # enable -g in CMakeLists.txt
+            executable='component_container',
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',
@@ -60,8 +58,7 @@ def generate_launch_description():
             name='os_image_container',
             namespace='ouster_ns',
             package='rclcpp_components',
-            executable='component_container_mt',
-            # prefix=['xterm -fa "Monospace" -fs 14 -e gdb -ex run --args'],    # enable -g in CMakeLists.txt
+            executable='component_container',
             composable_node_descriptions=[
                 ComposableNode(
                     package='ouster_ros',

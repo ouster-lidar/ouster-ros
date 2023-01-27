@@ -65,61 +65,43 @@ target_link_libraries(ouster_ros_library
   -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
 ament_target_dependencies(ouster_ros_library "rclcpp" "sensor_msgs" "geometry_msgs" "ouster_msgs")
 
+function(create_ros2_component component_lib_name component_name src_list additonal_dependencies)
+  add_library(${component_lib_name} SHARED ${src_list})
+  target_compile_definitions(${component_lib_name} PRIVATE
+    "OUSTER_ROS_BUILDING_DLL")
+  ament_target_dependencies(${component_lib_name}
+    "rclcpp"
+    "class_loader"
+    "rclcpp_components"
+    "sensor_msgs"
+    "geometry_msgs"
+    ${additonal_dependencies}
+  )
+  rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+  target_link_libraries(${component_lib_name} ouster_ros_library "${cpp_typesupport_target}")
+  rclcpp_components_register_nodes(${component_lib_name} ${component_name})
+endfunction()
+
 # ==== os_sensor_compnent ====
-add_library(os_sensor_component SHARED
-  src/os_client_base_node.cpp
-  src/os_sensor_node.cpp
+create_ros2_component(os_sensor_component
+  "nodelets_os::OusterSensor"
+  "src/os_client_base_node.cpp;src/os_sensor_node.cpp"
+  ""
 )
-target_compile_definitions(os_sensor_component PRIVATE
-  "OUSTER_ROS_BUILDING_DLL")
-ament_target_dependencies(os_sensor_component
-  "rclcpp"
-  "class_loader"
-  "rclcpp_components"
-  "sensor_msgs"
-  "geometry_msgs"
-)
-rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-target_link_libraries(os_sensor_component ouster_ros_library "${cpp_typesupport_target}")
-rclcpp_components_register_nodes(os_sensor_component "nodelets_os::OusterSensor")
 
 # ==== os_cloud_compnent ====
-add_library(os_cloud_component SHARED
-  src/os_cloud_node.cpp
+create_ros2_component(os_cloud_component
+  "nodelets_os::OusterCloud"
+  "src/os_cloud_node.cpp"
+  "tf2;tf2_ros"
 )
-target_compile_definitions(os_cloud_component PRIVATE
-  "OUSTER_ROS_BUILDING_DLL")
-ament_target_dependencies(os_cloud_component
-  "rclcpp"
-  "class_loader"
-  "rclcpp_components"
-  "sensor_msgs"
-  "geometry_msgs"
-  "tf2"
-  "tf2_ros"
-)
-rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-target_link_libraries(os_cloud_component ouster_ros_library "${cpp_typesupport_target}")
-rclcpp_components_register_nodes(os_cloud_component "nodelets_os::OusterCloud")
 
-# ==== os_cloud_compnent ====
-add_library(os_image_component SHARED
-  src/os_image_node.cpp
+# ==== os_image_compnent ====
+create_ros2_component(os_image_component
+  "nodelets_os::OusterImage"
+  "src/os_image_node.cpp"
+  ""
 )
-target_compile_definitions(os_image_component PRIVATE
-  "OUSTER_ROS_BUILDING_DLL")
-ament_target_dependencies(os_image_component
-  "rclcpp"
-  "class_loader"
-  "rclcpp_components"
-  "sensor_msgs"
-  "geometry_msgs"
-  "tf2"
-  "tf2_ros"
-)
-rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-target_link_libraries(os_image_component ouster_ros_library "${cpp_typesupport_target}")
-rclcpp_components_register_nodes(os_image_component "nodelets_os::OusterImage")
 
 # ==== Install ====
 install(
