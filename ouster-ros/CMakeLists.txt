@@ -115,7 +115,7 @@ create_ros2_component(os_replay_component
   "src/os_client_base_node.cpp;src/os_replay_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterSensor")
+rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterReplay")
 
 # ==== os_cloud_compnent ====
 create_ros2_component(os_cloud_component

@@ -402,9 +402,8 @@ class OusterSensor : public OusterClientBase {
         imu_packet_pub = create_publisher<PacketMsg>("imu_packets", 100);
 
         timer_ = rclcpp::create_timer(
-            this, this->get_clock(), rclcpp::Duration(0),
-            std::bind(&OusterSensor::timer_callback, this));
-        
+            this, get_clock(), rclcpp::Duration(0), [this]() {
+                timer_callback(); });
     }
 
     void connection_loop(sensor::client& cli, const sensor::sensor_info& info) {
