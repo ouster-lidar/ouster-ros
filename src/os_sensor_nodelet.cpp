@@ -160,16 +160,22 @@ class OusterSensor : public OusterClientBase {
         int lidar_port =
             config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
         int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
+        auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (lidar_port != 0 && imu_port != 0) {
+        if (config.mtp_group) {
+            auto mtp_group = config.mtp_group.value();
+            // use the full init_client to recieve data via multicast 
+            cli = sensor::init_client(hostname, mtp_group, udp_dest,
+                                      sensor::MODE_UNSPEC, sensor::TIME_FROM_UNSPEC,
+                                      lidar_port, imu_port);
+        } else if (lidar_port != 0 && imu_port != 0) {
             // use no-config version of init_client to bind to pre-configured
             // ports
             cli = sensor::init_client(hostname, lidar_port, imu_port);
         } else {
             // use the full init_client to generate and assign random ports to
             // sensor
-            auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
             cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
                                       sensor::TIME_FROM_UNSPEC, lidar_port,
                                       imu_port);
@@ -187,6 +193,7 @@ class OusterSensor : public OusterClientBase {
     std::pair<sensor::sensor_config, u_int8_t> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
+        auto mtp_group = nh.param("mtp_group", std::string{});
         auto lidar_port = nh.param("lidar_port", 0);
         auto imu_port = nh.param("imu_port", 0);
         auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
@@ -285,6 +292,11 @@ class OusterSensor : public OusterClientBase {
         } else {
             NODELET_INFO("Will use automatic UDP destination");
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
+        }
+
+        if (is_arg_set(mtp_group)) {
+            NODELET_INFO("Will recieve data from %s", mtp_group.c_str());
+            config.mtp_group = mtp_group;
         }
 
         return std::make_pair(config, config_flags);
