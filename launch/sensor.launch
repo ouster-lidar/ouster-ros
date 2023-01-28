@@ -2,8 +2,8 @@
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="sensor_hostname" doc="hostname or IP in dotted decimal form of the sensor"/>
-  <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send UDP data packets"/>
-  <arg name="mtp_group" default=" " doc="multicast group IP where the sensor will send data packets"/>
+  <arg name="udp_dest" default=" " doc="hostname or multicast group IP where the sensor will send UDP data packets"/>
+  <arg name="mtp_dest" default=" " doc="hostname IP address for receiving data packets via multicast"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>
   <arg name="udp_profile_lidar" default=" " doc="lidar packet profile; possible values: {
@@ -45,7 +45,7 @@
       args="load nodelets_os/OusterSensor os_nodelet_mgr">
       <param name="~/sensor_hostname" type="str" value="$(arg sensor_hostname)"/>
       <param name="~/udp_dest" type="str" value="$(arg udp_dest)"/>
-      <param name="~/mtp_group" type="str" value="$(arg mtp_group)"/>
+      <param name="~/mtp_dest" type="str" value="$(arg mtp_dest)"/>
       <param name="~/lidar_port" type="int" value="$(arg lidar_port)"/>
       <param name="~/imu_port" type="int" value="$(arg imu_port)"/>
       <param name="~/udp_profile_lidar" type="str" value="$(arg udp_profile_lidar)"/>

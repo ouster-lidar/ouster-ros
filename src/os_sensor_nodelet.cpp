@@ -163,10 +163,10 @@ class OusterSensor : public OusterClientBase {
         auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (config.mtp_group) {
-            auto mtp_group = config.mtp_group.value();
+        if (config.mtp_dest) {
+            auto mtp_dest = config.mtp_dest.value();
             // use the full init_client to recieve data via multicast 
-            cli = sensor::init_client(hostname, mtp_group, udp_dest,
+            cli = sensor::init_client(hostname, udp_dest, mtp_dest,
                                       sensor::MODE_UNSPEC, sensor::TIME_FROM_UNSPEC,
                                       lidar_port, imu_port);
         } else if (lidar_port != 0 && imu_port != 0) {
@@ -193,7 +193,7 @@ class OusterSensor : public OusterClientBase {
     std::pair<sensor::sensor_config, u_int8_t> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
-        auto mtp_group = nh.param("mtp_group", std::string{});
+        auto mtp_dest = nh.param("mtp_dest", std::string{});
         auto lidar_port = nh.param("lidar_port", 0);
         auto imu_port = nh.param("imu_port", 0);
         auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
@@ -294,9 +294,9 @@ class OusterSensor : public OusterClientBase {
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
-        if (is_arg_set(mtp_group)) {
-            NODELET_INFO("Will recieve data from %s", mtp_group.c_str());
-            config.mtp_group = mtp_group;
+        if (is_arg_set(mtp_dest)) {
+            NODELET_INFO("Will recieve data via multicast on %s", mtp_dest.c_str());
+            config.mtp_dest = mtp_dest;
         }
 
         return std::make_pair(config, config_flags);
