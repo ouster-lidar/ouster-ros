@@ -14,7 +14,9 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2/LinearMath/Transform.h>
-#include <tf2_eigen/tf2_eigen.hpp>
+
+// TODO: once foxy is deprecated switch tf2_eigen.hpp
+#include <tf2_eigen/tf2_eigen.h>
 
 #include <chrono>
 #include <string>

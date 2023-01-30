@@ -11,7 +11,7 @@
 
 #include <ouster/types.h>
 
-#include "ouster_ros/srv/get_metadata.hpp"
+#include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace ouster_ros {
 
@@ -32,7 +32,7 @@ class OusterClientBase : public rclcpp::Node {
 
    protected:
     ouster::sensor::sensor_info info;
-    rclcpp::Service<ouster_ros::srv::GetMetadata>::SharedPtr get_metadata_srv;
+    rclcpp::Service<ouster_srvs::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
 };
 

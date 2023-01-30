@@ -22,13 +22,13 @@
 #include <memory>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
+#include "ouster_srvs/srv/get_metadata.hpp"
 #include "ouster_ros/visibility_control.h"
-#include "ouster_ros/srv/get_metadata.hpp"
 
 namespace sensor = ouster::sensor;
 using sensor::UDPProfileLidar;
 using ouster_msgs::msg::PacketMsg;
-using ouster_ros::srv::GetMetadata;
+using ouster_srvs::srv::GetMetadata;
 
 namespace ouster_ros {
 

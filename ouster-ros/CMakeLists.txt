@@ -13,6 +13,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
+find_package(ouster_srvs REQUIRED)
 find_package(rmw REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -27,11 +28,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
-# ==== Catkin ====
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/GetConfig.srv"
-  "srv/SetConfig.srv"
-  "srv/GetMetadata.srv")
 
 set(_ouster_ros_INCLUDE_DIRS
   "include;../ouster-sdk/ouster_client/include;../ouster-sdk/ouster_client/include/optional-lite")
@@ -63,6 +59,7 @@ ament_target_dependencies(ouster_ros_library
   sensor_msgs
   geometry_msgs
   ouster_msgs
+  ouster_srvs
 )
 target_link_libraries(ouster_ros_library
   # PUBLIC
@@ -97,10 +94,6 @@ function(create_ros2_component
   )
 endfunction()
 
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME}
-  rosidl_typesupport_cpp
-)
 
 
 # ==== os_sensor_compnent ====
@@ -165,4 +158,5 @@ install(
     share/${PROJECT_NAME}
 )
 
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()

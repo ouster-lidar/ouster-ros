@@ -12,7 +12,7 @@
 
 
 namespace sensor = ouster::sensor;
-using ouster_ros::srv::GetMetadata;
+using ouster_srvs::srv::GetMetadata;
 
 namespace ouster_ros {
 

@@ -31,12 +31,12 @@
 
 #include "ouster/image_processing.h"
 #include "ouster_ros/visibility_control.h"
-#include "ouster_ros/srv/get_metadata.hpp"
+#include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
 using sensor::UDPProfileLidar;
-using ouster_ros::srv::GetMetadata;
+using ouster_srvs::srv::GetMetadata;
 
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();

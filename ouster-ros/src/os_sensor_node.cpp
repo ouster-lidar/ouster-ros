@@ -17,16 +17,16 @@
 #include <tuple>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
+#include "ouster_srvs/srv/get_config.hpp"
+#include "ouster_srvs/srv/set_config.hpp"
 #include "ouster_ros/visibility_control.h"
-#include "ouster_ros/srv/get_config.hpp"
-#include "ouster_ros/srv/set_config.hpp"
 #include "ouster_ros/os_client_base_node.h"
 
 namespace sensor = ouster::sensor;
 using nonstd::optional;
 using ouster_msgs::msg::PacketMsg;
-using ouster_ros::srv::GetConfig;
-using ouster_ros::srv::SetConfig;
+using ouster_srvs::srv::GetConfig;
+using ouster_srvs::srv::SetConfig;
 
 namespace ouster_ros {
 
