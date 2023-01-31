@@ -67,36 +67,33 @@ class OusterImage : public OusterProcessingNodeBase {
         cloud = ouster_ros::Cloud{W, H};
     }
 
-    std::string topic(std::string base, int idx) {
-        if (idx == 0) return base;
-        return base + std::to_string(idx + 1);
-    }
-
     void create_publishers(int n_returns) {
+        rclcpp::SensorDataQoS qos;
         nearir_image_pub =
-            create_publisher<sensor_msgs::msg::Image>("nearir_image", 100);
+            create_publisher<sensor_msgs::msg::Image>("nearir_image", qos);
 
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
         for (int i = 0; i < n_returns; i++) {
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic("range_image", i), 100);
+                topic_for_return("range_image", i), qos);
             range_image_pubs.push_back(a_pub);
 
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic("signal_image", i), 100);
+                topic_for_return("signal_image", i), qos);
             signal_image_pubs.push_back(a_pub);
 
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic("reflec_image", i), 100);
+                topic_for_return("reflec_image", i), qos);
             reflec_image_pubs.push_back(a_pub);
         }
     }
 
     void create_subscriptions(int n_returns) {
         pc_subs.resize(n_returns);
+        rclcpp::SensorDataQoS qos;
         for (int i = 0; i < n_returns; ++i) {
             pc_subs[i] = create_subscription<sensor_msgs::msg::PointCloud2>(
-                topic("points", i), 100,
+                topic_for_return("points", i), qos,
                 [this, i](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
                     point_cloud_handler(msg, i);
                 });

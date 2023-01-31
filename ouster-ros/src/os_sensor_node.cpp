@@ -15,6 +15,7 @@
 #include <fstream>
 #include <string>
 #include <tuple>
+#include <chrono>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
 #include "ouster_srvs/srv/get_config.hpp"
@@ -400,14 +401,14 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     void start_connection_loop() {
+        using namespace std::chrono_literals;
         auto pf = sensor::get_format(info);
         lidar_packet.buf.resize(pf.lidar_packet_size + 1);
         imu_packet.buf.resize(pf.imu_packet_size + 1);
-
-        lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", 1280);
-        imu_packet_pub = create_publisher<PacketMsg>("imu_packets", 100);
-
-        timer_ = rclcpp::create_timer(this, get_clock(), rclcpp::Duration(0),
+        rclcpp::SensorDataQoS qos;
+        lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", qos);
+        imu_packet_pub = create_publisher<PacketMsg>("imu_packets", qos);
+        timer_ = rclcpp::create_timer(this, get_clock(), 0s,
                                       [this]() { timer_callback(); });
     }
 

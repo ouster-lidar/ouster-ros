@@ -29,6 +29,11 @@ class OusterProcessingNodeBase : public rclcpp::Node {
 
     int get_n_returns();
 
+    std::string topic_for_return(std::string base, int idx) {
+        if (idx == 0) return base;
+        return base + std::to_string(idx + 1);
+    }
+
    protected:
     ouster::sensor::sensor_info info;
 };

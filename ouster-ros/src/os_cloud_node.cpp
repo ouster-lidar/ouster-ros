@@ -91,21 +91,18 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void create_publishers() {
-        imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", 100);
-
-        auto img_suffix = [](int ind) {
-            if (ind == 0) return std::string();
-            return std::to_string(ind + 1);  // need second return to return 2
-        };
-
+        rclcpp::SensorDataQoS qos;
+        imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", qos);
         lidar_pubs.resize(n_returns);
         for (int i = 0; i < n_returns; i++) {
             lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                std::string("points") + img_suffix(i), 10);
+                topic_for_return("points", i), qos);
         }
     }
 
     void create_subscriptions() {
+        rclcpp::SensorDataQoS qos;
+
         using LidarHandlerFunctionType =
             std::function<void(const PacketMsg::ConstSharedPtr)>;
         LidarHandlerFunctionType lidar_handler_ros_time_function =
@@ -119,12 +116,12 @@ class OusterCloud : public OusterProcessingNodeBase {
         auto lidar_handler = use_ros_time ? lidar_handler_ros_time_function
                                           : lidar_handler_sensor_time_function;
         lidar_packet_sub = create_subscription<PacketMsg>(
-            "lidar_packets", 2048,
+            "lidar_packets", qos,
             [this, lidar_handler](const PacketMsg::ConstSharedPtr msg) {
                 lidar_handler(msg);
             });
         imu_packet_sub = create_subscription<PacketMsg>(
-            "imu_packets", 100,
+            "imu_packets", qos,
             [this](const PacketMsg::ConstSharedPtr msg) { imu_handler(msg); });
     }
 
