@@ -3,13 +3,21 @@
 
 """Launch a sensor node along with..."""
 
+from pathlib import Path
 import launch
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
+from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    """Generate launch description with multiple components."""
+    """
+    Generate launch description for running ouster_ros components in a single
+    process/container.
+    """
+    ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
+    params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+
     container = ComposableNodeContainer(
         name='os_container',
         namespace='',
@@ -20,23 +28,13 @@ def generate_launch_description():
                     package='ouster_ros',
                     plugin='ouster_ros::OusterSensor',
                     name='os_sensor',
-                    parameters=[
-                        {'sensor_hostname': 'os-122151001683.local'},
-                        {'udp_dest': ' '},
-                        {'lidar_mode': ' '},
-                        {'timestamp_mode': ' '},
-                        {'udp_profile_lidar': ' '},
-                        {'metadata': ' '},
-                        {'lidar_port': 48853},
-                        {'imu_port': 37028}]
+                    parameters=[params]
                 ),
             ComposableNode(
                     package='ouster_ros',
                     plugin='ouster_ros::OusterCloud',
                     name='os_cloud',
-                    parameters=[
-                        {'tf_prefix': ' '},
-                        {'timestamp_mode': ' '}]
+                    parameters=[params]
                 ),
             ComposableNode(
                     package='ouster_ros',
