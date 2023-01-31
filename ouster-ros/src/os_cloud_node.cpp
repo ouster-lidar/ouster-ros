@@ -23,21 +23,21 @@
 
 #include "ouster_msgs/msg/packet_msg.hpp"
 #include "ouster_srvs/srv/get_metadata.hpp"
+#include "ouster_ros/os_processing_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
 using ouster_srvs::srv::GetMetadata;
-using sensor::UDPProfileLidar;
 
 namespace ouster_ros {
 
-class OusterCloud : public rclcpp::Node {
+class OusterCloud : public OusterProcessingNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterCloud(const rclcpp::NodeOptions& options)
-        : rclcpp::Node("os_cloud", options), tf_bcast(this) {
-        onInit();
+        : OusterProcessingNodeBase("os_cloud", options), tf_bcast(this) {
+        on_init();
     }
 
    private:
@@ -45,14 +45,12 @@ class OusterCloud : public rclcpp::Node {
         return arg.find_first_not_of(' ') != std::string::npos;
     }
 
-    void onInit() {
+    void on_init() {
         declare_parameters();
         parse_parameters();
         auto metadata = get_metadata();
         info = sensor::parse_metadata(metadata);
-        n_returns = compute_n_returns();
-        RCLCPP_INFO_STREAM(get_logger(),
-                           "Profile has " << n_returns << " return(s)");
+        n_returns = get_n_returns();
         create_lidarscan_objects();
         create_publishers();
         create_subscriptions();
@@ -72,32 +70,6 @@ class OusterCloud : public rclcpp::Node {
         lidar_frame = tf_prefix + "os_lidar";
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
-    }
-
-    std::string get_metadata() {
-        using namespace std::chrono_literals;
-        auto client = create_client<GetMetadata>("get_metadata");
-        client->wait_for_service(1s);
-        auto request = std::make_shared<GetMetadata::Request>();
-        auto result = client->async_send_request(request);
-        RCLCPP_INFO(get_logger(), "sent async request!");
-        if (rclcpp::spin_until_future_complete(get_node_base_interface(),
-                                               result) !=
-            rclcpp::FutureReturnCode::SUCCESS) {
-            auto error_msg = "Calling get_metadata service failed";
-            RCLCPP_ERROR_STREAM(get_logger(), error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        RCLCPP_INFO(get_logger(), "retrieved sensor metadata!");
-        return result.get()->metadata;
-    }
-
-    int compute_n_returns() {
-        return info.format.udp_profile_lidar ==
-                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                   ? 2
-                   : 1;
     }
 
     void create_lidarscan_objects() {

@@ -98,7 +98,7 @@ endfunction()
 
 # ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
-  "src/os_client_base_node.cpp;src/os_sensor_node.cpp"
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp"
   ""
 )
 rclcpp_components_register_node(os_sensor_component
@@ -108,7 +108,7 @@ rclcpp_components_register_node(os_sensor_component
 
 # ==== os_replay_component ====
 create_ros2_component(os_replay_component
-  "src/os_client_base_node.cpp;src/os_replay_node.cpp"
+  "src/os_sensor_node_base.cpp;src/os_replay_node.cpp"
   ""
 )
 rclcpp_components_register_node(os_replay_component
@@ -118,7 +118,7 @@ rclcpp_components_register_node(os_replay_component
 
 # ==== os_cloud_component ====
 create_ros2_component(os_cloud_component
-  "src/os_cloud_node.cpp"
+  "src/os_processing_node_base.cpp;src/os_cloud_node.cpp"
   "tf2;tf2_ros"
 )
 rclcpp_components_register_node(os_cloud_component
@@ -128,7 +128,7 @@ rclcpp_components_register_node(os_cloud_component
 
 # ==== os_image_component ====
 create_ros2_component(os_image_component
-  "src/os_image_node.cpp"
+  "src/os_processing_node_base;src/os_image_node.cpp"
   ""
 )
 rclcpp_components_register_node(os_image_component

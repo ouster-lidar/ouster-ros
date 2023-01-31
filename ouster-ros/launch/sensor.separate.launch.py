@@ -5,7 +5,6 @@
 
 import launch
 from launch_ros.actions import Node
-from launch.actions import TimerAction
 
 
 def generate_launch_description():
@@ -47,6 +46,4 @@ def generate_launch_description():
     )
 
     return launch.LaunchDescription([
-        os_sensor,
-        TimerAction(period=3.0, actions=[os_cloud]),
-        TimerAction(period=4.0, actions=[os_image])])
+        os_sensor, os_cloud, os_image])

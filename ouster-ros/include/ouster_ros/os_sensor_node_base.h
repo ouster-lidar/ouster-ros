@@ -2,31 +2,31 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_client_base_node.h
+ * @file os_sensor_node_base.h
  * @brief Base class for ouster_ros sensor and replay nodes
  *
  */
 
-#include <rclcpp/rclcpp.hpp>
-
 #include <ouster/types.h>
+
+#include <rclcpp/rclcpp.hpp>
 
 #include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace ouster_ros {
 
-class OusterClientBase : public rclcpp::Node {
+class OusterSensorNodeBase : public rclcpp::Node {
    protected:
-    explicit OusterClientBase(const std::string& name, const rclcpp::NodeOptions& options)
-    : rclcpp::Node(name, options) {
-    }
-
-    virtual void onInit();
+    explicit OusterSensorNodeBase(const std::string& name,
+                                  const rclcpp::NodeOptions& options)
+        : rclcpp::Node(name, options) {}
 
    protected:
     bool is_arg_set(const std::string& arg) {
         return arg.find_first_not_of(' ') != std::string::npos;
     }
+
+    void create_get_metadata_service();
 
     void display_lidar_info(const ouster::sensor::sensor_info& info);
 

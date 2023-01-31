@@ -31,66 +31,40 @@
 
 #include "ouster/image_processing.h"
 #include "ouster_ros/visibility_control.h"
+#include "ouster_ros/os_processing_node_base.h"
 #include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
 using ouster_srvs::srv::GetMetadata;
-using sensor::UDPProfileLidar;
 
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
 
 namespace ouster_ros {
 
-class OusterImage : public rclcpp::Node {
+class OusterImage : public OusterProcessingNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterImage(const rclcpp::NodeOptions& options)
-        : rclcpp::Node("os_image", options) {
-        onInit();
+        : OusterProcessingNodeBase("os_image", options) {
+        on_init();
     }
 
    private:
-    void onInit() {
+    void on_init() {
         auto metadata = get_metadata();
         info = sensor::parse_metadata(metadata);
         create_cloud_object();
-        const int n_returns = compute_n_returns();
+        const int n_returns = get_n_returns();
         create_publishers(n_returns);
         create_subscriptions(n_returns);
-    }
-
-    std::string get_metadata() {
-        using namespace std::chrono_literals;
-        auto client = create_client<GetMetadata>("get_metadata");
-        client->wait_for_service(1s);
-        auto request = std::make_shared<GetMetadata::Request>();
-        auto result = client->async_send_request(request);
-        RCLCPP_INFO(get_logger(), "sent async request!");
-        if (rclcpp::spin_until_future_complete(get_node_base_interface(),
-                                               result) !=
-            rclcpp::FutureReturnCode::SUCCESS) {
-            auto error_msg = "Calling get_metadata service failed";
-            RCLCPP_ERROR_STREAM(get_logger(), error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        RCLCPP_INFO(get_logger(), "retrieved sensor metadata!");
-        return result.get()->metadata;
     }
 
     void create_cloud_object() {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
         cloud = ouster_ros::Cloud{W, H};
-    }
-
-    int compute_n_returns() {
-        return info.format.udp_profile_lidar ==
-                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                   ? 2
-                   : 1;
     }
 
     std::string topic(std::string base, int idx) {
@@ -119,18 +93,12 @@ class OusterImage : public rclcpp::Node {
     }
 
     void create_subscriptions(int n_returns) {
-        // image processing
-        pc1_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
-            topic("points", 0), 100,
-            [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                point_cloud_handler(msg, 0);
-            });
-
-        if (n_returns > 1) {
-            pc2_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
-                topic("points", 1), 100,
-                [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                    point_cloud_handler(msg, 1);
+        pc_subs.resize(n_returns);
+        for (int i = 0; i < n_returns; ++i) {
+            pc_subs[i] = create_subscription<sensor_msgs::msg::PointCloud2>(
+                topic("points", i), 100,
+                [this, i](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+                    point_cloud_handler(msg, i);
                 });
         }
     }
@@ -226,9 +194,8 @@ class OusterImage : public rclcpp::Node {
         signal_image_pubs;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
         reflec_image_pubs;
-
-    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc1_sub;
-    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc2_sub;
+    std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr>
+        pc_subs;
 
     sensor::sensor_info info;
 

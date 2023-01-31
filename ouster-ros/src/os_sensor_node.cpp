@@ -20,7 +20,7 @@
 #include "ouster_srvs/srv/get_config.hpp"
 #include "ouster_srvs/srv/set_config.hpp"
 #include "ouster_ros/visibility_control.h"
-#include "ouster_ros/os_client_base_node.h"
+#include "ouster_ros/os_sensor_node_base.h"
 
 namespace sensor = ouster::sensor;
 using nonstd::optional;
@@ -30,16 +30,16 @@ using ouster_srvs::srv::SetConfig;
 
 namespace ouster_ros {
 
-class OusterSensor : public OusterClientBase {
+class OusterSensor : public OusterSensorNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterSensor(const rclcpp::NodeOptions& options)
-        : OusterClientBase("os_sensor", options) {
-        onInit();
+        : OusterSensorNodeBase("os_sensor", options) {
+        on_init();
     }
 
    private:
-    virtual void onInit() override {
+    void on_init() {
         declare_parameters();
         sensor_hostname = get_sensor_hostname();
         sensor::sensor_config config;
@@ -49,7 +49,7 @@ class OusterSensor : public OusterClientBase {
         sensor_client = create_sensor_client(sensor_hostname, config);
         update_config_and_metadata(*sensor_client);
         save_metadata();
-        OusterClientBase::onInit();
+        create_get_metadata_service();
         create_get_config_service();
         create_set_config_service();
         start_connection_loop();
