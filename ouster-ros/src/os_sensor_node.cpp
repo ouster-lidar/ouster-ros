@@ -34,7 +34,7 @@ class OusterSensor : public OusterClientBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterSensor(const rclcpp::NodeOptions& options)
-    : OusterClientBase("os_sensor", options) {
+        : OusterClientBase("os_sensor", options) {
         onInit();
     }
 
@@ -92,9 +92,8 @@ class OusterSensor : public OusterClientBase {
         try {
             cached_metadata = sensor::get_metadata(cli);
         } catch (const std::exception& e) {
-            RCLCPP_ERROR_STREAM(
-                get_logger(),
-                "sensor::get_metadata exception: " << e.what());
+            RCLCPP_ERROR_STREAM(get_logger(),
+                                "sensor::get_metadata exception: " << e.what());
             cached_metadata.clear();
         }
 
@@ -116,7 +115,8 @@ class OusterSensor : public OusterClientBase {
         if (!is_arg_set(meta_file)) {
             meta_file = sensor_hostname.substr(0, sensor_hostname.rfind('.')) +
                         "-metadata.json";
-            RCLCPP_INFO_STREAM(get_logger(),
+            RCLCPP_INFO_STREAM(
+                get_logger(),
                 "No metadata file was specified, using: " << meta_file);
         }
 
@@ -124,16 +124,16 @@ class OusterSensor : public OusterClientBase {
         // (usually ~/.ros)
         if (!write_metadata(meta_file, cached_metadata)) {
             RCLCPP_ERROR(get_logger(),
-                "Exiting because of failure to write metadata path");
+                         "Exiting because of failure to write metadata path");
             throw std::runtime_error("Failure to write metadata path");
         }
     }
 
     void create_get_config_service() {
-        get_config_srv = create_service<GetConfig>("get_config",
-            [this](
-                const std::shared_ptr<GetConfig::Request>,
-                std::shared_ptr<GetConfig::Response> response) {
+        get_config_srv = create_service<GetConfig>(
+            "get_config",
+            [this](const std::shared_ptr<GetConfig::Request>,
+                   std::shared_ptr<GetConfig::Response> response) {
                 response->config = cached_config;
                 return cached_config.size() > 0;
             });
@@ -142,18 +142,17 @@ class OusterSensor : public OusterClientBase {
     }
 
     void create_set_config_service() {
-        set_config_srv = create_service<SetConfig>("set_config",
-            [this](
-                const std::shared_ptr<SetConfig::Request> request,
-                std::shared_ptr<SetConfig::Response> response) {
+        set_config_srv = create_service<SetConfig>(
+            "set_config",
+            [this](const std::shared_ptr<SetConfig::Request> request,
+                   std::shared_ptr<SetConfig::Response> response) {
                 sensor::sensor_config config;
                 response->config = "";
-                auto success =
-                    load_config_file(request->config_file, config);
+                auto success = load_config_file(request->config_file, config);
                 if (!success) {
                     RCLCPP_ERROR_STREAM(get_logger(),
-                        "Failed to load and parse file: "
-                        << request->config_file);
+                                        "Failed to load and parse file: "
+                                            << request->config_file);
                     return false;
                 }
 
@@ -172,8 +171,9 @@ class OusterSensor : public OusterClientBase {
 
     std::shared_ptr<sensor::client> create_sensor_client(
         const std::string& hostname, const sensor::sensor_config& config) {
-        RCLCPP_INFO_STREAM(get_logger(),
-            "Starting sensor " << hostname << " initialization...");
+        RCLCPP_INFO_STREAM(get_logger(), "Starting sensor "
+                                             << hostname
+                                             << " initialization...");
 
         int lidar_port =
             config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
@@ -208,7 +208,8 @@ class OusterSensor : public OusterClientBase {
         auto imu_port = get_parameter("imu_port").as_int();
         auto lidar_mode_arg = get_parameter("lidar_mode").as_string();
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
-        auto udp_profile_lidar_arg = get_parameter("udp_profile_lidar").as_string();
+        auto udp_profile_lidar_arg =
+            get_parameter("udp_profile_lidar").as_string();
 
         if (lidar_port < 0 || lidar_port > 65535) {
             auto error_msg =
@@ -257,8 +258,8 @@ class OusterSensor : public OusterClientBase {
             // sensor timestamp_mode unmodified
             if (timestamp_mode_arg == "TIME_FROM_ROS_TIME") {
                 RCLCPP_INFO(get_logger(),
-                    "TIME_FROM_ROS_TIME timestamp mode specified."
-                    " IMU and pointcloud messages will use ros time");
+                            "TIME_FROM_ROS_TIME timestamp mode specified."
+                            " IMU and pointcloud messages will use ros time");
             } else {
                 timestamp_mode =
                     sensor::timestamp_mode_of_string(timestamp_mode_arg);
@@ -273,7 +274,8 @@ class OusterSensor : public OusterClientBase {
 
         sensor::sensor_config config;
         if (lidar_port == 0) {
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "lidar port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -281,7 +283,8 @@ class OusterSensor : public OusterClientBase {
         }
 
         if (imu_port == 0) {
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "imu port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -296,12 +299,11 @@ class OusterSensor : public OusterClientBase {
         uint8_t config_flags = 0;
 
         if (is_arg_set(udp_dest)) {
-            RCLCPP_INFO(get_logger(),
-                "Will send UDP data to %s", udp_dest.c_str());
+            RCLCPP_INFO(get_logger(), "Will send UDP data to %s",
+                        udp_dest.c_str());
             config.udp_dest = udp_dest;
         } else {
-            RCLCPP_INFO(get_logger(),
-                "Will use automatic UDP destination");
+            RCLCPP_INFO(get_logger(), "Will use automatic UDP destination");
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
@@ -318,13 +320,12 @@ class OusterSensor : public OusterClientBase {
                 throw std::runtime_error(err_msg);
             }
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(get_logger(),
-                "Error setting config:  %s", e.what());
+            RCLCPP_ERROR(get_logger(), "Error setting config:  %s", e.what());
             throw;
         }
 
         RCLCPP_INFO_STREAM(get_logger(),
-            "Sensor " << hostname << " configured successfully");
+                           "Sensor " << hostname << " configured successfully");
     }
 
     bool load_config_file(const std::string& config_file,
@@ -348,15 +349,18 @@ class OusterSensor : public OusterClientBase {
 
         ouster::util::version v = ouster::util::version_of_string(info.fw_rev);
         if (v == ouster::util::invalid_version)
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "Unknown sensor firmware version; output may not be reliable");
         else if (v < sensor::min_version)
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "Firmware < %s not supported; output may not be reliable",
                 to_string(sensor::min_version).c_str());
 
         if (!info.mode) {
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "Lidar mode not found in metadata; output may not be reliable");
             info.mode = specified_lidar_mode;
         }
@@ -365,7 +369,8 @@ class OusterSensor : public OusterClientBase {
 
         if (info.beam_azimuth_angles.empty() ||
             info.beam_altitude_angles.empty()) {
-            RCLCPP_ERROR(get_logger(),
+            RCLCPP_ERROR(
+                get_logger(),
                 "Beam angles not found in metadata; using design values");
             info.beam_azimuth_angles = sensor::gen1_azimuth_angles;
             info.beam_altitude_angles = sensor::gen1_altitude_angles;
@@ -380,10 +385,11 @@ class OusterSensor : public OusterClientBase {
         ofs << metadata << std::endl;
         ofs.close();
         if (ofs) {
-            RCLCPP_INFO(get_logger(),
-                "Wrote metadata to %s", meta_file.c_str());
+            RCLCPP_INFO(get_logger(), "Wrote metadata to %s",
+                        meta_file.c_str());
         } else {
-            RCLCPP_WARN(get_logger(),
+            RCLCPP_WARN(
+                get_logger(),
                 "Failed to write metadata to %s; check that the path is valid. "
                 "If you provided a relative path, please note that the working "
                 "directory of all ROS nodes is set by default to $ROS_HOME",
@@ -401,9 +407,8 @@ class OusterSensor : public OusterClientBase {
         lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", 1280);
         imu_packet_pub = create_publisher<PacketMsg>("imu_packets", 100);
 
-        timer_ = rclcpp::create_timer(
-            this, get_clock(), rclcpp::Duration(0), [this]() {
-                timer_callback(); });
+        timer_ = rclcpp::create_timer(this, get_clock(), rclcpp::Duration(0),
+                                      [this]() { timer_callback(); });
     }
 
     void connection_loop(sensor::client& cli, const sensor::sensor_info& info) {
@@ -428,9 +433,7 @@ class OusterSensor : public OusterClientBase {
         }
     }
 
-    void timer_callback() {
-        connection_loop(*sensor_client, info);
-    }
+    void timer_callback() { connection_loop(*sensor_client, info); }
 
    private:
     std::string sensor_hostname;

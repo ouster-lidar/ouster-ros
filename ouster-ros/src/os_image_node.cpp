@@ -35,8 +35,8 @@
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
-using sensor::UDPProfileLidar;
 using ouster_srvs::srv::GetMetadata;
+using sensor::UDPProfileLidar;
 
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
@@ -47,7 +47,7 @@ class OusterImage : public rclcpp::Node {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterImage(const rclcpp::NodeOptions& options)
-    : rclcpp::Node("os_image", options) {
+        : rclcpp::Node("os_image", options) {
         onInit();
     }
 
@@ -55,53 +55,10 @@ class OusterImage : public rclcpp::Node {
     void onInit() {
         auto metadata = get_metadata();
         info = sensor::parse_metadata(metadata);
-
-        const int n_returns =
-            info.format.udp_profile_lidar ==
-                    UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                ? 2
-                : 1;
-
-        nearir_image_pub =
-            create_publisher<sensor_msgs::msg::Image>("nearir_image", 100);
-
-        auto topic = [](auto base, int ind) {
-            if (ind == 0) return std::string(base);
-            return std::string(base) +
-                   std::to_string(ind + 1);  // need second return to return 2
-        };
-
-        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
-        for (int i = 0; i < n_returns; i++) {
-            a_pub =
-                create_publisher<sensor_msgs::msg::Image>(topic("range_image", i), 100);
-            range_image_pubs.push_back(a_pub);
-
-            a_pub =
-                create_publisher<sensor_msgs::msg::Image>(topic("signal_image", i), 100);
-            signal_image_pubs.push_back(a_pub);
-
-            a_pub =
-                create_publisher<sensor_msgs::msg::Image>(topic("reflec_image", i), 100);
-            reflec_image_pubs.push_back(a_pub);
-        }
-
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-        cloud = ouster_ros::Cloud{W, H};
-
-        // image processing
-        pc1_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
-            topic("points", 0), 100,
-            [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                point_cloud_handler(msg, 0); });
-
-        if (n_returns > 1) {
-            pc2_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
-                topic("points", 1), 100,
-                [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                point_cloud_handler(msg, 0); });
-        }
+        create_cloud_object();
+        const int n_returns = compute_n_returns();
+        create_publishers(n_returns);
+        create_subscriptions(n_returns);
     }
 
     std::string get_metadata() {
@@ -111,7 +68,9 @@ class OusterImage : public rclcpp::Node {
         auto request = std::make_shared<GetMetadata::Request>();
         auto result = client->async_send_request(request);
         RCLCPP_INFO(get_logger(), "sent async request!");
-        if (rclcpp::spin_until_future_complete(get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS) {
+        if (rclcpp::spin_until_future_complete(get_node_base_interface(),
+                                               result) !=
+            rclcpp::FutureReturnCode::SUCCESS) {
             auto error_msg = "Calling get_metadata service failed";
             RCLCPP_ERROR_STREAM(get_logger(), error_msg);
             throw std::runtime_error(error_msg);
@@ -121,8 +80,63 @@ class OusterImage : public rclcpp::Node {
         return result.get()->metadata;
     }
 
+    void create_cloud_object() {
+        uint32_t H = info.format.pixels_per_column;
+        uint32_t W = info.format.columns_per_frame;
+        cloud = ouster_ros::Cloud{W, H};
+    }
+
+    int compute_n_returns() {
+        return info.format.udp_profile_lidar ==
+                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+                   ? 2
+                   : 1;
+    }
+
+    std::string topic(std::string base, int idx) {
+        if (idx == 0) return base;
+        return base + std::to_string(idx + 1);
+    }
+
+    void create_publishers(int n_returns) {
+        nearir_image_pub =
+            create_publisher<sensor_msgs::msg::Image>("nearir_image", 100);
+
+        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
+        for (int i = 0; i < n_returns; i++) {
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic("range_image", i), 100);
+            range_image_pubs.push_back(a_pub);
+
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic("signal_image", i), 100);
+            signal_image_pubs.push_back(a_pub);
+
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic("reflec_image", i), 100);
+            reflec_image_pubs.push_back(a_pub);
+        }
+    }
+
+    void create_subscriptions(int n_returns) {
+        // image processing
+        pc1_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
+            topic("points", 0), 100,
+            [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+                point_cloud_handler(msg, 0);
+            });
+
+        if (n_returns > 1) {
+            pc2_sub = create_subscription<sensor_msgs::msg::PointCloud2>(
+                topic("points", 1), 100,
+                [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+                    point_cloud_handler(msg, 1);
+                });
+        }
+    }
+
     void point_cloud_handler(const sensor_msgs::msg::PointCloud2::SharedPtr m,
-                            int return_index) {
+                             int return_index) {
         pcl::fromROSMsg(*m, cloud);
 
         const bool first = (return_index == 0);
@@ -206,9 +220,12 @@ class OusterImage : public rclcpp::Node {
 
    private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr nearir_image_pub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr> range_image_pubs;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr> signal_image_pubs;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr> reflec_image_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        range_image_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        signal_image_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        reflec_image_pubs;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc1_sub;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc2_sub;

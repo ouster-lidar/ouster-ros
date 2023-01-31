@@ -7,9 +7,8 @@
  *
  */
 
-#include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_client_base_node.h"
-
+#include "ouster_ros/visibility_control.h"
 
 namespace sensor = ouster::sensor;
 
@@ -19,7 +18,7 @@ class OusterReplay : public OusterClientBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterReplay(const rclcpp::NodeOptions& options)
-    : OusterClientBase("os_replay", options) {
+        : OusterClientBase("os_replay", options) {
         onInit();
     }
 
@@ -28,7 +27,8 @@ class OusterReplay : public OusterClientBase {
         declare_parameter("metadata", rclcpp::PARAMETER_STRING);
         auto meta_file = get_parameter("metadata").as_string();
         if (!is_arg_set(meta_file)) {
-            RCLCPP_ERROR(get_logger(), "Must specify metadata file in replay mode");
+            RCLCPP_ERROR(get_logger(),
+                         "Must specify metadata file in replay mode");
             throw std::runtime_error("metadata no specificed");
         }
 
@@ -40,8 +40,9 @@ class OusterReplay : public OusterClientBase {
             cached_metadata = to_string(info);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
-            RCLCPP_ERROR(get_logger(),
-            "Error when running in replay mode: %s", e.what());
+            RCLCPP_ERROR_STREAN(
+                get_logger(),
+                "Error when running in replay mode: " << e.what());
         }
 
         OusterClientBase::onInit();

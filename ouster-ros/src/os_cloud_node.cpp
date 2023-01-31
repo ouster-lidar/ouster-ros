@@ -26,9 +26,9 @@
 #include "ouster_ros/visibility_control.h"
 
 namespace sensor = ouster::sensor;
-using sensor::UDPProfileLidar;
 using ouster_msgs::msg::PacketMsg;
 using ouster_srvs::srv::GetMetadata;
+using sensor::UDPProfileLidar;
 
 namespace ouster_ros {
 
@@ -36,8 +36,7 @@ class OusterCloud : public rclcpp::Node {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterCloud(const rclcpp::NodeOptions& options)
-    : rclcpp::Node("os_cloud", options),
-      tf_bcast(this) {
+        : rclcpp::Node("os_cloud", options), tf_bcast(this) {
         onInit();
     }
 
@@ -51,57 +50,12 @@ class OusterCloud : public rclcpp::Node {
         parse_parameters();
         auto metadata = get_metadata();
         info = sensor::parse_metadata(metadata);
-
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-        n_returns = info.format.udp_profile_lidar ==
-                            UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                        ? 2
-                        : 1;
-
-        RCLCPP_INFO_STREAM(get_logger(), "Profile has " << n_returns << " return(s)");
-
-        imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", 100);
-
-        auto img_suffix = [](int ind) {
-            if (ind == 0) return std::string();
-            return std::to_string(ind + 1);  // need second return to return 2
-        };
-
-        lidar_pubs.resize(n_returns);
-        for (int i = 0; i < n_returns; i++) {
-            lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                std::string("points") + img_suffix(i), 10);
-        }
-
-        // The ouster_ros drive currently only uses single precision when it
-        // produces the point cloud. So it isn't of a benefit to compute point
-        //  cloud xyz coordinates using double precision (for the time being).
-        auto xyz_lut = ouster::make_xyz_lut(info);
-        lut_direction = xyz_lut.direction.cast<float>();
-        lut_offset = xyz_lut.offset.cast<float>();
-        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
-
-        ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
-        cloud = ouster_ros::Cloud{W, H};
-
-        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
-
-        using LidarHandlerFunctionType = std::function<void(const PacketMsg::ConstSharedPtr)>;
-        LidarHandlerFunctionType lidar_handler_ros_time_function =
-            [this](const PacketMsg::ConstSharedPtr msg) { lidar_handler_ros_time(msg); };
-        LidarHandlerFunctionType lidar_handler_sensor_time_function =
-            [this](const PacketMsg::ConstSharedPtr msg) { lidar_handler_sensor_time(msg); };
-        auto lidar_handler = use_ros_time
-            ? lidar_handler_ros_time_function
-            : lidar_handler_sensor_time_function;
-        lidar_packet_sub =
-            create_subscription<PacketMsg>("lidar_packets", 2048,
-                [this, lidar_handler](const PacketMsg::ConstSharedPtr msg) {
-                    lidar_handler(msg);
-                });
-        imu_packet_sub = create_subscription<PacketMsg>("imu_packets", 100,
-            [this](const PacketMsg::ConstSharedPtr msg) { imu_handler(msg); });
+        n_returns = compute_n_returns();
+        RCLCPP_INFO_STREAM(get_logger(),
+                           "Profile has " << n_returns << " return(s)");
+        create_lidarscan_objects();
+        create_publishers();
+        create_subscriptions();
     }
 
     void declare_parameters() {
@@ -127,7 +81,9 @@ class OusterCloud : public rclcpp::Node {
         auto request = std::make_shared<GetMetadata::Request>();
         auto result = client->async_send_request(request);
         RCLCPP_INFO(get_logger(), "sent async request!");
-        if (rclcpp::spin_until_future_complete(get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS) {
+        if (rclcpp::spin_until_future_complete(get_node_base_interface(),
+                                               result) !=
+            rclcpp::FutureReturnCode::SUCCESS) {
             auto error_msg = "Calling get_metadata service failed";
             RCLCPP_ERROR_STREAM(get_logger(), error_msg);
             throw std::runtime_error(error_msg);
@@ -137,7 +93,71 @@ class OusterCloud : public rclcpp::Node {
         return result.get()->metadata;
     }
 
-    void pcl_toROSMsg(const ouster_ros::Cloud &pcl_cloud, sensor_msgs::msg::PointCloud2 &cloud) {
+    int compute_n_returns() {
+        return info.format.udp_profile_lidar ==
+                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+                   ? 2
+                   : 1;
+    }
+
+    void create_lidarscan_objects() {
+        uint32_t H = info.format.pixels_per_column;
+        uint32_t W = info.format.columns_per_frame;
+
+        // The ouster_ros drive currently only uses single precision when it
+        // produces the point cloud. So it isn't of a benefit to compute point
+        // cloud xyz coordinates using double precision (for the time being).
+        auto xyz_lut = ouster::make_xyz_lut(info);
+        lut_direction = xyz_lut.direction.cast<float>();
+        lut_offset = xyz_lut.offset.cast<float>();
+        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
+
+        ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
+        cloud = ouster_ros::Cloud{W, H};
+
+        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
+    }
+
+    void create_publishers() {
+        imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", 100);
+
+        auto img_suffix = [](int ind) {
+            if (ind == 0) return std::string();
+            return std::to_string(ind + 1);  // need second return to return 2
+        };
+
+        lidar_pubs.resize(n_returns);
+        for (int i = 0; i < n_returns; i++) {
+            lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
+                std::string("points") + img_suffix(i), 10);
+        }
+    }
+
+    void create_subscriptions() {
+        using LidarHandlerFunctionType =
+            std::function<void(const PacketMsg::ConstSharedPtr)>;
+        LidarHandlerFunctionType lidar_handler_ros_time_function =
+            [this](const PacketMsg::ConstSharedPtr msg) {
+                lidar_handler_ros_time(msg);
+            };
+        LidarHandlerFunctionType lidar_handler_sensor_time_function =
+            [this](const PacketMsg::ConstSharedPtr msg) {
+                lidar_handler_sensor_time(msg);
+            };
+        auto lidar_handler = use_ros_time ? lidar_handler_ros_time_function
+                                          : lidar_handler_sensor_time_function;
+        lidar_packet_sub = create_subscription<PacketMsg>(
+            "lidar_packets", 2048,
+            [this, lidar_handler](const PacketMsg::ConstSharedPtr msg) {
+                lidar_handler(msg);
+            });
+        imu_packet_sub = create_subscription<PacketMsg>(
+            "imu_packets", 100,
+            [this](const PacketMsg::ConstSharedPtr msg) { imu_handler(msg); });
+    }
+
+    void pcl_toROSMsg(const ouster_ros::Cloud& pcl_cloud,
+                      sensor_msgs::msg::PointCloud2& cloud) {
         // TODO: remove the staging step in the future
         static pcl::PCLPointCloud2 pcl_pc2;
         pcl::toPCLPointCloud2(pcl_cloud, pcl_pc2);
@@ -147,7 +167,8 @@ class OusterCloud : public rclcpp::Node {
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const rclcpp::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
-            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls, cloud, i);
+            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls,
+                            cloud, i);
             pcl_toROSMsg(cloud, pc_msg);
             pc_msg.header.stamp = msg_ts;
             pc_msg.header.frame_id = sensor_frame;
@@ -183,9 +204,9 @@ class OusterCloud : public rclcpp::Node {
 
     void imu_handler(const PacketMsg::ConstSharedPtr packet) {
         auto pf = sensor::get_format(info);
-        auto msg_ts =
-            use_ros_time ? rclcpp::Clock(RCL_ROS_TIME).now()
-                         : to_ros_time(pf.imu_gyro_ts(packet->buf.data()));
+        auto msg_ts = use_ros_time
+                          ? rclcpp::Clock(RCL_ROS_TIME).now()
+                          : to_ros_time(pf.imu_gyro_ts(packet->buf.data()));
         auto imu_msg =
             ouster_ros::packet_to_imu_msg(*packet, msg_ts, imu_frame, pf);
         imu_pub->publish(imu_msg);
@@ -203,12 +224,12 @@ class OusterCloud : public rclcpp::Node {
 
    private:
     rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> lidar_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
+        lidar_pubs;
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
     sensor_msgs::msg::PointCloud2 pc_msg;
-
 
     sensor::sensor_info info;
     int n_returns = 0;
