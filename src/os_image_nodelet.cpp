@@ -47,34 +47,48 @@ class OusterImage : public nodelet::Nodelet {
    private:
     virtual void onInit() override {
         auto& nh = getNodeHandle();
+        auto metadata = get_metadata(nh);
+        info = sensor::parse_metadata(metadata);
+        auto n_returns = compute_n_returns();
+        create_publishers(nh, n_returns);
+        create_subscribers(nh, n_returns);
+    }
 
-        ouster_ros::GetMetadata metadata{};
+    std::string get_metadata(ros::NodeHandle& nh) {
+        ouster_ros::GetMetadata request;
         auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
         client.waitForExistence();
-        if (!client.call(metadata)) {
+        if (!client.call(request)) {
             auto error_msg = "OusterImage: Calling get_metadata service failed";
             NODELET_ERROR_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
 
         NODELET_INFO("OusterImage: retrieved sensor metadata!");
+        return request.response.metadata;
+    }
 
-        info = sensor::parse_metadata(metadata.response.metadata);
+    void create_cloud_object() {
+        uint32_t H = info.format.pixels_per_column;
+        uint32_t W = info.format.columns_per_frame;
+        cloud = ouster_ros::Cloud{W, H};
+    }
 
-        const int n_returns =
-            info.format.udp_profile_lidar ==
-                    UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                ? 2
-                : 1;
+    int compute_n_returns() {
+        return info.format.udp_profile_lidar ==
+                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+                   ? 2
+                   : 1;
+    }
 
+    std::string topic(std::string base, int idx) {
+        if (idx == 0) return base;
+        return base + std::to_string(idx + 1);
+    }
+
+    void create_publishers(ros::NodeHandle& nh, int n_returns) {
         nearir_image_pub =
             nh.advertise<sensor_msgs::Image>("nearir_image", 100);
-
-        auto topic = [](auto base, int ind) {
-            if (ind == 0) return std::string(base);
-            return std::string(base) +
-                   std::to_string(ind + 1);  // need second return to return 2
-        };
 
         ros::Publisher a_pub;
         for (int i = 0; i < n_returns; i++) {
@@ -90,11 +104,9 @@ class OusterImage : public nodelet::Nodelet {
                 nh.advertise<sensor_msgs::Image>(topic("reflec_image", i), 100);
             reflec_image_pubs.push_back(a_pub);
         }
+    }
 
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-        cloud = ouster_ros::Cloud{W, H};
-
+    void create_subscribers(ros::NodeHandle& nh, int n_returns) {
         // image processing
         pc1_sub = nh.subscribe<sensor_msgs::PointCloud2>(
             topic("points", 0), 100, &OusterImage::first_cloud_handler, this);
