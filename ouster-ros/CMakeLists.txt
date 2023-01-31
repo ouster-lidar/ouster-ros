@@ -96,33 +96,45 @@ endfunction()
 
 
 
-# ==== os_sensor_compnent ====
+# ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
   "src/os_client_base_node.cpp;src/os_sensor_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterSensor")
+rclcpp_components_register_node(os_sensor_component
+  PLUGIN "ouster_ros::OusterSensor"
+  EXECUTABLE os_sensor
+)
 
-# ==== os_replay_compnent ====
+# ==== os_replay_component ====
 create_ros2_component(os_replay_component
   "src/os_client_base_node.cpp;src/os_replay_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_sensor_component "ouster_ros::OusterReplay")
+rclcpp_components_register_node(os_replay_component
+  PLUGIN "ouster_ros::OusterReplay"
+  EXECUTABLE os_replay
+)
 
-# ==== os_cloud_compnent ====
+# ==== os_cloud_component ====
 create_ros2_component(os_cloud_component
   "src/os_cloud_node.cpp"
   "tf2;tf2_ros"
 )
-rclcpp_components_register_nodes(os_cloud_component "ouster_ros::OusterCloud")
+rclcpp_components_register_node(os_cloud_component
+  PLUGIN "ouster_ros::OusterCloud"
+  EXECUTABLE os_cloud
+)
 
-# ==== os_image_compnent ====
+# ==== os_image_component ====
 create_ros2_component(os_image_component
   "src/os_image_node.cpp"
   ""
 )
-rclcpp_components_register_nodes(os_image_component "ouster_ros::OusterImage")
+rclcpp_components_register_node(os_image_component
+  PLUGIN "ouster_ros::OusterImage"
+  EXECUTABLE os_image
+)
 
 # ==== Install ====
 install(
