@@ -12,6 +12,7 @@
 #include "ouster_ros/GetMetadata.h"
 
 namespace sensor = ouster::sensor;
+using sensor::UDPProfileLidar;
 using ouster_ros::GetMetadata;
 
 namespace nodelets_os {
@@ -30,10 +31,20 @@ void OusterClientBase::onInit() {
 }
 
 void OusterClientBase::display_lidar_info(const sensor::sensor_info& info) {
-    NODELET_INFO("Client version: %s", ouster::SDK_VERSION_FULL);
-    NODELET_INFO("Using lidar_mode: %s", sensor::to_string(info.mode).c_str());
-    NODELET_INFO("%s sn: %s firmware rev: %s", info.prod_line.c_str(),
-                 info.sn.c_str(), info.fw_rev.c_str());
+    auto lidar_profile = info.format.udp_profile_lidar;
+    auto n_returns =
+        lidar_profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+            ? 2
+            : 1;
+    NODELET_INFO_STREAM(
+        "ouster client version: "
+            << ouster::SDK_VERSION_FULL << "\n"
+            << "using lidar_mode: " << sensor::to_string(info.mode) << "\n"
+            << "product: " << info.prod_line << ", sn: " << info.sn
+            << ", firmware rev: " << info.fw_rev << "\n"
+            << "active profile: " << sensor::to_string(lidar_profile) << "\n"
+            << "profile has " << n_returns << " return(s)");
+
 }
 
 }  // namespace nodelets_os

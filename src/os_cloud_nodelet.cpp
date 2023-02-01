@@ -46,7 +46,6 @@ class OusterCloud : public nodelet::Nodelet {
         auto metadata = get_metadata(nh);
         info = sensor::parse_metadata(metadata);
         n_returns = compute_n_returns();
-        NODELET_INFO_STREAM("Profile has " << n_returns << " return(s)");
         create_lidarscan_objects();
         create_publishers(nh);
         create_subscribers(nh);
