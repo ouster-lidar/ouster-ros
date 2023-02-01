@@ -51,10 +51,10 @@ def generate_launch_description():
 
     viz_launch_config = LaunchConfiguration('viz')
     viz_launch_arg = DeclareLaunchArgument('viz', default_value='True')
-    launch_directory = Path(ouster_ros_pkg_dir) / 'launch'
+    viz_launch_file_path = \
+        Path(ouster_ros_pkg_dir) / 'launch' / 'sensor.rviz.launch.py'
     rviz_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [str(launch_directory), '/sensor.rviz.launch.py']),
+        PythonLaunchDescriptionSource([str(viz_launch_file_path)]),
         condition=IfCondition(viz_launch_config)
     )
 

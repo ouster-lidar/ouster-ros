@@ -23,8 +23,6 @@ find_package(CURL REQUIRED)
 find_package(Boost REQUIRED)
 
 # ==== Options ====
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
