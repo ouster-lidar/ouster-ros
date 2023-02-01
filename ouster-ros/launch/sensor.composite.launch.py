@@ -5,9 +5,13 @@
 
 from pathlib import Path
 import launch
+from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from ament_index_python.packages import get_package_share_directory
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
@@ -18,7 +22,7 @@ def generate_launch_description():
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
     params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
 
-    container = ComposableNodeContainer(
+    os_container = ComposableNodeContainer(
         name='os_container',
         namespace='',
         package='rclcpp_components',
@@ -35,14 +39,25 @@ def generate_launch_description():
                     plugin='ouster_ros::OusterCloud',
                     name='os_cloud',
                     parameters=[params]
-                ),
+            ),
             ComposableNode(
                     package='ouster_ros',
                     plugin='ouster_ros::OusterImage',
                     name='os_image'
-                )
+            )
         ],
         output='screen',
     )
 
-    return launch.LaunchDescription([container])
+    viz_launch_config = LaunchConfiguration('viz')
+    viz_launch_arg = DeclareLaunchArgument('viz', default_value='True')
+    launch_directory = Path(ouster_ros_pkg_dir) / 'launch'
+    rviz_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            [str(launch_directory), '/sensor.rviz.launch.py']),
+        condition=IfCondition(viz_launch_config)
+    )
+
+    return launch.LaunchDescription([
+        os_container,
+        viz_launch_arg, rviz_launch])

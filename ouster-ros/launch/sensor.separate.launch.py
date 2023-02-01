@@ -5,8 +5,12 @@
 
 from pathlib import Path
 import launch
-from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
@@ -43,5 +47,15 @@ def generate_launch_description():
         output='screen',
     )
 
+    viz_launch_config = LaunchConfiguration('viz')
+    viz_launch_arg = DeclareLaunchArgument('viz', default_value='True')
+    launch_directory = Path(ouster_ros_pkg_dir) / 'launch'
+    rviz_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            [str(launch_directory), '/sensor.rviz.launch.py']),
+        condition=IfCondition(viz_launch_config)
+    )
+
     return launch.LaunchDescription([
-        os_sensor, os_cloud, os_image])
+        os_sensor, os_cloud, os_image,
+        viz_launch_arg, rviz_launch])
