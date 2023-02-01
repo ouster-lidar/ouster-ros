@@ -7,6 +7,7 @@
  *
  */
 
+#include <fstream>
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
@@ -47,10 +48,14 @@ class OusterReplay : public OusterSensorNodeBase {
 
     void populate_metadata_from_json(const std::string& meta_file) {
         try {
-            info = sensor::metadata_from_json(meta_file);
-            cached_metadata = to_string(info);
+            std::ifstream in_file(meta_file);
+            std::stringstream buffer;
+            buffer << in_file.rdbuf();
+            cached_metadata = buffer.str();
+            info = sensor::parse_metadata(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
+            cached_metadata.clear();
             RCLCPP_ERROR_STREAM(
                 get_logger(),
                 "Error when running in replay mode: " << e.what());

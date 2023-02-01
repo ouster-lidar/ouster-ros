@@ -139,6 +139,7 @@ install(
   TARGETS
     ouster_ros_library
     os_sensor_component
+    os_replay_component
     os_cloud_component
     os_image_component
   ARCHIVE DESTINATION lib

@@ -52,7 +52,7 @@
     </node_container>
 
     <node if="$(var viz)" pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
-      launch-prefix="bash -c 'sleep 5; $0 $@' " args="-d $(var rviz_config)"/>
+      launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
 
   </group>
 
