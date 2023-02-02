@@ -22,28 +22,29 @@ def generate_launch_description():
     params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
 
     os_sensor = Node(
-        name='os_sensor',
-        namespace='',
         package='ouster_ros',
         executable='os_sensor',
+        name='os_sensor',
+        namespace='ouster',
         parameters=[params],
         output='screen',
     )
 
     os_cloud = Node(
-        name='os_cloud',
-        namespace='',
         package='ouster_ros',
         executable='os_cloud',
+        name='os_cloud',
+        namespace='ouster',
         parameters=[params],
         output='screen',
     )
 
     os_image = Node(
-        name='os_image',
-        namespace='',
         package='ouster_ros',
         executable='os_image',
+        name='os_image',
+        namespace='ouster',
+        parameters=[params],
         output='screen',
     )
 
@@ -61,10 +62,12 @@ def generate_launch_description():
     #     to run rviz2
     sensor_imu_tf = Node(package = "tf2_ros", 
                        executable = "static_transform_publisher",
+                       name = "stp_sensor_imu",
                        condition=IfCondition(viz_launch_config),
                        arguments = ["0", "0", "0", "0", "0", "0", "os_sensor", "os_imu"])
     sensor_lidar_tf = Node(package = "tf2_ros", 
                        executable = "static_transform_publisher",
+                       name = "stp_sensor_lidar",
                        condition=IfCondition(viz_launch_config),
                        arguments = ["0", "0", "0", "0", "0", "0", "os_sensor", "os_lidar"])
 

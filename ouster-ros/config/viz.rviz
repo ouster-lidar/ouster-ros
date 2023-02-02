@@ -84,7 +84,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /points
+        Value: /ouster/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -124,7 +124,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /range_image
+        Value: /ouster/range_image
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -138,7 +138,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /nearir_image
+        Value: /ouster/nearir_image
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -152,7 +152,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /reflec_image
+        Value: /ouster/reflec_image
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -166,7 +166,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /signal_image
+        Value: /ouster/signal_image
       Value: true
   Enabled: true
   Global Options:

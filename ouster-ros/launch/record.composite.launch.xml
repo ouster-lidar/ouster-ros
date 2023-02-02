@@ -32,8 +32,7 @@
   <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
 
   <group>
-    <!-- <push-ros-namespace namespace="$(var ouster_ns)"/> -->
-
+    <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterSensor" name="os_sensor">
         <param name="sensor_hostname" value="$(var sensor_hostname)"/>
@@ -51,19 +50,19 @@
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
     </node_container>
+  </group>
 
-    <group if="$(var viz)"> 
-      <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-        for the actual sensor frames to be published that is when when using the same launch file
-        to run rviz2 -->
-      <node pkg="tf2_ros" exec="static_transform_publisher"
-        args="0 0 0 0 0 0 os_sensor os_imu"/>
-      <node pkg="tf2_ros" exec="static_transform_publisher"
-        args="0 0 0 0 0 0 os_sensor os_lidar"/>
-      <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
-        launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
-    </group>
-
+  <group if="$(var viz)">
+    <push-ros-namespace namespace="$(var ouster_ns)"/>
+    <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
+      for the actual sensor frames to be published that is when when using the same launch file
+      to run rviz2 -->
+    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
+      args="0 0 0 0 0 0 os_sensor os_imu"/>
+    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
+      args="0 0 0 0 0 0 os_sensor os_lidar"/>
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
+      launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
   </group>
 
   <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
@@ -71,9 +70,10 @@
   <!-- <let name="_topics_to_record" value="/imu_packets /lidar_packets"/> -->
 
   <executable if="$(var _use_bag_file_name)" output="screen"
-    cmd="ros2 bag record --output $(var bag_file) /imu_packets /lidar_packets"/>
+    cmd="ros2 bag record --output $(var bag_file)
+         /$(var ouster_ns)/imu_packets /$(var ouster_ns)/lidar_packets"/>
 
   <executable unless="$(var _use_bag_file_name)" output="screen"
-    cmd="ros2 bag record /imu_packets /lidar_packets"/>
+    cmd="ros2 bag record /$(var ouster_ns)/imu_packets /$(var ouster_ns)/lidar_packets"/>
 
 </launch>

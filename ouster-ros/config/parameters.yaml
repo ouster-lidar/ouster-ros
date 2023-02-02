@@ -1,4 +1,4 @@
-os_sensor:
+ouster/os_sensor:
   ros__parameters:
     sensor_hostname: 'os-122151001683.local'
     udp_dest: ' '
@@ -8,7 +8,7 @@ os_sensor:
     metadata: ' '
     lidar_port: 48853
     imu_port: 37028
-os_cloud:
+ouster/os_cloud:
   ros__parameters:
     tf_prefix: ''
     timestamp_mode: ' '

@@ -1,7 +1,7 @@
 # Copyright 2023 Ouster, Inc.
 #
 
-"""Launch a sensor node along with..."""
+"""Launch ouster nodes using a composite container"""
 
 from pathlib import Path
 import launch
@@ -25,7 +25,7 @@ def generate_launch_description():
 
     os_container = ComposableNodeContainer(
         name='os_container',
-        namespace='',
+        namespace='ouster',
         package='rclcpp_components',
         executable='component_container_mt',
         composable_node_descriptions=[
@@ -33,18 +33,22 @@ def generate_launch_description():
                     package='ouster_ros',
                     plugin='ouster_ros::OusterSensor',
                     name='os_sensor',
+                    namespace='ouster',
                     parameters=[params]
                 ),
             ComposableNode(
                     package='ouster_ros',
                     plugin='ouster_ros::OusterCloud',
                     name='os_cloud',
+                    namespace='ouster',
                     parameters=[params]
             ),
             ComposableNode(
                     package='ouster_ros',
                     plugin='ouster_ros::OusterImage',
-                    name='os_image'
+                    name='os_image',
+                    namespace='ouster',
+                    parameters=[params]
             )
         ],
         output='screen',
@@ -64,10 +68,12 @@ def generate_launch_description():
     #     to run rviz2
     sensor_imu_tf = Node(package = "tf2_ros", 
                        executable = "static_transform_publisher",
+                       name = "stp_sensor_imu",
                        condition=IfCondition(viz_launch_config),
                        arguments = ["0", "0", "0", "0", "0", "0", "os_sensor", "os_imu"])
     sensor_lidar_tf = Node(package = "tf2_ros", 
                        executable = "static_transform_publisher",
+                       name = "stp_sensor_lidar",
                        condition=IfCondition(viz_launch_config),
                        arguments = ["0", "0", "0", "0", "0", "0", "os_sensor", "os_lidar"])
 
