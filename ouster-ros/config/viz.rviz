@@ -171,7 +171,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: " os_sensor"
+    Fixed Frame: "os_sensor"
     Frame Rate: 30
   Name: root
   Tools:

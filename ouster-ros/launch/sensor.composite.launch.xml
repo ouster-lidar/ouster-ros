@@ -51,8 +51,17 @@
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
     </node_container>
 
-    <node if="$(var viz)" pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
-      launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
+    <group if="$(var viz)"> 
+      <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
+        for the actual sensor frames to be published that is when when using the same launch file
+        to run rviz2 -->
+      <node pkg="tf2_ros" exec="static_transform_publisher"
+        args="0 0 0 0 0 0 os_sensor os_imu"/>
+      <node pkg="tf2_ros" exec="static_transform_publisher"
+        args="0 0 0 0 0 0 os_sensor os_lidar"/>
+      <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
+        launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
+    </group>
 
   </group>
 

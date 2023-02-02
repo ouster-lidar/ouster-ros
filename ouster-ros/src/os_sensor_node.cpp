@@ -408,12 +408,14 @@ class OusterSensor : public OusterSensorNodeBase {
         rclcpp::SensorDataQoS qos;
         lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", qos);
         imu_packet_pub = create_publisher<PacketMsg>("imu_packets", qos);
-        timer_ = rclcpp::create_timer(this, get_clock(), 0s,
-                                      [this]() { timer_callback(); });
+        // TODO: replace with thread
+        connection_loop_timer = rclcpp::create_timer(
+            this, get_clock(), 0s, [this]() { connection_loop(); });
     }
 
-    void connection_loop(sensor::client& cli, const sensor::sensor_info& info) {
+    void connection_loop() {
         auto pf = sensor::get_format(info);
+        auto& cli = *sensor_client;
 
         auto state = sensor::poll_client(cli);
         if (state == sensor::EXIT) {
@@ -434,8 +436,6 @@ class OusterSensor : public OusterSensorNodeBase {
         }
     }
 
-    void timer_callback() { connection_loop(*sensor_client, info); }
-
    private:
     std::string sensor_hostname;
     PacketMsg lidar_packet;
@@ -443,7 +443,7 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Publisher<PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<PacketMsg>::SharedPtr imu_packet_pub;
     std::shared_ptr<sensor::client> sensor_client;
-    rclcpp::TimerBase::SharedPtr timer_;
+    std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
     rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::string cached_config;
