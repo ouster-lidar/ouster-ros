@@ -8,42 +8,51 @@
 
 #include "ouster_ros/os_processing_node_base.h"
 
+using namespace std::chrono_literals;
 using ouster::sensor::UDPProfileLidar;
 using ouster_srvs::srv::GetMetadata;
-using namespace std::chrono_literals;
+using rclcpp::FutureReturnCode;
 
 namespace ouster_ros {
 
-bool OusterProcessingNodeBase::wait_for_get_metadata_service(
-    std::shared_ptr<rclcpp::Client<GetMetadata>> client) {
-    // TODO: Add as node parameteres?
-    constexpr auto wait_time_per_attempt = 5s;
-    constexpr auto total_attempts = 5;
+bool OusterProcessingNodeBase::spin_till_attempts_exahused(
+    const std::string& log_msg, std::function<bool(void)> lambda) {
     int remaining_attempts = total_attempts;
-    bool service_available;
+    bool done;
     do {
         RCLCPP_INFO_STREAM(get_logger(),
-                           "contacting get_metadata service, attempt no: "
-                               << total_attempts - remaining_attempts + 1 << "/"
-                               << total_attempts);
-        service_available = client->wait_for_service(wait_time_per_attempt);
-    } while (!service_available && --remaining_attempts > 0);
-    return service_available;
+                           log_msg << "; attempt no: "
+                                   << total_attempts - remaining_attempts + 1
+                                   << "/" << total_attempts);
+        done = lambda();
+    } while (!done && --remaining_attempts > 0);
+    return done;
 }
 
 std::string OusterProcessingNodeBase::get_metadata() {
     auto client = create_client<GetMetadata>("get_metadata");
-    if (!wait_for_get_metadata_service(client)) {
+    if (!spin_till_attempts_exahused(
+            "contacting get_metadata service", [this, &client]() -> bool {
+                return client->wait_for_service(wait_time_per_attempt);
+            })) {
         auto error_msg = "get_metadata service is unavailable";
         RCLCPP_ERROR_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
     auto request = std::make_shared<GetMetadata::Request>();
     auto result = client->async_send_request(request);
-    if (rclcpp::spin_until_future_complete(get_node_base_interface(), result,
-                                           10s) !=
-        rclcpp::FutureReturnCode::SUCCESS) {
-        auto error_msg = "Calling get_metadata service failed";
+
+    rclcpp::FutureReturnCode return_code;
+    spin_till_attempts_exahused(
+        "waiting for get_metadata service to respond",
+        [this, &return_code, &result]() -> bool {
+            return_code = rclcpp::spin_until_future_complete(
+                get_node_base_interface(), result, wait_time_per_attempt);
+            return return_code != FutureReturnCode::TIMEOUT;
+        });
+
+    if (return_code != FutureReturnCode::SUCCESS) {
+        auto error_msg = "get_metadata service timed out or interrupted";
         RCLCPP_ERROR_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }

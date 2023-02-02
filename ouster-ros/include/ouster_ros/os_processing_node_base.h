@@ -9,6 +9,7 @@
 
 #include <ouster/types.h>
 
+#include <chrono>
 #include <rclcpp/rclcpp.hpp>
 
 #include "ouster_srvs/srv/get_metadata.hpp"
@@ -22,8 +23,8 @@ class OusterProcessingNodeBase : public rclcpp::Node {
         : rclcpp::Node(name, options) {}
 
    protected:
-    bool wait_for_get_metadata_service(
-        std::shared_ptr<rclcpp::Client<ouster_srvs::srv::GetMetadata>> client);
+    bool spin_till_attempts_exahused(const std::string& log_msg,
+                                     std::function<bool(void)> lambda);
 
     std::string get_metadata();
 
@@ -35,6 +36,10 @@ class OusterProcessingNodeBase : public rclcpp::Node {
     }
 
    protected:
+    // TODO: Add as node parameters?
+    static constexpr auto wait_time_per_attempt = std::chrono::seconds(10);
+    static constexpr auto total_attempts = 10;
+
     ouster::sensor::sensor_info info;
 };
 
