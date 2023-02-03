@@ -11,7 +11,8 @@
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
 
-  <depend>roscpp</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>
@@ -19,10 +20,9 @@
   <depend>pcl_conversions</depend>
 
   <build_depend>ouster_msgs</build_depend>
-  <build_depend>ouster_srvs</build_depend>
+  <!-- <build_depend>ouster_srvs</build_depend> -->
   <build_depend>libjsoncpp-dev</build_depend>
   <build_depend>eigen</build_depend>
-  <build_depend>message_generation</build_depend>
   <build_depend>tf2_eigen</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>curl</build_depend>
@@ -30,11 +30,10 @@
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>ouster_msgs</exec_depend>
-  <exec_depend>ouster_srvs</exec_depend>
+  <!-- <exec_depend>ouster_srvs</exec_depend> -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>
-  <exec_depend>message_runtime</exec_depend>
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>

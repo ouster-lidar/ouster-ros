@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ros_distro: [rolling]
+        ros_distro: [rolling, foxy, humble]
 
     steps:
     - uses: actions/checkout@v3
