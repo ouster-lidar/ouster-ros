@@ -21,7 +21,7 @@ def generate_launch_description():
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
     params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
 
-    # TODO: changing the default namespace is currently not supported when using the launch.py format'
+    # TODO: changing the default namespace is currently not supported when using the launch.py format
     ouster_ns = LaunchConfiguration('ouster_ns')
     ouster_ns_launch_arg = DeclareLaunchArgument(
         'ouster_ns', default_value='ouster')
