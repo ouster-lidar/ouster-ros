@@ -385,7 +385,12 @@ class OusterSensor : public OusterClientBase {
 
         timer_ = nh.createTimer(
             ros::Duration(0),
-            [this](const ros::TimerEvent&) { timer_callback(); }, true);
+            [this](const ros::TimerEvent&) {
+                connection_loop(*sensor_client, info);
+                timer_.stop();
+                timer_.start();
+            },
+            true);
     }
 
     void connection_loop(sensor::client& cli, const sensor::sensor_info& info) {
@@ -408,12 +413,6 @@ class OusterSensor : public OusterClientBase {
             if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf))
                 imu_packet_pub.publish(imu_packet);
         }
-    }
-
-    void timer_callback() {
-        connection_loop(*sensor_client, info);
-        timer_.stop();
-        timer_.start();
     }
 
    private:
