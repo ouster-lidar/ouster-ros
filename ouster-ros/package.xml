@@ -20,7 +20,7 @@
   <depend>pcl_conversions</depend>
 
   <build_depend>ouster_msgs</build_depend>
-  <!-- <build_depend>ouster_srvs</build_depend> -->
+  <build_depend>ouster_srvs</build_depend>
   <build_depend>libjsoncpp-dev</build_depend>
   <build_depend>eigen</build_depend>
   <build_depend>tf2_eigen</build_depend>
@@ -31,7 +31,7 @@
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>ouster_msgs</exec_depend>
-  <!-- <exec_depend>ouster_srvs</exec_depend> -->
+  <exec_depend>ouster_srvs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>

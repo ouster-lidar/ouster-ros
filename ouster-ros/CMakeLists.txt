@@ -18,6 +18,7 @@ find_package(rmw REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
+find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED)
@@ -52,13 +53,22 @@ add_definitions(-DEIGEN_MPL2_ONLY)
 add_library(ouster_ros_library SHARED
   src/os_ros.cpp
 )
-ament_target_dependencies(ouster_ros_library
+
+set(ouster_ros_library_deps
   rclcpp
   sensor_msgs
   geometry_msgs
   ouster_msgs
   ouster_srvs
+  pcl_conversions
+  tf2
+  tf2_eigen
 )
+
+ament_target_dependencies(ouster_ros_library
+  ${ouster_ros_library_deps}
+)
+
 target_link_libraries(ouster_ros_library
   # PUBLIC
     ouster_build
@@ -72,12 +82,14 @@ function(create_ros2_component
   src_list
   additonal_dependencies
 )
+
   add_library(${component_lib_name} SHARED
     ${src_list})
   target_compile_definitions(${component_lib_name}
     PRIVATE
       "OUSTER_ROS_BUILDING_DLL"
   )
+
   ament_target_dependencies(${component_lib_name}
     rclcpp
     class_loader
@@ -86,10 +98,12 @@ function(create_ros2_component
     geometry_msgs
     ${additonal_dependencies}
   )
+
   target_link_libraries(${component_lib_name}
     ouster_ros_library
     ${cpp_typesupport_target}
   )
+
 endfunction()
 
 
@@ -117,7 +131,7 @@ rclcpp_components_register_node(os_replay_component
 # ==== os_cloud_component ====
 create_ros2_component(os_cloud_component
   "src/os_processing_node_base.cpp;src/os_cloud_node.cpp"
-  "tf2;tf2_ros"
+  "tf2_ros"
 )
 rclcpp_components_register_node(os_cloud_component
   PLUGIN "ouster_ros::OusterCloud"
@@ -169,5 +183,8 @@ install(
     share/${PROJECT_NAME}
 )
 
+ament_export_include_directories(include) 
 ament_export_dependencies(rosidl_default_runtime)
+ament_export_libraries(ouster_ros_library)
+ament_export_dependencies(${ouster_ros_library_deps})
 ament_package()
