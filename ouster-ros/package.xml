@@ -26,6 +26,7 @@
   <build_depend>tf2_eigen</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>curl</build_depend>
+  <build_depend>libtins-dev</build_depend>
   <build_depend>spdlog</build_depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
@@ -36,6 +37,7 @@
   <exec_depend>libjsoncpp</exec_depend>
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
+  <exec_depend>libtins-dev</exec_depend>
 
   <test_depend>gtest</test_depend>
 
