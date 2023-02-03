@@ -34,7 +34,6 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>
-  <exec_depend>topic_tools</exec_depend>
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
 
