@@ -17,7 +17,8 @@ RUN set -xue \
     debhelper               \
     python3-rosdep          \
     python3-rospkg          \
-    python3-bloom
+    python3-bloom           \
+    python3-colcon-common-extensions
 
 # Set up non-root build user
 ARG BUILD_UID=1000
@@ -28,7 +29,7 @@ RUN set -xe \
 && useradd -o -u ${BUILD_UID} -d ${BUILD_HOME} -rm -s /bin/bash -g build build
 
 # Install build dependencies using rosdep
-COPY --chown=build:build ouster-ros/package.xml $OUSTER_ROS_PATH/package.xml
+COPY --chown=build:build ouster-ros/package.xml $OUSTER_ROS_PATH/ouster-ros/package.xml
 
 RUN set -xe         \
 && apt-get update   \
@@ -59,6 +60,6 @@ RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon build \
 # Usage: docker run --rm -it ouster-ros [sensor.launch parameters ..]
 #
 ENTRYPOINT ["bash", "-c", "set -e \
-&& . ./install/setup.bash \
+&& source ./install/setup.bash \
 && ros2 launch ouster_ros sensor.composite.launch.xml \"$@\" \
 ", "ros-entrypoint"]
