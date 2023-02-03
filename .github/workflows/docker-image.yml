@@ -12,7 +12,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-    strategy:
       fail-fast: false
       matrix:
         ros_distro:
