@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../ouster-sdk/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake)
 include(DefaultBuildType)
 
 # ==== Project Name ====
@@ -29,7 +29,10 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;../ouster-sdk/ouster_client/include;../ouster-sdk/ouster_client/include/optional-lite")
+  include
+  ouster-sdk/ouster_client/include
+  ouster-sdk/ouster_client/include/optional-lite
+)
 
 # ==== Libraries ====
 # Build static libraries and bundle them into ouster_ros using the `--whole-archive` flag. This is
