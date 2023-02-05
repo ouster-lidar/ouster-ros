@@ -5,12 +5,17 @@
 
 from pathlib import Path
 import launch
+import lifecycle_msgs.msg
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import Node
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch_ros.actions import Node, LifecycleNode
+from launch.actions import (IncludeLaunchDescription, DeclareLaunchArgument,
+                            RegisterEventHandler, EmitEvent, LogInfo)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch.events import matches_action
+from launch_ros.events.lifecycle import ChangeState
+from launch_ros.event_handlers import OnStateTransition
 
 
 def generate_launch_description():
@@ -19,31 +24,71 @@ def generate_launch_description():
     component will run in a separate process).
     """
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
-    params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+    default_params_file = \
+        Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+    params_file = LaunchConfiguration('params_file')
+    params_file_arg = DeclareLaunchArgument('params_file',
+                                            default_value=str(
+                                                default_params_file),
+                                            description='name or path to the parameters file to use.')
 
-    # TODO: changing the default namespace is currently not supported when using the launch.py format
     ouster_ns = LaunchConfiguration('ouster_ns')
-    ouster_ns_launch_arg = DeclareLaunchArgument(
+    ouster_ns_arg = DeclareLaunchArgument(
         'ouster_ns', default_value='ouster')
 
-    viz_launch_config = LaunchConfiguration('viz')
-    viz_launch_arg = DeclareLaunchArgument('viz', default_value='True')
+    rviz_enable = LaunchConfiguration('viz')
+    rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
-    os_sensor = Node(
+    os_sensor = LifecycleNode(
         package='ouster_ros',
         executable='os_sensor',
         name='os_sensor',
         namespace=ouster_ns,
-        parameters=[params],
+        parameters=[params_file],
         output='screen',
     )
+
+    sensor_configure_event = EmitEvent(
+        event=ChangeState(
+            lifecycle_node_matcher=matches_action(os_sensor),
+            transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
+        )
+    )
+
+    sensor_activate_event = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=os_sensor, goal_state='inactive',
+            entities=[
+                LogInfo(msg="os_sensor activating..."),
+                EmitEvent(event=ChangeState(
+                    lifecycle_node_matcher=matches_action(os_sensor),
+                    transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
+                )),
+            ],
+            handle_once=True
+        )
+    )
+
+    # TODO: figure out why registering for on_shutdown event causes an exception
+    # and error handling
+    # shutdown_event = RegisterEventHandler(
+    #     OnShutdown(
+    #         on_shutdown=[
+    #             EmitEvent(event=ChangeState(
+    #               lifecycle_node_matcher=matches_node_name(node_name=F"/ouster/os_sensor"),
+    #               transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVE_SHUTDOWN,
+    #             )),
+    #             LogInfo(msg="os_sensor node exiting..."),
+    #         ],
+    #     )
+    # )
 
     os_cloud = Node(
         package='ouster_ros',
         executable='os_cloud',
         name='os_cloud',
         namespace=ouster_ns,
-        parameters=[params],
+        parameters=[params_file],
         output='screen',
     )
 
@@ -52,34 +97,27 @@ def generate_launch_description():
         executable='os_image',
         name='os_image',
         namespace=ouster_ns,
-        parameters=[params],
+        parameters=[params_file],
         output='screen',
     )
 
-    viz_launch_file_path = \
-        Path(ouster_ros_pkg_dir) / 'launch' / 'sensor.rviz.launch.py'
+    rviz_launch_file_path = \
+        Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
     rviz_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([str(viz_launch_file_path)]),
-        condition=IfCondition(viz_launch_config)
+        PythonLaunchDescriptionSource([str(rviz_launch_file_path)]),
+        condition=IfCondition(rviz_enable),
+        launch_arguments={'_enable_static_tf_publishers': 'true'}.items()
     )
 
-    # NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-    #     for the actual sensor frames to be published that is when when using the same launch file
-    #     to run rviz2
-    sensor_imu_tf = Node(package="tf2_ros",
-                         executable="static_transform_publisher",
-                         name="stp_sensor_imu",
-                         namespace=ouster_ns,
-                         condition=IfCondition(viz_launch_config),
-                         arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_imu"])
-    sensor_ldr_tf = Node(package="tf2_ros",
-                         executable="static_transform_publisher",
-                         name="stp_sensor_lidar",
-                         namespace=ouster_ns,
-                         condition=IfCondition(viz_launch_config),
-                         arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_lidar"])
-
     return launch.LaunchDescription([
-        ouster_ns_launch_arg,
-        os_sensor, os_cloud, os_image,
-        viz_launch_arg, sensor_imu_tf, sensor_ldr_tf, rviz_launch])
+        params_file_arg,
+        ouster_ns_arg,
+        rviz_enable_arg,
+        os_sensor,
+        os_cloud,
+        os_image,
+        rviz_launch,
+        sensor_configure_event,
+        sensor_activate_event,
+        # shutdown_event
+    ])

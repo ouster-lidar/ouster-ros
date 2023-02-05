@@ -1,17 +1,23 @@
 <launch>
 
-  <arg name="ouster_ns" default="ouster" description="Override the default namespace of all ouster nodes"/>
+  <arg name="ouster_ns" default="ouster"
+    description="Override the default namespace of all ouster nodes"/>
   <!-- TODO: revisit the proper behaviour of allowing users override the default timestamp_mode during replay -->
-  <arg name="timestamp_mode" default="" description="method used to timestamp measurements; possible values: {
+  <arg name="timestamp_mode" default=""
+    description="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,
     TIME_FROM_SYNC_PULSE_IN,
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="metadata" description="path to write metadata file when receiving sensor data"/>
-  <arg name="bag_file" description="file name to use for the recorded bag file"/>
-  <arg name="viz" default="true" description="whether to run a rviz"/>
-  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz" description="optional rviz config file"/>
+  <arg name="metadata"
+    description="path to write metadata file when receiving sensor data"/>
+  <arg name="bag_file"
+    description="file name to use for the recorded bag file"/>
+  <arg name="viz" default="true"
+    description="whether to run a rviz"/>
+  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
+    description="optional rviz config file"/>
   <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
 
   <group>
@@ -28,18 +34,11 @@
     </node_container>
   </group>
 
-  <group if="$(var viz)">
-    <push-ros-namespace namespace="$(var ouster_ns)"/>
-    <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-      for the actual sensor frames to be published that is when when using the same launch file
-      to run rviz2 -->
-    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
-      args="0 0 0 0 0 0 os_sensor os_imu"/>
-    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
-      args="0 0 0 0 0 0 os_sensor os_lidar"/>
-    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
-      launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
-  </group>
+  <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
+    <arg name="ouster_ns" value="$(var ouster_ns)"/>
+    <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="_enable_static_tf_publishers" value="true"/>
+  </include>
 
   <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
 

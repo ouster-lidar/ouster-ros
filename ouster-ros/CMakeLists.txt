@@ -10,6 +10,7 @@ project(ouster_ros)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
@@ -73,13 +74,14 @@ ament_target_dependencies(ouster_ros_library
 )
 
 target_link_libraries(ouster_ros_library
-  # PUBLIC
+  # PUBLIC (unsupported)
     ouster_build
     pcl_common
-  # PRIVATE
+  # PRIVATE (unsupported)
   -Wl,--whole-archive ouster_client -Wl,--no-whole-archive
 )
 
+# helper method to construct ouster-ros components
 function(create_ros2_component
   component_lib_name
   src_list
@@ -97,6 +99,7 @@ function(create_ros2_component
     rclcpp
     class_loader
     rclcpp_components
+    rclcpp_lifecycle
     sensor_msgs
     geometry_msgs
     ${additonal_dependencies}
@@ -108,7 +111,6 @@ function(create_ros2_component
   )
 
 endfunction()
-
 
 
 # ==== os_sensor_component ====

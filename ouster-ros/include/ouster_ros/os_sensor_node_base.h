@@ -10,16 +10,17 @@
 #include <ouster/types.h>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 #include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace ouster_ros {
 
-class OusterSensorNodeBase : public rclcpp::Node {
+class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
    protected:
     explicit OusterSensorNodeBase(const std::string& name,
                                   const rclcpp::NodeOptions& options)
-        : rclcpp::Node(name, options) {}
+        : rclcpp_lifecycle::LifecycleNode(name, options) {}
 
    protected:
     bool is_arg_set(const std::string& arg) {

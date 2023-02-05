@@ -1,4 +1,4 @@
-ARG ROS_DISTRO=melodic
+ARG ROS_DISTRO=rolling
 
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
 ENV DEBIAN_FRONTEND=noninteractive \

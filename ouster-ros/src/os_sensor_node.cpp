@@ -36,26 +36,118 @@ class OusterSensor : public OusterSensorNodeBase {
     OUSTER_ROS_PUBLIC
     explicit OusterSensor(const rclcpp::NodeOptions& options)
         : OusterSensorNodeBase("os_sensor", options) {
-        on_init();
+        declare_parameters();
     }
 
-   private:
-    void on_init() {
-        declare_parameters();
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "on_configure() is called.");
+
         sensor_hostname = get_sensor_hostname();
         sensor::sensor_config config;
         uint8_t flags;
         std::tie(config, flags) = create_sensor_config_rosparams();
         configure_sensor(sensor_hostname, config, flags);
+        // connect to the sensor and establish services and publishers
         sensor_client = create_sensor_client(sensor_hostname, config);
         update_config_and_metadata(*sensor_client);
         save_metadata();
         create_get_metadata_service();
         create_get_config_service();
         create_set_config_service();
-        start_connection_loop();
+        create_publishers();
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_activate(const rclcpp_lifecycle::State & state)
+    {
+        // The parent class method automatically transition on managed entities
+        // (currently, LifecyclePublisher).
+        // pub_->on_activate() could also be called manually here.
+        // Overriding this method is optional, a lot of times the default is enough.
+        RCLCPP_INFO(get_logger(), "on_activate() is called.");
+        LifecycleNode::on_activate(state);
+
+        allocate_buffers();
+        if (!connection_loop_timer) {
+            // TOOD: replace with a thread instead?
+            using namespace std::chrono_literals;
+            connection_loop_timer = rclcpp::create_timer(
+                this, get_clock(), 0s, [this]() { connection_loop(); });
+        } else {
+            connection_loop_timer->reset();
+        }
+
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_error(const rclcpp_lifecycle::State&) {
+        RCLCPP_INFO(get_logger(), "on_error() is called.");
+        // Always return failure for now
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_deactivate(const rclcpp_lifecycle::State& state)
+    {
+        RCLCPP_INFO(get_logger(), "on_deactivate() is called.");
+        LifecycleNode::on_deactivate(state);
+        connection_loop_timer->cancel();
+
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_cleanup(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
+
+        try {
+            cleanup();
+        } catch(const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(get_logger(),
+                "exception thrown durng cleanup, details: " << ex.what());
+            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
+        }
+
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+    on_shutdown(const rclcpp_lifecycle::State & state)
+    {
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+
+        RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
+
+        if (state.label() == "unconfigured") {
+            // nothing to do, return success
+            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        }
+
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+
+        if (state.label() == "active") {
+            // stop the timer first then perform cleanup
+            connection_loop_timer->cancel();
+        }
+
+        // whether state was 'active' or 'inactive' do cleanup
+        try {
+            cleanup();
+        } catch(const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(get_logger(),
+                "exception thrown durng cleanup, details: " << ex.what());
+            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
+        }
+
+        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+   private:
     void declare_parameters() {
         declare_parameter("sensor_hostname", rclcpp::PARAMETER_STRING);
         declare_parameter("metadata", rclcpp::PARAMETER_STRING);
@@ -400,21 +492,19 @@ class OusterSensor : public OusterSensorNodeBase {
         return true;
     }
 
-    void start_connection_loop() {
-        using namespace std::chrono_literals;
-        auto pf = sensor::get_format(info);
-        lidar_packet.buf.resize(pf.lidar_packet_size + 1);
-        imu_packet.buf.resize(pf.imu_packet_size + 1);
+    void create_publishers() {
         rclcpp::SensorDataQoS qos;
         lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", qos);
         imu_packet_pub = create_publisher<PacketMsg>("imu_packets", qos);
-        // TODO: replace with thread
-        connection_loop_timer = rclcpp::create_timer(
-            this, get_clock(), 0s, [this]() { connection_loop(); });
+    }
+
+    void allocate_buffers() {
+        auto pf = sensor::get_format(info);
+        lidar_packet.buf.resize(pf.lidar_packet_size + 1);
+        imu_packet.buf.resize(pf.imu_packet_size + 1);
     }
 
     void connection_loop() {
-        auto pf = sensor::get_format(info);
         auto& cli = *sensor_client;
 
         auto state = sensor::poll_client(cli);
@@ -426,6 +516,8 @@ class OusterSensor : public OusterSensorNodeBase {
             RCLCPP_ERROR(get_logger(), "poll_client: returned error");
             return;
         }
+
+        auto pf = sensor::get_format(info);
         if (state & sensor::LIDAR_DATA) {
             if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf))
                 lidar_packet_pub->publish(lidar_packet);
@@ -436,17 +528,29 @@ class OusterSensor : public OusterSensorNodeBase {
         }
     }
 
+    void cleanup() {
+        sensor_client.reset();
+        lidar_packet_pub.reset();
+        imu_packet_pub.reset();
+        get_metadata_srv.reset();
+        get_config_srv.reset();
+        set_config_srv.reset();
+        connection_loop_timer.reset();
+    }
+
    private:
     std::string sensor_hostname;
+    std::string cached_config;
+    std::shared_ptr<sensor::client> sensor_client;
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
     rclcpp::Publisher<PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<PacketMsg>::SharedPtr imu_packet_pub;
-    std::shared_ptr<sensor::client> sensor_client;
-    std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
     rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
-    std::string cached_config;
+    std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
+
+    // bool is_active;??
 };
 
 }  // namespace ouster_ros

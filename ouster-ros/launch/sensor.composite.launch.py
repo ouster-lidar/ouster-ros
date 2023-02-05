@@ -6,13 +6,13 @@
 from pathlib import Path
 import launch
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
+                            ExecuteProcess, TimerAction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch.substitutions import LaunchConfiguration, FindExecutable
 
 
 def generate_launch_description():
@@ -21,15 +21,44 @@ def generate_launch_description():
     process/container.
     """
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
-    params = Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+    default_params_file = \
+        Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+    params_file = LaunchConfiguration('params_file')
+    params_file_arg = DeclareLaunchArgument('params_file',
+                                            default_value=str(
+                                                default_params_file),
+                                            description='name or path to the parameters file to use.')
 
-    # TODO: changing the default namespace is currently not supported when using the launch.py format
     ouster_ns = LaunchConfiguration('ouster_ns')
-    ouster_ns_launch_arg = DeclareLaunchArgument(
+    ouster_ns_arg = DeclareLaunchArgument(
         'ouster_ns', default_value='ouster')
 
-    viz_launch_config = LaunchConfiguration('viz')
-    viz_launch_arg = DeclareLaunchArgument('viz', default_value='True')
+    rviz_enable = LaunchConfiguration('viz')
+    rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
+
+    os_sensor = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterSensor',
+        name='os_sensor',
+        namespace=ouster_ns,
+        parameters=[params_file]
+    )
+
+    os_cloud = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterCloud',
+        name='os_cloud',
+        namespace=ouster_ns,
+        parameters=[params_file]
+    )
+
+    os_image = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterImage',
+        name='os_image',
+        namespace=ouster_ns,
+        parameters=[params_file]
+    )
 
     os_container = ComposableNodeContainer(
         name='os_container',
@@ -37,53 +66,39 @@ def generate_launch_description():
         package='rclcpp_components',
         executable='component_container_mt',
         composable_node_descriptions=[
-            ComposableNode(
-                package='ouster_ros',
-                plugin='ouster_ros::OusterSensor',
-                name='os_sensor',
-                namespace=ouster_ns,
-                parameters=[params]
-            ),
-            ComposableNode(
-                package='ouster_ros',
-                plugin='ouster_ros::OusterCloud',
-                name='os_cloud',
-                namespace=ouster_ns,
-                parameters=[params]
-            ),
-            ComposableNode(
-                package='ouster_ros',
-                plugin='ouster_ros::OusterImage',
-                name='os_image',
-                namespace=ouster_ns,
-                parameters=[params]
-            )
+            os_sensor,
+            os_cloud,
+            os_image
         ],
         output='screen',
     )
 
-    viz_launch_file_path = \
-        Path(ouster_ros_pkg_dir) / 'launch' / 'sensor.rviz.launch.py'
+    rviz_launch_file_path = \
+        Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
     rviz_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([str(viz_launch_file_path)]),
-        condition=IfCondition(viz_launch_config)
+        PythonLaunchDescriptionSource([str(rviz_launch_file_path)]),
+        condition=IfCondition(rviz_enable),
+        launch_arguments={'_enable_static_tf_publishers': 'true'}.items()
     )
 
-    # NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-    #     for the actual sensor frames to be published that is when when using the same launch file
-    #     to run rviz2
-    sensor_imu_tf = Node(package="tf2_ros",
-                         executable="static_transform_publisher",
-                         name="stp_sensor_imu",
-                         condition=IfCondition(viz_launch_config),
-                         arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_imu"])
-    sensor_ldr_tf = Node(package="tf2_ros",
-                         executable="static_transform_publisher",
-                         name="stp_sensor_lidar",
-                         condition=IfCondition(viz_launch_config),
-                         arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_lidar"])
+    # HACK: to configure and activate the the sensor since state transition
+    # API doesn't seem to support composable nodes yet.
+
+    def invoke_lifecycle_cmd(node_name, verb):
+        ros2_exec = FindExecutable(name='ros2')
+        return ExecuteProcess(
+            cmd=[[ros2_exec, ' lifecycle set ',
+                  ouster_ns, '/', node_name, ' ', verb]],
+            shell=True)
+
+    sensor_configure_cmd = invoke_lifecycle_cmd('os_sensor', 'configure')
+    sensor_activate_cmd = invoke_lifecycle_cmd('os_sensor', 'activate')
 
     return launch.LaunchDescription([
-        ouster_ns_launch_arg,
+        params_file_arg,
+        ouster_ns_arg,
+        rviz_enable_arg,
         os_container,
-        viz_launch_arg, sensor_imu_tf, sensor_ldr_tf, rviz_launch])
+        sensor_configure_cmd,
+        TimerAction(period=1.0, actions=[sensor_activate_cmd]),
+        rviz_launch])

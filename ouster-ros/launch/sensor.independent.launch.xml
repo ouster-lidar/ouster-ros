@@ -1,17 +1,24 @@
 <launch>
 
-  <arg name="ouster_ns" default="ouster" description="Override the default namespace of all ouster nodes"/>
-  <arg name="sensor_hostname" description="hostname or IP in dotted decimal form of the sensor"/>
-  <arg name="udp_dest" default="" description="hostname or IP where the sensor will send data packets"/>
-  <arg name="lidar_port" default="0" description="port to which the sensor should send lidar data"/>
-  <arg name="imu_port" default="0" description="port to which the sensor should send imu data"/>
-  <arg name="udp_profile_lidar" default="" description="lidar packet profile; possible values: {
+  <arg name="ouster_ns" default="ouster"
+    description="Override the default namespace of all ouster nodes"/>
+  <arg name="sensor_hostname"
+    description="hostname or IP in dotted decimal form of the sensor"/>
+  <arg name="udp_dest" default=""
+    description="hostname or IP where the sensor will send data packets"/>
+  <arg name="lidar_port" default="0"
+    description="port to which the sensor should send lidar data"/>
+  <arg name="imu_port" default="0"
+    description="port to which the sensor should send imu data"/>
+  <arg name="udp_profile_lidar" default=""
+    description="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16_DUAL,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8
     }"/>
-  <arg name="lidar_mode" default="" description="resolution and rate; possible values: {
+  <arg name="lidar_mode" default=""
+    description="resolution and rate; possible values: {
     512x10,
     512x20,
     1024x10,
@@ -19,15 +26,19 @@
     2048x10,
     4096x5
     }"/>
-  <arg name="timestamp_mode" default="" description="method used to timestamp measurements; possible values: {
+  <arg name="timestamp_mode" default=""
+    description="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,
     TIME_FROM_SYNC_PULSE_IN,
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="metadata" default="" description="path to write metadata file when receiving sensor data"/>
-  <arg name="viz" default="true" description="whether to run a rviz"/>
-  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz" description="optional rviz config file"/>
+  <arg name="metadata" default=""
+    description="path to write metadata file when receiving sensor data"/>
+  <arg name="viz" default="true"
+    description="whether to run a rviz"/>
+  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
+    description="optional rviz config file"/>
   <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
 
   <group>
@@ -42,24 +53,24 @@
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
     </node>
-    <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
+    <!-- <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="tf_prefix" value="$(var tf_prefix)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
     </node>
-    <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/>
+    <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/> -->
   </group>
 
-  <group if="$(var viz)">
-    <push-ros-namespace namespace="$(var ouster_ns)"/>
-    <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-      for the actual sensor frames to be published that is when when using the same launch file
-      to run rviz2 -->
-    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
-      args="0 0 0 0 0 0 os_sensor os_imu"/>
-    <node pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
-      args="0 0 0 0 0 0 os_sensor os_lidar"/>
-    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
-      launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
-  </group>
+  <!-- HACK: configure and activate the sensor via a process execute since state
+    transition is currently not availabe through launch.xml format -->
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_sensor configure"
+    launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_sensor activate"
+    launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
+
+  <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
+    <arg name="ouster_ns" value="$(var ouster_ns)"/>
+    <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="_enable_static_tf_publishers" value="true"/>
+  </include>
 
 </launch>
