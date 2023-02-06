@@ -136,10 +136,10 @@ class OusterCloud : public OusterProcessingNodeBase {
         for (int i = 0; i < n_returns; ++i) {
             scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts,
                             *lidar_scan, cloud, i);
-            pcl_toROSMsg(cloud, *pc_msg);
-            pc_msg->header.stamp = msg_ts;
-            pc_msg->header.frame_id = sensor_frame;
-            lidar_pubs[i]->publish(*pc_msg);
+            pcl_toROSMsg(cloud, pc_msg);
+            pc_msg.header.stamp = msg_ts;
+            pc_msg.header.frame_id = sensor_frame;
+            lidar_pubs[i]->publish(pc_msg);
         }
 
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
@@ -196,7 +196,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
-    std::unique_ptr<sensor_msgs::msg::PointCloud2> pc_msg;
+    sensor_msgs::msg::PointCloud2 pc_msg;
 
     sensor::sensor_info info;
     int n_returns = 0;
