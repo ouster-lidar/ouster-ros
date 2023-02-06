@@ -40,7 +40,7 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     LifecycleNodeInterface::CallbackReturn on_configure(
-        const rclcpp_lifecycle::State &) {
+        const rclcpp_lifecycle::State&) {
         RCLCPP_INFO(get_logger(), "on_configure() is called.");
 
         try {
@@ -58,9 +58,10 @@ class OusterSensor : public OusterSensorNodeBase {
             create_set_config_service();
             create_publishers();
         } catch (const std::exception& ex) {
-            RCLCPP_ERROR_STREAM(get_logger(),
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
                 "exception thrown while configuring the sensor, details: "
-                << ex.what());
+                    << ex.what());
             // TODO: return ERROR on fatal errors, FAILURE otherwise
             return LifecycleNodeInterface::CallbackReturn::ERROR;
         }
@@ -69,7 +70,7 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     LifecycleNodeInterface::CallbackReturn on_activate(
-        const rclcpp_lifecycle::State & state) {
+        const rclcpp_lifecycle::State& state) {
         RCLCPP_INFO(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
 
@@ -103,13 +104,14 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     LifecycleNodeInterface::CallbackReturn on_cleanup(
-        const rclcpp_lifecycle::State &) {
+        const rclcpp_lifecycle::State&) {
         RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
 
         try {
             cleanup();
-        } catch(const std::exception& ex) {
-            RCLCPP_ERROR_STREAM(get_logger(),
+        } catch (const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
                 "exception thrown durng cleanup, details: " << ex.what());
             return LifecycleNodeInterface::CallbackReturn::ERROR;
         }
@@ -118,7 +120,7 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     LifecycleNodeInterface::CallbackReturn on_shutdown(
-        const rclcpp_lifecycle::State & state) {
+        const rclcpp_lifecycle::State& state) {
         RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
 
         if (state.label() == "unconfigured") {
@@ -134,8 +136,9 @@ class OusterSensor : public OusterSensorNodeBase {
         // whether state was 'active' or 'inactive' do cleanup
         try {
             cleanup();
-        } catch(const std::exception& ex) {
-            RCLCPP_ERROR_STREAM(get_logger(),
+        } catch (const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
                 "exception thrown durng cleanup, details: " << ex.what());
             return LifecycleNodeInterface::CallbackReturn::ERROR;
         }
