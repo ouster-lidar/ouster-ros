@@ -1,21 +1,21 @@
-# Official ROS driver for Ouster sensors
+# Official ROS2 driver for Ouster sensors
 
 [Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
 
-This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
-will configure and connect to the selected sensor device, once connected the driver will handle
-incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages on the
-topics of `/ouster/imu` and `/ouster/points`. In the case the sensor supports dual return and it was
-configured to use this capability, then another topic will published named `/ouster/points2` which
-corresponds to the second point cloud.
+This ROS package provide support for all Ouster sensors with FW v2.0 or later targeting ros2 distros.
+Upon launch the driver will configure and connect to the selected sensor device, once connected the 
+driver will handle incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS
+messages on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports
+dual return and it was configured to use this capability, then another topic will published under the
+name `/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
 This driver only supports **Rolling** and **Humble** ROS 2 distros.
 
-> **Info**  
+> **Note**  
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
     required dependencies:  
     ```
