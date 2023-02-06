@@ -24,10 +24,10 @@
 #include "ouster_ros/os_sensor_node_base.h"
 
 namespace sensor = ouster::sensor;
-using nonstd::optional;
 using ouster_msgs::msg::PacketMsg;
 using ouster_srvs::srv::GetConfig;
 using ouster_srvs::srv::SetConfig;
+using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace ouster_ros {
 
@@ -39,34 +39,37 @@ class OusterSensor : public OusterSensorNodeBase {
         declare_parameters();
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_configure(const rclcpp_lifecycle::State &)
-    {
+    LifecycleNodeInterface::CallbackReturn on_configure(
+        const rclcpp_lifecycle::State &) {
         RCLCPP_INFO(get_logger(), "on_configure() is called.");
 
-        sensor_hostname = get_sensor_hostname();
-        sensor::sensor_config config;
-        uint8_t flags;
-        std::tie(config, flags) = create_sensor_config_rosparams();
-        configure_sensor(sensor_hostname, config, flags);
-        // connect to the sensor and establish services and publishers
-        sensor_client = create_sensor_client(sensor_hostname, config);
-        update_config_and_metadata(*sensor_client);
-        save_metadata();
-        create_get_metadata_service();
-        create_get_config_service();
-        create_set_config_service();
-        create_publishers();
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        try {
+            sensor_hostname = get_sensor_hostname();
+            sensor::sensor_config config;
+            uint8_t flags;
+            std::tie(config, flags) = create_sensor_config_rosparams();
+            configure_sensor(sensor_hostname, config, flags);
+            // connect to the sensor and establish services and publishers
+            sensor_client = create_sensor_client(sensor_hostname, config);
+            update_config_and_metadata(*sensor_client);
+            save_metadata();
+            create_get_metadata_service();
+            create_get_config_service();
+            create_set_config_service();
+            create_publishers();
+        } catch (const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(get_logger(),
+                "exception thrown while configuring the sensor, details: "
+                << ex.what());
+            // TODO: return ERROR on fatal errors, FAILURE otherwise
+            return LifecycleNodeInterface::CallbackReturn::ERROR;
+        }
+
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_activate(const rclcpp_lifecycle::State & state)
-    {
-        // The parent class method automatically transition on managed entities
-        // (currently, LifecyclePublisher).
-        // pub_->on_activate() could also be called manually here.
-        // Overriding this method is optional, a lot of times the default is enough.
+    LifecycleNodeInterface::CallbackReturn on_activate(
+        const rclcpp_lifecycle::State & state) {
         RCLCPP_INFO(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
 
@@ -80,29 +83,27 @@ class OusterSensor : public OusterSensorNodeBase {
             connection_loop_timer->reset();
         }
 
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_error(const rclcpp_lifecycle::State&) {
+    LifecycleNodeInterface::CallbackReturn on_error(
+        const rclcpp_lifecycle::State&) {
         RCLCPP_INFO(get_logger(), "on_error() is called.");
         // Always return failure for now
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+        return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_deactivate(const rclcpp_lifecycle::State& state)
-    {
+    LifecycleNodeInterface::CallbackReturn on_deactivate(
+        const rclcpp_lifecycle::State& state) {
         RCLCPP_INFO(get_logger(), "on_deactivate() is called.");
         LifecycleNode::on_deactivate(state);
         connection_loop_timer->cancel();
 
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_cleanup(const rclcpp_lifecycle::State &)
-    {
+    LifecycleNodeInterface::CallbackReturn on_cleanup(
+        const rclcpp_lifecycle::State &) {
         RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
 
         try {
@@ -110,25 +111,20 @@ class OusterSensor : public OusterSensorNodeBase {
         } catch(const std::exception& ex) {
             RCLCPP_ERROR_STREAM(get_logger(),
                 "exception thrown durng cleanup, details: " << ex.what());
-            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
+            return LifecycleNodeInterface::CallbackReturn::ERROR;
         }
 
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-    on_shutdown(const rclcpp_lifecycle::State & state)
-    {
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-
+    LifecycleNodeInterface::CallbackReturn on_shutdown(
+        const rclcpp_lifecycle::State & state) {
         RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
 
         if (state.label() == "unconfigured") {
             // nothing to do, return success
-            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+            return LifecycleNodeInterface::CallbackReturn::SUCCESS;
         }
-
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 
         if (state.label() == "active") {
             // stop the timer first then perform cleanup
@@ -141,10 +137,10 @@ class OusterSensor : public OusterSensorNodeBase {
         } catch(const std::exception& ex) {
             RCLCPP_ERROR_STREAM(get_logger(),
                 "exception thrown durng cleanup, details: " << ex.what());
-            return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
+            return LifecycleNodeInterface::CallbackReturn::ERROR;
         }
 
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
    private:
@@ -320,7 +316,7 @@ class OusterSensor : public OusterSensorNodeBase {
             throw std::runtime_error(error_msg);
         }
 
-        optional<sensor::UDPProfileLidar> udp_profile_lidar;
+        nonstd::optional<sensor::UDPProfileLidar> udp_profile_lidar;
         if (is_arg_set(udp_profile_lidar_arg)) {
             // set lidar profile from param
             udp_profile_lidar =
@@ -517,6 +513,8 @@ class OusterSensor : public OusterSensorNodeBase {
             return;
         }
 
+        // TODO: check if frame_id has changed (for lidar_packets onl????)
+        //       & raise a request to reconfigure the node
         auto pf = sensor::get_format(info);
         if (state & sensor::LIDAR_DATA) {
             if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf))

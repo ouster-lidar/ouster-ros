@@ -73,9 +73,6 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void create_lidarscan_objects() {
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-
         // The ouster_ros drive currently only uses single precision when it
         // produces the point cloud. So it isn't of a benefit to compute point
         // cloud xyz coordinates using double precision (for the time being).
@@ -83,11 +80,12 @@ class OusterCloud : public OusterProcessingNodeBase {
         lut_direction = xyz_lut.direction.cast<float>();
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
-
-        ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
-        cloud = ouster_ros::Cloud{W, H};
-
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
+        uint32_t H = info.format.pixels_per_column;
+        uint32_t W = info.format.columns_per_frame;
+        lidar_scan = std::make_unique<ouster::LidarScan>(
+            W, H, info.format.udp_profile_lidar);
+        cloud = ouster_ros::Cloud{W, H};
     }
 
     void create_publishers() {
