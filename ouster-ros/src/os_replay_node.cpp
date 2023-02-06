@@ -34,7 +34,7 @@ class OusterReplay : public OusterSensorNodeBase {
     }
 
     void declare_parameters() {
-        declare_parameter("metadata", rclcpp::PARAMETER_STRING);
+        declare_parameter<std::string>("metadata");
     }
 
     std::string parse_parameters() {

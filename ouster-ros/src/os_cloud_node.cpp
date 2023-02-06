@@ -57,8 +57,8 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void declare_parameters() {
-        declare_parameter("tf_prefix", rclcpp::PARAMETER_STRING);
-        declare_parameter("timestamp_mode", rclcpp::PARAMETER_STRING);
+        declare_parameter<std::string>("tf_prefix");
+        declare_parameter<std::string>("timestamp_mode");
     }
 
     void parse_parameters() {

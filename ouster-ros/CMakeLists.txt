@@ -21,8 +21,6 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
-find_package(CURL REQUIRED)
-find_package(Boost REQUIRED)
 
 # ==== Options ====
 add_compile_options(-Wall -Wextra)
