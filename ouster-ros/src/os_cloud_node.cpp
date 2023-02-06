@@ -134,12 +134,12 @@ class OusterCloud : public OusterProcessingNodeBase {
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const rclcpp::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
-            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls,
-                            cloud, i);
-            pcl_toROSMsg(cloud, pc_msg);
-            pc_msg.header.stamp = msg_ts;
-            pc_msg.header.frame_id = sensor_frame;
-            lidar_pubs[i]->publish(pc_msg);
+            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts,
+                            *lidar_scan, cloud, i);
+            pcl_toROSMsg(cloud, *pc_msg);
+            pc_msg->header.stamp = msg_ts;
+            pc_msg->header.frame_id = sensor_frame;
+            lidar_pubs[i]->publish(*pc_msg);
         }
 
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
@@ -147,8 +147,8 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void lidar_handler_sensor_time(const PacketMsg::ConstSharedPtr packet) {
-        if (!(*scan_batcher)(packet->buf.data(), ls)) return;
-        auto ts_v = ls.timestamp();
+        if (!(*scan_batcher)(packet->buf.data(), *lidar_scan)) return;
+        auto ts_v = lidar_scan->timestamp();
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
         if (idx == ts_v.data() + ts_v.size()) return;
@@ -159,8 +159,8 @@ class OusterCloud : public OusterProcessingNodeBase {
     void lidar_handler_ros_time(const PacketMsg::ConstSharedPtr packet) {
         auto packet_receive_time = get_clock()->now();
         static auto frame_ts = packet_receive_time;  // first point cloud time
-        if (!(*scan_batcher)(packet->buf.data(), ls)) return;
-        auto ts_v = ls.timestamp();
+        if (!(*scan_batcher)(packet->buf.data(), *lidar_scan)) return;
+        auto ts_v = lidar_scan->timestamp();
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
         if (idx == ts_v.data() + ts_v.size()) return;
@@ -196,7 +196,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
-    sensor_msgs::msg::PointCloud2 pc_msg;
+    std::unique_ptr<sensor_msgs::msg::PointCloud2> pc_msg;
 
     sensor::sensor_info info;
     int n_returns = 0;
@@ -204,7 +204,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     ouster::PointsF lut_direction;
     ouster::PointsF lut_offset;
     ouster::PointsF points;
-    ouster::LidarScan ls;
+    std::unique_ptr<ouster::LidarScan> lidar_scan;
     ouster_ros::Cloud cloud;
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
 
