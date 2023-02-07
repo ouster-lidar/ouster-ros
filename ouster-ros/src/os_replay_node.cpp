@@ -21,18 +21,81 @@ class OusterReplay : public OusterSensorNodeBase {
     OUSTER_ROS_PUBLIC
     explicit OusterReplay(const rclcpp::NodeOptions& options)
         : OusterSensorNodeBase("os_replay", options) {
-        on_init();
+        declare_parameters();
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_configure(
+        const rclcpp_lifecycle::State&) {
+        RCLCPP_INFO(get_logger(), "on_configure() is called.");
+
+        try {
+            auto meta_file = parse_parameters();
+            populate_metadata_from_json(meta_file);
+            create_get_metadata_service();
+            RCLCPP_INFO(get_logger(), "Running in replay mode");
+        } catch (const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
+                "exception thrown while configuring the sensor, details: "
+                    << ex.what());
+            // TODO: return ERROR on fatal errors, FAILURE otherwise
+            return LifecycleNodeInterface::CallbackReturn::ERROR;
+        }
+
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_activate(
+        const rclcpp_lifecycle::State& state) {
+        RCLCPP_INFO(get_logger(), "on_activate() is called.");
+        LifecycleNode::on_activate(state);
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_error(
+        const rclcpp_lifecycle::State&) {
+        RCLCPP_INFO(get_logger(), "on_error() is called.");
+        // Always return failure for now
+        return LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_deactivate(
+        const rclcpp_lifecycle::State& state) {
+        RCLCPP_INFO(get_logger(), "on_deactivate() is called.");
+        LifecycleNode::on_deactivate(state);
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_cleanup(
+        const rclcpp_lifecycle::State&) {
+        RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
+        cleanup();
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_shutdown(
+        const rclcpp_lifecycle::State& state) {
+        RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
+
+        if (state.label() == "unconfigured") {
+            // nothing to do, return success
+            return LifecycleNodeInterface::CallbackReturn::SUCCESS;
+        }
+
+        // whether state was 'active' or 'inactive' do cleanup
+        try {
+            cleanup();
+        } catch (const std::exception& ex) {
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
+                "exception thrown durng cleanup, details: " << ex.what());
+            return LifecycleNodeInterface::CallbackReturn::ERROR;
+        }
+
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
    private:
-    void on_init() {
-        declare_parameters();
-        auto meta_file = parse_parameters();
-        populate_metadata_from_json(meta_file);
-        create_get_metadata_service();
-        RCLCPP_INFO(get_logger(), "Running in replay mode");
-    }
-
     void declare_parameters() {
         declare_parameter<std::string>("metadata");
     }
@@ -62,6 +125,11 @@ class OusterReplay : public OusterSensorNodeBase {
                 "Error when running in replay mode: " << e.what());
         }
     }
+
+    void cleanup() {
+        get_metadata_srv.reset();
+    }
+
 };
 
 }  // namespace ouster_ros

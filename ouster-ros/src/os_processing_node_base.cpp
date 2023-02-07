@@ -25,7 +25,7 @@ bool OusterProcessingNodeBase::spin_till_attempts_exahused(
                                    << total_attempts - remaining_attempts + 1
                                    << "/" << total_attempts);
         done = lambda();
-    } while (!done && --remaining_attempts > 0);
+    } while (rclcpp::ok() && !done && --remaining_attempts > 0);
     return done;
 }
 

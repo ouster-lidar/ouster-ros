@@ -34,6 +34,13 @@
     </node_container>
   </group>
 
+  <!-- HACK: configure and activate the replay node via a process execute since state
+    transition is currently not availabe through launch.xml format -->
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay configure"
+    launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay activate"
+    launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
+
   <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>

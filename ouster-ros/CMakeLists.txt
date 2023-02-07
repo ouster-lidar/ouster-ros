@@ -15,7 +15,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
 find_package(ouster_srvs REQUIRED)
-find_package(rmw REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
@@ -114,7 +114,7 @@ endfunction()
 # ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
   "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp"
-  ""
+  "std_srvs"
 )
 rclcpp_components_register_node(os_sensor_component
   PLUGIN "ouster_ros::OusterSensor"

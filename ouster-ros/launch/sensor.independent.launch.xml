@@ -53,14 +53,14 @@
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
     </node>
-    <!-- <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
+    <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="tf_prefix" value="$(var tf_prefix)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
     </node>
-    <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/> -->
+    <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/>
   </group>
 
-  <!-- HACK: configure and activate the sensor via a process execute since state
+  <!-- HACK: configure and activate the sensor node via a process execute since state
     transition is currently not availabe through launch.xml format -->
   <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_sensor configure"
     launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
