@@ -78,16 +78,18 @@ source ros2_ws/install/setup.bash # replace ros-distro with 'rolling' or 'humble
 ```
 
 ## Usage
+
+### Launching Nodes
 The package supports three modes of interaction, you can connect to a live senosr, replay a recorded
 bag or record a new bag file using the corresponding launch files. The commands are listed below:
 
-### Sensor Mode
+#### Sensor Mode
 ```bash
 ros2 launch ouster_ros sensor.launch.xml    \
     sensor_hostname:=<sensor host name>
 ```
 
-### Recording Mode
+#### Recording Mode
 ```bash
 ros2 launch ouster_ros record.launch.xml    \
     sensor_hostname:=<sensor host name>     \
@@ -95,14 +97,49 @@ ros2 launch ouster_ros record.launch.xml    \
     bag_file:=<optional bag file name>
 ```
 
-### Replay Mode
+#### Replay Mode
 ```bash
 ros2 launch ouster_ros replay.launch.xml    \
     metadata:=<json file name>              \
     bag_file:=<path to rosbag file>
 ```
 
-For further detailed instructions refer to the [main guide](./docs/index.rst)
+### Invoking Services
+To execute any of the following service, first you need to open a new terminal
+and source the ros2 workspace again by running the command
+`source ros2_ws/install/setup.bash` 
+#### GetMetadata
+To get metadata while connected to a live sensor or during a replay session invoke
+the following command:
+```bash
+ros2 service call /ouster/get_metadata ouster_srvs/srv/GetMetadata
+```
+
+#### GetConfig
+To get the current config of a live sensor, invoke the command:
+```bash
+ros2 service call /ouster/get_config ouster_srvs/srv/GetConfig
+```
+
+#### SetConfig (experimental)
+To change config via a file while connected to a live sensor, invoke the command:
+```bash
+ros2 service call /ouster/set_config ouster_srvs/srv/SetConfig \
+    "{config_file: 'some_config.json'}"
+```
+
+#### Reset (experimental)
+To reset the new reset service, execute the following commnad:
+```bash
+ros2 service call /ouster/reset std_srvs/srv/Empty
+```
+When this service is invoked the client should stop streaming, dispose current
+connection, reset the sensor and reconnect again. 
+
+> **Note**
+> Changing settings is not yet fully support during a reset operation (more on this)
+
+TBD: For further detailed instructions refer to the [main guide](./docs/index.rst)
 
 
 ## License

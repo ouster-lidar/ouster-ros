@@ -7,8 +7,9 @@ Changelog
 
 ouster_ros(2)
 -------------
-- first draft of the ouster driver for ros2
+* MVP ouster-ros targeting ros2 distros
+* introduced a ``reset`` service to the ``os_sensor`` node
 
 ouster_client
 --------------
-- based off 20230114 release
+* based off 20230114 release
