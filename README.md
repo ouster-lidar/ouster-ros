@@ -1,4 +1,4 @@
-# Official ROS driver for Ouster sensors
+# Official ROS1/ROS2 drivers for Ouster sensors
 
 [Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
