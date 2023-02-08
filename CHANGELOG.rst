@@ -7,12 +7,12 @@ Changelog
 
 ouster_ros(1)
 -------------
-* EOL notice: ouster-ros driver will end and remove support for the melodic by May 2023
+* EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023
 * bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist in the original metadata file
 
 ouster_ros(2)
 -------------
-* MVP ouster-ros targeting ros2 distros 
+* MVP ouster-ros targeting ros2 distros
 * introduced a ``reset`` service to the ``os_sensor`` node
 
 ouster_client
