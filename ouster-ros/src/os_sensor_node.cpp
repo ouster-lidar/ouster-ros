@@ -90,9 +90,11 @@ class OusterSensor : public OusterSensorNodeBase {
         allocate_buffers();
         if (!connection_loop_timer) {
             // TOOD: replace with a thread instead?
-            using namespace std::chrono_literals;
-            connection_loop_timer = rclcpp::create_timer(
-                this, get_clock(), 0s, [this]() { connection_loop(); });
+            connection_loop_timer =
+                rclcpp::create_timer(this, get_clock(), 0s, [this]() {
+                    if (reset_in_progress) return;
+                    connection_loop();
+                });
         } else {
             connection_loop_timer->reset();
         }
@@ -308,6 +310,7 @@ class OusterSensor : public OusterSensorNodeBase {
             return;
         }
 
+        connection_loop_timer->cancel();
         reset_in_progress = true;
         auto request_transitions = std::vector<uint8_t>{
             lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
@@ -638,14 +641,12 @@ class OusterSensor : public OusterSensorNodeBase {
             return;
         }
 
-        if (reset_in_progress) return;
-
         auto pf = sensor::get_format(info);
         if (state & sensor::LIDAR_DATA) {
             if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
                 if (is_non_legacy_lidar_profile(info) &&
                     init_id_changed(pf, lidar_packet.buf.data())) {
-                    // TODO: short circut reset if no breaking changes
+                    // TODO: short circut reset if no breaking changes occured
                     RCLCPP_WARN(
                         get_logger(),
                         "sensor init_id has changed! performing self reset..");
