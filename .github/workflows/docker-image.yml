@@ -16,7 +16,6 @@ jobs:
       matrix:
         ros_distro:
           - rolling
-          - foxy
           - humble
     steps:
       - uses: actions/checkout@v3
