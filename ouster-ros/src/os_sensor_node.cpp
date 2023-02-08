@@ -33,6 +33,7 @@ using ouster_msgs::msg::PacketMsg;
 using ouster_srvs::srv::GetConfig;
 using ouster_srvs::srv::SetConfig;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
+using sensor::UDPProfileLidar;
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -96,6 +97,7 @@ class OusterSensor : public OusterSensorNodeBase {
             connection_loop_timer->reset();
         }
 
+        reset_in_progress = false;
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
@@ -299,6 +301,14 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     void reset_sensor() {
+        if (reset_in_progress) {
+            RCLCPP_WARN(
+                get_logger(),
+                "reset is already in progress, ignoring second reset call!");
+            return;
+        }
+
+        reset_in_progress = true;
         auto request_transitions = std::vector<uint8_t>{
             lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
             lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP,
@@ -600,6 +610,20 @@ class OusterSensor : public OusterSensorNodeBase {
         imu_packet.buf.resize(pf.imu_packet_size + 1);
     }
 
+    bool init_id_changed(const sensor::packet_format& pf,
+                         const uint8_t* lidar_buf) {
+        static uint32_t last_init_id = pf.init_id(lidar_buf);
+        uint32_t current_init_id = pf.init_id(lidar_buf);
+        if (last_init_id == current_init_id) return false;
+        last_init_id = current_init_id;
+        return true;
+    }
+
+    static bool is_non_legacy_lidar_profile(const sensor::sensor_info& info) {
+        return info.format.udp_profile_lidar !=
+               UDPProfileLidar::PROFILE_LIDAR_LEGACY;
+    }
+
     void connection_loop() {
         auto& cli = *sensor_client;
 
@@ -614,18 +638,20 @@ class OusterSensor : public OusterSensorNodeBase {
             return;
         }
 
-        // TODO: check if init_id has changed & reconfigure this node
+        if (reset_in_progress) return;
+
         auto pf = sensor::get_format(info);
         if (state & sensor::LIDAR_DATA) {
             if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
-                static uint32_t last_init_id = pf.init_id(lidar_packet.buf.data());
-                uint32_t current_init_id = pf.init_id(lidar_packet.buf.data());
-                if (last_init_id == current_init_id) {
-                    lidar_packet_pub->publish(lidar_packet);
-                } else {
-                    RCLCPP_WARN(get_logger(), "poll_client: sensor init_id has changed!");
-                    last_init_id = current_init_id;
+                if (is_non_legacy_lidar_profile(info) &&
+                    init_id_changed(pf, lidar_packet.buf.data())) {
+                    // TODO: short circut reset if no breaking changes
+                    RCLCPP_WARN(
+                        get_logger(),
+                        "sensor init_id has changed! performing self reset..");
                     reset_sensor();
+                } else {
+                    lidar_packet_pub->publish(lidar_packet);
                 }
             }
         }
@@ -658,6 +684,8 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
     std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
+
+    std::atomic<bool> reset_in_progress = false;
 };
 
 }  // namespace ouster_ros
