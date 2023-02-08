@@ -685,7 +685,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
     std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
 
-    std::atomic<bool> reset_in_progress = false;
+    std::atomic<bool> reset_in_progress = {false};
 };
 
 }  // namespace ouster_ros
