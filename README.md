@@ -21,18 +21,25 @@ sudo apt install -y                     \
     ros-$ROS_DISTRO-pcl-ros             \
     ros-$ROS_DISTRO-rviz
 ```
-
 where `$ROS-DISTRO` is either ``melodic`` or ``noetic``.
+
+> **Note**  
+> Installing `ros-$ROS_DISTRO-rviz` package is optional in case you didn't need to visualize the
+> point cloud using rviz but remember to always set `viz` launch arg to `false`.
+  
 
 Additional dependenices:
 ```bash
-sudo apt install -y \
-    build-essential \
-    libeigen3-dev   \
-    libjsoncpp-dev  \
-    libspdlog-dev   \
+sudo apt install -y         \
+    build-essential         \
+    libeigen3-dev           \
+    libjsoncpp-dev          \
+    libspdlog-dev           \
+    libcurl4-openssl-dev    \
     cmake
 ```
+> **Note**  
+> You may choose a different ssl backend for the curl library such as `libcurl4-gnutls-dev` or `libcurl4-nss-dev`
 
 ## Getting Started
 To build the driver using ROS you need to clone the project into the `src` folder of a catkin workspace
