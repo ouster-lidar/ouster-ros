@@ -13,7 +13,8 @@ dual return and it was configured to use this capability, then another topic wil
 name `/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
-This driver only supports **Rolling** and **Humble** ROS 2 distros.
+This driver only supports **Rolling** and **Humble** ROS 2 distros. Please refer to ROS 2 online
+documentation on how to setup ros on your machine before proceeding with the remainder of this guide.
 
 > **Note**  
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
@@ -24,33 +25,39 @@ This driver only supports **Rolling** and **Humble** ROS 2 distros.
 
 ### Linux
 
-The following packages are required
+In addition to the base ROS installation, the following ROS packages are required:
+```bash
+sudo apt install -y             \
+    ros-$ROS_DISTRO-pcl-ros     \
+    ros-$ROS_DISTRO-tf2-eigen   \
+    ros-$ROS_DISTRO-rviz
+```
+where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
+
+> **Note**  
+> Installing `ros-$ROS_DISTRO-rviz` package is optional in case you didn't need to visualize the
+> point cloud using rviz but remember to always set `viz` launch arg to `false`.
+  
+The following packages are also required
 ```bash
 sudo apt install -y         \
     build-essential         \
     libeigen3-dev           \
     libjsoncpp-dev          \
     libspdlog-dev           \
-    cmake                   \
     libcurl4-openssl-dev    \
+    cmake                   \
     python3-colcon-common-extensions
 ```
 > **Note**  
-> You may choose a different ssl backend for the curl library such as `libcurl4-gnutls-dev`
-  or `libcurl4-nss-dev`
+> You may choose a different _ssl_ backend for the _curl_ library such as `libcurl4-gnutls-dev` or
+> `libcurl4-nss-dev`
 
 
-In addition to the base ROS installation, the following ROS packages are required:
-```bash
-sudo apt install -y             \
-    ros-$ROS_DISTRO-pcl-ros     \
-    ros-$ROS_DISTRO-tf2-eigen
-```
-
-where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
 
 ### Windows
 TBD
+
 
 ### Mac
 TBD
