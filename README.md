@@ -19,8 +19,7 @@ In addition to the base ROS installation, the following ROS packages are require
 ```bash
 sudo apt install -y                     \
     ros-$ROS_DISTRO-pcl-ros             \
-    ros-$ROS_DISTRO-rviz                \
-    ros-$ROS_DISTRO-tf2-geometry-msgs
+    ros-$ROS_DISTRO-rviz
 ```
 
 where `$ROS-DISTRO` is either ``melodic`` or ``noetic``.
