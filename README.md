@@ -42,11 +42,18 @@ sudo apt install -y         \
 
 In addition to the base ROS installation, the following ROS packages are required:
 ```bash
-sudo apt install -y 
-# TODO...
+sudo apt install -y             \
+    ros-$ROS_DISTRO-pcl-ros     \
+    ros-$ROS_DISTRO-tf2-eigen
 ```
 
-where `$ROS-DISTRO` is either ``rolling`` or ``humble``.
+where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
+
+### Windows
+TBD
+
+### Mac
+TBD
 
 
 ## Getting Started
