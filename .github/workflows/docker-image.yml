@@ -15,8 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         ros_distro:
-          - rolling
-          - humble
+          - foxy
     steps:
       - uses: actions/checkout@v3
         with:
