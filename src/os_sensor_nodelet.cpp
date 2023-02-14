@@ -170,7 +170,7 @@ class OusterSensor : public OusterClientBase {
                 cli = sensor::mtp_init_client_main(hostname, config, this->mtp_dest);
             } else {
                 // use the mtp_init_client_slave only to recieve data via multicast
-                cli = sensor::mtp_init_client_slave(hostname, config, this->mtp_dest);
+                cli = sensor::mtp_init_client_secondary(hostname, config, this->mtp_dest);
             }
         } else if (lidar_port != 0 && imu_port != 0) {
             // use no-config version of init_client to bind to pre-configured
