@@ -5,6 +5,12 @@
   <arg name="udp_dest" default=" " doc="hostname or multicast group IP where the sensor will send UDP data packets"/>
   <arg name="mtp_dest" default=" " doc="hostname IP address for receiving data packets via multicast"/>
 
+  <arg name="timestamp_mode" default=" " doc="method used to timestamp measurements; possible values: {
+    TIME_FROM_INTERNAL_OSC,
+    TIME_FROM_SYNC_PULSE_IN,
+    TIME_FROM_PTP_1588,
+    TIME_FROM_ROS_TIME
+    }"/>
   <arg name="metadata" default=" " doc="path to write metadata file when receiving sensor data"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
