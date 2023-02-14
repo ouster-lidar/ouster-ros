@@ -3,7 +3,9 @@
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="sensor_hostname" doc="hostname or IP in dotted decimal form of the sensor"/>
   <arg name="udp_dest" default=" " doc="hostname or multicast group IP where the sensor will send UDP data packets"/>
-  <arg name="mtp_dest" default=" " doc="hostname IP address for receiving data packets via multicast"/>
+  <arg name="mtp_dest" default=" " doc="hostname IP address for receiving data packets via multicast,
+    by default it is INADDR_ANY, so packets will be received on first available interface"/>
+
 
   <arg name="timestamp_mode" default=" " doc="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,

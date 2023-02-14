@@ -163,7 +163,7 @@ class OusterSensor : public OusterClientBase {
         auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (!this->mtp_dest.empty()) {            
+        if (sensor::in_multicast(udp_dest.c_str())) {
             if (lidar_port != 0 && imu_port != 0) {
                 // use the mtp_init_client_main to configure sensor and recieve 
                 // data via multicast
@@ -297,9 +297,16 @@ class OusterSensor : public OusterClientBase {
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
-        if (is_arg_set(mtp_dest_arg)) {            
-            NODELET_INFO("Will recieve data via multicast on %s", mtp_dest_arg.c_str());
-            this->mtp_dest = mtp_dest_arg;
+        if (sensor::in_multicast(udp_dest.c_str())) {
+            if (is_arg_set(mtp_dest_arg)) {
+                NODELET_INFO("Will recieve data via multicast on %s", mtp_dest_arg.c_str());
+                this->mtp_dest = mtp_dest_arg;
+            } else {                
+                NODELET_INFO("mtp_dest arg not defined, will recieve data via multicast"
+                             "on first available interface");
+                this->mtp_dest = std::string{};
+            }
+
             if (lidar_port == 0 && imu_port == 0)
                 config_flags |= ouster::sensor::CONFIG_GET_ACTIVE;
         }
