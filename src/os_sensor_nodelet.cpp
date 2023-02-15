@@ -356,11 +356,10 @@ class OusterSensor : public OusterClientBase {
     // try to write metadata file
     bool write_metadata(const std::string& meta_file,
                         const std::string& metadata) {
-        std::ofstream ofs;
-        ofs.open(meta_file);
-        ofs << metadata << std::endl;
-        ofs.close();
-        if (ofs) {
+        std::ofstream ofs(meta_file);
+        if (ofs.is_open()) {
+            ofs << metadata << std::endl;
+            ofs.close();
             NODELET_INFO("Wrote metadata to %s", meta_file.c_str());
         } else {
             NODELET_WARN(
