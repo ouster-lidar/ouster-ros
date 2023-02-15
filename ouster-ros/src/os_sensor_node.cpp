@@ -582,13 +582,12 @@ class OusterSensor : public OusterSensorNodeBase {
     // try to write metadata file
     bool write_metadata(const std::string& meta_file,
                         const std::string& metadata) {
-        std::ofstream ofs;
-        ofs.open(meta_file);
-        ofs << metadata << std::endl;
-        ofs.close();
-        if (ofs) {
-            RCLCPP_INFO(get_logger(), "Wrote metadata to %s",
-                        meta_file.c_str());
+        std::ofstream ofs(meta_file);
+        if (ofs.is_open()) {
+            ofs << metadata << std::endl;
+            ofs.close();
+            RCLCPP_INFO_STREAM(get_logger(), "Wrote sensor metadata to " <<
+                meta_file);
         } else {
             RCLCPP_WARN(
                 get_logger(),
