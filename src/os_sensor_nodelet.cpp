@@ -163,7 +163,7 @@ class OusterSensor : public OusterClientBase {
         auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (sensor::in_multicast(udp_dest.c_str())) {
+        if (sensor::in_multicast(udp_dest)) {
             // use the mtp_init_client to recieve data via multicast
             // if mtp_main is true when sensor will be configured
             cli = sensor::mtp_init_client(hostname, config, this->mtp_dest, this->mtp_main);
@@ -293,7 +293,7 @@ class OusterSensor : public OusterClientBase {
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
-        if (sensor::in_multicast(udp_dest.c_str())) {
+        if (sensor::in_multicast(udp_dest)) {
             if (is_arg_set(mtp_dest_arg)) {
                 NODELET_INFO("Will recieve data via multicast on %s", mtp_dest_arg.c_str());
                 this->mtp_dest = mtp_dest_arg;
