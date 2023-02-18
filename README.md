@@ -1,4 +1,4 @@
-# Official ROS2 driver for Ouster sensors
+# Official ROS2 driver for Ouster sensors (BETA)
 
 [Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
