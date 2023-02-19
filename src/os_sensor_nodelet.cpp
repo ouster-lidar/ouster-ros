@@ -299,7 +299,7 @@ class OusterSensor : public OusterClientBase {
                 this->mtp_dest = mtp_dest_arg;
             } else {                
                 NODELET_INFO("mtp_dest arg not defined, will recieve data via multicast"
-                             "on first available interface");
+                             " on first available interface");
                 this->mtp_dest = std::string{};
             }
 
