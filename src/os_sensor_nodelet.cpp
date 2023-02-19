@@ -312,25 +312,27 @@ class OusterSensor : public OusterClientBase {
     void configure_sensor(const std::string& hostname,
                           sensor::sensor_config& config,
                           int config_flags) {
-        if (this->mtp_main) {
-            try {
-                if (!set_config(hostname, config, config_flags)) {
-                    auto err_msg = "Error connecting to sensor " + hostname;
-                    NODELET_ERROR_STREAM(err_msg);
-                    throw std::runtime_error(err_msg);
-                }
-            } catch (const std::exception& e) {
-                NODELET_ERROR("Error setting config:  %s", e.what());
-                throw;
-            }
-
-            NODELET_INFO_STREAM("Sensor " << hostname
-                                        << " configured successfully");
-        } else {
+        if (sensor::in_multicast(config.udp_dest.value()) && !mtp_main) {
             if (!get_config(hostname, config, true)) {
                 NODELET_ERROR("Error getting active config");
             }
+            NODELET_INFO_STREAM("Retrived active config of sensor");
+            return;
         }
+
+        try {
+            if (!set_config(hostname, config, config_flags)) {
+                auto err_msg = "Error connecting to sensor " + hostname;
+                NODELET_ERROR_STREAM(err_msg);
+                throw std::runtime_error(err_msg);
+            }
+        } catch (const std::exception& e) {
+            NODELET_ERROR("Error setting config:  %s", e.what());
+            throw;
+        }
+
+        NODELET_INFO_STREAM("Sensor " << hostname
+                                    << " configured successfully");
     }
 
     bool load_config_file(const std::string& config_file,
