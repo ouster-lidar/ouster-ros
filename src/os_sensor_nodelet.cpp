@@ -293,7 +293,7 @@ class OusterSensor : public OusterClientBase {
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
-        if (sensor::in_multicast(udp_dest)) {
+        if (is_arg_set(udp_dest) && sensor::in_multicast(udp_dest)) {
             if (is_arg_set(mtp_dest_arg)) {
                 NODELET_INFO("Will recieve data via multicast on %s", mtp_dest_arg.c_str());
                 this->mtp_dest = mtp_dest_arg;
