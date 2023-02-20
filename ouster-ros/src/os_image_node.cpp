@@ -1,9 +1,9 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_image_nodelet.cpp
- * @brief A nodelet to decode range, near ir and signal images from ouster
+ * @file os_image_node.cpp
+ * @brief A node to decode range, near ir and signal images from ouster
  * point cloud
  *
  * Publishes ~/range_image, ~/nearir_image, and ~/signal_image.  Please bear
@@ -17,14 +17,11 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <nodelet/nodelet.h>
 #include <pcl/conversions.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 
 #include <iomanip>
 #include <iostream>
@@ -33,81 +30,78 @@
 #include <vector>
 
 #include "ouster/image_processing.h"
-#include "ouster_ros/GetMetadata.h"
+#include "ouster_ros/visibility_control.h"
+#include "ouster_ros/os_processing_node_base.h"
+#include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
-using sensor::UDPProfileLidar;
+using ouster_srvs::srv::GetMetadata;
 
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
 
-namespace nodelets_os {
-class OusterImage : public nodelet::Nodelet {
+namespace ouster_ros {
+
+class OusterImage : public OusterProcessingNodeBase {
+   public:
+    OUSTER_ROS_PUBLIC
+    explicit OusterImage(const rclcpp::NodeOptions& options)
+        : OusterProcessingNodeBase("os_image", options) {
+        on_init();
+    }
+
    private:
-    virtual void onInit() override {
-        auto& nh = getNodeHandle();
+    void on_init() {
+        auto metadata = get_metadata();
+        info = sensor::parse_metadata(metadata);
+        create_cloud_object();
+        const int n_returns = get_n_returns();
+        create_publishers(n_returns);
+        create_subscriptions(n_returns);
+    }
 
-        ouster_ros::GetMetadata metadata{};
-        auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-        client.waitForExistence();
-        if (!client.call(metadata)) {
-            auto error_msg = "OusterImage: Calling get_metadata service failed";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        NODELET_INFO("OusterImage: retrieved sensor metadata!");
-
-        info = sensor::parse_metadata(metadata.response.metadata);
-
-        const int n_returns =
-            info.format.udp_profile_lidar ==
-                    UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                ? 2
-                : 1;
-
-        nearir_image_pub =
-            nh.advertise<sensor_msgs::Image>("nearir_image", 100);
-
-        auto topic = [](auto base, int ind) {
-            if (ind == 0) return std::string(base);
-            return std::string(base) +
-                   std::to_string(ind + 1);  // need second return to return 2
-        };
-
-        ros::Publisher a_pub;
-        for (int i = 0; i < n_returns; i++) {
-            a_pub =
-                nh.advertise<sensor_msgs::Image>(topic("range_image", i), 100);
-            range_image_pubs.push_back(a_pub);
-
-            a_pub =
-                nh.advertise<sensor_msgs::Image>(topic("signal_image", i), 100);
-            signal_image_pubs.push_back(a_pub);
-
-            a_pub =
-                nh.advertise<sensor_msgs::Image>(topic("reflec_image", i), 100);
-            reflec_image_pubs.push_back(a_pub);
-        }
-
+    void create_cloud_object() {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
         cloud = ouster_ros::Cloud{W, H};
+    }
 
-        // image processing
-        pc1_sub = nh.subscribe<sensor_msgs::PointCloud2>(
-            topic("points", 0), 100, &OusterImage::first_cloud_handler, this);
+    void create_publishers(int n_returns) {
+        rclcpp::SensorDataQoS qos;
+        nearir_image_pub =
+            create_publisher<sensor_msgs::msg::Image>("nearir_image", qos);
 
-        if (n_returns > 1) {
-            pc2_sub = nh.subscribe<sensor_msgs::PointCloud2>(
-                topic("points", 1), 100, &OusterImage::second_cloud_handler,
-                this);
+        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
+        for (int i = 0; i < n_returns; i++) {
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic_for_return("range_image", i), qos);
+            range_image_pubs.push_back(a_pub);
+
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic_for_return("signal_image", i), qos);
+            signal_image_pubs.push_back(a_pub);
+
+            a_pub = create_publisher<sensor_msgs::msg::Image>(
+                topic_for_return("reflec_image", i), qos);
+            reflec_image_pubs.push_back(a_pub);
         }
     }
 
-    void base_cloud_handler(const sensor_msgs::PointCloud2::ConstPtr& m,
-                            int return_index) {
+    void create_subscriptions(int n_returns) {
+        pc_subs.resize(n_returns);
+        rclcpp::SensorDataQoS qos;
+        for (int i = 0; i < n_returns; ++i) {
+            pc_subs[i] = create_subscription<sensor_msgs::msg::PointCloud2>(
+                topic_for_return("points", i), qos,
+                [this, i](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+                    point_cloud_handler(msg, i);
+                });
+        }
+    }
+
+    void point_cloud_handler(const sensor_msgs::msg::PointCloud2::SharedPtr m,
+                             int return_index) {
         pcl::fromROSMsg(*m, cloud);
 
         const bool first = (return_index == 0);
@@ -168,26 +162,18 @@ class OusterImage : public nodelet::Nodelet {
         if (first) {
             nearir_image_map =
                 (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
-            nearir_image_pub.publish(nearir_image);
+            nearir_image_pub->publish(std::move(nearir_image));
         }
 
         // publish at return index
-        range_image_pubs[return_index].publish(range_image);
-        signal_image_pubs[return_index].publish(signal_image);
-        reflec_image_pubs[return_index].publish(reflec_image);
+        range_image_pubs[return_index]->publish(std::move(range_image));
+        signal_image_pubs[return_index]->publish(std::move(signal_image));
+        reflec_image_pubs[return_index]->publish(std::move(reflec_image));
     }
 
-    void first_cloud_handler(const sensor_msgs::PointCloud2::ConstPtr& m) {
-        base_cloud_handler(m, 0);
-    }
-
-    void second_cloud_handler(const sensor_msgs::PointCloud2::ConstPtr& m) {
-        base_cloud_handler(m, 1);
-    }
-
-    static sensor_msgs::ImagePtr make_image_msg(size_t H, size_t W,
-                                                const ros::Time& stamp) {
-        auto msg = boost::make_shared<sensor_msgs::Image>();
+    static sensor_msgs::msg::Image::UniquePtr make_image_msg(
+        size_t H, size_t W, const rclcpp::Time& stamp) {
+        auto msg = std::make_unique<sensor_msgs::msg::Image>();
         msg->width = W;
         msg->height = H;
         msg->step = W * sizeof(pixel_type);
@@ -198,13 +184,15 @@ class OusterImage : public nodelet::Nodelet {
     }
 
    private:
-    ros::Publisher nearir_image_pub;
-    std::vector<ros::Publisher> range_image_pubs;
-    std::vector<ros::Publisher> signal_image_pubs;
-    std::vector<ros::Publisher> reflec_image_pubs;
-
-    ros::Subscriber pc1_sub;
-    ros::Subscriber pc2_sub;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr nearir_image_pub;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        range_image_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        signal_image_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        reflec_image_pubs;
+    std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr>
+        pc_subs;
 
     sensor::sensor_info info;
 
@@ -212,6 +200,8 @@ class OusterImage : public nodelet::Nodelet {
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
 };
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterImage, nodelet::Nodelet)
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(ouster_ros::OusterImage)

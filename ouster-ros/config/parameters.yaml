@@ -1,0 +1,14 @@
+ouster/os_sensor:
+  ros__parameters:
+    sensor_hostname: ''
+    udp_dest: ''
+    lidar_mode: ''
+    timestamp_mode: ''
+    udp_profile_lidar: ''
+    metadata: ''
+    lidar_port: 0
+    imu_port: 0
+ouster/os_cloud:
+  ros__parameters:
+    tf_prefix: ''
+    timestamp_mode: ''

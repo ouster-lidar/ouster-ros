@@ -2,25 +2,28 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - ros2
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - ros2
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        ros_distro: [melodic, noetic]
-
+        ros_distro:
+          - rolling
+          - humble
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Build the Docker image
-      run: |
-        docker build .                                    \
-          --build-arg ROS_DISTRO=${{ matrix.ros_distro }} \
-          --file Dockerfile                               \
-          --tag ouster-ros-${{ matrix.ros_distro }}:$(date +%s)
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Build the Docker image
+        run: |
+          docker build .                                    \
+            --build-arg ROS_DISTRO=${{ matrix.ros_distro }} \
+            --file Dockerfile                               \
+            --tag ouster-ros-${{ matrix.ros_distro }}:$(date +%s)

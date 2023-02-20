@@ -1,0 +1,56 @@
+<launch>
+
+  <arg name="ouster_ns" default="ouster"
+    description="Override the default namespace of all ouster nodes"/>
+  <!-- TODO: revisit the proper behaviour of allowing users override the default timestamp_mode during replay -->
+  <arg name="timestamp_mode" default=""
+    description="method used to timestamp measurements; possible values: {
+    TIME_FROM_INTERNAL_OSC,
+    TIME_FROM_SYNC_PULSE_IN,
+    TIME_FROM_PTP_1588,
+    TIME_FROM_ROS_TIME
+    }"/>
+  <arg name="metadata"
+    description="path to write metadata file when receiving sensor data"/>
+  <arg name="bag_file"
+    description="file name to use for the recorded bag file"/>
+  <arg name="viz" default="true"
+    description="whether to run a rviz"/>
+  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
+    description="optional rviz config file"/>
+  <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
+
+  <group>
+    <push-ros-namespace namespace="$(var ouster_ns)"/>
+    <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
+      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterReplay" name="os_replay">
+        <param name="metadata" value="$(var metadata)"/>
+      </composable_node>
+      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
+        <param name="tf_prefix" value="$(var tf_prefix)"/>
+        <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+      </composable_node>
+      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
+    </node_container>
+  </group>
+
+  <!-- HACK: configure and activate the replay node via a process execute since state
+    transition is currently not availabe through launch.xml format -->
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay configure"
+    launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay activate"
+    launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
+
+  <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
+    <arg name="ouster_ns" value="$(var ouster_ns)"/>
+    <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="_enable_static_tf_publishers" value="true"/>
+  </include>
+
+  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
+
+  <executable if="$(var _use_bag_file_name)" output="screen"
+    launch-prefix="bash -c 'sleep 3; $0 $@'"
+    cmd="ros2 bag play $(var bag_file) --clock"/>
+
+</launch>

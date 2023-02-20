@@ -1,4 +1,4 @@
-ARG ROS_DISTRO=melodic
+ARG ROS_DISTRO=rolling
 
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -6,8 +6,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OUSTER_ROS_PATH=/opt/catkin_ws/src/ouster-ros
 
 RUN set -xue \
-# Kinetic and melodic have python3 packages but they seem to conflict
-&& [ $ROS_DISTRO = "noetic" ] && PY=python3 || PY=python \
 # Turn off installing extra packages globally to slim down rosdep install
 && echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend \
 && apt-get update \
@@ -17,9 +15,10 @@ RUN set -xue \
     fakeroot                \
     dpkg-dev                \
     debhelper               \
-    $PY-rosdep              \
-    $PY-rospkg              \
-    $PY-bloom
+    python3-rosdep          \
+    python3-rospkg          \
+    python3-bloom           \
+    python3-colcon-common-extensions
 
 # Set up non-root build user
 ARG BUILD_UID=1000
@@ -30,13 +29,15 @@ RUN set -xe \
 && useradd -o -u ${BUILD_UID} -d ${BUILD_HOME} -rm -s /bin/bash -g build build
 
 # Install build dependencies using rosdep
-COPY --chown=build:build package.xml $OUSTER_ROS_PATH/package.xml
+COPY --chown=build:build ouster-ros/package.xml $OUSTER_ROS_PATH/ouster-ros/package.xml
 
 RUN set -xe         \
 && apt-get update   \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
-&& rosdep install -y --from-paths $OUSTER_ROS_PATH
+&& rosdep install -y --from-paths $OUSTER_ROS_PATH \
+# use -r for now to prevent rosdep from complaining about ouster_srvs
+    --ignore-src -r
 
 # Set up build environment
 COPY --chown=build:build . $OUSTER_ROS_PATH
@@ -51,15 +52,16 @@ RUN set -xe \
 
 FROM build-env
 
-ENV CXXFLAGS="-Werror -Wno-deprecated-declarations"
-RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make -DCMAKE_BUILD_TYPE=Release \
-&& /opt/ros/$ROS_DISTRO/env.sh catkin_make install
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon build \
+    --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations"
 
 # Entrypoint for running Ouster ros:
 #
 # Usage: docker run --rm -it ouster-ros [sensor.launch parameters ..]
 #
 ENTRYPOINT ["bash", "-c", "set -e \
-&& . ./devel/setup.bash \
-&& roslaunch ouster_ros sensor.launch \"$@\" \
+&& source ./install/setup.bash \
+&& ros2 launch ouster_ros sensor.composite.launch.xml \"$@\" \
 ", "ros-entrypoint"]
