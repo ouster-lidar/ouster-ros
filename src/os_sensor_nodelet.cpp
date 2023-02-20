@@ -312,7 +312,7 @@ class OusterSensor : public OusterClientBase {
     void configure_sensor(const std::string& hostname,
                           sensor::sensor_config& config,
                           int config_flags) {
-        if (sensor::in_multicast(config.udp_dest.value()) && !mtp_main) {
+        if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) && !mtp_main) {
             if (!get_config(hostname, config, true)) {
                 NODELET_ERROR("Error getting active config");
             }
