@@ -1,9 +1,22 @@
 # Official ROS1/ROS2 drivers for Ouster sensors
 
-[Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
-
+[ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
+[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+  - [Sensor Mode](#sensor-mode)
+  - [Replay Mode](#replay-mode)
+  - [Recording Mode](#recording-mode)
+- [License](#license)
+
+
+## Overview
 
 This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
 will configure and connect to the selected sensor device, once connected the driver will handle
@@ -13,7 +26,8 @@ configured to use this capability, then another topic will published named `/ous
 corresponds to the second point cloud.
 
 ## Requirements
-This driver only supports Melodic and Noetic ROS distros.
+This package only supports **Melodic** and **Noetic** ROS distros. Please refer to ROS online
+documentation on how to setup ros on your machine before proceeding with the remainder of this guide.
 
 In addition to the base ROS installation, the following ROS packages are required:
 ```bash
