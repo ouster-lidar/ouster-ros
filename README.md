@@ -1,4 +1,4 @@
-# Official ROS2 driver for Ouster sensors
+# Official ROS2 driver for Ouster sensors (BETA)
 
 [Requirements](#requirements) | [Getting Started](#getting-started) | [Usage](#usage) | [License](#license)
 
@@ -30,7 +30,7 @@ In addition to the base ROS installation, the following ROS packages are require
 sudo apt install -y             \
     ros-$ROS_DISTRO-pcl-ros     \
     ros-$ROS_DISTRO-tf2-eigen   \
-    ros-$ROS_DISTRO-rviz
+    ros-$ROS_DISTRO-rviz2
 ```
 where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
 
@@ -94,7 +94,7 @@ source ros2_ws/install/setup.bash # replace ros-distro with 'rolling' or 'humble
 ## Usage
 
 ### Launching Nodes
-The package supports three modes of interaction, you can connect to a live senosr, replay a recorded
+The package supports three modes of interaction, you can connect to a live sensor, replay a recorded
 bag or record a new bag file using the corresponding launch files. The commands are listed below:
 
 #### Sensor Mode

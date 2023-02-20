@@ -52,14 +52,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_configure(
         const rclcpp_lifecycle::State&) {
-        RCLCPP_INFO(get_logger(), "on_configure() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_configure() is called.");
 
         try {
             sensor_hostname = get_sensor_hostname();
-            sensor::sensor_config config;
-            uint8_t flags;
-            std::tie(config, flags) = create_sensor_config_rosparams();
-            configure_sensor(sensor_hostname, config, flags);
+            auto config = staged_config.empty()
+                              ? parse_config_from_ros_parameters()
+                              : parse_config_from_staged_config_string();
+            configure_sensor(sensor_hostname, config);
             sensor_client = create_sensor_client(sensor_hostname, config);
             if (!sensor_client)
                 return LifecycleNodeInterface::CallbackReturn::FAILURE;
@@ -84,7 +84,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_activate(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO(get_logger(), "on_activate() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
 
         allocate_buffers();
@@ -93,7 +93,8 @@ class OusterSensor : public OusterSensorNodeBase {
             connection_loop_timer =
                 rclcpp::create_timer(this, get_clock(), 0s, [this]() {
                     if (reset_in_progress) return;
-                    connection_loop();
+                    auto& pf = sensor::get_format(info);
+                    connection_loop(*sensor_client, pf);
                 });
         } else {
             connection_loop_timer->reset();
@@ -105,14 +106,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_error(
         const rclcpp_lifecycle::State&) {
-        RCLCPP_INFO(get_logger(), "on_error() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_error() is called.");
         // Always return failure for now
         return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
     LifecycleNodeInterface::CallbackReturn on_deactivate(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO(get_logger(), "on_deactivate() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
         LifecycleNode::on_deactivate(state);
         connection_loop_timer->cancel();
 
@@ -121,7 +122,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_cleanup(
         const rclcpp_lifecycle::State&) {
-        RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_cleanup() is called.");
 
         try {
             cleanup();
@@ -137,7 +138,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_shutdown(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_shutdown() is called.");
 
         if (state.label() == "unconfigured") {
             // nothing to do, return success
@@ -191,15 +192,15 @@ class OusterSensor : public OusterSensorNodeBase {
         auto success = get_config(sensor_hostname, config);
         if (!success) {
             RCLCPP_ERROR(get_logger(), "Failed to collect sensor config");
-            cached_config.clear();
+            active_config.clear();
             cached_metadata.clear();
             return false;
         }
 
-        cached_config = to_string(config);
+        active_config = sensor::to_string(config);
 
         try {
-            cached_metadata = sensor::get_metadata(cli);
+            cached_metadata = sensor::get_metadata(cli, 60, false);
         } catch (const std::exception& e) {
             RCLCPP_ERROR_STREAM(get_logger(),
                                 "sensor::get_metadata exception: " << e.what());
@@ -216,7 +217,7 @@ class OusterSensor : public OusterSensorNodeBase {
         populate_metadata_defaults(info, sensor::MODE_UNSPEC);
         display_lidar_info(info);
 
-        return cached_config.size() > 0 && cached_metadata.size() > 0;
+        return active_config.size() > 0 && cached_metadata.size() > 0;
     }
 
     void save_metadata() {
@@ -272,7 +273,7 @@ class OusterSensor : public OusterSensorNodeBase {
             case lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE:
                 return "activate";
             case lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE:
-                return "deactive"s;
+                return "deactivate"s;
             case lifecycle_msgs::msg::Transition::TRANSITION_DESTROY:
                 return "destroy"s;
             default:
@@ -285,37 +286,61 @@ class OusterSensor : public OusterSensorNodeBase {
         assert(at < transitions_sequence.size() &&
                "at index exceeds the number of transitions");
         auto transition_id = transitions_sequence[at];
-        RCLCPP_INFO_STREAM(get_logger(),
-                           "requesting transition: "
-                               << transition_id_to_string(transition_id));
+        RCLCPP_DEBUG_STREAM(get_logger(),
+                            "transition: ["
+                                << transition_id_to_string(transition_id)
+                                << "] started");
         change_state(transition_id, [this, transitions_sequence, at]() {
-            RCLCPP_INFO_STREAM(get_logger(),
-                               "transition: " << transition_id_to_string(
-                                                     transitions_sequence[at])
-                                              << "] completed");
+            RCLCPP_DEBUG_STREAM(get_logger(),
+                                "transition: [" << transition_id_to_string(
+                                                       transitions_sequence[at])
+                                                << "] completed");
             if (at < transitions_sequence.size() - 1) {
                 execute_transitions_sequence(transitions_sequence, at + 1);
             } else {
-                RCLCPP_INFO_STREAM(get_logger(),
-                                   "transitions sequence completed");
+                RCLCPP_DEBUG_STREAM(get_logger(),
+                                    "transitions sequence completed");
             }
         });
     }
 
-    void reset_sensor() {
+    // param init_id_reset is overriden to true when force_reinit is true
+    void reset_sensor(bool force_reinit, bool init_id_reset = false) {
         if (reset_in_progress) {
             RCLCPP_WARN(
                 get_logger(),
-                "reset is already in progress, ignoring second reset call!");
+                "sensor reset is already in progress, ignoring second call!");
             return;
         }
 
-        connection_loop_timer->cancel();
         reset_in_progress = true;
+        force_sensor_reinit = force_reinit;
+        connection_loop_timer->cancel();
+        reset_last_init_id = force_reinit ? true : init_id_reset;
         auto request_transitions = std::vector<uint8_t>{
             lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
             lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP,
             lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+            lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+        execute_transitions_sequence(request_transitions, 0);
+    }
+
+    // TODO: need to notify dependent node(s) of the update
+    void reactivate_sensor(bool init_id_reset = false) {
+        if (reset_in_progress) {
+            RCLCPP_WARN(
+                get_logger(),
+                "sensor reset is already in progress, ignoring second call!");
+            return;
+        }
+
+        reset_in_progress = true;
+        connection_loop_timer->cancel();
+        reset_last_init_id = init_id_reset;
+        update_config_and_metadata(*sensor_client);
+        save_metadata();
+        auto request_transitions = std::vector<uint8_t>{
+            lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
             lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
         execute_transitions_sequence(request_transitions, 0);
     }
@@ -326,7 +351,7 @@ class OusterSensor : public OusterSensorNodeBase {
             [this](const std::shared_ptr<std_srvs::srv::Empty::Request>,
                    std::shared_ptr<std_srvs::srv::Empty::Response>) {
                 RCLCPP_INFO(get_logger(), "reset service invoked");
-                reset_sensor();
+                reset_sensor(true);
             });
 
         RCLCPP_INFO(get_logger(), "reset service created");
@@ -337,8 +362,8 @@ class OusterSensor : public OusterSensorNodeBase {
             "get_config",
             [this](const std::shared_ptr<GetConfig::Request>,
                    std::shared_ptr<GetConfig::Response> response) {
-                response->config = cached_config;
-                return cached_config.size() > 0;
+                response->config = active_config;
+                return active_config.size() > 0;
             });
 
         RCLCPP_INFO(get_logger(), "get_config service created");
@@ -349,24 +374,33 @@ class OusterSensor : public OusterSensorNodeBase {
             "set_config",
             [this](const std::shared_ptr<SetConfig::Request> request,
                    std::shared_ptr<SetConfig::Response> response) {
-                sensor::sensor_config config;
                 response->config = "";
-                auto success = load_config_file(request->config_file, config);
-                if (!success) {
-                    RCLCPP_ERROR_STREAM(get_logger(),
-                                        "Failed to load and parse file: "
-                                            << request->config_file);
+
+                try {
+                    staged_config = load_config_file(request->config_file);
+                    if (staged_config.empty()) {
+                        RCLCPP_ERROR_STREAM(
+                            get_logger(),
+                            "provided config file: "
+                                << request->config_file
+                                << " turned to be empty. set_config ignored!");
+                        return false;
+                    }
+                } catch (const std::exception& e) {
+                    RCLCPP_ERROR_STREAM(
+                        get_logger(),
+                        "exception thrown while loading config file: "
+                            << request->config_file
+                            << ", exception details: " << e.what());
                     return false;
                 }
 
-                try {
-                    configure_sensor(sensor_hostname, config, 0);
-                } catch (const std::exception& e) {
-                    return false;
-                }
-                success = update_config_and_metadata(*sensor_client);
-                response->config = cached_config;
-                return success;
+                response->config = staged_config;
+                // TODO: this is currently set to force_reinit but it doesn't
+                // need to be the case if it was possible to know that the new
+                // config would result in a reinit when a reinit is not forced
+                reset_sensor(true);
+                return true;
             });
 
         RCLCPP_INFO(get_logger(), "set_config service created");
@@ -405,7 +439,7 @@ class OusterSensor : public OusterSensorNodeBase {
         return cli;
     }
 
-    std::pair<sensor::sensor_config, uint8_t> create_sensor_config_rosparams() {
+    sensor::sensor_config parse_config_from_ros_parameters() {
         auto udp_dest = get_parameter("udp_dest").as_string();
         auto lidar_port = get_parameter("lidar_port").as_int();
         auto imu_port = get_parameter("imu_port").as_int();
@@ -498,48 +532,54 @@ class OusterSensor : public OusterSensorNodeBase {
         config.operating_mode = sensor::OPERATING_NORMAL;
         if (lidar_mode) config.ld_mode = lidar_mode;
         if (timestamp_mode) config.ts_mode = timestamp_mode;
+        if (is_arg_set(udp_dest)) config.udp_dest = udp_dest;
 
+        return config;
+    }
+
+    sensor::sensor_config parse_config_from_staged_config_string() {
+        sensor::sensor_config config = sensor::parse_config(staged_config);
+        staged_config.clear();
+        return config;
+    }
+
+    uint8_t compose_config_flags(const sensor::sensor_config& config) {
         uint8_t config_flags = 0;
-
-        if (is_arg_set(udp_dest)) {
-            RCLCPP_INFO_STREAM(get_logger(),
-                               "Will send UDP data to " << udp_dest);
-            config.udp_dest = udp_dest;
+        if (config.udp_dest) {
+            RCLCPP_INFO_STREAM(get_logger(), "Will send UDP data to "
+                                                 << config.udp_dest.value());
         } else {
             RCLCPP_INFO(get_logger(), "Will use automatic UDP destination");
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
-        return std::make_pair(config, config_flags);
+        if (force_sensor_reinit) {
+            force_sensor_reinit = false;
+            RCLCPP_INFO(get_logger(), "Forcing sensor to reinitialize");
+            config_flags |= ouster::sensor::CONFIG_FORCE_REINIT;
+        }
+
+        return config_flags;
     }
 
     void configure_sensor(const std::string& hostname,
-                          const sensor::sensor_config& config,
-                          int config_flags) {
-        try {
-            if (!set_config(hostname, config, config_flags)) {
-                auto err_msg = "Error connecting to sensor " + hostname;
-                RCLCPP_ERROR_STREAM(get_logger(), err_msg);
-                throw std::runtime_error(err_msg);
-            }
-        } catch (const std::exception& e) {
-            RCLCPP_ERROR(get_logger(), "Error setting config:  %s", e.what());
-            throw;
+                          const sensor::sensor_config& config) {
+        uint8_t config_flags = compose_config_flags(config);
+        if (!set_config(hostname, config, config_flags)) {
+            throw std::runtime_error("Error connecting to sensor " + hostname);
         }
 
         RCLCPP_INFO_STREAM(get_logger(),
                            "Sensor " << hostname << " configured successfully");
     }
 
-    bool load_config_file(const std::string& config_file,
-                          sensor::sensor_config& out_config) {
+    std::string load_config_file(const std::string& config_file) {
         std::ifstream ifs{};
         ifs.open(config_file);
-        if (ifs.fail()) return false;
+        if (ifs.fail()) return {};
         std::stringstream buf;
         buf << ifs.rdbuf();
-        out_config = sensor::parse_config(buf.str());
-        return true;
+        return buf.str();
     }
 
     // fill in values that could not be parsed from metadata
@@ -586,8 +626,8 @@ class OusterSensor : public OusterSensorNodeBase {
         if (ofs.is_open()) {
             ofs << metadata << std::endl;
             ofs.close();
-            RCLCPP_INFO_STREAM(get_logger(), "Wrote sensor metadata to " <<
-                meta_file);
+            RCLCPP_INFO_STREAM(get_logger(),
+                               "Wrote sensor metadata to " << meta_file);
         } else {
             RCLCPP_WARN(
                 get_logger(),
@@ -607,15 +647,20 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     void allocate_buffers() {
-        auto pf = sensor::get_format(info);
+        auto& pf = sensor::get_format(info);
         lidar_packet.buf.resize(pf.lidar_packet_size + 1);
         imu_packet.buf.resize(pf.imu_packet_size + 1);
     }
 
     bool init_id_changed(const sensor::packet_format& pf,
                          const uint8_t* lidar_buf) {
-        static uint32_t last_init_id = pf.init_id(lidar_buf);
         uint32_t current_init_id = pf.init_id(lidar_buf);
+        static uint32_t last_init_id = current_init_id + 1;
+        if (reset_last_init_id && last_init_id != current_init_id) {
+            last_init_id = current_init_id;
+            reset_last_init_id = false;
+            return false;
+        }
         if (last_init_id == current_init_id) return false;
         last_init_id = current_init_id;
         return true;
@@ -626,38 +671,78 @@ class OusterSensor : public OusterSensorNodeBase {
                UDPProfileLidar::PROFILE_LIDAR_LEGACY;
     }
 
-    void connection_loop() {
-        auto& cli = *sensor_client;
+    void handle_poll_client_error() {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 100,
+                             "sensor::poll_client()) returned error");
+        // in case error continues for a while attempt to recover by
+        // performing sensor reset
+        if (++poll_client_error_count > max_poll_client_error_count) {
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
+                "maximum number of allowed errors from "
+                "sensor::poll_client() reached, performing self reset...");
+            poll_client_error_count = 0;
+            reset_sensor(true);
+        }
+    }
 
+    void handle_lidar_packet(sensor::client& cli,
+                             const sensor::packet_format& pf) {
+        if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
+            read_lidar_packet_errors = 0;
+            if (is_non_legacy_lidar_profile(info) &&
+                init_id_changed(pf, lidar_packet.buf.data())) {
+                // TODO: short circut reset if no breaking changes occured?
+                RCLCPP_WARN(get_logger(),
+                            "sensor init_id has changed! reactivating..");
+                reactivate_sensor();
+            } else {
+                lidar_packet_pub->publish(lidar_packet);
+            }
+        } else {
+            if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
+                RCLCPP_ERROR_STREAM(
+                    get_logger(),
+                    "maximum number of allowed errors from "
+                    "sensor::read_lidar_packet() reached, reactivating...");
+                read_lidar_packet_errors = 0;
+                reactivate_sensor(true);
+            }
+        }
+    }
+
+    void handle_imu_packet(sensor::client& cli,
+                           const sensor::packet_format& pf) {
+        if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf)) {
+            imu_packet_pub->publish(imu_packet);
+        } else {
+            if (++read_imu_packet_errors > max_read_imu_packet_errors) {
+                RCLCPP_ERROR_STREAM(
+                    get_logger(),
+                    "maximum number of allowed errors from "
+                    "sensor::read_imu_packet() reached, reactivating...");
+                read_imu_packet_errors = 0;
+                reactivate_sensor(true);
+            }
+        }
+    }
+
+    void connection_loop(sensor::client& cli, const sensor::packet_format& pf) {
         auto state = sensor::poll_client(cli);
         if (state == sensor::EXIT) {
-            RCLCPP_INFO(get_logger(), "poll_client: caught signal, exiting");
+            RCLCPP_INFO(get_logger(), "poll_client: caught signal, exiting!");
             return;
         }
         if (state & sensor::CLIENT_ERROR) {
-            // TODO: cleanup/reconfigure?
-            RCLCPP_ERROR(get_logger(), "poll_client: returned error");
+            handle_poll_client_error();
             return;
         }
-
-        auto pf = sensor::get_format(info);
+        poll_client_error_count = 0;
         if (state & sensor::LIDAR_DATA) {
-            if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
-                if (is_non_legacy_lidar_profile(info) &&
-                    init_id_changed(pf, lidar_packet.buf.data())) {
-                    // TODO: short circut reset if no breaking changes occured
-                    RCLCPP_WARN(
-                        get_logger(),
-                        "sensor init_id has changed! performing self reset..");
-                    reset_sensor();
-                } else {
-                    lidar_packet_pub->publish(lidar_packet);
-                }
-            }
+            handle_lidar_packet(cli, pf);
         }
         if (state & sensor::IMU_DATA) {
-            if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf))
-                imu_packet_pub->publish(imu_packet);
+            handle_imu_packet(cli, pf);
         }
     }
 
@@ -673,7 +758,8 @@ class OusterSensor : public OusterSensorNodeBase {
 
    private:
     std::string sensor_hostname;
-    std::string cached_config;
+    std::string staged_config;
+    std::string active_config;
     std::shared_ptr<sensor::client> sensor_client;
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
@@ -685,7 +771,19 @@ class OusterSensor : public OusterSensorNodeBase {
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
     std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
 
+    bool force_sensor_reinit = false;
+    bool reset_last_init_id = true;
     std::atomic<bool> reset_in_progress = {false};
+
+    // TODO: add as a ros parameter
+    const int max_poll_client_error_count = 10;
+    int poll_client_error_count = 0;
+    // TODO: add as a ros parameter
+    const int max_read_lidar_packet_errors = 60;
+    int read_lidar_packet_errors = 0;
+    // TODO: add as a ros parameter
+    const int max_read_imu_packet_errors = 60;
+    int read_imu_packet_errors = 0;
 };
 
 }  // namespace ouster_ros

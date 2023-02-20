@@ -40,8 +40,8 @@ set(_ouster_ros_INCLUDE_DIRS
 set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
-option(BUILD_VIZ "Enabled for Python build" OFF)
-option(BUILD_PCAP "Enabled for Python build" OFF)
+option(BUILD_VIZ "Turn off building VIZ" OFF)
+option(BUILD_PCAP "Turn off building PCAP" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
