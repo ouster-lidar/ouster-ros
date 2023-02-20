@@ -160,16 +160,20 @@ class OusterSensor : public OusterClientBase {
         int lidar_port =
             config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
         int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
+        auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (lidar_port != 0 && imu_port != 0) {
+        if (sensor::in_multicast(udp_dest)) {
+            // use the mtp_init_client to recieve data via multicast
+            // if mtp_main is true when sensor will be configured
+            cli = sensor::mtp_init_client(hostname, config, this->mtp_dest, this->mtp_main);
+        } else if (lidar_port != 0 && imu_port != 0) {
             // use no-config version of init_client to bind to pre-configured
             // ports
             cli = sensor::init_client(hostname, lidar_port, imu_port);
         } else {
             // use the full init_client to generate and assign random ports to
             // sensor
-            auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
             cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
                                       sensor::TIME_FROM_UNSPEC, lidar_port,
                                       imu_port);
@@ -187,6 +191,8 @@ class OusterSensor : public OusterClientBase {
     std::pair<sensor::sensor_config, u_int8_t> create_sensor_config_rosparams(
         ros::NodeHandle& nh) {
         auto udp_dest = nh.param("udp_dest", std::string{});
+        auto mtp_dest_arg = nh.param("mtp_dest", std::string{});
+        auto mtp_main_arg = nh.param("mtp_main", false);
         auto lidar_port = nh.param("lidar_port", 0);
         auto imu_port = nh.param("imu_port", 0);
         auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
@@ -257,7 +263,7 @@ class OusterSensor : public OusterClientBase {
 
         sensor::sensor_config config;
         if (lidar_port == 0) {
-            NODELET_WARN(
+            NODELET_WARN_COND(!is_arg_set(mtp_dest_arg),
                 "lidar port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -265,7 +271,7 @@ class OusterSensor : public OusterClientBase {
         }
 
         if (imu_port == 0) {
-            NODELET_WARN(
+            NODELET_WARN_COND(!is_arg_set(mtp_dest_arg),
                 "imu port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -287,12 +293,33 @@ class OusterSensor : public OusterClientBase {
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
         }
 
+        if (is_arg_set(udp_dest) && sensor::in_multicast(udp_dest)) {
+            if (is_arg_set(mtp_dest_arg)) {
+                NODELET_INFO("Will recieve data via multicast on %s", mtp_dest_arg.c_str());
+                this->mtp_dest = mtp_dest_arg;
+            } else {                
+                NODELET_INFO("mtp_dest arg not defined, will recieve data via multicast"
+                             " on first available interface");
+                this->mtp_dest = std::string{};
+            }
+
+            this->mtp_main = mtp_main_arg;
+        }
+
         return std::make_pair(config, config_flags);
     }
 
     void configure_sensor(const std::string& hostname,
-                          const sensor::sensor_config& config,
+                          sensor::sensor_config& config,
                           int config_flags) {
+        if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) && !mtp_main) {
+            if (!get_config(hostname, config, true)) {
+                NODELET_ERROR("Error getting active config");
+            }
+            NODELET_INFO_STREAM("Retrived active config of sensor");
+            return;
+        }
+
         try {
             if (!set_config(hostname, config, config_flags)) {
                 auto err_msg = "Error connecting to sensor " + hostname;
@@ -305,7 +332,7 @@ class OusterSensor : public OusterClientBase {
         }
 
         NODELET_INFO_STREAM("Sensor " << hostname
-                                      << " configured successfully");
+                                    << " configured successfully");
     }
 
     bool load_config_file(const std::string& config_file,
@@ -428,6 +455,8 @@ class OusterSensor : public OusterClientBase {
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
     std::string cached_config;
+    std::string mtp_dest;
+    bool mtp_main;
 };
 
 }  // namespace nodelets_os
