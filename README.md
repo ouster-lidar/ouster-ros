@@ -13,8 +13,8 @@ dual return and it was configured to use this capability, then another topic wil
 name `/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
-This driver only supports **Rolling** and **Humble** ROS 2 distros. Please refer to ROS 2 online
-documentation on how to setup ros on your machine before proceeding with the remainder of this guide.
+This driver only supports **Foxy** ROS 2 distro. Please refer to ROS 2 online documentation on how to
+setup ros on your machine before proceeding with the remainder of this guide.
 
 > **Note**  
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
@@ -32,7 +32,7 @@ sudo apt install -y             \
     ros-$ROS_DISTRO-tf2-eigen   \
     ros-$ROS_DISTRO-rviz2
 ```
-where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
+where `$ROS_DISTRO` is ``foxy``.
 
 > **Note**  
 > Installing `ros-$ROS_DISTRO-rviz` package is optional in case you didn't need to visualize the
@@ -74,7 +74,7 @@ git clone -b ros2 --recurse-submodules https://github.com/ouster-lidar/ouster-ro
 
 Next to compile the driver you need to source the ROS environemt into the active termainl:
 ```bash
-source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'rolling' or 'humble'
+source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'foxy'
 ```
 
 Finally, invoke `colcon build` command from within the catkin workspace as shown below:
@@ -88,7 +88,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 Once the build succeeds, you must source the _install_ folder of your ros2 workspace to add launch
 commands to your environment:
 ```bash
-source ros2_ws/install/setup.bash # replace ros-distro with 'rolling' or 'humble'
+source ros2_ws/install/setup.bash
 ```
 
 ## Usage
