@@ -6,6 +6,12 @@
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
 
+| ROS Version | Driver Status |
+|:-----------:|:------:|
+| ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble) | [![rolling/humble](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+
 - [Overview](#overview)
 - [Requirements](#requirements)
 - [Getting Started](#getting-started)
@@ -18,7 +24,7 @@
   - [Invoking Services](#invoking-services)
     - [GetMetadata](#getmetadata)
     - [GetConfig](#getconfig)
-    - [SetConfigi](#setconfig-experimental)
+    - [SetConfig](#setconfig-experimental)
 - [License](#license)
 
 
