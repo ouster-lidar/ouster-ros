@@ -7,8 +7,10 @@ Changelog
 
 ouster_ros(1)
 -------------
-* EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023
-* bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist in the original metadata file
+* EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023.
+* bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist
+  in the original metadata file.
+* added a new launch file ``sensor_mtp.launch`` for multicast use case (experimental).
 
 ouster_ros(2)
 -------------
@@ -16,7 +18,9 @@ ouster_ros(2)
 * introduced a ``reset`` service to the ``os_sensor`` node
 
 ouster_client
---------------
+-------------
+* added a new method ``mtp_init_client`` to init the client with multicast support (experimental).
+
 
 [20230114]
 ==========

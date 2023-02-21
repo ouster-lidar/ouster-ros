@@ -32,19 +32,13 @@ void OusterClientBase::onInit() {
 
 void OusterClientBase::display_lidar_info(const sensor::sensor_info& info) {
     auto lidar_profile = info.format.udp_profile_lidar;
-    auto n_returns =
-        lidar_profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-            ? 2
-            : 1;
     NODELET_INFO_STREAM(
         "ouster client version: "
             << ouster::SDK_VERSION_FULL << "\n"
-            << "using lidar_mode: " << sensor::to_string(info.mode) << "\n"
             << "product: " << info.prod_line << ", sn: " << info.sn
             << ", firmware rev: " << info.fw_rev << "\n"
-            << "active profile: " << sensor::to_string(lidar_profile) << "\n"
-            << "profile has " << n_returns << " return(s)");
-
+            << "lidar mode: " << sensor::to_string(info.mode) << ", "
+            << "lidar udp profile: " << sensor::to_string(lidar_profile));
 }
 
 }  // namespace nodelets_os

@@ -10,9 +10,15 @@
 - [Requirements](#requirements)
 - [Getting Started](#getting-started)
 - [Usage](#usage)
-  - [Sensor Mode](#sensor-mode)
-  - [Replay Mode](#replay-mode)
-  - [Recording Mode](#recording-mode)
+  - [Launching Nodes](#launching-nodes)
+    - [Sensor Mode](#sensor-mode)
+    - [Replay Mode](#replay-mode)
+    - [Recording Mode](#recording-mode)
+    - [Multicast Mode (experimental)](#multicast-mode-experimental)
+  - [Invoking Services](#invoking-services)
+    - [GetMetadata](#getmetadata)
+    - [GetConfig](#getconfig)
+    - [SetConfigi](#setconfig-experimental)
 - [License](#license)
 
 
@@ -78,30 +84,90 @@ Specifying `Release` as the build type is important to have a reasonable perform
 
 
 ## Usage
-The package supports three modes of interaction, you can connect to a live senosr, replay a recorded bag or record a new
-bag file using the corresponding launch files. The commands are listed below
+### Launching Nodes
+The package supports three modes of interaction, you can connect to a _live senosr_, _replay_ a
+recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
+added a new mode that supports multicast. The commands are listed below:
 
-### Sensor Mode
+#### Sensor Mode
 ```bash
 roslaunch ouster_ros sensor.launch      \
     sensor_hostname:=<sensor host name> \
     metadata:=<json file name>              # metadata is optional
 ```
 
-### Replay Mode
+#### Replay Mode
 ```bash
 roslaunch ouster_ros replay.launch      \
     metadata:=<json file name>          \
     bag_file:=<path to rosbag file>
 ```
 
-### Recording Mode
+#### Recording Mode
 ```bash
 roslaunch ouster_ros record.launch      \
     sensor_hostname:=<sensor host name> \
     metadata:=<json file name>          \
     bag_file:=<optional bag file name>
 ```
+
+#### Multicast Mode (experimental)
+The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
+sensor (live) to multiple active clients. You initiate this mode by using `sensor_mtp.launch` file
+to start the node. You will need to specify a valid multicast group for the **udp_dest** argument
+which the sensor is going to broadcast data to it. You will also need to set **mtp_main** argument
+to **true**, this is need to configure the sensor with the specified **udp_dest** and any other
+sensor settings. You can control on which ip (IP4 only) you wish to receive the data on this machine
+from the multicast group using the **mtp_dest** argument
+follows:
+```bash
+roslaunch ouster_ros sensor_mtp.launch      \
+    sensor_hostname:=<sensor host name>     \
+    udp_dest:=<multicast group ip (ipv4)>   \
+    mtp_main:=true                          \
+    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+```
+Using a different machine that belongs to the same netwok subnet, you can start another instance of
+the client to start receiving sensor messages through the multicast group as shown below (note that
+**mtp_main** is set to **false**):
+```bash
+roslaunch ouster_ros sensor_mtp.launch      \
+    sensor_hostname:=<sensor host name>     \
+    udp_dest:=<multicast group ip (ipv4)>   \
+    mtp_main:=false                         \
+    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+```
+
+> **Note:** 
+> In both cases the **mtp_dest** is optional and if left unset the client will utilize the first
+available interface.
+
+### Invoking Services
+To execute any of the following service, first you need to open a new terminal
+and source the castkin workspace again by running the command:
+`source catkin_ws/devel/setup.bash` 
+#### GetMetadata
+To get metadata while connected to a live sensor or during a replay session invoke
+the following command:
+```bash
+rosservice call /ouster/get_metadata
+```
+
+#### GetConfig
+To get the current config of a live sensor, invoke the command:
+```bash
+rosservice call /ouster/get_config
+```
+
+#### SetConfig (experimental)
+To change config via a file while connected to a live sensor, invoke the command:
+```bash
+rosservice call /ouster/set_config "config_file: '<path to sensor config>'"
+```
+
+> **Note**
+> Changing settings is not yet fully support during a reset operation (more on this)
+  
 
 For further detailed instructions refer to the [main guide](./docs/index.rst)
 
