@@ -24,7 +24,7 @@
   - [Invoking Services](#invoking-services)
     - [GetMetadata](#getmetadata)
     - [GetConfig](#getconfig)
-    - [SetConfig](#setconfig-experimental)
+    - [SetConfig (experimental)](#setconfig-experimental)
 - [License](#license)
 
 
