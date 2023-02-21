@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-
 namespace sensor = ouster::sensor;
 
 namespace ouster_ros {

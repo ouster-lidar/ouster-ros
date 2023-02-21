@@ -7,8 +7,10 @@
  *
  */
 
-#include <fstream>
 #include <pluginlib/class_list_macros.h>
+
+#include <fstream>
+
 #include "ouster_ros/os_client_base_nodelet.h"
 
 namespace sensor = ouster::sensor;
