@@ -321,6 +321,7 @@ ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<in
 
     }
     */
+    ROS_INFO_STREAM("test");
     ouster_ros::Cloud destaggered{cloud.height, cloud.width};
     for (size_t u = 0; u < h; u++) {
         const std::ptrdiff_t offset =
