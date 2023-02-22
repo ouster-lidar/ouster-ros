@@ -68,4 +68,6 @@ int OusterProcessingNodeBase::get_n_returns() {
                : 1;
 }
 
+const std::chrono::seconds OusterProcessingNodeBase::wait_time_per_attempt = std::chrono::seconds(10);
+    
 }  // namespace ouster_ros
