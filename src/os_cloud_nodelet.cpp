@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
  * @file os_cloud_nodelet.cpp
@@ -41,6 +41,17 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     virtual void onInit() override {
+        parse_parameters();
+        auto& nh = getNodeHandle();
+        auto metadata = get_metadata(nh);
+        info = sensor::parse_metadata(metadata);
+        n_returns = compute_n_returns();
+        create_lidarscan_objects();
+        create_publishers(nh);
+        create_subscribers(nh);
+    }
+
+    void parse_parameters() {
         auto& pnh = getPrivateNodeHandle();
         auto tf_prefix = pnh.param("tf_prefix", std::string{});
         if (is_arg_set(tf_prefix) && tf_prefix.back() != '/')
@@ -50,30 +61,48 @@ class OusterCloud : public nodelet::Nodelet {
         lidar_frame = tf_prefix + "os_lidar";
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+    }
 
-        auto& nh = getNodeHandle();
-        ouster_ros::GetMetadata metadata{};
+    std::string get_metadata(ros::NodeHandle& nh) {
+        ouster_ros::GetMetadata request;
         auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
         client.waitForExistence();
-        if (!client.call(metadata)) {
+        if (!client.call(request)) {
             auto error_msg = "OusterCloud: Calling get_metadata service failed";
             NODELET_ERROR_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
 
         NODELET_INFO("OusterCloud: retrieved sensor metadata!");
+        return request.response.metadata;
+    }
 
-        info = sensor::parse_metadata(metadata.response.metadata);
+    int compute_n_returns() {
+        return info.format.udp_profile_lidar ==
+                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+                   ? 2
+                   : 1;
+    }
+
+    void create_lidarscan_objects() {
+        // The ouster_ros drive currently only uses single precision when it
+        // produces the point cloud. So it isn't of a benefit to compute point
+        // cloud xyz coordinates using double precision (for the time being).
+        auto xyz_lut = ouster::make_xyz_lut(info);
+        lut_direction = xyz_lut.direction.cast<float>();
+        lut_offset = xyz_lut.offset.cast<float>();
+        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
+        pc_ptr = boost::make_shared<sensor_msgs::PointCloud2>();
+
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
+        ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
+        cloud = ouster_ros::Cloud{W, H};
 
-        n_returns = info.format.udp_profile_lidar ==
-                            UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                        ? 2
-                        : 1;
+        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
+    }
 
-        NODELET_INFO_STREAM("Profile has " << n_returns << " return(s)");
-
+    void create_publishers(ros::NodeHandle& nh) {
         imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
 
         auto img_suffix = [](int ind) {
@@ -87,21 +116,9 @@ class OusterCloud : public nodelet::Nodelet {
                 std::string("points") + img_suffix(i), 10);
             lidar_pubs[i] = pub;
         }
+    }
 
-        // The ouster_ros drive currently only uses single precision when it
-        // produces the point cloud. So it isn't of a benefit to compute point
-        //  cloud xyz coordinates using double precision (for the time being).
-        auto xyz_lut = ouster::make_xyz_lut(info);
-        lut_direction = xyz_lut.direction.cast<float>();
-        lut_offset = xyz_lut.offset.cast<float>();
-        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
-        pc_ptr = boost::make_shared<sensor_msgs::PointCloud2>();
-
-        ls = ouster::LidarScan{W, H, info.format.udp_profile_lidar};
-        cloud = ouster_ros::Cloud{W, H};
-
-        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
-
+    void create_subscribers(ros::NodeHandle& nh) {
         auto lidar_handler = use_ros_time
                                  ? &OusterCloud::lidar_handler_ros_time
                                  : &OusterCloud::lidar_handler_sensor_time;
@@ -112,7 +129,8 @@ class OusterCloud : public nodelet::Nodelet {
             "imu_packets", 100, &OusterCloud::imu_handler, this);
     }
 
-    void pcl_toROSMsg(const ouster_ros::Cloud &pcl_cloud, sensor_msgs::PointCloud2 &cloud) {
+    void pcl_toROSMsg(const ouster_ros::Cloud& pcl_cloud,
+                      sensor_msgs::PointCloud2& cloud) {
         // TODO: remove the staging step in the future
         static pcl::PCLPointCloud2 pcl_pc2;
         pcl::toPCLPointCloud2(pcl_cloud, pcl_pc2);
@@ -122,7 +140,8 @@ class OusterCloud : public nodelet::Nodelet {
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const ros::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
-            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls, cloud, i);
+            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls,
+                            cloud, i);
             pcl_toROSMsg(cloud, *pc_ptr);
             pc_ptr->header.stamp = msg_ts;
             pc_ptr->header.frame_id = sensor_frame;
@@ -187,7 +206,6 @@ class OusterCloud : public nodelet::Nodelet {
     ros::Subscriber imu_packet_sub;
     ros::Publisher imu_pub;
     sensor_msgs::PointCloud2::Ptr pc_ptr;
-
 
     sensor::sensor_info info;
     int n_returns = 0;

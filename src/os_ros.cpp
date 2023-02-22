@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
  * @file ros.cpp
@@ -20,7 +20,6 @@
 #include <chrono>
 #include <string>
 #include <vector>
-
 
 namespace sensor = ouster::sensor;
 

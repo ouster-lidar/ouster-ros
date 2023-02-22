@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-2022, Ouster, Inc.
+ * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
  * @file os_replay_nodelet.cpp
@@ -8,6 +8,8 @@
  */
 
 #include <pluginlib/class_list_macros.h>
+
+#include <fstream>
 
 #include "ouster_ros/os_client_base_nodelet.h"
 
@@ -29,10 +31,14 @@ class OusterReplay : public OusterClientBase {
 
         // populate info for config service
         try {
-            info = sensor::metadata_from_json(meta_file);
-            cached_metadata = to_string(info);
+            std::ifstream in_file(meta_file);
+            std::stringstream buffer;
+            buffer << in_file.rdbuf();
+            cached_metadata = buffer.str();
+            info = sensor::parse_metadata(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
+            cached_metadata.clear();
             NODELET_ERROR("Error when running in replay mode: %s", e.what());
         }
 
