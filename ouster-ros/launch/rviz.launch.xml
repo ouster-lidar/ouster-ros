@@ -16,10 +16,10 @@
       to run rviz2 -->
     <node if="$(var _enable_static_tf_publishers)"
       pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
-      args="--frame-id os_sensor --child-frame-id os_imu"/>
+      args="0 0 0 0 0 0 os_sensor os_imu"/>
     <node  if="$(var _enable_static_tf_publishers)"
       pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
-      args="--frame-id os_sensor --child-frame-id os_lidar"/>
+      args="0 0 0 0 0 0 os_sensor os_lidar"/>
   </group>
 
 </launch>

@@ -22,16 +22,14 @@
 
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
-    <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
-      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterReplay" name="os_replay">
-        <param name="metadata" value="$(var metadata)"/>
-      </composable_node>
-      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
-        <param name="tf_prefix" value="$(var tf_prefix)"/>
-        <param name="timestamp_mode" value="$(var timestamp_mode)"/>
-      </composable_node>
-      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
-    </node_container>
+    <node pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
+      <param name="metadata" value="$(var metadata)"/>
+    </node>
+    <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
+      <param name="tf_prefix" value="$(var tf_prefix)"/>
+      <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+    </node>
+    <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/>
   </group>
 
   <!-- HACK: configure and activate the replay node via a process execute since state
