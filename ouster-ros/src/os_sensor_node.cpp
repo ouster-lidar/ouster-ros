@@ -86,7 +86,9 @@ class OusterSensor : public OusterSensorNodeBase {
         const rclcpp_lifecycle::State& state) {
         RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
-
+        lidar_packet_pub->on_activate();
+        imu_packet_pub->on_activate();
+       
         allocate_buffers();
         if (!connection_loop_timer) {
             // TOOD: replace with a thread instead?
@@ -763,8 +765,8 @@ class OusterSensor : public OusterSensorNodeBase {
     std::shared_ptr<sensor::client> sensor_client;
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
-    rclcpp::Publisher<PacketMsg>::SharedPtr lidar_packet_pub;
-    rclcpp::Publisher<PacketMsg>::SharedPtr imu_packet_pub;
+    rclcpp_lifecycle::LifecyclePublisher<PacketMsg>::SharedPtr lidar_packet_pub;
+    rclcpp_lifecycle::LifecyclePublisher<PacketMsg>::SharedPtr imu_packet_pub;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
     rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
