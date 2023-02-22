@@ -230,11 +230,32 @@ void scan_to_cloud_f(ouster::PointsF& points,
     //Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
     //range = ouster::destagger(refrange,pixel_shift_by_row);
 
+
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
+
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
-                       signal);
-    cloud = destagger(cloud,pixel_shift_by_row);
+                    signal);
+
+    ROS_INFO_STREAM("Winkel");
+
+    ouster_ros::Cloud destaggercloud=cloud ;
+    destaggercloud = destagger(cloud,pixel_shift_by_row);
+    for(int i=0; i<destaggercloud.height-1;i++) {
+        Point cpoint = cloud.at(i,1);
+        Point npoint = cloud.at(i+1,1);
+        float ctheta_est = atan2(cpoint.y, cpoint.x);
+        float cphi_est = atan2(cpoint.z, cpoint.range);
+        float ntheta_est = atan2(npoint.y, npoint.x);
+        float nphi_est = atan2(npoint.z, npoint.range);
+        if(ctheta_est < ntheta_est && ctheta_est !=0 && ntheta_est !=0) {
+            ROS_INFO_STREAM("bad");
+
+            ROS_INFO_STREAM(ctheta_est);
+            ROS_INFO_STREAM(ntheta_est);
+        }
+
+    }
     //td
 }
 ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
@@ -260,9 +281,7 @@ ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
                 if (range_est > 0.1) {
                     if (abs(range_est - point.range) < 0.01) {
                     }
-                    point.x /= range_est;
-                    point.z /= range_est;
-                    point.y /= range_est;
+
                     float theta_est = atan2(point.y, point.x);
                     float phi_est = atan2(point.z, point.range);
 
@@ -311,34 +330,34 @@ ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
 ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row){
     const size_t h = cloud.height;
     const size_t w = cloud.width;
-    /*
-    if (pixel_shift_by_row.size() != h) {
-        ROS_INFO_STREAM(pixel_shift_by_row.size());
-        ROS_INFO_STREAM(cloud.height);
+
+
+        ouster_ros::Cloud destaggered(cloud.height, cloud.width);
+        ROS_INFO_STREAM("cloud1");
+        ROS_INFO_STREAM(destaggered.width);
         ROS_INFO_STREAM(cloud.width);
+        ROS_INFO_STREAM(destaggered.height);
+        ROS_INFO_STREAM(pixel_shift_by_row.size());
+        if (pixel_shift_by_row.size() != destaggered.width)
+            throw std::invalid_argument{"image height does not match shifts size"};
+        for (size_t u = 0; u < destaggered.width; u++) {
+            const std::ptrdiff_t offset =
+                    (pixel_shift_by_row[u] + destaggered.height) % destaggered.height;
+            for (int j = offset; j < w - offset; j++) {
 
-        return cloud;
+                destaggered.at(u, offset + j) = cloud.at(j, u);
+            }
+            for (int j = offset; j < offset; j++) {
+                destaggered.at(u, j) = cloud.at(j + offset, u);
+            }
 
+
+            ROS_INFO_STREAM("weg1");
+            return destaggered;
+
+
+        }
     }
-    */
-    ouster_ros::Cloud destaggered{cloud.height, cloud.width};
-    for (size_t u = 0; u < h; u++) {
-        const std::ptrdiff_t offset =
-                ( pixel_shift_by_row[u] + w) % w;
-        for(int j=offset;j<w-offset;j++){
-            destaggered.at(offset+j,u)= cloud.at(j,u);
-        }
-        for(int j=offset;j<offset;j++){
-            destaggered.at(j,u) = cloud.at(j+offset,u);
-        }
-
-
-
-         }
-    ROS_INFO_STREAM("nice");
-
-    return cloud;
-}
 
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
                                             const ros::Time& timestamp,
