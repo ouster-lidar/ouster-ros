@@ -105,7 +105,6 @@ class OusterCloud : public nodelet::Nodelet {
         auto lidar_handler = use_ros_time
                                  ? &OusterCloud::lidar_handler_ros_time
                                  : &OusterCloud::lidar_handler_sensor_time;
-
         lidar_packet_sub =
             nh.subscribe<PacketMsg>("lidar_packets", 2048, lidar_handler, this);
         imu_packet_sub = nh.subscribe<PacketMsg>(
@@ -122,6 +121,7 @@ class OusterCloud : public nodelet::Nodelet {
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const ros::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
+
             scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls, cloud, i,info.format.pixel_shift_by_row);
             pcl_toROSMsg(cloud, *pc_ptr);
             pc_ptr->header.stamp = msg_ts;
@@ -131,6 +131,7 @@ class OusterCloud : public nodelet::Nodelet {
 
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
+
     }
 
     void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
@@ -141,6 +142,8 @@ class OusterCloud : public nodelet::Nodelet {
         if (idx == ts_v.data() + ts_v.size()) return;
         auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
         convert_scan_to_pointcloud_publish(scan_ts, to_ros_time(scan_ts));
+        ROS_INFO_STREAM("testtime");
+
     }
 
     void lidar_handler_ros_time(const PacketMsg::ConstPtr& packet) {
@@ -153,6 +156,8 @@ class OusterCloud : public nodelet::Nodelet {
         if (idx == ts_v.data() + ts_v.size()) return;
         auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
         convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
+        ROS_INFO_STREAM("testros");
+
         frame_ts = packet_receive_time;  // set time for next point cloud msg
     }
 

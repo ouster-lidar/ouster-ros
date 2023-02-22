@@ -113,6 +113,8 @@ void scan_to_cloud_f(ouster::PointsF& points,
                 ouster_ros::Cloud& cloud,
                 int return_index,std::vector<int>& pixel_shift_by_row);
 
+ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud);
+ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row);
 
 /**
  * Serialize a PCL point cloud to a ROS message

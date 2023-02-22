@@ -227,16 +227,117 @@ void scan_to_cloud_f(ouster::PointsF& points,
     ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
         suitable_return(sensor::ChanField::NEAR_IR, second), ls);
 
-    Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
-    range = ouster::destagger(refrange,pixel_shift_by_row);
+    //Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
+    //range = ouster::destagger(refrange,pixel_shift_by_row);
 
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                        signal);
-
-
+    cloud = destagger(cloud,pixel_shift_by_row);
     //td
+}
+ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
+    //size of cloud
+
+    ouster_ros::Cloud destaggerd = cloud;
+    //rm::Transform T = rm::Transform::Identity();
+
+    std::vector<float> thetaVec;
+    std::vector<float> phiVec;
+    for (size_t j = 0; j < cloud.height; j++) {
+        //for (size_t i = 0; i < cloud.width; i++) {
+        size_t i =0;
+
+
+            Point point = cloud.at(i, j);
+            point.x= point.x *-1;
+            point.y= point.y *-1;
+            point.z= point.z -0.03618;
+
+            if (!std::isnan(point.x) && !std::isnan(point.y) && !std::isnan(point.z)) {
+                float range_est = sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+                if (range_est > 0.1) {
+                    if (abs(range_est - point.range) < 0.01) {
+                    }
+                    point.x /= range_est;
+                    point.z /= range_est;
+                    point.y /= range_est;
+                    float theta_est = atan2(point.y, point.x);
+                    float phi_est = atan2(point.z, point.range);
+
+                    thetaVec.push_back(theta_est);
+                    phiVec.push_back(phi_est);
+                    float phimin = -0.785398;
+                    float phiinc = 0.0122173;
+                    float thetamin = 3.14;
+                    float thetainc = 0.0061;
+
+
+                    unsigned int phi_id = ((phi_est - phimin) / phiinc) + 0.5;
+                    unsigned int theta_id = ((theta_est - thetamin) / thetainc) + 0.5;
+
+
+
+                   /* unsigned int p_id = phi_id * destaggerd.width + theta_id;
+                    ROS_INFO_STREAM(p_id);
+                    if (p_id >= 0 && p_id < cloud.size()) {
+                        ROS_INFO_STREAM(p_id);
+                        destaggerd.insert(destaggerd.begin(), p_id, point);
+
+
+                    }
+                    */
+
+                }
+            }
+        }
+    //}
+
+    std::sort(thetaVec.begin(), thetaVec.end());
+    std::sort(phiVec.begin(), phiVec.end());
+    ROS_INFO_STREAM("theta");
+    for(int i=0; i<thetaVec.size();i++){
+        ROS_INFO_STREAM(thetaVec[i]);
+    }
+    ROS_INFO_STREAM("phi");
+    for(int i=0; i<phiVec.size();i++){
+        ROS_INFO_STREAM(phiVec[i]);
+    }
+
+    return destaggerd;
+}
+
+ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row){
+    const size_t h = cloud.height;
+    const size_t w = cloud.width;
+    /*
+    if (pixel_shift_by_row.size() != h) {
+        ROS_INFO_STREAM(pixel_shift_by_row.size());
+        ROS_INFO_STREAM(cloud.height);
+        ROS_INFO_STREAM(cloud.width);
+
+        return cloud;
+
+    }
+    */
+    ouster_ros::Cloud destaggered{cloud.height, cloud.width};
+    for (size_t u = 0; u < h; u++) {
+        const std::ptrdiff_t offset =
+                ( pixel_shift_by_row[u] + w) % w;
+        for(int j=offset;j<w-offset;j++){
+            destaggered.at(offset+j,u)= cloud.at(j,u);
+        }
+        for(int j=offset;j<offset;j++){
+            destaggered.at(j,u) = cloud.at(j+offset,u);
+        }
+
+
+
+         }
+    ROS_INFO_STREAM("nice");
+
+    return cloud;
 }
 
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
