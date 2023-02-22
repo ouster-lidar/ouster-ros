@@ -3,10 +3,10 @@ name: Docker Image CI
 on:
   push:
     branches:
-      - ros2
+      - ros2-foxy
   pull_request:
     branches:
-      - ros2
+      - ros2-foxy
 
 jobs:
   build:
