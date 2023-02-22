@@ -37,7 +37,7 @@ class OusterProcessingNodeBase : public rclcpp::Node {
 
    protected:
     // TODO: Add as node parameters?
-    static constexpr auto wait_time_per_attempt = std::chrono::seconds(10);
+    static const std::chrono::seconds wait_time_per_attempt;
     static constexpr auto total_attempts = 10;
 
     ouster::sensor::sensor_info info;

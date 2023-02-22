@@ -37,14 +37,14 @@ def generate_launch_description():
         name="stp_sensor_imu",
         namespace=ouster_ns,
         condition=IfCondition(enable_static_tf),
-        arguments=["--frame-id", "os_sensor", "--child-frame-id", "os_imu"])
+        arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_imu"])
     sensor_ldr_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         name="stp_sensor_lidar",
         namespace=ouster_ns,
         condition=IfCondition(enable_static_tf),
-        arguments=["--frame-id", "os_sensor", "--child-frame-id", "os_lidar"])
+        arguments=["0", "0", "0", "0", "0", "0", "os_sensor", "os_lidar"])
 
     rviz_node = Node(
         package='rviz2',
