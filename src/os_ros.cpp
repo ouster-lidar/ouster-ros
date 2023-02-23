@@ -206,7 +206,7 @@ void scan_to_cloud_f(ouster::PointsF& points,
                      const ouster::PointsF& lut_offset,
                      ouster::LidarScan::ts_t scan_ts,
                      const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,ouster_ros::Cloud& destaggeredcloud,
-                     int return_index,std::vector<int>& pixel_shift_by_row ) {
+                     int return_index,std::vector<int>& pixel_shift_by_row) {
     bool second = (return_index == 1);
 
     assert(cloud.width == static_cast<std::uint32_t>(ls.w) &&
@@ -244,100 +244,42 @@ void scan_to_cloud_f(ouster::PointsF& points,
 
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                     signal);
-    ROS_INFO_STREAM("Winkel");
+
     destaggeredcloud=cloud;
-
     destaggeredcloud = destagger(cloud,pixel_shift_by_row);
-    ROS_INFO_STREAM(destaggeredcloud.height);
-    ROS_INFO_STREAM(destaggeredcloud.width);
-    ROS_INFO_STREAM(cloud.height);
-    ROS_INFO_STREAM(cloud.width);
-    for(int i=0; i<destaggeredcloud.width-1;i++) {
-        Point cpoint = destaggeredcloud.at(i,1);
-        Point npoint = destaggeredcloud.at(i+1,1);
-        float ctheta_est = atan2(cpoint.y, cpoint.x);
-        float cphi_est = atan2(cpoint.z, cpoint.range);
-        float ntheta_est = atan2(npoint.y, npoint.x);
-        float nphi_est = atan2(npoint.z, npoint.range);
-        if(ctheta_est < ntheta_est && ctheta_est !=0 && ntheta_est !=0) {
-            ROS_INFO_STREAM("bad");
 
-            ROS_INFO_STREAM(ctheta_est);
-            ROS_INFO_STREAM(ntheta_est);
-        }
-
-    }
  }
-ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
-    //size of cloud
 
-    ouster_ros::Cloud destaggerd = cloud;
-    //rm::Transform T = rm::Transform::Identity();
-
-    std::vector<float> thetaVec;
-    std::vector<float> phiVec;
-    for (size_t j = 0; j < cloud.height; j++) {
-        //for (size_t i = 0; i < cloud.width; i++) {
-        size_t i =0;
-
-
-            Point point = cloud.at(i, j);
-            point.x= point.x *-1;
-            point.y= point.y *-1;
-            point.z= point.z -0.03618;
-
-            if (!std::isnan(point.x) && !std::isnan(point.y) && !std::isnan(point.z)) {
-                float range_est = sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
-                if (range_est > 0.1) {
-                    if (abs(range_est - point.range) < 0.01) {
-                    }
-
-                    float theta_est = atan2(point.y, point.x);
-                    float phi_est = atan2(point.z, point.range);
-
-                    thetaVec.push_back(theta_est);
-                    phiVec.push_back(phi_est);
-                    float phimin = -0.785398;
-                    float phiinc = 0.0122173;
-                    float thetamin = 3.14;
-                    float thetainc = 0.0061;
-
-
-                    unsigned int phi_id = ((phi_est - phimin) / phiinc) + 0.5;
-                    unsigned int theta_id = ((theta_est - thetamin) / thetainc) + 0.5;
-
-
-
-                   /* unsigned int p_id = phi_id * destaggerd.width + theta_id;
-                    ROS_INFO_STREAM(p_id);
-                    if (p_id >= 0 && p_id < cloud.size()) {
-                        ROS_INFO_STREAM(p_id);
-                        destaggerd.insert(destaggerd.begin(), p_id, point);
-
-
-                    }
-                    */
-
-                }
-            }
-        }
-    //}
-
-    std::sort(thetaVec.begin(), thetaVec.end());
-    std::sort(phiVec.begin(), phiVec.end());
-    ROS_INFO_STREAM("theta");
-    for(int i=0; i<thetaVec.size();i++){
-        ROS_INFO_STREAM(thetaVec[i]);
-    }
-    ROS_INFO_STREAM("phi");
-    for(int i=0; i<phiVec.size();i++){
-        ROS_INFO_STREAM(phiVec[i]);
-    }
-
-    return destaggerd;
+ bool checkofDestagger (ouster_ros::Cloud destaggeredcloud){
+     for(int i=0; i<destaggeredcloud.width-1;i++) {
+         Point cpoint = destaggeredcloud.at(i,1);
+         Point npoint = destaggeredcloud.at(i+1,1);
+         float ctheta_est = atan2(cpoint.y, cpoint.x);
+         float ntheta_est = atan2(npoint.y, npoint.x);
+         if(ctheta_est < ntheta_est && ctheta_est !=0 && ntheta_est !=0) {
+             ROS_INFO_STREAM("Error");
+             ROS_INFO_STREAM(ctheta_est);
+             ROS_INFO_STREAM(ntheta_est);
+             return false;
+         }
+     }
+     for(int i=0; i<destaggeredcloud.height-1;i++) {
+         Point cpoint = destaggeredcloud.at(1,i);
+         Point npoint = destaggeredcloud.at(1,i+1);
+         float cphi_est = atan2(cpoint.z, cpoint.range);
+         float nphi_est = atan2(npoint.z, npoint.range);
+         if(cphi_est < nphi_est && cphi_est !=0 && nphi_est !=0) {
+             ROS_INFO_STREAM("Error");
+             ROS_INFO_STREAM(cphi_est);
+             ROS_INFO_STREAM(nphi_est);
+             return false;
+         }
+     }
+     return true;
 }
 
-ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row){
+
+    ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row){
     const size_t h = cloud.height;
     const size_t w = cloud.width;
     ROS_INFO_STREAM(h);
