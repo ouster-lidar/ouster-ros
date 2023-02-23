@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <chrono>
 #include <memory>
+#include <cassert>
 
 #include "ouster_ros/GetMetadata.h"
 #include "ouster_ros/PacketMsg.h"
@@ -32,6 +33,30 @@ namespace sensor = ouster::sensor;
 using ouster_ros::PacketMsg;
 using sensor::UDPProfileLidar;
 using namespace std::chrono_literals;
+
+namespace {
+template <typename T, typename UnaryPredicate>
+int find_if_reverse(const Eigen::Array<T, -1, 1>& array,
+                    UnaryPredicate predicate) {
+    auto p = array.data() + array.size() - 1;
+    do {
+        if (predicate(*p)) return p - array.data();
+    } while (p-- != array.data());
+    return -1;
+}
+
+template <typename X, typename Y>
+Y linear_interpolate(X x0, Y y0, X x1, Y y1, X x) {
+    return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+}
+
+template <typename T>
+uint64_t ulround(T value) {
+    T rounded_value = std::round(value);
+    return std::max(static_cast<T>(0),
+                    std::min(rounded_value, static_cast<T>(ULLONG_MAX)));
+}
+}  // namespace
 
 namespace nodelets_os {
 class OusterCloud : public nodelet::Nodelet {
@@ -152,13 +177,48 @@ class OusterCloud : public nodelet::Nodelet {
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
     }
 
-    void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
-        if (!(*scan_batcher)(packet->buf.data(), ls)) return;
-        auto ts_v = ls.timestamp();
+    uint64_t impute_value(int last_scan_last_nonzero_idx,
+                          uint64_t last_scan_last_nonzero_value,
+                          int curr_scan_first_nonzero_index,
+                          uint64_t curr_scan_first_nonzero_value,
+                          int scan_width) {
+        assert(scan_width + curr_scan_first_nonzero_index >
+               last_scan_last_nonzero_idx);
+        double interpolated_value = linear_interpolate(
+            last_scan_last_nonzero_idx,
+            static_cast<double>(last_scan_last_nonzero_value),
+            scan_width + curr_scan_first_nonzero_index,
+            static_cast<double>(curr_scan_first_nonzero_value), scan_width);
+        return ulround(interpolated_value);
+    }
+
+    std::chrono::nanoseconds compute_scan_ts(
+        const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
-        if (idx == ts_v.data() + ts_v.size()) return;
-        auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
+        assert(idx != ts_v.data() + ts_v.size());
+        int curr_scan_first_nonzero_idx = idx - ts_v.data();
+        uint64_t curr_scan_first_nonzero_value = *idx;
+        static int last_scan_last_nonzero_idx =
+            curr_scan_first_nonzero_idx - 1;  // initialize to a known state
+        static uint64_t last_scan_last_nonzero_value =
+            curr_scan_first_nonzero_value;  // impute with ts_v(idx)
+        uint64_t scan_ns = curr_scan_first_nonzero_idx == 0
+                               ? curr_scan_first_nonzero_value
+                               : impute_value(last_scan_last_nonzero_idx,
+                                              last_scan_last_nonzero_value,
+                                              curr_scan_first_nonzero_idx,
+                                              curr_scan_first_nonzero_value,
+                                              static_cast<int>(ts_v.size()));
+        last_scan_last_nonzero_idx =
+            find_if_reverse(ts_v, [](uint64_t h) -> bool { return h != 0; });
+        last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
+        return std::chrono::nanoseconds(scan_ns);
+    }
+
+    void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
+        if (!(*scan_batcher)(packet->buf.data(), ls)) return;
+        auto scan_ts = compute_scan_ts(ls.timestamp());
         convert_scan_to_pointcloud_publish(scan_ts, to_ros_time(scan_ts));
     }
 
@@ -166,11 +226,8 @@ class OusterCloud : public nodelet::Nodelet {
         auto packet_receive_time = ros::Time::now();
         static auto frame_ts = packet_receive_time;  // first point cloud time
         if (!(*scan_batcher)(packet->buf.data(), ls)) return;
-        auto ts_v = ls.timestamp();
-        auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
-                                [](uint64_t h) { return h != 0; });
-        if (idx == ts_v.data() + ts_v.size()) return;
-        auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
+        auto scan_ts = compute_scan_ts(ls.timestamp());
+        // TODO: research imputing frame_ts for TIME_FROM_ROS_TIME case
         convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
         frame_ts = packet_receive_time;  // set time for next point cloud msg
     }
