@@ -179,15 +179,15 @@ class OusterCloud : public nodelet::Nodelet {
 
     uint64_t impute_value(int last_scan_last_nonzero_idx,
                           uint64_t last_scan_last_nonzero_value,
-                          int curr_scan_first_nonzero_index,
+                          int curr_scan_first_nonzero_idx,
                           uint64_t curr_scan_first_nonzero_value,
                           int scan_width) {
-        assert(scan_width + curr_scan_first_nonzero_index >
+        assert(scan_width + curr_scan_first_nonzero_idx >
                last_scan_last_nonzero_idx);
         double interpolated_value = linear_interpolate(
             last_scan_last_nonzero_idx,
             static_cast<double>(last_scan_last_nonzero_value),
-            scan_width + curr_scan_first_nonzero_index,
+            scan_width + curr_scan_first_nonzero_idx,
             static_cast<double>(curr_scan_first_nonzero_value), scan_width);
         return ulround(interpolated_value);
     }
