@@ -227,23 +227,33 @@ void scan_to_cloud_f(ouster::PointsF& points,
     ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
         suitable_return(sensor::ChanField::NEAR_IR, second), ls);
 
-    //Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
-    //range = ouster::destagger(refrange,pixel_shift_by_row);
-
-
+    /*Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
+    /range = ouster::destagger(refrange,pixel_shift_by_row);
+    */
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
-
+    /*auto points_x_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(0).data(), 128, 1024);
+    auto points_x_destaggered = ouster::destagger<float>(points_x_reshaped, pixel_shift_by_row);
+    auto points_y_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(1).data(), 128, 1024);
+    auto points_y_destaggered = ouster::destagger<float>(points_x_reshaped, pixel_shift_by_row);
+    auto points_z_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(2).data(), 128, 1024);
+    auto points_z_destaggered = ouster::destagger<float>(points_x_reshaped, pixel_shift_by_row);
+    points.row(0)=points_x_destaggered;
+    points.row(1)=points_y_destaggered;
+    points.row(2)=points_z_destaggered;
+*/
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                     signal);
-
     ROS_INFO_STREAM("Winkel");
+    ouster_ros::Cloud destaggeredcloud=cloud;
 
-    ouster_ros::Cloud destaggercloud=cloud ;
-    destaggercloud = destagger(cloud,pixel_shift_by_row);
-    for(int i=0; i<destaggercloud.height-1;i++) {
-        Point cpoint = cloud.at(i,1);
-        Point npoint = cloud.at(i+1,1);
+    destaggeredcloud = destagger(cloud,pixel_shift_by_row);
+    ROS_INFO_STREAM(destaggeredcloud.height);
+    ROS_INFO_STREAM(destaggeredcloud.width);
+    ROS_INFO_STREAM(destaggeredcloud.size());
+    for(int i=0; i<destaggeredcloud.width-1;i++) {
+        Point cpoint = destaggeredcloud.at(i,1);
+        Point npoint = destaggeredcloud.at(i+1,1);
         float ctheta_est = atan2(cpoint.y, cpoint.x);
         float cphi_est = atan2(cpoint.z, cpoint.range);
         float ntheta_est = atan2(npoint.y, npoint.x);
@@ -256,8 +266,7 @@ void scan_to_cloud_f(ouster::PointsF& points,
         }
 
     }
-    //td
-}
+ }
 ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
     //size of cloud
 

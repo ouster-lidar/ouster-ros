@@ -121,7 +121,7 @@ class OusterCloud : public nodelet::Nodelet {
     void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
                                             const ros::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
-
+            cloud = ouster_ros::Cloud{info.format.columns_per_frame, info.format.pixels_per_column};
             scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls, cloud, i,info.format.pixel_shift_by_row);
             pcl_toROSMsg(cloud, *pc_ptr);
             pc_ptr->header.stamp = msg_ts;
