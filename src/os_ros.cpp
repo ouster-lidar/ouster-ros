@@ -205,7 +205,7 @@ void scan_to_cloud_f(ouster::PointsF& points,
                      const ouster::PointsF& lut_direction,
                      const ouster::PointsF& lut_offset,
                      ouster::LidarScan::ts_t scan_ts,
-                     const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
+                     const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,ouster_ros::Cloud& destaggeredcloud,
                      int return_index,std::vector<int>& pixel_shift_by_row ) {
     bool second = (return_index == 1);
 
@@ -245,12 +245,13 @@ void scan_to_cloud_f(ouster::PointsF& points,
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                     signal);
     ROS_INFO_STREAM("Winkel");
-    ouster_ros::Cloud destaggeredcloud=cloud;
+    destaggeredcloud=cloud;
 
-    //destaggeredcloud = destagger(cloud,pixel_shift_by_row);
+    destaggeredcloud = destagger(cloud,pixel_shift_by_row);
     ROS_INFO_STREAM(destaggeredcloud.height);
     ROS_INFO_STREAM(destaggeredcloud.width);
-    ROS_INFO_STREAM(destaggeredcloud.size());
+    ROS_INFO_STREAM(cloud.height);
+    ROS_INFO_STREAM(cloud.width);
     for(int i=0; i<destaggeredcloud.width-1;i++) {
         Point cpoint = destaggeredcloud.at(i,1);
         Point npoint = destaggeredcloud.at(i+1,1);
@@ -339,33 +340,41 @@ ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud) {
 ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<int>& pixel_shift_by_row){
     const size_t h = cloud.height;
     const size_t w = cloud.width;
+    ROS_INFO_STREAM(h);
+    ROS_INFO_STREAM(w);
 
 
-        ouster_ros::Cloud destaggered(cloud.height, cloud.width);
-        ROS_INFO_STREAM("cloud1");
-        ROS_INFO_STREAM(destaggered.width);
-        ROS_INFO_STREAM(cloud.width);
-        ROS_INFO_STREAM(destaggered.height);
-        ROS_INFO_STREAM(pixel_shift_by_row.size());
-        if (pixel_shift_by_row.size() != destaggered.width)
-            throw std::invalid_argument{"image height does not match shifts size"};
-        for (size_t u = 0; u < destaggered.width; u++) {
-            const std::ptrdiff_t offset =
-                    (pixel_shift_by_row[u] + destaggered.height) % destaggered.height;
-            for (int j = offset; j < w - offset; j++) {
-
-                destaggered.at(u, offset + j) = cloud.at(j, u);
-            }
-            for (int j = offset; j < offset; j++) {
-                destaggered.at(u, j) = cloud.at(j + offset, u);
-            }
-
-
-            return destaggered;
-
-
-        }
+    ouster_ros::Cloud destaggered(cloud.width,cloud.height);
+    ROS_INFO_STREAM(destaggered.height);
+    ROS_INFO_STREAM(destaggered.width);
+    if (pixel_shift_by_row.size() != destaggered.height)
+    {
+        throw std::invalid_argument{"image height does not match shifts size"};
     }
+    for (int asd = 0; asd < destaggered.height; asd++) {
+
+
+        const std::ptrdiff_t offset =
+                (pixel_shift_by_row[asd] + destaggered.width) % destaggered.width;
+        int i=0;
+        for (int j = offset; j < w - offset; j++) {
+            destaggered.at(j,asd) = cloud.at(i,asd);
+            i++;
+        }
+
+        i=w - offset;
+        for (int j = 0; j < offset; j++) {
+            destaggered.at(j,asd) = cloud.at(i,asd);
+            i++;
+        }
+
+
+
+
+
+    }
+    return destaggered;
+}
 
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
                                             const ros::Time& timestamp,

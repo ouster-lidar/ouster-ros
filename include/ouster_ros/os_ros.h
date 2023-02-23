@@ -110,7 +110,7 @@ void scan_to_cloud_f(ouster::PointsF& points,
                 const ouster::PointsF& lut_offset,
                 ouster::LidarScan::ts_t scan_ts,
                 const ouster::LidarScan& ls,
-                ouster_ros::Cloud& cloud,
+                ouster_ros::Cloud& cloud,ouster_ros::Cloud& destaggeredcloud,
                 int return_index,std::vector<int>& pixel_shift_by_row);
 
 ouster_ros::Cloud convert (const ouster_ros::Cloud& cloud);
