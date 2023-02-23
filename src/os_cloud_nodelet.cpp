@@ -196,7 +196,7 @@ class OusterCloud : public nodelet::Nodelet {
         const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
-        assert(idx != ts_v.data() + ts_v.size());
+        assert(idx != ts_v.data() + ts_v.size());  // should never happen
         int curr_scan_first_nonzero_idx = idx - ts_v.data();
         uint64_t curr_scan_first_nonzero_value = *idx;
         static int last_scan_last_nonzero_idx =
@@ -212,6 +212,7 @@ class OusterCloud : public nodelet::Nodelet {
                                               static_cast<int>(ts_v.size()));
         last_scan_last_nonzero_idx =
             find_if_reverse(ts_v, [](uint64_t h) -> bool { return h != 0; });
+        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
         last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
         return std::chrono::nanoseconds(scan_ns);
     }
