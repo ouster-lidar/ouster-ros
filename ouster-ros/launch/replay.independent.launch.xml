@@ -49,6 +49,6 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file) --clock"/>
+    cmd="ros2 bag play $(var bag_file)"/>
 
 </launch>
