@@ -227,12 +227,12 @@ void scan_to_cloud_f(ouster::PointsF& points,
     ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
         suitable_return(sensor::ChanField::NEAR_IR, second), ls);
 
-    /*Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
-    /range = ouster::destagger(refrange,pixel_shift_by_row);
-    */
+    Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
+    range = ouster::destagger(refrange,pixel_shift_by_row);
+
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
-    /*auto points_x_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(0).data(), 128, 1024);
+    auto points_x_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(0).data(), 128, 1024);
     auto points_x_destaggered = ouster::destagger<float>(points_x_reshaped, pixel_shift_by_row);
     auto points_y_reshaped = Eigen::Map<const ouster::img_t<float>>(points.col(1).data(), 128, 1024);
     auto points_y_destaggered = ouster::destagger<float>(points_x_reshaped, pixel_shift_by_row);
@@ -241,13 +241,13 @@ void scan_to_cloud_f(ouster::PointsF& points,
     points.row(0)=points_x_destaggered;
     points.row(1)=points_y_destaggered;
     points.row(2)=points_z_destaggered;
-*/
+
     copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                     signal);
     ROS_INFO_STREAM("Winkel");
     ouster_ros::Cloud destaggeredcloud=cloud;
 
-    destaggeredcloud = destagger(cloud,pixel_shift_by_row);
+    //destaggeredcloud = destagger(cloud,pixel_shift_by_row);
     ROS_INFO_STREAM(destaggeredcloud.height);
     ROS_INFO_STREAM(destaggeredcloud.width);
     ROS_INFO_STREAM(destaggeredcloud.size());
@@ -361,7 +361,6 @@ ouster_ros::Cloud destagger (const ouster_ros::Cloud& cloud,const std::vector<in
             }
 
 
-            ROS_INFO_STREAM("weg1");
             return destaggered;
 
 
