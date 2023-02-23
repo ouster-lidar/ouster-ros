@@ -217,7 +217,6 @@ void scan_to_cloud_f(ouster::PointsF& points,
     auto range_channel_field =
         second ? sensor::ChanField::RANGE2 : sensor::ChanField::RANGE;
     ouster::img_t<uint32_t> range = ls.field<uint32_t>(range_channel_field);
-
     ouster::img_t<uint16_t> reflectivity = get_or_fill_zero<uint16_t>(
         suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
 
