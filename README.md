@@ -69,7 +69,7 @@ workspace as shown below:
 
 ```bash
 mkdir -p ros2_ws/src && cd ros2_ws/src
-git clone -b ros2 --recurse-submodules https://github.com/ouster-lidar/ouster-ros.git
+git clone -b ros2-foxy --recurse-submodules https://github.com/ouster-lidar/ouster-ros.git
 ```
 
 Next to compile the driver you need to source the ROS environemt into the active termainl:
