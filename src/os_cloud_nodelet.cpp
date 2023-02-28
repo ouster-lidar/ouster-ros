@@ -70,8 +70,12 @@ class OusterCloud : public nodelet::Nodelet {
         auto& nh = getNodeHandle();
         auto metadata = get_metadata(nh);
         info = sensor::parse_metadata(metadata);
-        n_returns = compute_n_returns();
+        n_returns = compute_n_returns(info.format);
+        scan_col_ts_spacing = compute_scan_col_ts_spacing(info.mode);
         create_lidarscan_objects();
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_0(ts_v);
+        };
         create_publishers(nh);
         create_subscribers(nh);
     }
@@ -102,11 +106,18 @@ class OusterCloud : public nodelet::Nodelet {
         return request.response.metadata;
     }
 
-    int compute_n_returns() {
-        return info.format.udp_profile_lidar ==
+    static int compute_n_returns(const sensor::data_format& format) {
+        return format.udp_profile_lidar ==
                        UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
                    ? 2
                    : 1;
+    }
+
+    static double compute_scan_col_ts_spacing(sensor::lidar_mode ld_mode) {
+        const auto scan_width = sensor::n_cols_of_lidar_mode(ld_mode);
+        const auto scan_frequency = sensor::frequency_of_lidar_mode(ld_mode);
+        const double one_sec_in_ns = 1e+9;
+        return one_sec_in_ns / (scan_width * scan_frequency);
     }
 
     void create_lidarscan_objects() {
@@ -192,17 +203,48 @@ class OusterCloud : public nodelet::Nodelet {
         return ulround(interpolated_value);
     }
 
-    std::chrono::nanoseconds compute_scan_ts(
+    uint64_t extrapolate_value(int curr_scan_first_nonzero_idx,
+                               uint64_t curr_scan_first_nonzero_value) {
+        double extrapolated_value =
+            curr_scan_first_nonzero_value -
+            scan_col_ts_spacing * curr_scan_first_nonzero_idx;
+        return ulround(extrapolated_value);
+    }
+
+    // compute_scan_ts_0 for first scan
+    std::chrono::nanoseconds compute_scan_ts_0(
         const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
         assert(idx != ts_v.data() + ts_v.size());  // should never happen
         int curr_scan_first_nonzero_idx = idx - ts_v.data();
         uint64_t curr_scan_first_nonzero_value = *idx;
-        static int last_scan_last_nonzero_idx =
-            curr_scan_first_nonzero_idx - 1;  // initialize to a known state
-        static uint64_t last_scan_last_nonzero_value =
-            curr_scan_first_nonzero_value;  // impute with ts_v(idx)
+
+        uint64_t scan_ns =
+            curr_scan_first_nonzero_idx == 0
+                ? curr_scan_first_nonzero_value
+                : extrapolate_value(curr_scan_first_nonzero_idx,
+                                    curr_scan_first_nonzero_value);
+
+        last_scan_last_nonzero_idx =
+            find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
+        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
+        last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_n(ts_v);
+        };
+        return std::chrono::nanoseconds(scan_ns);
+    }
+
+    // compute_scan_ts_n applied to all subsequent scans except first one
+    std::chrono::nanoseconds compute_scan_ts_n(
+        const ouster::LidarScan::Header<uint64_t>& ts_v) {
+        auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
+                                [](uint64_t h) { return h != 0; });
+        assert(idx != ts_v.data() + ts_v.size());  // should never happen
+        int curr_scan_first_nonzero_idx = idx - ts_v.data();
+        uint64_t curr_scan_first_nonzero_value = *idx;
+
         uint64_t scan_ns = curr_scan_first_nonzero_idx == 0
                                ? curr_scan_first_nonzero_value
                                : impute_value(last_scan_last_nonzero_idx,
@@ -210,8 +252,9 @@ class OusterCloud : public nodelet::Nodelet {
                                               curr_scan_first_nonzero_idx,
                                               curr_scan_first_nonzero_value,
                                               static_cast<int>(ts_v.size()));
+
         last_scan_last_nonzero_idx =
-            find_if_reverse(ts_v, [](uint64_t h) -> bool { return h != 0; });
+            find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
         assert(last_scan_last_nonzero_idx >= 0);  // should never happen
         last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
         return std::chrono::nanoseconds(scan_ns);
@@ -282,6 +325,14 @@ class OusterCloud : public nodelet::Nodelet {
     tf2_ros::TransformBroadcaster tf_bcast;
 
     bool use_ros_time;
+
+    int last_scan_last_nonzero_idx = -1;        // initialize to a known state
+    uint64_t last_scan_last_nonzero_value = 0;  // impute with ts_v(idx)
+    std::function<std::chrono::nanoseconds(
+        const ouster::LidarScan::Header<uint64_t>&)>
+        compute_scan_ts;
+    double
+        scan_col_ts_spacing;  // interval or spacing between columns of a scan
 };
 
 }  // namespace nodelets_os
