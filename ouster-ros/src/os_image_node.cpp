@@ -194,8 +194,6 @@ class OusterImage : public OusterProcessingNodeBase {
     std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr>
         pc_subs;
 
-    sensor::sensor_info info;
-
     ouster_ros::Cloud cloud;
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
