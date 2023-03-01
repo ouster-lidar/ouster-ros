@@ -88,7 +88,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 Once the build succeeds, you must source the _install_ folder of your ros2 workspace to add launch
 commands to your environment:
 ```bash
-source ros2_ws/install/setup.bash # replace ros-distro with 'rolling' or 'humble'
+source ros2_ws/install/setup.bash
 ```
 
 ## Usage

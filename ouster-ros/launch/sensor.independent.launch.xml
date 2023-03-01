@@ -42,7 +42,7 @@
   <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
 
   <group>
-    <push-ros-namespace namespace="$(var ouster_ns)"/>    
+    <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_sensor" name="os_sensor" output="screen">
       <param name="sensor_hostname" value="$(var sensor_hostname)"/>
       <param name="udp_dest" value="$(var udp_dest)"/>

@@ -47,35 +47,35 @@ class OusterReplay : public OusterSensorNodeBase {
 
     LifecycleNodeInterface::CallbackReturn on_activate(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO(get_logger(), "on_activate() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
     LifecycleNodeInterface::CallbackReturn on_error(
         const rclcpp_lifecycle::State&) {
-        RCLCPP_INFO(get_logger(), "on_error() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_error() is called.");
         // Always return failure for now
         return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
     LifecycleNodeInterface::CallbackReturn on_deactivate(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO(get_logger(), "on_deactivate() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
         LifecycleNode::on_deactivate(state);
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
     LifecycleNodeInterface::CallbackReturn on_cleanup(
         const rclcpp_lifecycle::State&) {
-        RCLCPP_INFO(get_logger(), "on_cleanup() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_cleanup() is called.");
         cleanup();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
     LifecycleNodeInterface::CallbackReturn on_shutdown(
         const rclcpp_lifecycle::State& state) {
-        RCLCPP_INFO_STREAM(get_logger(), "on_shutdown() is called.");
+        RCLCPP_DEBUG(get_logger(), "on_shutdown() is called.");
 
         if (state.label() == "unconfigured") {
             // nothing to do, return success

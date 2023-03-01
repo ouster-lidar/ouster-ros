@@ -198,7 +198,6 @@ class OusterCloud : public OusterProcessingNodeBase {
 
     sensor_msgs::msg::PointCloud2 pc_msg;
 
-    sensor::sensor_info info;
     int n_returns = 0;
 
     ouster::PointsF lut_direction;
