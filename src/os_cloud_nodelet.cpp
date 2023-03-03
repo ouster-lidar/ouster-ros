@@ -61,6 +61,12 @@ class OusterCloud : public nodelet::Nodelet {
         lidar_frame = tf_prefix + "os_lidar";
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+        if (pnh.getParam("time_reference_angle", time_reference_angle) &&
+        ((time_reference_angle > 360.0) || (time_reference_angle < 0.0))){
+            NODELET_WARN_STREAM("OusterCloud: time_reference_angle " << time_reference_angle <<
+            " invalid and will be ignored!");
+	    time_reference_angle = NULL;
+        }
     }
 
     std::string get_metadata(ros::NodeHandle& nh) {
@@ -121,6 +127,8 @@ class OusterCloud : public nodelet::Nodelet {
     void create_subscribers(ros::NodeHandle& nh) {
         auto lidar_handler = use_ros_time
                                  ? &OusterCloud::lidar_handler_ros_time
+                                 : time_reference_angle
+                                 ? &OusterCloud::lidar_handler_sensor_reference_angle_time
                                  : &OusterCloud::lidar_handler_sensor_time;
 
         lidar_packet_sub =
@@ -150,6 +158,31 @@ class OusterCloud : public nodelet::Nodelet {
 
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
+    }
+
+    void lidar_handler_sensor_reference_angle_time(const PacketMsg::ConstPtr& packet) {
+        if (!(*scan_batcher)(packet->buf.data(), ls)) return;
+        auto ts_v = ls.timestamp();
+        auto m_id_v = ls.measurement_id();
+
+        std::uint16_t min_valid_idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
+                                                   [](uint64_t h) { return h != 0; }) - ts_v.data();
+        std::uint16_t max_valid_idx = *std::max_element(m_id_v.data(), m_id_v.data() + m_id_v.size());
+
+        auto time_reference_idx = int(m_id_v.size() - floor( m_id_v.size() * (time_reference_angle/360.0) ));
+
+        auto scan_ts = std::chrono::nanoseconds{ts_v(time_reference_idx)};
+
+        if (time_reference_idx < min_valid_idx || time_reference_idx > max_valid_idx){
+            scan_ts = std::chrono::nanoseconds{ts_v(min_valid_idx)};
+
+            double min_angle = 360.0 - (double(max_valid_idx) / double(m_id_v.size()))*360.0;
+            double max_angle = 360.0 - (double(max_valid_idx) / double(m_id_v.size()))*360.0;
+            NODELET_WARN_THROTTLE(2.0, "OusterCloud: time_reference_angle %.2f degree not within available azimuth range"
+                                       " of [%.2f %.2f] degree! \nUsing Timestamp of earliest valid package at %f degree!",
+                                       time_reference_angle, min_angle, max_angle, max_angle);
+        }
+        convert_scan_to_pointcloud_publish(scan_ts, to_ros_time(scan_ts));
     }
 
     void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
@@ -224,6 +257,7 @@ class OusterCloud : public nodelet::Nodelet {
     tf2_ros::TransformBroadcaster tf_bcast;
 
     bool use_ros_time;
+    double time_reference_angle = NULL;
 };
 
 }  // namespace nodelets_os
