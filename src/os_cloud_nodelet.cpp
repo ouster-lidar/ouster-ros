@@ -122,6 +122,7 @@ namespace nodelets_os {
             // TODO: remove the staging step in the future
             static pcl::PCLPointCloud2 pcl_pc2;
             pcl::toPCLPointCloud2(pcl_cloud, pcl_pc2);
+
             pcl_conversions::moveFromPCL(pcl_pc2, cloud);
         }
 
@@ -133,11 +134,14 @@ namespace nodelets_os {
                 pcl_toROSMsg(cloud, *pc_ptr);
                 pc_ptr->header.stamp = msg_ts;
                 pc_ptr->header.frame_id = sensor_frame;
-                pcl_toROSMsg(destaggeredcloud, *destaggeredpc_ptr);
-                destaggeredpc_ptr->header.stamp = msg_ts;
-                destaggeredpc_ptr->header.frame_id = sensor_frame;
+                if(destagger) {
+                    pcl_toROSMsg(destaggeredcloud, *destaggeredpc_ptr);
+                    destaggeredpc_ptr->header.stamp = msg_ts;
+                    destaggeredpc_ptr->header.frame_id = sensor_frame;
+                    destaggeredlidar_pubs[i].publish(destaggeredpc_ptr);
+                }
+
                 lidar_pubs[i].publish(pc_ptr);
-                destaggeredlidar_pubs[i].publish(destaggeredpc_ptr);
 
             }
 
