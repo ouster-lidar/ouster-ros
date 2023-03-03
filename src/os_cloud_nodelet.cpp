@@ -65,6 +65,7 @@ class OusterCloud : public nodelet::Nodelet {
         ((time_reference_angle > 360.0) || (time_reference_angle < 0.0))){
             NODELET_WARN_STREAM("OusterCloud: time_reference_angle " << time_reference_angle <<
             " invalid and will be ignored!");
+	    time_reference_angle = NULL;
         }
     }
 
