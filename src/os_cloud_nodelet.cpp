@@ -35,6 +35,7 @@ using sensor::UDPProfileLidar;
 using namespace std::chrono_literals;
 
 namespace {
+
 template <typename T, typename UnaryPredicate>
 int find_if_reverse(const Eigen::Array<T, -1, 1>& array,
                     UnaryPredicate predicate) {
@@ -53,9 +54,11 @@ Y linear_interpolate(X x0, Y y0, X x1, Y y1, X x) {
 template <typename T>
 uint64_t ulround(T value) {
     T rounded_value = std::round(value);
-    return std::max(static_cast<T>(0),
-                    std::min(rounded_value, static_cast<T>(ULLONG_MAX)));
+    if (rounded_value < 0) return 0ULL;
+    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
+    return static_cast<uint64_t>(rounded_value);
 }
+
 }  // namespace
 
 namespace nodelets_os {
