@@ -46,9 +46,8 @@ int find_if_reverse(const Eigen::Array<T, -1, 1>& array,
     return -1;
 }
 
-template <typename X, typename Y>
-Y linear_interpolate(X x0, Y y0, X x1, Y y1, X x) {
-    return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
+    return y0 + (x - x0) * static_cast<double>(y1 - y0) / (x1 - x0);
 }
 
 template <typename T>
@@ -199,10 +198,9 @@ class OusterCloud : public nodelet::Nodelet {
         assert(scan_width + curr_scan_first_nonzero_idx >
                last_scan_last_nonzero_idx);
         double interpolated_value = linear_interpolate(
-            last_scan_last_nonzero_idx,
-            static_cast<double>(last_scan_last_nonzero_value),
+            last_scan_last_nonzero_idx, last_scan_last_nonzero_value,
             scan_width + curr_scan_first_nonzero_idx,
-            static_cast<double>(curr_scan_first_nonzero_value), scan_width);
+            curr_scan_first_nonzero_value, scan_width);
         return ulround(interpolated_value);
     }
 
@@ -278,7 +276,8 @@ class OusterCloud : public nodelet::Nodelet {
                                    const ros::Time current_time) {
         auto curr_scan_first_arrived_idx = packet_col_index(lidar_buf);
         auto delta_time = ros::Duration(
-            0, scan_col_ts_spacing_ns * curr_scan_first_arrived_idx);
+            0, static_cast<int32_t>(std::round(scan_col_ts_spacing_ns *
+                                               curr_scan_first_arrived_idx)));
         return current_time - delta_time;
     }
 
