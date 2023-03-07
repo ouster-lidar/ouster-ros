@@ -287,8 +287,8 @@ class OusterCloud : public nodelet::Nodelet {
                                    const ros::Time current_time) {
         auto curr_scan_first_arrived_idx = packet_col_index(lidar_buf);
         auto delta_time = ros::Duration(
-            0, static_cast<int32_t>(std::round(scan_col_ts_spacing_ns *
-                                               curr_scan_first_arrived_idx)));
+            0,
+            std::lround(scan_col_ts_spacing_ns * curr_scan_first_arrived_idx));
         return current_time - delta_time;
     }
 
