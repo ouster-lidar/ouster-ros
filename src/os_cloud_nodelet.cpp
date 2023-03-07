@@ -47,7 +47,18 @@ int find_if_reverse(const Eigen::Array<T, -1, 1>& array,
 }
 
 uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
-    return y0 + (x - x0) * static_cast<double>(y1 - y0) / (x1 - x0);
+    uint64_t min_v, max_v;
+    double sign;
+    if (y1 > y0) {
+        min_v = y0;
+        max_v = y1;
+        sign = +1;
+    } else {
+        min_v = y1;
+        max_v = y0;
+        sign = -1;
+    }
+    return y0 + (x - x0) * sign * (max_v - min_v) / (x1 - x0);
 }
 
 template <typename T>
