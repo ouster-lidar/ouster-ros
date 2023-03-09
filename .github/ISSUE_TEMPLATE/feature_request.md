@@ -16,7 +16,9 @@ A clear and concise description of what you want to happen.
 **Describe alternatives you've considered**
 A clear and concise description of any alternative solutions or features you've considered.
 
-**Targeted Platform (please complete the following information):**
-- ROS version/ [distro if applicable only to specific distro]?
-- Machine Architecture [if applicable to specific architecture]?
-- OS: [if applicable to specific operating system]
+**Targeted Platform (please complete the following information only if applicable, otherwise dot N/A):**
+- Ouster Sensor? \[feature only applicable to specific ouster sensor\]
+- Ouster Firmware Version? \[feature only applicable to specific fw version\]
+- ROS version/distro? \[applicable only to specific ros version or distro\]
+- Operating System? \[feature applicable to specific operating system?\]
+- Machine Architecture? \[feature only applicable to specific architecture?\]

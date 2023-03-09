@@ -14,7 +14,9 @@ A clear and concise description of your question.
 If applicable, add screenshots to help explain your problem.
 
 **Platform (please complete the following information):**
-- ROS version/distro?
-- Machine Architecture? 
-- OS: [Linux/Windows/MacOS]
+- Ouster Sensor? \[e.g. OS-0, OS-1, ..\]
+- Ouster Firmware Version? \[e.g. 2.3, 2.4, ..\]
+- ROS version/distro? \[e.g. noetic, foxy, humble, ..\]
+- Operating System? \[e.g. Linux, Windows, MacOS\]
+- Machine Architecture? \[e.g. x64, arm\]
 - git commit hash (if not the latest).
