@@ -11,7 +11,13 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
+Steps to reproduce the behavior (steps below are just an example):
+1. source ros environment
+2. compile the project workspace
+3. source the project workspace
+4. ros launch ouster_ros sensor or replay
+5. open another terminal and the project workspace
+6. observe the issue ...
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
