@@ -22,6 +22,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
+#include <std_msgs/String.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
@@ -55,9 +56,29 @@ class OusterImage : public nodelet::Nodelet {
     }
 
     std::string get_metadata(ros::NodeHandle& nh) {
+        std::string config;
+        // Setup subscriber to get config via topic
+        auto config_handler = [&](const std_msgs::String::ConstPtr& p) {
+            config = p->data;
+        };
+        auto config_sub = nh.subscribe<std_msgs::String>("config", 1, config_handler);
+  
+        // Setup client to get config via service
         ouster_ros::GetMetadata request;
         auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-        client.waitForExistence();
+  
+        // Wait for a valid config (via topic) or a valid service client
+        while(config.empty() && !client.exists()){
+            NODELET_WARN_THROTTLE(10.0, "OusterImage: waiting for config...");
+            ros::spinOnce();
+            ros::Duration(0.1).sleep();
+        }
+  
+        if(!config.empty()){
+            NODELET_INFO("OusterImage: retrieved sensor metadata from topic!");
+            return config;
+        }
+
         if (!client.call(request)) {
             auto error_msg = "OusterImage: Calling get_metadata service failed";
             NODELET_ERROR_STREAM(error_msg);

@@ -16,6 +16,7 @@
 #include <pluginlib/class_list_macros.h>
 #include <ros/console.h>
 #include <ros/ros.h>
+#include <std_msgs/String.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -106,9 +107,29 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     std::string get_metadata(ros::NodeHandle& nh) {
+        std::string config;
+        // Setup subscriber to get config via topic
+        auto config_handler = [&](const std_msgs::String::ConstPtr& p) {
+            config = p->data;
+        };
+        auto config_sub = nh.subscribe<std_msgs::String>("config", 1, config_handler);
+
+        // Setup client to get config via service
         ouster_ros::GetMetadata request;
         auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-        client.waitForExistence();
+
+        // Wait for a valid config (via topic) or a valid service client
+        while(config.empty() && !client.exists()){
+            NODELET_WARN_THROTTLE(10.0, "OusterCloud: waiting for config...");
+            ros::spinOnce();
+            ros::Duration(0.1).sleep();
+        }
+
+        if(!config.empty()){
+            NODELET_INFO("OusterCloud: retrieved sensor metadata from topic!");
+            return config;
+        }
+
         if (!client.call(request)) {
             auto error_msg = "OusterCloud: Calling get_metadata service failed";
             NODELET_ERROR_STREAM(error_msg);

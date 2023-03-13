@@ -13,6 +13,7 @@
 // clang-format on
 
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/String.h>
 
 #include <fstream>
 #include <string>
@@ -90,6 +91,10 @@ class OusterSensor : public OusterClientBase {
         populate_metadata_defaults(info, sensor::MODE_UNSPEC);
         display_lidar_info(info);
 
+        config_msg.data = cached_metadata;
+        if (config_pub){
+            config_pub.publish(config_msg);
+        }
         return cached_config.size() > 0 && cached_metadata.size() > 0;
     }
 
@@ -409,6 +414,8 @@ class OusterSensor : public OusterClientBase {
     void create_publishers(ros::NodeHandle& nh) {
         lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
         imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
+        config_pub = nh.advertise<std_msgs::String>("config", 1, true);
+        config_pub.publish(config_msg);
     }
 
     void start_connection_loop() {
@@ -449,8 +456,10 @@ class OusterSensor : public OusterClientBase {
    private:
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
+    std_msgs::String config_msg;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
+    ros::Publisher config_pub;
     std::shared_ptr<sensor::client> sensor_client;
     ros::Timer timer_;
     std::string sensor_hostname;
