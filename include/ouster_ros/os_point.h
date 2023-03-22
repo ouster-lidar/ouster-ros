@@ -25,6 +25,7 @@ struct EIGEN_ALIGN16 Point {
     uint16_t ring;
     uint16_t ambient;
     uint32_t range;
+    uint32_t color;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 }  // namespace ouster_ros

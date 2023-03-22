@@ -228,18 +228,26 @@ namespace ouster_ros {
 
         if (destagger) {
             //destagger the range
-            Eigen::Ref<const ouster::img_t<uint32_t>> refrange = range;
-
             ouster::cartesianT(points, range, lut_direction, lut_offset);
             copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                                signal);
             //destagger the point cloud
             destaggeredcloud = cloud;
             destaggeredcloud = clouddestagger(cloud, pixel_shift_by_row);
+          
+
+
         } else {
             ouster::cartesianT(points, range, lut_direction, lut_offset);
+
             copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                                signal);
+            for (int i =0;i<cloud.height;i++){
+                for (int j =0;j<cloud.width;j++){
+                    cloud.at(j,i).ambient=i*100;
+                }
+            }
+
         }
 
     }
