@@ -242,12 +242,6 @@ namespace ouster_ros {
 
             copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
                                signal);
-            for (int i =0;i<cloud.height;i++){
-                for (int j =0;j<cloud.width;j++){
-                    cloud.at(j,i).ambient=i*100;
-                }
-            }
-
         }
 
     }
