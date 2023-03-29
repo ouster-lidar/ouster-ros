@@ -13,6 +13,7 @@ ouster_ros(1)
 * added a new launch file ``sensor_mtp.launch`` for multicast use case (experimental).
 * added a technique to estimate the the value of the lidar scan timestamp when it is missing packets
   at the beginning
+* add frame_id to image topics
 
 ouster_ros(2)
 -------------
