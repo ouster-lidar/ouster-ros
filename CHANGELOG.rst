@@ -7,13 +7,15 @@ Changelog
 
 ouster_ros(1)
 -------------
-* breaking change: update to ouster_client release 20230403 
+* breaking change: update to ouster_client release 20230403
 * EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023.
 * bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist
   in the original metadata file.
 * added a new launch file ``sensor_mtp.launch`` for multicast use case (experimental).
 * added a technique to estimate the the value of the lidar scan timestamp when it is missing packets
   at the beginning
+* fixed a potential issue of time values within generated point clouds that could result in a value
+  overflow
 
 ouster_ros(2)
 -------------
