@@ -125,10 +125,10 @@ class OusterImage : public nodelet::Nodelet {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
 
-        auto range_image = make_image_msg(H, W, m->header.stamp);
-        auto signal_image = make_image_msg(H, W, m->header.stamp);
-        auto reflec_image = make_image_msg(H, W, m->header.stamp);
-        auto nearir_image = make_image_msg(H, W, m->header.stamp);
+        auto range_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto signal_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto reflec_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto nearir_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
 
         ouster::img_t<float> nearir_image_eigen(H, W);
         ouster::img_t<float> signal_image_eigen(H, W);
@@ -189,7 +189,8 @@ class OusterImage : public nodelet::Nodelet {
     }
 
     static sensor_msgs::ImagePtr make_image_msg(size_t H, size_t W,
-                                                const ros::Time& stamp) {
+                                                const ros::Time& stamp,
+                                                const std::string& frame) {
         auto msg = boost::make_shared<sensor_msgs::Image>();
         msg->width = W;
         msg->height = H;
@@ -197,6 +198,7 @@ class OusterImage : public nodelet::Nodelet {
         msg->encoding = sensor_msgs::image_encodings::MONO16;
         msg->data.resize(W * H * sizeof(pixel_type));
         msg->header.stamp = stamp;
+        msg->header.frame_id = frame;
         return msg;
     }
 
