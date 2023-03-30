@@ -7,6 +7,7 @@ Changelog
 
 ouster_ros(1)
 -------------
+* breaking change: update to ouster_client release 20230403 
 * EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023.
 * bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist
   in the original metadata file.
@@ -22,6 +23,11 @@ ouster_ros(2)
 ouster_client
 -------------
 * added a new method ``mtp_init_client`` to init the client with multicast support (experimental).
+* the class ``SensorHttp``  which provides easy access to REST APIs of the sensor has been made public
+  under the ``ouster::sensor::util`` namespace.
+* breaking change: get_metadata defaults to outputting non-legacy metadata
+* add debug five_word profile which will be removed later
+* breaking change: remove deprecations on LidarScan
 
 
 [20230114]

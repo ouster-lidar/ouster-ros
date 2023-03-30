@@ -124,8 +124,9 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField f,
 }
 
 void scan_to_cloud(const ouster::XYZLut& xyz_lut,
-                   ouster::LidarScan::ts_t scan_ts, const ouster::LidarScan& ls,
-                   ouster_ros::Cloud& cloud, int return_index) {
+                   std::chrono::nanoseconds scan_ts,
+                   const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
+                   int return_index) {
     bool second = (return_index == 1);
     cloud.resize(ls.w * ls.h);
 
@@ -176,14 +177,16 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
     const auto rf = reflectivity.data();
     const auto nr = near_ir.data();
     const auto sg = signal.data();
-
+// std::chrono::duration<uint64_t>{0}
 #ifdef __OUSTER_UTILIZE_OPENMP__
 #pragma omp parallel for collapse(2)
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto ts = std::min(
-                std::chrono::nanoseconds(timestamp[v]) - scan_ts, scan_ts);
+            const auto dt = std::chrono::nanoseconds(timestamp[v]) - scan_ts;
+            const auto t_zero =
+                std::chrono::duration<long int, std::nano>::zero();
+            const auto ts = std::min(dt, t_zero);
             const auto idx = u * ls.w + v;
             const auto xyz = points.row(idx);
             cloud.points[idx] = ouster_ros::Point{
@@ -200,10 +203,79 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
     }
 }
 
+template <typename PointT, typename RangeT, typename ReflectivityT,
+          typename NearIrT, typename SignalT>
+void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
+                        uint64_t scan_ts, const PointT& points,
+                        const ouster::img_t<RangeT>& range,
+                        const ouster::img_t<ReflectivityT>& reflectivity,
+                        const ouster::img_t<NearIrT>& near_ir,
+                        const ouster::img_t<SignalT>& signal) {
+    auto timestamp = ls.timestamp();
+
+    const auto rg = range.data();
+    const auto rf = reflectivity.data();
+    const auto nr = near_ir.data();
+    const auto sg = signal.data();
+
+#ifdef __OUSTER_UTILIZE_OPENMP__
+#pragma omp parallel for collapse(2)
+#endif
+    for (auto u = 0; u < ls.h; u++) {
+        for (auto v = 0; v < ls.w; v++) {
+            const auto dt = timestamp[v] - scan_ts;
+            const auto ts = std::min(dt, 0UL);
+            const auto idx = u * ls.w + v;
+            const auto xyz = points.row(idx);
+            cloud.points[idx] = ouster_ros::Point{
+                {static_cast<float>(xyz(0)), static_cast<float>(xyz(1)),
+                 static_cast<float>(xyz(2)), 1.0f},
+                static_cast<float>(sg[idx]),
+                static_cast<uint32_t>(ts),
+                static_cast<uint16_t>(rf[idx]),
+                static_cast<uint16_t>(u),
+                static_cast<uint16_t>(nr[idx]),
+                static_cast<uint32_t>(rg[idx]),
+            };
+        }
+    }
+}
+
 void scan_to_cloud_f(ouster::PointsF& points,
                      const ouster::PointsF& lut_direction,
                      const ouster::PointsF& lut_offset,
-                     ouster::LidarScan::ts_t scan_ts,
+                     std::chrono::nanoseconds scan_ts,
+                     const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
+                     int return_index) {
+    bool second = (return_index == 1);
+
+    assert(cloud.width == static_cast<std::uint32_t>(ls.w) &&
+           cloud.height == static_cast<std::uint32_t>(ls.h) &&
+           "point cloud and lidar scan size mismatch");
+
+    // across supported lidar profiles range is always 32-bit
+    auto range_channel_field =
+        second ? sensor::ChanField::RANGE2 : sensor::ChanField::RANGE;
+    ouster::img_t<uint32_t> range = ls.field<uint32_t>(range_channel_field);
+
+    ouster::img_t<uint16_t> reflectivity = get_or_fill_zero<uint16_t>(
+        suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
+
+    ouster::img_t<uint32_t> signal = get_or_fill_zero<uint32_t>(
+        suitable_return(sensor::ChanField::SIGNAL, second), ls);
+
+    ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
+        suitable_return(sensor::ChanField::NEAR_IR, second), ls);
+
+    ouster::cartesianT(points, range, lut_direction, lut_offset);
+
+    copy_scan_to_cloud(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
+                       signal);
+}
+
+void scan_to_cloud_f(ouster::PointsF& points,
+                     const ouster::PointsF& lut_direction,
+                     const ouster::PointsF& lut_offset, uint64_t scan_ts,
                      const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
                      int return_index) {
     bool second = (return_index == 1);
