@@ -172,21 +172,19 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
                         const ouster::img_t<NearIrT>& near_ir,
                         const ouster::img_t<SignalT>& signal) {
     auto timestamp = ls.timestamp();
-
     const auto rg = range.data();
     const auto rf = reflectivity.data();
     const auto nr = near_ir.data();
     const auto sg = signal.data();
-// std::chrono::duration<uint64_t>{0}
+    const auto t_zero = std::chrono::duration<long int, std::nano>::zero();
+
 #ifdef __OUSTER_UTILIZE_OPENMP__
 #pragma omp parallel for collapse(2)
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto dt = std::chrono::nanoseconds(timestamp[v]) - scan_ts;
-            const auto t_zero =
-                std::chrono::duration<long int, std::nano>::zero();
-            const auto ts = std::min(dt, t_zero);
+            const auto col_ts = std::chrono::nanoseconds(timestamp[v]);
+            const auto ts = col_ts > scan_ts ? col_ts - scan_ts : t_zero;
             const auto idx = u * ls.w + v;
             const auto xyz = points.row(idx);
             cloud.points[idx] = ouster_ros::Point{
@@ -223,8 +221,8 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto dt = timestamp[v] - scan_ts;
-            const auto ts = std::min(dt, 0UL);
+            const auto col_ts = timestamp[v]; 
+            const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
             const auto idx = u * ls.w + v;
             const auto xyz = points.row(idx);
             cloud.points[idx] = ouster_ros::Point{
