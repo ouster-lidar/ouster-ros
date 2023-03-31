@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <chrono>
 #include <memory>
+#include <cassert>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
 #include "ouster_srvs/srv/get_metadata.hpp"
@@ -29,6 +30,43 @@
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
 using ouster_srvs::srv::GetMetadata;
+
+namespace {
+
+template <typename T, typename UnaryPredicate>
+int find_if_reverse(const Eigen::Array<T, -1, 1>& array,
+                    UnaryPredicate predicate) {
+    auto p = array.data() + array.size() - 1;
+    do {
+        if (predicate(*p)) return p - array.data();
+    } while (p-- != array.data());
+    return -1;
+}
+
+uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
+    uint64_t min_v, max_v;
+    double sign;
+    if (y1 > y0) {
+        min_v = y0;
+        max_v = y1;
+        sign = +1;
+    } else {
+        min_v = y1;
+        max_v = y0;
+        sign = -1;
+    }
+    return y0 + (x - x0) * sign * (max_v - min_v) / (x1 - x0);
+}
+
+template <typename T>
+uint64_t ulround(T value) {
+    T rounded_value = std::round(value);
+    if (rounded_value < 0) return 0ULL;
+    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
+    return static_cast<uint64_t>(rounded_value);
+}
+
+}  // namespace
 
 namespace ouster_ros {
 
@@ -70,6 +108,13 @@ class OusterCloud : public OusterProcessingNodeBase {
         lidar_frame = tf_prefix + "os_lidar";
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+    }
+
+    static double compute_scan_col_ts_spacing_ns(sensor::lidar_mode ld_mode) {
+        const auto scan_width = sensor::n_cols_of_lidar_mode(ld_mode);
+        const auto scan_frequency = sensor::frequency_of_lidar_mode(ld_mode);
+        const double one_sec_in_ns = 1e+9;
+        return one_sec_in_ns / (scan_width * scan_frequency);
     }
 
     void create_lidarscan_objects() {
@@ -131,7 +176,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         pcl_conversions::moveFromPCL(pcl_pc2, cloud);
     }
 
-    void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
+    void convert_scan_to_pointcloud_publish(uint64_t scan_ts,
                                             const rclcpp::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
             scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts,
@@ -146,27 +191,107 @@ class OusterCloud : public OusterProcessingNodeBase {
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
     }
 
-    void lidar_handler_sensor_time(const PacketMsg::ConstSharedPtr packet) {
-        if (!(*scan_batcher)(packet->buf.data(), *lidar_scan)) return;
-        auto ts_v = lidar_scan->timestamp();
+    uint64_t impute_value(int last_scan_last_nonzero_idx,
+                          uint64_t last_scan_last_nonzero_value,
+                          int curr_scan_first_nonzero_idx,
+                          uint64_t curr_scan_first_nonzero_value,
+                          int scan_width) {
+        assert(scan_width + curr_scan_first_nonzero_idx >
+               last_scan_last_nonzero_idx);
+        double interpolated_value = linear_interpolate(
+            last_scan_last_nonzero_idx, last_scan_last_nonzero_value,
+            scan_width + curr_scan_first_nonzero_idx,
+            curr_scan_first_nonzero_value, scan_width);
+        return ulround(interpolated_value);
+    }
+
+    uint64_t extrapolate_value(int curr_scan_first_nonzero_idx,
+                               uint64_t curr_scan_first_nonzero_value) {
+        double extrapolated_value =
+            curr_scan_first_nonzero_value -
+            scan_col_ts_spacing_ns * curr_scan_first_nonzero_idx;
+        return ulround(extrapolated_value);
+    }
+
+    // compute_scan_ts_0 for first scan
+    uint64_t compute_scan_ts_0(
+        const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
-        if (idx == ts_v.data() + ts_v.size()) return;
-        auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
+        assert(idx != ts_v.data() + ts_v.size());  // should never happen
+        int curr_scan_first_nonzero_idx = idx - ts_v.data();
+        uint64_t curr_scan_first_nonzero_value = *idx;
+
+        uint64_t scan_ns =
+            curr_scan_first_nonzero_idx == 0
+                ? curr_scan_first_nonzero_value
+                : extrapolate_value(curr_scan_first_nonzero_idx,
+                                    curr_scan_first_nonzero_value);
+
+        last_scan_last_nonzero_idx =
+            find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
+        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
+        last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_n(ts_v);
+        };
+        return scan_ns;
+    }
+
+    // compute_scan_ts_n applied to all subsequent scans except first one
+    uint64_t compute_scan_ts_n(
+        const ouster::LidarScan::Header<uint64_t>& ts_v) {
+        auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
+                                [](uint64_t h) { return h != 0; });
+        assert(idx != ts_v.data() + ts_v.size());  // should never happen
+        int curr_scan_first_nonzero_idx = idx - ts_v.data();
+        uint64_t curr_scan_first_nonzero_value = *idx;
+
+        uint64_t scan_ns = curr_scan_first_nonzero_idx == 0
+                               ? curr_scan_first_nonzero_value
+                               : impute_value(last_scan_last_nonzero_idx,
+                                              last_scan_last_nonzero_value,
+                                              curr_scan_first_nonzero_idx,
+                                              curr_scan_first_nonzero_value,
+                                              static_cast<int>(ts_v.size()));
+
+        last_scan_last_nonzero_idx =
+            find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
+        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
+        last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
+        return scan_ns;
+    }
+
+    void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
+        if (!(*scan_batcher)(packet->buf.data(), *lidar_scan)) return;
+        auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
         convert_scan_to_pointcloud_publish(scan_ts, to_ros_time(scan_ts));
     }
 
-    void lidar_handler_ros_time(const PacketMsg::ConstSharedPtr packet) {
-        auto packet_receive_time = get_clock()->now();
-        static auto frame_ts = packet_receive_time;  // first point cloud time
-        if (!(*scan_batcher)(packet->buf.data(), *lidar_scan)) return;
-        auto ts_v = lidar_scan->timestamp();
-        auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
-                                [](uint64_t h) { return h != 0; });
-        if (idx == ts_v.data() + ts_v.size()) return;
-        auto scan_ts = std::chrono::nanoseconds{ts_v(idx - ts_v.data())};
+    uint16_t packet_col_index(const uint8_t* packet_buf) {
+        const auto& pf = sensor::get_format(info);
+        return pf.col_measurement_id(pf.nth_col(0, packet_buf));
+    }
+
+    rclcpp::Time extrapolate_frame_ts(const uint8_t* lidar_buf,
+                                      const rclcpp::Time current_time) {
+        auto curr_scan_first_arrived_idx = packet_col_index(lidar_buf);
+        auto delta_time = rclcpp::Duration(
+            0,
+            std::lround(scan_col_ts_spacing_ns * curr_scan_first_arrived_idx));
+        return current_time - delta_time;
+    }
+
+    void lidar_handler_ros_time(const PacketMsg::ConstPtr& packet) {
+        auto packet_receive_time = rclcpp::Clock(RCL_ROS_TIME).now();
+        const uint8_t* packet_buf = packet->buf.data();
+        static auto frame_ts = extrapolate_frame_ts(
+            packet_buf, packet_receive_time);  // first point cloud time
+        if (!(*scan_batcher)(packet_buf, *lidar_scan)) return;
+        auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
         convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
-        frame_ts = packet_receive_time;  // set time for next point cloud msg
+        // set time for next point cloud msg
+        frame_ts = extrapolate_frame_ts(packet_buf, packet_receive_time);
     }
 
     void imu_handler(const PacketMsg::ConstSharedPtr packet) {
@@ -183,10 +308,6 @@ class OusterCloud : public OusterProcessingNodeBase {
 
     static inline rclcpp::Time to_ros_time(uint64_t ts) {
         return rclcpp::Time(ts);
-    }
-
-    static inline rclcpp::Time to_ros_time(std::chrono::nanoseconds ts) {
-        return to_ros_time(ts.count());
     }
 
    private:
@@ -214,6 +335,13 @@ class OusterCloud : public OusterProcessingNodeBase {
     tf2_ros::TransformBroadcaster tf_bcast;
 
     bool use_ros_time;
+
+    int last_scan_last_nonzero_idx = -1;
+    uint64_t last_scan_last_nonzero_value = 0;
+    std::function<uint64_t(const ouster::LidarScan::Header<uint64_t>&)>
+        compute_scan_ts;
+    double scan_col_ts_spacing_ns;  // interval or spacing between columns of a
+                                    // scan
 };
 
 }  // namespace ouster_ros
