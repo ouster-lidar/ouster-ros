@@ -90,6 +90,9 @@ class OusterCloud : public OusterProcessingNodeBase {
         info = sensor::parse_metadata(metadata);
         n_returns = get_n_returns();
         create_lidarscan_objects();
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_0(ts_v);
+        };
         create_publishers();
         create_subscriptions();
     }
