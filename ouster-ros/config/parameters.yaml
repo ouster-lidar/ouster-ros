@@ -2,6 +2,8 @@ ouster/os_sensor:
   ros__parameters:
     sensor_hostname: ''
     udp_dest: ''
+    mtp_dest: ''
+    mtp_main: false
     lidar_mode: ''
     timestamp_mode: ''
     udp_profile_lidar: ''

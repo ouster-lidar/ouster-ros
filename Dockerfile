@@ -37,7 +37,7 @@ RUN set -xe         \
 && rosdep update --rosdistro=$ROS_DISTRO \
 && rosdep install -y --from-paths $OUSTER_ROS_PATH \
 # use -r for now to prevent rosdep from complaining about ouster_srvs
-    --ignore-src -r
+    -r
 
 # Set up build environment
 COPY --chown=build:build . $OUSTER_ROS_PATH
