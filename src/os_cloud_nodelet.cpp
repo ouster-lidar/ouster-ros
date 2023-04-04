@@ -300,9 +300,8 @@ class OusterCloud : public nodelet::Nodelet {
         if (!(*scan_batcher)(packet_buf, ls)) return;
         auto scan_ts = compute_scan_ts(ls.timestamp());
         convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
-        frame_ts = extrapolate_frame_ts(
-            packet_buf,
-            packet_receive_time);  // set time for next point cloud msg
+        // set time for next point cloud msg
+        frame_ts = extrapolate_frame_ts(packet_buf, packet_receive_time); 
     }
 
     void imu_handler(const PacketMsg::ConstPtr& packet) {
@@ -324,10 +323,6 @@ class OusterCloud : public nodelet::Nodelet {
         ros::Time t;
         t.fromNSec(ts);
         return t;
-    }
-
-    inline ros::Time to_ros_time(std::chrono::nanoseconds ts) {
-        return to_ros_time(ts.count());
     }
 
    private:
