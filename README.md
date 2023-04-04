@@ -145,15 +145,14 @@ ros2 launch ouster_ros replay.launch.xml    \
 
 #### Multicast Mode (experimental)
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
-sensor (live) to multiple active clients. You initiate this mode by using `sensor_mtp.launch` file
-to start the node. You will need to specify a valid multicast group for the **udp_dest** argument
-which the sensor is going to broadcast data to it. You will also need to set **mtp_main** argument
-to **true**, this is need to configure the sensor with the specified **udp_dest** and any other
-sensor settings. You can control on which ip (IP4 only) you wish to receive the data on this machine
-from the multicast group using the **mtp_dest** argument
-follows:
+sensor (live) to multiple active clients. You initiate this mode by using `sensor_mtp.launch.xml`
+file to start the node. You will need to specify a valid multicast group for the **udp_dest**
+argument which the sensor is going to broadcast data to it. You will also need to set **mtp_main**
+argument to **true**, this is need to configure the sensor with the specified **udp_dest** and any
+other sensor settings. You can control on which ip (IP4 only) you wish to receive the data on this
+machine from the multicast group using the **mtp_dest** argument as follows:
 ```bash
-roslaunch ouster_ros sensor_mtp.launch      \
+roslaunch ouster_ros sensor_mtp.launch.xml  \
     sensor_hostname:=<sensor host name>     \
     udp_dest:=<multicast group ip (ipv4)>   \
     mtp_main:=true                          \
@@ -163,7 +162,7 @@ Using a different machine that belongs to the same netwok subnet, you can start 
 the client to start receiving sensor messages through the multicast group as shown below (note that
 **mtp_main** is set to **false**):
 ```bash
-roslaunch ouster_ros sensor_mtp.launch      \
+roslaunch ouster_ros sensor_mtp.launch.xml  \
     sensor_hostname:=<sensor host name>     \
     udp_dest:=<multicast group ip (ipv4)>   \
     mtp_main:=false                         \

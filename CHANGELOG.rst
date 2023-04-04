@@ -13,7 +13,7 @@ ouster_ros(2)
 * EOL notice: ouster-ros driver will drop support for ``ROS foxy`` by May 2023.
 * bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist
   in the original metadata file.
-* added a new launch file ``sensor_mtp.launch`` for multicast use case (experimental).
+* added a new launch file ``sensor_mtp.launch.xml`` for multicast use case (experimental).
 * added a technique to estimate the the value of the lidar scan timestamp when it is missing packets
   at the beginning
 * add frame_id to image topics
