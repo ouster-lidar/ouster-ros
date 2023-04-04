@@ -19,6 +19,7 @@ ouster_ros(2)
 * add frame_id to image topics
 * fixed a potential issue of time values within generated point clouds that could result in a value
   overflow
+* Removed ``rviz_common/Time`` from ``viz.rviz`` config file
 
 ouster_client
 -------------
