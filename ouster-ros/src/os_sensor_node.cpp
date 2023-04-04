@@ -169,6 +169,8 @@ class OusterSensor : public OusterSensorNodeBase {
         declare_parameter<std::string>("sensor_hostname");
         declare_parameter<std::string>("metadata");
         declare_parameter<std::string>("udp_dest");
+        declare_parameter<std::string>("mtp_dest");
+        declare_parameter<bool>("mtp_main");
         declare_parameter<int>("lidar_port", 0);
         declare_parameter<int>("imu_port", 0);
         declare_parameter<std::string>("lidar_mode");
@@ -415,9 +417,14 @@ class OusterSensor : public OusterSensorNodeBase {
         int lidar_port =
             config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
         int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
+        auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
         std::shared_ptr<sensor::client> cli;
-        if (lidar_port != 0 && imu_port != 0) {
+        if (sensor::in_multicast(udp_dest)) {
+            // use the mtp_init_client to recieve data via multicast
+            // if mtp_main is true when sensor will be configured
+            cli = sensor::mtp_init_client(hostname, config, mtp_dest, mtp_main);
+        } else if (lidar_port != 0 && imu_port != 0) {
             // use no-config version of init_client to bind to pre-configured
             // ports
             cli = sensor::init_client(hostname, lidar_port, imu_port);
@@ -441,6 +448,8 @@ class OusterSensor : public OusterSensorNodeBase {
 
     sensor::sensor_config parse_config_from_ros_parameters() {
         auto udp_dest = get_parameter("udp_dest").as_string();
+        auto mtp_dest_arg = get_parameter("mtp_dest").as_string();
+        auto mtp_main_arg = get_parameter("mtp_main").as_bool();
         auto lidar_port = get_parameter("lidar_port").as_int();
         auto imu_port = get_parameter("imu_port").as_int();
         auto lidar_mode_arg = get_parameter("lidar_mode").as_string();
@@ -511,8 +520,8 @@ class OusterSensor : public OusterSensorNodeBase {
 
         sensor::sensor_config config;
         if (lidar_port == 0) {
-            RCLCPP_WARN(
-                get_logger(),
+            RCLCPP_WARN_EXPRESSION(
+                get_logger(), !is_arg_set(mtp_dest_arg),
                 "lidar port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -520,8 +529,8 @@ class OusterSensor : public OusterSensorNodeBase {
         }
 
         if (imu_port == 0) {
-            RCLCPP_WARN(
-                get_logger(),
+            RCLCPP_WARN_EXPRESSION(
+                get_logger(), !is_arg_set(mtp_dest_arg),
                 "imu port set to zero, the client will assign a random port "
                 "number!");
         } else {
@@ -532,7 +541,14 @@ class OusterSensor : public OusterSensorNodeBase {
         config.operating_mode = sensor::OPERATING_NORMAL;
         if (lidar_mode) config.ld_mode = lidar_mode;
         if (timestamp_mode) config.ts_mode = timestamp_mode;
-        if (is_arg_set(udp_dest)) config.udp_dest = udp_dest;
+        if (is_arg_set(udp_dest)) {
+            config.udp_dest = udp_dest;
+            if (sensor::in_multicast(udp_dest)) {
+                mtp_dest =
+                    is_arg_set(mtp_dest_arg) ? mtp_dest_arg : std::string{};
+                mtp_main = mtp_main_arg;
+            }
+        }
 
         return config;
     }
@@ -548,6 +564,19 @@ class OusterSensor : public OusterSensorNodeBase {
         if (config.udp_dest) {
             RCLCPP_INFO_STREAM(get_logger(), "Will send UDP data to "
                                                  << config.udp_dest.value());
+            // TODO: revise multicast setup inference
+            if (sensor::in_multicast(*config.udp_dest)) {
+                if (is_arg_set(mtp_dest)) {
+                    RCLCPP_INFO_STREAM(
+                        get_logger(),
+                        "Will recieve data via multicast on " << mtp_dest);
+                } else {
+                    RCLCPP_INFO(
+                        get_logger(),
+                        "mtp_dest was not set, will recieve data via multicast "
+                        "on first available interface");
+                }
+            }
         } else {
             RCLCPP_INFO(get_logger(), "Will use automatic UDP destination");
             config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
@@ -563,7 +592,17 @@ class OusterSensor : public OusterSensorNodeBase {
     }
 
     void configure_sensor(const std::string& hostname,
-                          const sensor::sensor_config& config) {
+                          sensor::sensor_config& config) {
+        if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) &&
+            !mtp_main) {
+            if (!get_config(hostname, config, true)) {
+                RCLCPP_ERROR(get_logger(), "Error getting active config");
+            } else {
+                RCLCPP_INFO(get_logger(), "Retrived active config of sensor");
+            }
+            return;
+        }
+
         uint8_t config_flags = compose_config_flags(config);
         if (!set_config(hostname, config, config_flags)) {
             throw std::runtime_error("Error connecting to sensor " + hostname);
@@ -760,6 +799,8 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string sensor_hostname;
     std::string staged_config;
     std::string active_config;
+    std::string mtp_dest;
+    bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
