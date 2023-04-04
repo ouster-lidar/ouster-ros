@@ -318,7 +318,9 @@ class OusterSensor : public OusterClientBase {
             if (!get_config(hostname, config, true)) {
                 NODELET_ERROR("Error getting active config");
             }
-            NODELET_INFO("Retrived active config of sensor");
+            else {
+                NODELET_INFO("Retrived active config of sensor");
+            }
             return;
         }
 
