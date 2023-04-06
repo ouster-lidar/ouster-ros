@@ -11,6 +11,8 @@
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
   <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
 
+    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="optitrack_to_optitrack_marker" args="0 0 0 0 0 -1.57 base_footprint os_sensor" /> -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="optitrack_to_optitrack_marker" args="0 0 0 0 0.785 0 base_footprint os_sensor" />
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true"
