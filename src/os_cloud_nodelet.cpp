@@ -102,7 +102,7 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
-                // TODO: handle sensor reconfigurtion
+        // TODO: handle sensor reconfigurtion
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
         auto metadata = metadata_msg->data;
         info = sensor::parse_metadata(metadata);
@@ -184,7 +184,7 @@ class OusterCloud : public nodelet::Nodelet {
         pcl_conversions::moveFromPCL(pcl_pc2, cloud);
     }
 
-    void convert_scan_to_pointcloud_publish(std::chrono::nanoseconds scan_ts,
+    void convert_scan_to_pointcloud_publish(uint64_t scan_ts,
                                             const ros::Time& msg_ts) {
         for (int i = 0; i < n_returns; ++i) {
             scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts, ls,
@@ -222,7 +222,7 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     // compute_scan_ts_0 for first scan
-    std::chrono::nanoseconds compute_scan_ts_0(
+    uint64_t compute_scan_ts_0(
         const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
@@ -243,11 +243,11 @@ class OusterCloud : public nodelet::Nodelet {
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_n(ts_v);
         };
-        return std::chrono::nanoseconds(scan_ns);
+        return scan_ns;
     }
 
     // compute_scan_ts_n applied to all subsequent scans except first one
-    std::chrono::nanoseconds compute_scan_ts_n(
+    uint64_t compute_scan_ts_n(
         const ouster::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
@@ -267,7 +267,7 @@ class OusterCloud : public nodelet::Nodelet {
             find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
         assert(last_scan_last_nonzero_idx >= 0);  // should never happen
         last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
-        return std::chrono::nanoseconds(scan_ns);
+        return scan_ns;
     }
 
     void lidar_handler_sensor_time(const PacketMsg::ConstPtr& packet) {
@@ -298,9 +298,8 @@ class OusterCloud : public nodelet::Nodelet {
         if (!(*scan_batcher)(packet_buf, ls)) return;
         auto scan_ts = compute_scan_ts(ls.timestamp());
         convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
-        frame_ts = extrapolate_frame_ts(
-            packet_buf,
-            packet_receive_time);  // set time for next point cloud msg
+        // set time for next point cloud msg
+        frame_ts = extrapolate_frame_ts(packet_buf, packet_receive_time);
     }
 
     void imu_handler(const PacketMsg::ConstPtr& packet) {
@@ -322,10 +321,6 @@ class OusterCloud : public nodelet::Nodelet {
         ros::Time t;
         t.fromNSec(ts);
         return t;
-    }
-
-    inline ros::Time to_ros_time(std::chrono::nanoseconds ts) {
-        return to_ros_time(ts.count());
     }
 
    private:
@@ -356,8 +351,7 @@ class OusterCloud : public nodelet::Nodelet {
 
     int last_scan_last_nonzero_idx = -1;
     uint64_t last_scan_last_nonzero_value = 0;
-    std::function<std::chrono::nanoseconds(
-        const ouster::LidarScan::Header<uint64_t>&)>
+    std::function<uint64_t(const ouster::LidarScan::Header<uint64_t>&)>
         compute_scan_ts;
     double scan_col_ts_spacing_ns;  // interval or spacing between columns of a
                                     // scan

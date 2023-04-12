@@ -10,20 +10,17 @@
 #pragma once
 
 #define PCL_NO_PRECOMPILE
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
-
 #include <geometry_msgs/TransformStamped.h>
-
-#include <chrono>
-#include <string>
-
 #include <ouster/client.h>
 #include <ouster/lidar_scan.h>
 #include <ouster/types.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/PointCloud2.h>
+
+#include <chrono>
+#include <string>
 
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_point.h"
@@ -89,9 +86,27 @@ sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
  * @param[out] cloud output pcl pointcloud to populate
  * @param[in] return_index index of return desired starting at 0
  */
-void scan_to_cloud(const ouster::XYZLut& xyz_lut,
-                   ouster::LidarScan::ts_t scan_ts, const ouster::LidarScan& ls,
-                   ouster_ros::Cloud& cloud, int return_index = 0);
+[[deprecated("use the 2nd version of scan_to_cloud_f")]] void scan_to_cloud(
+    const ouster::XYZLut& xyz_lut, std::chrono::nanoseconds scan_ts,
+    const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
+    int return_index = 0);
+
+/**
+ * Populate a PCL point cloud from a LidarScan.
+ * @param[in, out] points The points parameters is used to store the results of
+ * the cartesian product before it gets packed into the cloud object.
+ * @param[in] lut_direction the direction of the xyz lut (with single precision)
+ * @param[in] lut_offset the offset of the xyz lut (with single precision)
+ * @param[in] scan_ts scan start used to caluclate relative timestamps for
+ * points.
+ * @param[in] ls input lidar data
+ * @param[out] cloud output pcl pointcloud to populate
+ * @param[in] return_index index of return desired starting at 0
+ */
+[[deprecated("use the 2nd version of scan_to_cloud_f")]] void scan_to_cloud_f(
+    ouster::PointsF& points, const ouster::PointsF& lut_direction,
+    const ouster::PointsF& lut_offset, std::chrono::nanoseconds scan_ts,
+    const ouster::LidarScan& ls, ouster_ros::Cloud& cloud, int return_index);
 
 /**
  * Populate a PCL point cloud from a LidarScan.
@@ -106,13 +121,10 @@ void scan_to_cloud(const ouster::XYZLut& xyz_lut,
  * @param[in] return_index index of return desired starting at 0
  */
 void scan_to_cloud_f(ouster::PointsF& points,
-                const ouster::PointsF& lut_direction,
-                const ouster::PointsF& lut_offset,
-                ouster::LidarScan::ts_t scan_ts,
-                const ouster::LidarScan& ls,
-                ouster_ros::Cloud& cloud,
-                int return_index);
-
+                     const ouster::PointsF& lut_direction,
+                     const ouster::PointsF& lut_offset, uint64_t scan_ts,
+                     const ouster::LidarScan& ls, ouster_ros::Cloud& cloud,
+                     int return_index);
 
 /**
  * Serialize a PCL point cloud to a ROS message
