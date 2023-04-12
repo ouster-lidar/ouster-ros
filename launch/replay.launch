@@ -1,7 +1,7 @@
 <launch>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
+  <arg name="metadata" default ="" doc="path to read metadata file when replaying sensor data"/>
   <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
   <arg name="timestamp_mode" default=" " doc="A parameter that allows you to override the timestamp measurements;
     possible values: {
@@ -18,9 +18,11 @@
       args="manager"/>
   </group>
 
+  <arg name="_use_metadata_file" value="$(eval not (metadata == ''))"/>
+
   <group ns="$(arg ouster_ns)">
-    <node pkg="nodelet" type="nodelet" name="os_node"
-      output="screen" required="true"
+    <node if="$(arg _use_metadata_file)" pkg="nodelet" type="nodelet"
+      name="os_node" output="screen" required="true"
       launch-prefix="bash -c 'sleep 3; $0 $@' "
       args="load nodelets_os/OusterReplay os_nodelet_mgr">
       <param name="~/metadata" value="$(arg metadata)"/>
