@@ -27,7 +27,6 @@
 #include <memory>
 #include <cassert>
 
-#include "ouster_ros/GetMetadata.h"
 #include "ouster_ros/PacketMsg.h"
 
 namespace sensor = ouster::sensor;
@@ -75,23 +74,14 @@ uint64_t ulround(T value) {
 namespace nodelets_os {
 class OusterCloud : public nodelet::Nodelet {
    private:
-    bool is_arg_set(const std::string& arg) {
+    bool is_arg_set(const std::string& arg) const {
         return arg.find_first_not_of(' ') != std::string::npos;
     }
 
     virtual void onInit() override {
         parse_parameters();
-        auto& nh = getNodeHandle();
-        auto metadata = get_metadata(nh);
-        info = sensor::parse_metadata(metadata);
-        n_returns = compute_n_returns(info.format);
-        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.mode);
-        create_lidarscan_objects();
-        compute_scan_ts = [this](const auto& ts_v) {
-            return compute_scan_ts_0(ts_v);
-        };
-        create_publishers(nh);
-        create_subscribers(nh);
+        create_metadata_subscriber(getNodeHandle());
+        NODELET_INFO("OusterCloud: nodelet created!");
     }
 
     void parse_parameters() {
@@ -106,38 +96,25 @@ class OusterCloud : public nodelet::Nodelet {
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
     }
 
-    std::string get_metadata(ros::NodeHandle& nh) {
-        std::string config;
-        // Setup subscriber to get config via topic
-        auto config_handler = [&](const std_msgs::String::ConstPtr& p) {
-            config = p->data;
+    void create_metadata_subscriber(ros::NodeHandle& nh) {
+        metadata_sub = nh.subscribe<std_msgs::String>(
+            "metadata", 1, &OusterCloud::metadata_handler, this);
+    }
+
+    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
+                // TODO: handle sensor reconfigurtion
+        NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
+        auto metadata = metadata_msg->data;
+        info = sensor::parse_metadata(metadata);
+        n_returns = compute_n_returns(info.format);
+        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.mode);
+        create_lidarscan_objects();
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_0(ts_v);
         };
-        auto config_sub = nh.subscribe<std_msgs::String>("config", 1, config_handler);
-
-        // Setup client to get config via service
-        ouster_ros::GetMetadata request;
-        auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-
-        // Wait for a valid config (via topic) or a valid service client
-        while(config.empty() && !client.exists()){
-            NODELET_WARN_THROTTLE(10.0, "OusterCloud: waiting for config...");
-            ros::spinOnce();
-            ros::Duration(0.1).sleep();
-        }
-
-        if(!config.empty()){
-            NODELET_INFO("OusterCloud: retrieved sensor metadata from topic!");
-            return config;
-        }
-
-        if (!client.call(request)) {
-            auto error_msg = "OusterCloud: Calling get_metadata service failed";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        NODELET_INFO("OusterCloud: retrieved sensor metadata!");
-        return request.response.metadata;
+        auto& nh = getNodeHandle();
+        create_publishers(nh);
+        create_subscribers(nh);
     }
 
     static int compute_n_returns(const sensor::data_format& format) {
@@ -352,6 +329,7 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
    private:
+    ros::Subscriber metadata_sub;
     ros::Subscriber lidar_packet_sub;
     std::vector<ros::Publisher> lidar_pubs;
     ros::Subscriber imu_packet_sub;

@@ -20,15 +20,24 @@ namespace nodelets_os {
 class OusterReplay : public OusterClientBase {
    private:
     virtual void onInit() override {
+        NODELET_INFO("Running in replay mode");
+        auto meta_file = get_meta_file();
+        create_metadata_publisher(getNodeHandle());
+        read_metadata(meta_file);
+        publish_metadata();
+    }
+
+    std::string get_meta_file() const {
         auto& pnh = getPrivateNodeHandle();
         auto meta_file = pnh.param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
             NODELET_ERROR("Must specify metadata file in replay mode");
             throw std::runtime_error("metadata no specificed");
         }
+        return meta_file;
+    }
 
-        NODELET_INFO("Running in replay mode");
-
+    void read_metadata(const std::string meta_file) {
         // populate info for config service
         try {
             std::ifstream in_file(meta_file);
@@ -41,8 +50,6 @@ class OusterReplay : public OusterClientBase {
             cached_metadata.clear();
             NODELET_ERROR("Error when running in replay mode: %s", e.what());
         }
-
-        OusterClientBase::onInit();
     }
 };
 

@@ -34,7 +34,6 @@
 #include <vector>
 
 #include "ouster/image_processing.h"
-#include "ouster_ros/GetMetadata.h"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
@@ -47,46 +46,24 @@ namespace nodelets_os {
 class OusterImage : public nodelet::Nodelet {
    private:
     virtual void onInit() override {
+        create_metadata_subscriber(getNodeHandle());
+        NODELET_INFO("OusterImage: nodelet created!");
+    }
+
+    void create_metadata_subscriber(ros::NodeHandle& nh) {
+        metadata_sub = nh.subscribe<std_msgs::String>(
+            "metadata", 1, &OusterImage::metadata_handler, this);
+    }
+
+    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
+        // TODO: handle sensor reconfigurtion
+        NODELET_INFO("OusterImage: retrieved new sensor metadata!");
         auto& nh = getNodeHandle();
-        auto metadata = get_metadata(nh);
+        auto metadata = metadata_msg->data;
         info = sensor::parse_metadata(metadata);
         auto n_returns = compute_n_returns();
         create_publishers(nh, n_returns);
         create_subscribers(nh, n_returns);
-    }
-
-    std::string get_metadata(ros::NodeHandle& nh) {
-        std::string config;
-        // Setup subscriber to get config via topic
-        auto config_handler = [&](const std_msgs::String::ConstPtr& p) {
-            config = p->data;
-        };
-        auto config_sub = nh.subscribe<std_msgs::String>("config", 1, config_handler);
-  
-        // Setup client to get config via service
-        ouster_ros::GetMetadata request;
-        auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-  
-        // Wait for a valid config (via topic) or a valid service client
-        while(config.empty() && !client.exists()){
-            NODELET_WARN_THROTTLE(10.0, "OusterImage: waiting for config...");
-            ros::spinOnce();
-            ros::Duration(0.1).sleep();
-        }
-  
-        if(!config.empty()){
-            NODELET_INFO("OusterImage: retrieved sensor metadata from topic!");
-            return config;
-        }
-
-        if (!client.call(request)) {
-            auto error_msg = "OusterImage: Calling get_metadata service failed";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        NODELET_INFO("OusterImage: retrieved sensor metadata!");
-        return request.response.metadata;
     }
 
     void create_cloud_object() {
@@ -222,6 +199,7 @@ class OusterImage : public nodelet::Nodelet {
     }
 
    private:
+    ros::Subscriber metadata_sub;
     ros::Publisher nearir_image_pub;
     std::vector<ros::Publisher> range_image_pubs;
     std::vector<ros::Publisher> signal_image_pubs;

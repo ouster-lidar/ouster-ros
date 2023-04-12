@@ -13,7 +13,6 @@
 // clang-format on
 
 #include <pluginlib/class_list_macros.h>
-#include <std_msgs/String.h>
 
 #include <fstream>
 #include <string>
@@ -42,12 +41,15 @@ class OusterSensor : public OusterClientBase {
         std::tie(config, flags) = create_sensor_config_rosparams(pnh);
         configure_sensor(sensor_hostname, config, flags);
         sensor_client = create_sensor_client(sensor_hostname, config);
+        auto& nh = getNodeHandle();
+        create_metadata_publisher(nh);
         update_config_and_metadata(*sensor_client);
+        publish_metadata();
         save_metadata(pnh);
-        OusterClientBase::onInit();
-        create_get_config_service();
-        create_set_config_service();
-        start_connection_loop();
+        create_get_metadata_service(nh);
+        create_get_config_service(nh);
+        create_set_config_service(nh);
+        start_connection_loop(nh);
     }
 
     std::string get_sensor_hostname(ros::NodeHandle& nh) {
@@ -91,10 +93,6 @@ class OusterSensor : public OusterClientBase {
         populate_metadata_defaults(info, sensor::MODE_UNSPEC);
         display_lidar_info(info);
 
-        config_msg.data = cached_metadata;
-        if (config_pub){
-            config_pub.publish(config_msg);
-        }
         return cached_config.size() > 0 && cached_metadata.size() > 0;
     }
 
@@ -115,8 +113,7 @@ class OusterSensor : public OusterClientBase {
         }
     }
 
-    void create_get_config_service() {
-        auto& nh = getNodeHandle();
+    void create_get_config_service(ros::NodeHandle& nh) {
         get_config_srv =
             nh.advertiseService<GetConfig::Request, GetConfig::Response>(
                 "get_config",
@@ -128,8 +125,7 @@ class OusterSensor : public OusterClientBase {
         NODELET_INFO("get_config service created");
     }
 
-    void create_set_config_service() {
-        auto& nh = getNodeHandle();
+    void create_set_config_service(ros::NodeHandle& nh) {
         set_config_srv =
             nh.advertiseService<SetConfig::Request, SetConfig::Response>(
                 "set_config", [this](SetConfig::Request& request,
@@ -414,12 +410,9 @@ class OusterSensor : public OusterClientBase {
     void create_publishers(ros::NodeHandle& nh) {
         lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
         imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
-        config_pub = nh.advertise<std_msgs::String>("config", 1, true);
-        config_pub.publish(config_msg);
     }
 
-    void start_connection_loop() {
-        auto& nh = getNodeHandle();
+    void start_connection_loop(ros::NodeHandle& nh) {
         allocate_buffers();
         create_publishers(nh);
         timer_ = nh.createTimer(
@@ -456,10 +449,8 @@ class OusterSensor : public OusterClientBase {
    private:
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
-    std_msgs::String config_msg;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
-    ros::Publisher config_pub;
     std::shared_ptr<sensor::client> sensor_client;
     ros::Timer timer_;
     std::string sensor_hostname;
