@@ -221,7 +221,7 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto col_ts = timestamp[v]; 
+            const auto col_ts = timestamp[v];
             const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
             const auto idx = u * ls.w + v;
             const auto xyz = points.row(idx);

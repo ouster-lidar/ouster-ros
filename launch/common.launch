@@ -9,7 +9,6 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
-      launch-prefix="bash -c 'sleep 4; $0 $@' "
       args="load nodelets_os/OusterCloud os_nodelet_mgr">
       <param name="~/tf_prefix" type="str" value="$(arg tf_prefix)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
@@ -19,7 +18,6 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="img_node"
       output="screen" required="true"
-      launch-prefix="bash -c 'sleep 4; $0 $@' "
       args="load nodelets_os/OusterImage os_nodelet_mgr">
     </node>
   </group>

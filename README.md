@@ -18,8 +18,8 @@
 - [Usage](#usage)
   - [Launching Nodes](#launching-nodes)
     - [Sensor Mode](#sensor-mode)
-    - [Replay Mode](#replay-mode)
     - [Recording Mode](#recording-mode)
+    - [Replay Mode](#replay-mode)
     - [Multicast Mode (experimental)](#multicast-mode-experimental)
   - [Invoking Services](#invoking-services)
     - [GetMetadata](#getmetadata)
@@ -102,19 +102,25 @@ roslaunch ouster_ros sensor.launch      \
     metadata:=<json file name>              # metadata is optional
 ```
 
-#### Replay Mode
-```bash
-roslaunch ouster_ros replay.launch      \
-    metadata:=<json file name>          \
-    bag_file:=<path to rosbag file>
-```
-
 #### Recording Mode
+> Note
+> As of package version 8.1, specifiying metadata file is optional since the introduction of the
+> metadata topic
 ```bash
 roslaunch ouster_ros record.launch      \
     sensor_hostname:=<sensor host name> \
-    metadata:=<json file name>          \
     bag_file:=<optional bag file name>
+    metadata:=<json file name>          # optional
+```
+#### Replay Mode
+> Note
+> As of package version 8.1, specifiying metadata file is optional if the bag file being replayed
+> already contains the metadata topic
+
+```bash
+roslaunch ouster_ros replay.launch      \
+    bag_file:=<path to rosbag file>     \
+    metadata:=<json file name>          # optional
 ```
 
 #### Multicast Mode (experimental)

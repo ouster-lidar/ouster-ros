@@ -22,6 +22,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
+#include <std_msgs/String.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
@@ -33,7 +34,6 @@
 #include <vector>
 
 #include "ouster/image_processing.h"
-#include "ouster_ros/GetMetadata.h"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
@@ -46,26 +46,24 @@ namespace nodelets_os {
 class OusterImage : public nodelet::Nodelet {
    private:
     virtual void onInit() override {
+        create_metadata_subscriber(getNodeHandle());
+        NODELET_INFO("OusterImage: nodelet created!");
+    }
+
+    void create_metadata_subscriber(ros::NodeHandle& nh) {
+        metadata_sub = nh.subscribe<std_msgs::String>(
+            "metadata", 1, &OusterImage::metadata_handler, this);
+    }
+
+    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
+        // TODO: handle sensor reconfigurtion
+        NODELET_INFO("OusterImage: retrieved new sensor metadata!");
         auto& nh = getNodeHandle();
-        auto metadata = get_metadata(nh);
+        auto metadata = metadata_msg->data;
         info = sensor::parse_metadata(metadata);
         auto n_returns = compute_n_returns();
         create_publishers(nh, n_returns);
         create_subscribers(nh, n_returns);
-    }
-
-    std::string get_metadata(ros::NodeHandle& nh) {
-        ouster_ros::GetMetadata request;
-        auto client = nh.serviceClient<ouster_ros::GetMetadata>("get_metadata");
-        client.waitForExistence();
-        if (!client.call(request)) {
-            auto error_msg = "OusterImage: Calling get_metadata service failed";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        NODELET_INFO("OusterImage: retrieved sensor metadata!");
-        return request.response.metadata;
     }
 
     void create_cloud_object() {
@@ -125,10 +123,14 @@ class OusterImage : public nodelet::Nodelet {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
 
-        auto range_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto signal_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto reflec_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto nearir_image = make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto range_image =
+            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto signal_image =
+            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto reflec_image =
+            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
+        auto nearir_image =
+            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
 
         ouster::img_t<float> nearir_image_eigen(H, W);
         ouster::img_t<float> signal_image_eigen(H, W);
@@ -203,6 +205,7 @@ class OusterImage : public nodelet::Nodelet {
     }
 
    private:
+    ros::Subscriber metadata_sub;
     ros::Publisher nearir_image_pub;
     std::vector<ros::Publisher> range_image_pubs;
     std::vector<ros::Publisher> signal_image_pubs;

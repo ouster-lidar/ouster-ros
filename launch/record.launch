@@ -25,7 +25,7 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="metadata" doc="path to write metadata file when receiving sensor data"/>
+  <arg name="metadata" default="" doc="path to write metadata file when receiving sensor data"/>
   <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
@@ -41,7 +41,7 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_node"
       output="screen" required="true"
-      launch-prefix="bash -c 'sleep 3; $0 $@' "
+      launch-prefix="bash -c 'sleep 1; $0 $@' "
       args="load nodelets_os/OusterSensor os_nodelet_mgr">
       <param name="~/sensor_hostname" type="str" value="$(arg sensor_hostname)"/>
       <param name="~/udp_dest" type="str" value="$(arg udp_dest)"/>
@@ -63,14 +63,18 @@
   </include>
 
   <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>
-  <arg name="_topics_to_record" value="/$(arg ouster_ns)/imu_packets /$(arg ouster_ns)/lidar_packets"/>
+  <arg name="_topics_to_record" value="
+    /$(arg ouster_ns)/imu_packets
+    /$(arg ouster_ns)/lidar_packets
+    /$(arg ouster_ns)/metadata
+  "/>
 
-  <node if="$(arg _use_bag_file_name)" pkg="rosbag" type="record" name="rosbag_record_sensor"
-       output="screen" required="true"
-       args="record -O $(arg bag_file) $(arg _topics_to_record)"/>
+  <node if="$(arg _use_bag_file_name)" pkg="rosbag" type="record"
+    name="rosbag_record_sensor" output="screen" required="true"
+    args="record -O $(arg bag_file) $(arg _topics_to_record)"/>
 
-  <node unless="$(arg _use_bag_file_name)" pkg="rosbag" type="record" name="rosbag_record_sensor"
-       output="screen" required="true"
-       args="record $(arg _topics_to_record)"/>
+  <node unless="$(arg _use_bag_file_name)" pkg="rosbag" type="record"
+    name="rosbag_record_sensor" output="screen" required="true"
+    args="record $(arg _topics_to_record)"/>
 
 </launch>
