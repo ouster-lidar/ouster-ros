@@ -19,6 +19,9 @@ ouster_ros(2)
 * add frame_id to image topics
 * fixed a potential issue of time values within generated point clouds that could result in a value
   overflow
+* added a new ``/ouster/metadata`` topic that is consumed by os_cloud and os_image nodes and save it
+  to the bag file on record
+* make specifying metadata file optional during record and replay modes as of package version 8.1
 
 ouster_client
 -------------
