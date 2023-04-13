@@ -19,7 +19,7 @@ ouster_ros(1)
   overflow
 * added a new ``/ouster/metadata`` topic that is consumed by os_cloud and os_image nodelets and
   save it to the bag file on record
-* make specifying metadata file optinal as of package version 8.1
+* make specifying metadata file optional during record and replay modes as of package version 8.1
 * added a no-bond option to the ``sensor.launch`` file
 
 ouster_ros(2)
