@@ -29,7 +29,6 @@
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
-using ouster_srvs::srv::GetMetadata;
 
 namespace {
 
@@ -86,15 +85,11 @@ class OusterCloud : public OusterProcessingNodeBase {
     void on_init() {
         declare_parameters();
         parse_parameters();
-        auto metadata = get_metadata();
-        info = sensor::parse_metadata(metadata);
-        n_returns = get_n_returns();
-        create_lidarscan_objects();
-        compute_scan_ts = [this](const auto& ts_v) {
-            return compute_scan_ts_0(ts_v);
-        };
-        create_publishers();
-        create_subscriptions();
+        create_metadata_subscriber(
+            [this](const std_msgs::msg::String::ConstSharedPtr& msg) {
+                metadata_handler(msg);
+            });
+        RCLCPP_INFO(get_logger(), "OusterCloud: node initialized!");
     }
 
     void declare_parameters() {
@@ -118,6 +113,20 @@ class OusterCloud : public OusterProcessingNodeBase {
         const auto scan_frequency = sensor::frequency_of_lidar_mode(ld_mode);
         const double one_sec_in_ns = 1e+9;
         return one_sec_in_ns / (scan_width * scan_frequency);
+    }
+
+    void metadata_handler(
+        const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
+        RCLCPP_INFO(get_logger(),
+                    "OusterCloud: retrieved new sensor metadata!");
+        info = sensor::parse_metadata(metadata_msg->data);
+        n_returns = get_n_returns();
+        create_lidarscan_objects();
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_0(ts_v);
+        };
+        create_publishers();
+        create_subscriptions();
     }
 
     void create_lidarscan_objects() {

@@ -28,6 +28,20 @@ void OusterSensorNodeBase::create_get_metadata_service() {
     RCLCPP_INFO(get_logger(), "get_metadata service created");
 }
 
+void OusterSensorNodeBase::create_metadata_publisher() {
+    auto latching_qos = rclcpp::QoS(rclcpp::KeepLast(1));
+    latching_qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
+    latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+    metadata_pub =
+        create_publisher<std_msgs::msg::String>("metadata", latching_qos);
+}
+
+void OusterSensorNodeBase::publish_metadata() {
+    std_msgs::msg::String metadata_msg;
+    metadata_msg.data = cached_metadata;
+    metadata_pub->publish(metadata_msg);
+}
+
 void OusterSensorNodeBase::display_lidar_info(const sensor::sensor_info& info) {
     auto lidar_profile = info.format.udp_profile_lidar;
     RCLCPP_INFO_STREAM(
