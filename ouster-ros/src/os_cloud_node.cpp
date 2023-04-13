@@ -29,7 +29,6 @@
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
-using ouster_srvs::srv::GetMetadata;
 
 namespace {
 

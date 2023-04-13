@@ -63,7 +63,9 @@ class OusterSensor : public OusterSensorNodeBase {
             sensor_client = create_sensor_client(sensor_hostname, config);
             if (!sensor_client)
                 return LifecycleNodeInterface::CallbackReturn::FAILURE;
+            create_metadata_publisher();
             update_config_and_metadata(*sensor_client);
+            publish_metadata();
             save_metadata();
             create_reset_service();
             create_get_metadata_service();
@@ -342,6 +344,7 @@ class OusterSensor : public OusterSensorNodeBase {
         connection_loop_timer->cancel();
         reset_last_init_id = init_id_reset;
         update_config_and_metadata(*sensor_client);
+        publish_metadata();
         save_metadata();
         auto request_transitions = std::vector<uint8_t>{
             lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,

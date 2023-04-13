@@ -10,7 +10,7 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="metadata"
+  <arg name="metadata" default=""
     description="path to write metadata file when receiving sensor data"/>
   <arg name="bag_file"
     description="file name to use for the recorded bag file"/>
@@ -20,9 +20,11 @@
     description="optional rviz config file"/>
   <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
 
+  <let name="_use_metadata_file" value="$(eval '\'$(var metadata)\' != \'b\'')"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
-    <node pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
+    <node unless="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
       <param name="metadata" value="$(var metadata)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
@@ -49,6 +51,6 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file)"/>
+    cmd="ros2 bag play $(var bag_file) --clock"/>
 
 </launch>

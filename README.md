@@ -129,18 +129,25 @@ ros2 launch ouster_ros sensor.launch.xml    \
 ```
 
 #### Recording Mode
+> Note
+> As of package version 8.1, specifiying metadata file is optional since the introduction of the
+> metadata topic
 ```bash
 ros2 launch ouster_ros record.launch.xml    \
     sensor_hostname:=<sensor host name>     \
-    metadata:=<json file name>              \
-    bag_file:=<optional bag file name>
+    bag_file:=<optional bag file name>      \
+    metadata:=<json file name>              # optional
 ```
 
 #### Replay Mode
+> Note
+> As of package version 8.1, specifiying metadata file is optional if the bag file being replayed
+> already contains the metadata topic
+
 ```bash
 ros2 launch ouster_ros replay.launch.xml    \
-    metadata:=<json file name>              \
-    bag_file:=<path to rosbag file>
+    bag_file:=<path to rosbag file>         \
+    metadata:=<json file name>              # optional if bag file has /metadata topic
 ```
 
 #### Multicast Mode (experimental)
