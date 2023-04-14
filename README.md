@@ -99,7 +99,7 @@ added a new mode that supports multicast. The commands are listed below:
 ```bash
 roslaunch ouster_ros sensor.launch      \
     sensor_hostname:=<sensor host name> \
-    metadata:=<json file name>              # metadata is optional
+    metadata:=<json file name>          # optional
 ```
 
 #### Recording Mode
@@ -120,7 +120,7 @@ roslaunch ouster_ros record.launch      \
 ```bash
 roslaunch ouster_ros replay.launch      \
     bag_file:=<path to rosbag file>     \
-    metadata:=<json file name>          # optional
+    metadata:=<json file name>          # optional if bag file has /metadata topic
 ```
 
 #### Multicast Mode (experimental)

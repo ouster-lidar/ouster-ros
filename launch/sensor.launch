@@ -30,6 +30,11 @@
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
   <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
 
+  <arg name="no_bond" default="false"
+    doc="request no bond setup when nodelets are created"/>
+  <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
+  <arg unless="$(arg no_bond)" name="_no_bond" value="" />
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true"
@@ -40,7 +45,7 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_node"
       output="screen" required="true"
-      args="load nodelets_os/OusterSensor os_nodelet_mgr">
+      args="load nodelets_os/OusterSensor os_nodelet_mgr $(arg _no_bond)">
       <param name="~/sensor_hostname" type="str" value="$(arg sensor_hostname)"/>
       <param name="~/udp_dest" type="str" value="$(arg udp_dest)"/>
       <param name="~/lidar_port" type="int" value="$(arg lidar_port)"/>
@@ -58,6 +63,7 @@
     <arg name="rviz_config" value="$(arg rviz_config)"/>
     <arg name="tf_prefix" value="$(arg tf_prefix)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
+    <arg name="_no_bond" value="$(arg _no_bond)"/>
   </include>
 
 </launch>

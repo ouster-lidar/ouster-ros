@@ -23,7 +23,7 @@ class OusterReplay : public OusterClientBase {
         NODELET_INFO("Running in replay mode");
         auto meta_file = get_meta_file();
         create_metadata_publisher(getNodeHandle());
-        read_metadata(meta_file);
+        load_metadata_from_file(meta_file);
         publish_metadata();
     }
 
@@ -37,8 +37,7 @@ class OusterReplay : public OusterClientBase {
         return meta_file;
     }
 
-    void read_metadata(const std::string meta_file) {
-        // populate info for config service
+    void load_metadata_from_file(const std::string meta_file) {
         try {
             std::ifstream in_file(meta_file);
             std::stringstream buffer;
@@ -48,7 +47,8 @@ class OusterReplay : public OusterClientBase {
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
             cached_metadata.clear();
-            NODELET_ERROR("Error when running in replay mode: %s", e.what());
+            NODELET_ERROR_STREAM(
+                "Error when running in replay mode: " << e.what());
         }
     }
 };

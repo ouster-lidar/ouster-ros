@@ -20,13 +20,13 @@ class OusterClientBase : public nodelet::Nodelet {
         return arg.find_first_not_of(' ') != std::string::npos;
     }
 
-    void display_lidar_info(const ouster::sensor::sensor_info& info);
-
     void create_get_metadata_service(ros::NodeHandle& nh);
 
     void create_metadata_publisher(ros::NodeHandle& nh);
 
     void publish_metadata();
+
+    void display_lidar_info(const ouster::sensor::sensor_info& info);
 
    protected:
     ouster::sensor::sensor_info info;

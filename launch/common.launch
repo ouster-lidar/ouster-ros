@@ -6,10 +6,12 @@
   <arg name="tf_prefix" doc="namespace for tf transforms"/>
   <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
 
+  <arg name="_no_bond" doc="set the no-bond option when loading nodelets"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
-      args="load nodelets_os/OusterCloud os_nodelet_mgr">
+      args="load nodelets_os/OusterCloud os_nodelet_mgr $(arg _no_bond)">
       <param name="~/tf_prefix" type="str" value="$(arg tf_prefix)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
     </node>
@@ -18,7 +20,7 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="img_node"
       output="screen" required="true"
-      args="load nodelets_os/OusterImage os_nodelet_mgr">
+      args="load nodelets_os/OusterImage os_nodelet_mgr $(arg _no_bond)">
     </node>
   </group>
 
