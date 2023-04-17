@@ -85,8 +85,18 @@ class OusterCloud : public OusterProcessingNodeBase {
     void on_init() {
         declare_parameters();
         parse_parameters();
-        auto metadata = get_metadata();
-        info = sensor::parse_metadata(metadata);
+        create_metadata_subscriber(
+            [this](const std_msgs::msg::String::ConstSharedPtr& msg) {
+                metadata_handler(msg);
+            });
+        RCLCPP_INFO(get_logger(), "OusterCloud: node initialized!");
+    }
+
+    void metadata_handler(
+        const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
+        RCLCPP_INFO(get_logger(),
+                    "OusterCloud: retrieved new sensor metadata!");
+        info = sensor::parse_metadata(metadata_msg->data);
         n_returns = get_n_returns();
         create_lidarscan_objects();
         compute_scan_ts = [this](const auto& ts_v) {

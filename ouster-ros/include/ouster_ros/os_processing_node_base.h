@@ -22,7 +22,7 @@ class OusterProcessingNodeBase : public rclcpp::Node {
         : rclcpp::Node(name, options) {}
 
     void create_metadata_subscriber(
-        std::function<void(const std_msgs::msg::String::ConstSharedPtr&)>
+        std::function<void(const std_msgs::msg::String::ConstSharedPtr)>
             on_sensor_metadata);
 
     int get_n_returns();

@@ -13,13 +13,13 @@ using ouster::sensor::UDPProfileLidar;
 namespace ouster_ros {
 
 void OusterProcessingNodeBase::create_metadata_subscriber(
-    std::function<void(const std_msgs::msg::String::ConstSharedPtr&)>
+    std::function<void(const std_msgs::msg::String::ConstSharedPtr)>
         on_sensor_metadata) {
     auto latching_qos = rclcpp::QoS(rclcpp::KeepLast(1));
     latching_qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
     metadata_sub = create_subscription<std_msgs::msg::String>(
-        "metadata", latching_qos, on_sensor_metadata);
+        std::string("metadata"), latching_qos, on_sensor_metadata);
 }
 
 int OusterProcessingNodeBase::get_n_returns() {
@@ -29,6 +29,4 @@ int OusterProcessingNodeBase::get_n_returns() {
                : 1;
 }
 
-const std::chrono::seconds OusterProcessingNodeBase::wait_time_per_attempt = std::chrono::seconds(10);
-    
 }  // namespace ouster_ros
