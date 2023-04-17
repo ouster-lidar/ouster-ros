@@ -6,7 +6,7 @@
   <arg name="tf_prefix" doc="namespace for tf transforms"/>
   <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
 
-  <arg name="_no_bond" doc="set the no-bond option when loading nodelets"/>
+  <arg name="_no_bond" default="" doc="set the no-bond option when loading nodelets"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
