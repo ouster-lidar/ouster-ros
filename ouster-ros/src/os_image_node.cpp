@@ -36,7 +36,6 @@
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
-using ouster_srvs::srv::GetMetadata;
 
 using pixel_type = uint16_t;
 const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
@@ -53,8 +52,15 @@ class OusterImage : public OusterProcessingNodeBase {
 
    private:
     void on_init() {
-        auto metadata = get_metadata();
-        info = sensor::parse_metadata(metadata);
+        create_metadata_subscriber(
+            [this](const auto& msg) { metadata_handler(msg); });
+        RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
+    }
+
+    void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
+        RCLCPP_INFO(get_logger(),
+                    "OusterImage: retrieved new sensor metadata!");
+        info = sensor::parse_metadata(metadata_msg->data);
         create_cloud_object();
         const int n_returns = get_n_returns();
         create_publishers(n_returns);

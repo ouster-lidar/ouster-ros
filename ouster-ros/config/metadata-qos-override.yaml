@@ -1,0 +1,5 @@
+/ouster/metadata:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
