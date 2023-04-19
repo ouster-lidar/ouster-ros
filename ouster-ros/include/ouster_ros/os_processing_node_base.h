@@ -25,9 +25,9 @@ class OusterProcessingNodeBase : public rclcpp::Node {
         std::function<void(const std_msgs::msg::String::ConstSharedPtr&)>
             on_sensor_metadata);
 
-    int get_n_returns();
+    int get_n_returns() const;
 
-    std::string topic_for_return(std::string base, int idx) {
+    static std::string topic_for_return(std::string base, int idx) {
         if (idx == 0) return base;
         return base + std::to_string(idx + 1);
     }
