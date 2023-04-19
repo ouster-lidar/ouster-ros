@@ -48,6 +48,8 @@
     <node pkg="ouster_ros" exec="os_sensor" name="os_sensor" output="screen">
       <param name="sensor_hostname" value="$(var sensor_hostname)"/>
       <param name="udp_dest" value="$(var udp_dest)"/>
+      <param name="mtp_dest" value=""/>
+      <param name="mtp_main" value="false"/>
       <param name="lidar_port" value="$(var lidar_port)"/>
       <param name="imu_port" value="$(var imu_port)"/>
       <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
@@ -81,11 +83,14 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     cmd="ros2 bag record --output $(var bag_file)
-         /$(var ouster_ns)/imu_packets
-         /$(var ouster_ns)/lidar_packets
-         /$(var ouster_ns)/metadata"/>
+      /$(var ouster_ns)/imu_packets
+      /$(var ouster_ns)/lidar_packets
+      /$(var ouster_ns)/metadata"/>
 
   <executable unless="$(var _use_bag_file_name)" output="screen"
-    cmd="ros2 bag record /$(var ouster_ns)/imu_packets /$(var ouster_ns)/lidar_packets"/>
+    cmd="ros2 bag record
+      /$(var ouster_ns)/imu_packets
+      /$(var ouster_ns)/lidar_packets
+      /$(var ouster_ns)/metadata"/>
 
 </launch>
