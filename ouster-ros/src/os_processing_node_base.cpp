@@ -22,7 +22,7 @@ void OusterProcessingNodeBase::create_metadata_subscriber(
         std::string("metadata"), latching_qos, on_sensor_metadata);
 }
 
-int OusterProcessingNodeBase::get_n_returns() {
+int OusterProcessingNodeBase::get_n_returns() const {
     return info.format.udp_profile_lidar ==
                    UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
                ? 2

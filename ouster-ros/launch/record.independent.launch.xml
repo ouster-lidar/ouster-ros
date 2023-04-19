@@ -81,7 +81,9 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     cmd="ros2 bag record --output $(var bag_file)
-         /$(var ouster_ns)/imu_packets /$(var ouster_ns)/lidar_packets"/>
+         /$(var ouster_ns)/imu_packets
+         /$(var ouster_ns)/lidar_packets
+         /$(var ouster_ns)/metadata"/>
 
   <executable unless="$(var _use_bag_file_name)" output="screen"
     cmd="ros2 bag record /$(var ouster_ns)/imu_packets /$(var ouster_ns)/lidar_packets"/>
