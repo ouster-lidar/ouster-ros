@@ -90,7 +90,7 @@ class OusterSensor : public OusterSensorNodeBase {
         LifecycleNode::on_activate(state);
         lidar_packet_pub->on_activate();
         imu_packet_pub->on_activate();
-       
+
         allocate_buffers();
         if (!connection_loop_timer) {
             // TOOD: replace with a thread instead?

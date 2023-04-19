@@ -84,7 +84,8 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_msgs::msg::PacketMsg& pm,
 [[deprecated("use the 2nd version of scan_to_cloud_f")]] void scan_to_cloud_f(
     ouster::PointsF& points, const ouster::PointsF& lut_direction,
     const ouster::PointsF& lut_offset, std::chrono::nanoseconds scan_ts,
-    const ouster::LidarScan& lidar_scan, ouster_ros::Cloud& cloud, int return_index);
+    const ouster::LidarScan& lidar_scan, ouster_ros::Cloud& cloud,
+    int return_index);
 
 /**
  * Populate a PCL point cloud from a LidarScan.
@@ -101,8 +102,8 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_msgs::msg::PacketMsg& pm,
 void scan_to_cloud_f(ouster::PointsF& points,
                      const ouster::PointsF& lut_direction,
                      const ouster::PointsF& lut_offset, uint64_t scan_ts,
-                     const ouster::LidarScan& lidar_scan, ouster_ros::Cloud& cloud,
-                     int return_index);
+                     const ouster::LidarScan& lidar_scan,
+                     ouster_ros::Cloud& cloud, int return_index);
 
 /**
  * Serialize a PCL point cloud to a ROS message

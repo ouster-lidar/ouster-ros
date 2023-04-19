@@ -15,7 +15,6 @@
 
 #include "ouster_srvs/srv/get_metadata.hpp"
 
-
 namespace ouster_ros {
 
 class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {

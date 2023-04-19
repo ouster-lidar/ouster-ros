@@ -53,9 +53,7 @@ class OusterImage : public OusterProcessingNodeBase {
    private:
     void on_init() {
         create_metadata_subscriber(
-            [this](const std_msgs::msg::String::ConstSharedPtr& msg) {
-                metadata_handler(msg);
-            });
+            [this](const auto msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
     }
 
