@@ -11,6 +11,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
@@ -29,7 +30,6 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
-
 
 set(_ouster_ros_INCLUDE_DIRS
   include
@@ -102,6 +102,7 @@ function(create_ros2_component
     class_loader
     rclcpp_components
     rclcpp_lifecycle
+    std_msgs
     sensor_msgs
     geometry_msgs
     ${additonal_dependencies}
