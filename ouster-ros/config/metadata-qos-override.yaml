@@ -3,3 +3,12 @@
   depth: 1
   reliability: reliable
   durability: transient_local
+
+/ouster/imu_packets:
+  durability: volatile
+  history: keep_all
+  reliability: reliable
+/ouster/lidar_packets:
+  durability: volatile
+  history: keep_all
+  reliability: reliable
