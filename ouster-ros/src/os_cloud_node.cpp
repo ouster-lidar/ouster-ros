@@ -86,9 +86,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameters();
         parse_parameters();
         create_metadata_subscriber(
-            [this](const std_msgs::msg::String::ConstSharedPtr& msg) {
-                metadata_handler(msg);
-            });
+            [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterCloud: node initialized!");
     }
 
