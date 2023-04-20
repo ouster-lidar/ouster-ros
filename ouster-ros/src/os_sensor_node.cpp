@@ -697,7 +697,10 @@ class OusterSensor : public OusterSensorNodeBase {
     bool init_id_changed(const sensor::packet_format& pf,
                          const uint8_t* lidar_buf) {
         uint32_t current_init_id = pf.init_id(lidar_buf);
-        static uint32_t last_init_id = current_init_id + 1;
+        if (!last_init_id_initialized) {
+            last_init_id = current_init_id + 1;
+            last_init_id_initialized = true;
+        }
         if (reset_last_init_id && last_init_id != current_init_id) {
             last_init_id = current_init_id;
             reset_last_init_id = false;
@@ -818,6 +821,9 @@ class OusterSensor : public OusterSensorNodeBase {
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
     std::atomic<bool> reset_in_progress = {false};
+
+    bool last_init_id_initialized = false;
+    uint32_t last_init_id;
 
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
