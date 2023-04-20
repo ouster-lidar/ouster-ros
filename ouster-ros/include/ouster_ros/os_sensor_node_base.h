@@ -40,7 +40,8 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     ouster::sensor::sensor_info info;
     rclcpp::Service<ouster_srvs::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
+    rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr
+        metadata_pub;
 };
 
 }  // namespace ouster_ros

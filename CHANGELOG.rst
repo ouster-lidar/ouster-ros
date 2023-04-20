@@ -23,6 +23,7 @@ ouster_ros(2)
 * added a new ``/ouster/metadata`` topic that is consumed by os_cloud and os_image nodes and save it
   to the bag file on record
 * make specifying metadata file optional during record and replay modes as of package version 8.1
+* bugfix: activate metadata topic explicitly
 
 ouster_client
 -------------
