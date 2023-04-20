@@ -34,6 +34,7 @@ void OusterSensorNodeBase::create_metadata_publisher() {
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
     metadata_pub =
         create_publisher<std_msgs::msg::String>("metadata", latching_qos);
+    metadata_pub->on_activate();
 }
 
 void OusterSensorNodeBase::publish_metadata() {
