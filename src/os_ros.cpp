@@ -234,7 +234,6 @@ namespace ouster_ros {
             //destagger the point cloud
             destaggeredcloud = cloud;
             destaggeredcloud = clouddestagger(cloud, pixel_shift_by_row);
-          
 
 
         } else {
