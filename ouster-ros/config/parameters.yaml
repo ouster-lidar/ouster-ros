@@ -12,5 +12,7 @@ ouster/os_sensor:
     imu_port: 0
 ouster/os_cloud:
   ros__parameters:
-    tf_prefix: ''
+    sensor_frame: ''    # Frame of physical sensor
+    lidar_frame: ''     # Frame of lidar scans
+    imu_frame: ''       # Frame of IMU data
     timestamp_mode: ''
