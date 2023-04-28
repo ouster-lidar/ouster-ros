@@ -105,17 +105,17 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void declare_parameters() {
-        declare_parameter("tf_prefix");
+        declare_parameter("sensor_frame");
+        declare_parameter("lidar_frame");
+        declare_parameter("imu_frame");
         declare_parameter("timestamp_mode");
     }
 
     void parse_parameters() {
-        auto tf_prefix = get_parameter("tf_prefix").as_string();
-        if (is_arg_set(tf_prefix) && tf_prefix.back() != '/')
-            tf_prefix.append("/");
-        sensor_frame = tf_prefix + "os_sensor";
-        imu_frame = tf_prefix + "os_imu";
-        lidar_frame = tf_prefix + "os_lidar";
+        sensor_frame = get_parameter("sensor_frame").as_string();
+        lidar_frame = get_parameter("lidar_frame").as_string();
+        imu_frame = get_parameter("imu_frame").as_string();
+
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
     }
