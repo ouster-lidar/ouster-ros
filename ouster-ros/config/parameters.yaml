@@ -12,5 +12,4 @@ ouster/os_sensor:
     imu_port: 0
 ouster/os_cloud:
   ros__parameters:
-    tf_prefix: ''
     timestamp_mode: ''

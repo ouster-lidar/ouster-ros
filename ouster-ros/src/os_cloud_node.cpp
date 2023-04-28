@@ -83,27 +83,19 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void on_init() {
-        declare_parameters();
         parse_parameters();
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterCloud: node initialized!");
     }
 
-    void declare_parameters() {
-        declare_parameter<std::string>("tf_prefix");
-        declare_parameter<std::string>("timestamp_mode");
-    }
-
     void parse_parameters() {
-        auto tf_prefix = get_parameter("tf_prefix").as_string();
-        if (is_arg_set(tf_prefix) && tf_prefix.back() != '/')
-            tf_prefix.append("/");
-        sensor_frame = tf_prefix + "os_sensor";
-        imu_frame = tf_prefix + "os_imu";
-        lidar_frame = tf_prefix + "os_lidar";
-        auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
-        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+        sensor_frame = declare_parameter("sensor_frame", "os_sensor");
+        lidar_frame = declare_parameter("lidar_frame", "lidar_frame");
+        imu_frame = declare_parameter("imu_frame", "os_imu");
+        std::string timestamp_mode = declare_parameter("timestamp_mode", "");
+
+        use_ros_time = timestamp_mode == "TIME_FROM_ROS_TIME";
     }
 
     static double compute_scan_col_ts_spacing_ns(sensor::lidar_mode ld_mode) {
