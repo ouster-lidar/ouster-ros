@@ -78,6 +78,9 @@
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
     <arg name="_enable_static_tf_publishers" value="true"/>
+    <arg name="sensor_frame" value="$(var sensor_frame)"/>
+    <arg name="lidar_frame" value="$(var lidar_frame)"/>
+    <arg name="imu_frame" value="$(var imu_frame)"/>
   </include>
 
 </launch>
