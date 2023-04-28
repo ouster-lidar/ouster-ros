@@ -36,10 +36,9 @@ class OusterSensor : public OusterClientBase {
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
         sensor_hostname = get_sensor_hostname(pnh);
-        sensor::sensor_config config;
-        uint8_t flags;
-        std::tie(config, flags) = create_sensor_config_rosparams(pnh);
-        configure_sensor(sensor_hostname, config, flags);
+        bool retry_configuration = false;
+        std::tie(config, flags) = create_sensor_config_rosparams(pnh, retry_configuration);
+        configure_sensor(sensor_hostname, config, flags, retry_configuration);
         sensor_client = create_sensor_client(sensor_hostname, config);
         auto& nh = getNodeHandle();
         create_metadata_publisher(nh);
@@ -141,7 +140,7 @@ class OusterSensor : public OusterClientBase {
                     }
 
                     try {
-                        configure_sensor(sensor_hostname, config, 0);
+                        configure_sensor(sensor_hostname, config, 0, false);
                     } catch (const std::exception& e) {
                         return false;
                     }
@@ -190,7 +189,7 @@ class OusterSensor : public OusterClientBase {
     }
 
     std::pair<sensor::sensor_config, uint8_t> create_sensor_config_rosparams(
-        ros::NodeHandle& nh) {
+        ros::NodeHandle& nh, bool& retry_configuration) {
         auto udp_dest = nh.param("udp_dest", std::string{});
         auto mtp_dest_arg = nh.param("mtp_dest", std::string{});
         auto mtp_main_arg = nh.param("mtp_main", false);
@@ -200,6 +199,8 @@ class OusterSensor : public OusterClientBase {
         auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
         auto udp_profile_lidar_arg =
             nh.param("udp_profile_lidar", std::string{});
+
+        retry_configuration = nh.param("retry_configuration", false);
 
         if (lidar_port < 0 || lidar_port > 65535) {
             auto error_msg =
@@ -312,31 +313,48 @@ class OusterSensor : public OusterClientBase {
         return std::make_pair(config, config_flags);
     }
 
-    void configure_sensor(const std::string& hostname,
-                          sensor::sensor_config& config, int config_flags) {
-        if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) &&
-            !mtp_main) {
-            if (!get_config(hostname, config, true)) {
-                NODELET_ERROR("Error getting active config");
-            } else {
-                NODELET_INFO("Retrived active config of sensor");
+    bool configure_sensor(const std::string& hostname,
+                          sensor::sensor_config& config,
+                          const int config_flags,
+                          const bool retry_configuration) {
+        bool is_configured = false;
+        bool is_first_attempt = true;
+        do {
+            // Throttling
+            if (!is_first_attempt) {
+                ros::Duration(0.01).sleep();
+                ros::spinOnce();
             }
-            return;
-        }
 
-        try {
-            if (!set_config(hostname, config, config_flags)) {
-                auto err_msg = "Error connecting to sensor " + hostname;
-                NODELET_ERROR_STREAM(err_msg);
-                throw std::runtime_error(err_msg);
+            if (config.udp_dest &&
+                sensor::in_multicast(config.udp_dest.value()) &&
+                !mtp_main) {
+                if (!get_config(hostname, config, true)) {
+                    NODELET_ERROR("Error getting active config");
+                } else {
+                    NODELET_INFO("Retrieved active config of sensor");
+                }
+            } else {
+                try {
+                    if (!set_config(hostname, config, config_flags)) {
+                        auto err_msg = "Error connecting to sensor " + hostname;
+                        NODELET_ERROR_STREAM(err_msg);
+                    } else {
+                        is_configured = true;
+                    }
+                } catch (const std::exception& e) {
+                    NODELET_ERROR("Error setting config:  %s", e.what());
+                }
             }
-        } catch (const std::exception& e) {
-            NODELET_ERROR("Error setting config:  %s", e.what());
-            throw;
-        }
+
+            is_first_attempt = false;
+        } while (!is_configured && retry_configuration);
 
         NODELET_INFO_STREAM("Sensor " << hostname
-                                      << " was configured successfully");
+                                      << " was "
+                                      << (is_configured ? "" : "not ") << "configured successfully");
+
+        return is_configured;
     }
 
     bool load_config_file(const std::string& config_file,
@@ -438,8 +456,22 @@ class OusterSensor : public OusterClientBase {
             return;
         }
         if (state & sensor::LIDAR_DATA) {
-            if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf))
+            if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
+                had_reconnection_success = false;
+                first_lidar_data_rx = ros::Time::now();
                 lidar_packet_pub.publish(lidar_packet);
+            }
+        }
+        else if (!cached_config.empty() &&
+                 !had_reconnection_success &&
+                 (first_lidar_data_rx != ros::Time(0.0)) &&
+                 (ros::Time::now().toSec() - first_lidar_data_rx.toSec()) > 3.0) {
+            NODELET_ERROR("poll_client: attempting reconnection");
+            had_reconnection_success = configure_sensor(sensor_hostname, config, flags, false);
+
+            if (had_reconnection_success) {
+                sensor_client = create_sensor_client(sensor_hostname, config);
+            }
         }
         if (state & sensor::IMU_DATA) {
             if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf))
@@ -457,9 +489,13 @@ class OusterSensor : public OusterClientBase {
     std::string sensor_hostname;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
+    ros::Time first_lidar_data_rx = ros::Time(0.0);
     std::string cached_config;
     std::string mtp_dest;
     bool mtp_main;
+    bool had_reconnection_success = false;
+    uint8_t flags;
+    sensor::sensor_config config;
 };
 
 }  // namespace nodelets_os
