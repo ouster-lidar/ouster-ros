@@ -7,6 +7,10 @@
   <arg name="_enable_static_tf_publishers" default="false"
     description="boolean value to enable static tf publishers"/>
 
+  <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
+  <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
+  <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
@@ -16,10 +20,10 @@
       to run rviz2 -->
     <node if="$(var _enable_static_tf_publishers)"
       pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
-      args="--frame-id os_sensor --child-frame-id os_imu"/>
+      args="--frame-id $(var sensor_frame) --child-frame-id $(var imu_frame)"/>
     <node  if="$(var _enable_static_tf_publishers)"
       pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
-      args="--frame-id os_sensor --child-frame-id os_lidar"/>
+      args="--frame-id $(var sensor_frame) --child-frame-id $(var lidar_frame)"/>
   </group>
 
 </launch>

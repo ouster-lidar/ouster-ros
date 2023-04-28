@@ -22,6 +22,8 @@ ouster_ros(2)
 * added a new ``/ouster/metadata`` topic that is consumed by os_cloud and os_image nodes and save it
   to the bag file on record
 * make specifying metadata file optional during record and replay modes as of package version 8.1
+* replace ``tf_prefix`` from ``os_cloud`` with ``sensor_frame``, ``lidar_frame`` and ``imu_frame``
+  launch parameters.
 
 ouster_client
 -------------
