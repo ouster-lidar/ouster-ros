@@ -40,6 +40,10 @@
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
     description="optional rviz config file"/>
 
+  <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
+  <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
+  <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_sensor" name="os_sensor" output="screen">
@@ -55,6 +59,9 @@
       <param name="metadata" value="$(var metadata)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
+      <param name="sensor_frame" value="$(var sensor_frame)"/>
+      <param name="lidar_frame" value="$(var lidar_frame)"/>
+      <param name="imu_frame" value="$(var imu_frame)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
     </node>
     <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/>
