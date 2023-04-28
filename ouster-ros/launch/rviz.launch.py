@@ -31,6 +31,8 @@ def generate_launch_description():
     # NOTE: the two static tf publishers are rather a workaround to let rviz2
     #     get going and not complain while waiting for the actual sensor frames
     #     to be published that is when running rviz2 using a parent launch file
+    # TODO: need to be able to propagate the modified frame names from the
+    #       parameters file to RVIZ launch py.
     sensor_imu_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
