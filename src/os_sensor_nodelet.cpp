@@ -446,6 +446,8 @@ class OusterSensor : public OusterClientBase {
     }
 
     void connection_loop(sensor::client& cli, const sensor::packet_format& pf) {
+        static constexpr double TIMEOUT = 3.0;
+
         auto state = sensor::poll_client(cli);
         if (state == sensor::EXIT) {
             NODELET_INFO("poll_client: caught signal, exiting");
@@ -462,10 +464,9 @@ class OusterSensor : public OusterClientBase {
                 lidar_packet_pub.publish(lidar_packet);
             }
         }
-        else if (!cached_config.empty() &&
-                 !had_reconnection_success &&
+        else if (!had_reconnection_success &&
                  (first_lidar_data_rx != ros::Time(0.0)) &&
-                 (ros::Time::now().toSec() - first_lidar_data_rx.toSec()) > 3.0) {
+                 (ros::Time::now().toSec() - first_lidar_data_rx.toSec()) > TIMEOUT) {
             NODELET_ERROR("poll_client: attempting reconnection");
             had_reconnection_success = configure_sensor(sensor_hostname, config, flags, false);
 
