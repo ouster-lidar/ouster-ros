@@ -24,6 +24,9 @@ ouster_ros(2)
   to the bag file on record
 * make specifying metadata file optional during record and replay modes as of package version 8.1
 * bugfix: activate metadata topic explicitly
+* bugfix: remove ``--clock`` option when playing bag files in ros-foxy.
+* replace ``tf_prefix`` from ``os_cloud`` with ``sensor_frame``, ``lidar_frame`` and ``imu_frame``
+  launch parameters.
 
 ouster_client
 -------------

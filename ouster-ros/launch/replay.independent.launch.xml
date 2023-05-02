@@ -18,7 +18,10 @@
     description="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
     description="optional rviz config file"/>
-  <arg name="tf_prefix" default="" description="namespace for tf transforms"/>
+
+  <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
+  <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
+  <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
 
   <let name="_use_metadata_file" value="$(eval '\'$(var metadata)\' != \'\'')"/>
 
@@ -28,8 +31,10 @@
       <param name="metadata" value="$(var metadata)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
-      <param name="tf_prefix" value="$(var tf_prefix)"/>
-      <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+        <param name="sensor_frame" value="$(var sensor_frame)"/>
+        <param name="lidar_frame" value="$(var lidar_frame)"/>
+        <param name="imu_frame" value="$(var imu_frame)"/>
+        <param name="timestamp_mode" value="$(var timestamp_mode)"/>
     </node>
     <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen"/>
   </group>
@@ -47,13 +52,16 @@
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
     <arg name="_enable_static_tf_publishers" value="true"/>
+    <arg name="sensor_frame" value="$(var sensor_frame)"/>
+    <arg name="lidar_frame" value="$(var lidar_frame)"/>
+    <arg name="imu_frame" value="$(var imu_frame)"/>
   </include>
 
   <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file) --clock
+    cmd="ros2 bag play $(var bag_file)
       --qos-profile-overrides-path 
       $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 
