@@ -24,6 +24,8 @@ ouster_ros(2)
 * make specifying metadata file optional during record and replay modes as of package version 8.1
 * replace ``tf_prefix`` from ``os_cloud`` with ``sensor_frame``, ``lidar_frame`` and ``imu_frame``
   launch parameters.
+* bugfix: fixed an issue that prevents running multiple instances of the sensor and cloud components
+  in the same process.
 
 ouster_client
 -------------
