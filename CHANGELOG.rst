@@ -27,7 +27,7 @@ ouster_ros(2)
 * bugfix: remove ``--clock`` option when playing bag files in ros-foxy.
 * replace ``tf_prefix`` from ``os_cloud`` with ``sensor_frame``, ``lidar_frame`` and ``imu_frame``
   launch parameters.
-* bugfix: fixed an issue that prevents running multiple instance of the sensor and cloud components
+* bugfix: fixed an issue that prevents running multiple instances of the sensor and cloud components
   in the same process.
 
 ouster_client
