@@ -189,9 +189,8 @@ class OusterCloud : public OusterProcessingNodeBase {
     void pcl_toROSMsg(const ouster_ros::Cloud& pcl_cloud,
                       sensor_msgs::msg::PointCloud2& cloud) {
         // TODO: remove the staging step in the future
-        static pcl::PCLPointCloud2 pcl_pc2;
-        pcl::toPCLPointCloud2(pcl_cloud, pcl_pc2);
-        pcl_conversions::moveFromPCL(pcl_pc2, cloud);
+        pcl::toPCLPointCloud2(pcl_cloud, staging_pcl_pc2);
+        pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud);
     }
 
     void convert_scan_to_pointcloud_publish(uint64_t scan_ts,
@@ -300,13 +299,18 @@ class OusterCloud : public OusterProcessingNodeBase {
     void lidar_handler_ros_time(const PacketMsg::ConstPtr& packet) {
         auto packet_receive_time = rclcpp::Clock(RCL_ROS_TIME).now();
         const uint8_t* packet_buf = packet->buf.data();
-        static auto frame_ts = extrapolate_frame_ts(
-            packet_buf, packet_receive_time);  // first point cloud time
+        if (!lidar_handler_ros_time_frame_ts_initialized) {
+            lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
+                packet_buf, packet_receive_time);  // first point cloud time
+            lidar_handler_ros_time_frame_ts_initialized = true;
+        }
         if (!(*scan_batcher)(packet_buf, *lidar_scan)) return;
         auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
-        convert_scan_to_pointcloud_publish(scan_ts, frame_ts);
+        convert_scan_to_pointcloud_publish(scan_ts,
+                                           lidar_handler_ros_time_frame_ts);
         // set time for next point cloud msg
-        frame_ts = extrapolate_frame_ts(packet_buf, packet_receive_time);
+        lidar_handler_ros_time_frame_ts =
+            extrapolate_frame_ts(packet_buf, packet_receive_time);
     }
 
     void imu_handler(const PacketMsg::ConstSharedPtr packet) {
@@ -355,6 +359,13 @@ class OusterCloud : public OusterProcessingNodeBase {
         compute_scan_ts;
     double scan_col_ts_spacing_ns;  // interval or spacing between columns of a
                                     // scan
+
+    pcl::PCLPointCloud2
+        staging_pcl_pc2;  // a buffer used for staging during the conversion
+                          // from a PCL point cloud to a ros point cloud message
+
+    bool lidar_handler_ros_time_frame_ts_initialized = false;
+    rclcpp::Time lidar_handler_ros_time_frame_ts;
 };
 
 }  // namespace ouster_ros
