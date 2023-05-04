@@ -192,7 +192,7 @@ class OusterCloud : public OusterProcessingNodeBase {
                             *lidar_scan, cloud, i);
             pcl_toROSMsg(cloud, pc_msg);
             pc_msg.header.stamp = msg_ts;
-            pc_msg.header.frame_id = sensor_frame;
+            pc_msg.header.frame_id = lidar_frame;
             lidar_pubs[i]->publish(pc_msg);
         }
 
