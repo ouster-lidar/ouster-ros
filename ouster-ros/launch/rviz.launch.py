@@ -35,8 +35,5 @@ def generate_launch_description():
     return LaunchDescription([
         ouster_ns_arg,
         rviz_config_arg,
-        enable_static_tf_arg,
-        sensor_imu_tf,
-        sensor_ldr_tf,
         rviz_node
     ])
