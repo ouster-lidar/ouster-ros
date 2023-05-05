@@ -4,8 +4,6 @@
     description="Override the default namespace of all ouster nodes"/>
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
     description="optional rviz config file"/>
-  <arg name="_enable_static_tf_publishers" default="false"
-    description="boolean value to enable static tf publishers"/>
 
   <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
   <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
@@ -15,15 +13,6 @@
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
       launch-prefix="bash -c 'sleep 5; $0 $@'" args="-d $(var rviz_config)"/>
-    <!-- NOTE: this is rather a workaround to let rviz2 get going and not complain while waiting
-      for the actual sensor frames to be published that is when when using the same launch file
-      to run rviz2 -->
-    <node if="$(var _enable_static_tf_publishers)"
-      pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_imu"
-      args="--frame-id $(var sensor_frame) --child-frame-id $(var imu_frame)"/>
-    <node  if="$(var _enable_static_tf_publishers)"
-      pkg="tf2_ros" exec="static_transform_publisher" name="stp_sensor_lidar"
-      args="--frame-id $(var sensor_frame) --child-frame-id $(var lidar_frame)"/>
   </group>
 
 </launch>
