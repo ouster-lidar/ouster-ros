@@ -78,7 +78,7 @@ def generate_launch_description():
     rviz_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([str(rviz_launch_file_path)]),
         condition=IfCondition(rviz_enable),
-        launch_arguments={'_enable_static_tf_publishers': 'true'}.items()
+        launch_arguments={'_enable_static_tf_publishers': 'false'}.items()
     )
 
     # HACK: to configure and activate the the sensor since state transition
