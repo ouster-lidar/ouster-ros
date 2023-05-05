@@ -14,7 +14,7 @@
 
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <algorithm>
@@ -118,6 +118,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
+        send_static_transforms();
         n_returns = get_n_returns();
         create_lidarscan_objects();
         compute_scan_ts = [this](const auto& ts_v) {
@@ -125,6 +126,13 @@ class OusterCloud : public OusterProcessingNodeBase {
         };
         create_publishers();
         create_subscriptions();
+    }
+
+    void send_static_transforms() {
+        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+            info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now()));
+        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+            info.imu_to_sensor_transform, sensor_frame, imu_frame, now()));
     }
 
     void create_lidarscan_objects() {
@@ -195,9 +203,6 @@ class OusterCloud : public OusterProcessingNodeBase {
             pc_msg.header.frame_id = sensor_frame;
             lidar_pubs[i]->publish(pc_msg);
         }
-
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
     }
 
     uint64_t impute_value(int last_scan_last_nonzero_idx,
@@ -316,8 +321,6 @@ class OusterCloud : public OusterProcessingNodeBase {
         auto imu_msg =
             ouster_ros::packet_to_imu_msg(*packet, msg_ts, imu_frame, pf);
         imu_pub->publish(imu_msg);
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.imu_to_sensor_transform, sensor_frame, imu_frame, msg_ts));
     };
 
     static inline rclcpp::Time to_ros_time(uint64_t ts) {
@@ -346,7 +349,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     std::string imu_frame;
     std::string lidar_frame;
 
-    tf2_ros::TransformBroadcaster tf_bcast;
+    tf2_ros::StaticTransformBroadcaster tf_bcast;
 
     bool use_ros_time;
 
