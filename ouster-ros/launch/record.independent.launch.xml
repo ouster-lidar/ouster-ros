@@ -74,7 +74,6 @@
   <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
-    <arg name="_enable_static_tf_publishers" value="false"/>
   </include>
 
   <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
