@@ -26,6 +26,7 @@ ouster_ros(2)
   launch parameters.
 * bugfix: fixed an issue that prevents running multiple instances of the sensor and cloud components
   in the same process.
+* switch to using static transform publisher for the ros2 driver.
 
 ouster_client
 -------------
