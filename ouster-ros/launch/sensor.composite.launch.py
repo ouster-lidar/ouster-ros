@@ -77,8 +77,7 @@ def generate_launch_description():
         Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
     rviz_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([str(rviz_launch_file_path)]),
-        condition=IfCondition(rviz_enable),
-        launch_arguments={'_enable_static_tf_publishers': 'true'}.items()
+        condition=IfCondition(rviz_enable)
     )
 
     # HACK: to configure and activate the the sensor since state transition
