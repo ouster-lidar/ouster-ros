@@ -336,8 +336,7 @@ class OusterSensor : public OusterClientBase {
             } else {
                 try {
                     if (!set_config(hostname, config, config_flags)) {
-                        auto err_msg = "Error connecting to sensor " + hostname;
-                        NODELET_ERROR_STREAM(err_msg);
+                        NODELET_ERROR("Error connecting to sensor: '%s'", hostname.c_str());
                     } else {
                         is_configured = true;
                     }
