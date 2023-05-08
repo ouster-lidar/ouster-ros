@@ -323,7 +323,6 @@ class OusterSensor : public OusterClientBase {
             // Throttling
             if (!is_first_attempt) {
                 ros::Duration(0.01).sleep();
-                ros::spinOnce();
             }
 
             if (config.udp_dest &&
