@@ -95,12 +95,14 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter<std::string>("lidar_frame");
         declare_parameter<std::string>("imu_frame");
         declare_parameter<std::string>("timestamp_mode");
+        declare_parameter<bool>("transform_to_sensor_frame", true);
     }
 
     void parse_parameters() {
         sensor_frame = get_parameter("sensor_frame").as_string();
         lidar_frame = get_parameter("lidar_frame").as_string();
         imu_frame = get_parameter("imu_frame").as_string();
+        transform_to_sensor_frame = get_parameter("transform_to_sensor_frame").as_bool();
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
@@ -139,7 +141,19 @@ class OusterCloud : public OusterProcessingNodeBase {
         // The ouster_ros drive currently only uses single precision when it
         // produces the point cloud. So it isn't of a benefit to compute point
         // cloud xyz coordinates using double precision (for the time being).
-        auto xyz_lut = ouster::make_xyz_lut(info);
+        ouster::XYZLut xyz_lut;
+        if (transform_to_sensor_frame) {
+            xyz_lut = ouster::make_xyz_lut(info);
+        } else {
+            xyz_lut = ouster::make_xyz_lut(
+                        info.format.columns_per_frame,
+                        info.format.pixels_per_column,
+                        ouster::sensor::range_unit,
+                        info.beam_to_lidar_transform,
+                        ouster::mat4d::Identity(),
+                        info.beam_azimuth_angles,
+                        info.beam_altitude_angles);
+        }
         lut_direction = xyz_lut.direction.cast<float>();
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
@@ -200,7 +214,11 @@ class OusterCloud : public OusterProcessingNodeBase {
                             *lidar_scan, cloud, i);
             pcl_toROSMsg(cloud, pc_msg);
             pc_msg.header.stamp = msg_ts;
-            pc_msg.header.frame_id = sensor_frame;
+            if (transform_to_sensor_frame) {
+                pc_msg.header.frame_id = sensor_frame;
+            } else {
+                pc_msg.header.frame_id = lidar_frame;
+            }
             lidar_pubs[i]->publish(pc_msg);
         }
     }
@@ -348,6 +366,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     std::string sensor_frame;
     std::string imu_frame;
     std::string lidar_frame;
+    bool transform_to_sensor_frame;
 
     tf2_ros::StaticTransformBroadcaster tf_bcast;
 
