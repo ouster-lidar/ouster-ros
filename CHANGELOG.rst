@@ -21,6 +21,7 @@ ouster_ros(1)
   save it to the bag file on record
 * make specifying metadata file optional during record and replay modes as of package version 8.1
 * added a no-bond option to the ``sensor.launch`` file
+* reduce the publish rate of imu tf transforms
 
 ouster_ros(2)
 -------------
