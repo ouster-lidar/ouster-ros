@@ -197,6 +197,9 @@ class OusterCloud : public nodelet::Nodelet {
 
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
+
+        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+            info.imu_to_sensor_transform, sensor_frame, imu_frame, msg_ts));
     }
 
     uint64_t impute_value(int last_scan_last_nonzero_idx,
@@ -312,9 +315,6 @@ class OusterCloud : public nodelet::Nodelet {
         sensor_msgs::ImuPtr imu_msg_ptr =
             boost::make_shared<sensor_msgs::Imu>(imu_msg);
         imu_pub.publish(imu_msg_ptr);
-
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.imu_to_sensor_transform, sensor_frame, imu_frame, msg_ts));
     };
 
     inline ros::Time to_ros_time(uint64_t ts) {
