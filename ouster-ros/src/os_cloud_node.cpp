@@ -113,10 +113,10 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void declare_parameters() {
-        declare_parameter("sensor_frame");
-        declare_parameter("lidar_frame");
-        declare_parameter("imu_frame");
-        declare_parameter("timestamp_mode");
+        declare_parameter("sensor_frame", "os_sensor");
+        declare_parameter("lidar_frame", "os_lidar");
+        declare_parameter("imu_frame", "os_imu");
+        declare_parameter("timestamp_mode", "");
     }
 
     void parse_parameters() {
