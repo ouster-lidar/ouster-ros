@@ -174,15 +174,15 @@ class OusterSensor : public OusterSensorNodeBase {
    private:
     void declare_parameters() {
         declare_parameter("sensor_hostname");
-        declare_parameter("metadata");
-        declare_parameter("udp_dest");
-        declare_parameter("mtp_dest");
+        declare_parameter("metadata", "");
+        declare_parameter("udp_dest", "");
+        declare_parameter("mtp_dest", "");
         declare_parameter("mtp_main", false);
         declare_parameter("lidar_port", 0);
         declare_parameter("imu_port", 0);
-        declare_parameter("lidar_mode");
-        declare_parameter("timestamp_mode");
-        declare_parameter("udp_profile_lidar");
+        declare_parameter("lidar_mode", "");
+        declare_parameter("timestamp_mode", "");
+        declare_parameter("udp_profile_lidar", "");
     }
 
     std::string get_sensor_hostname() {
