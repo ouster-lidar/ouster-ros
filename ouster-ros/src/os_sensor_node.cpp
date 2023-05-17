@@ -88,21 +88,8 @@ class OusterSensor : public OusterSensorNodeBase {
         const rclcpp_lifecycle::State& state) {
         RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
-
         allocate_buffers();
-        if (!connection_loop_timer) {
-            // TOOD: replace with a thread instead?
-            connection_loop_timer =
-                rclcpp::create_timer(this, get_clock(), 0s, [this]() {
-                    if (reset_in_progress) return;
-                    auto& pf = sensor::get_format(info);
-                    connection_loop(*sensor_client, pf);
-                });
-        } else {
-            connection_loop_timer->reset();
-        }
-
-        reset_in_progress = false;
+        start_sensor_connection_thread();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
@@ -113,12 +100,29 @@ class OusterSensor : public OusterSensorNodeBase {
         return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
+    void start_sensor_connection_thread() {
+        sensor_connection_active = true;
+        sensor_connection_thread = std::make_unique<std::thread>([this]() {
+            auto& pf = sensor::get_format(info);
+            while (sensor_connection_active) {
+                connection_loop(*sensor_client, pf);
+            }
+            RCLCPP_INFO(get_logger(), "connection_loop DONE.");
+        });
+    }
+
+    void stop_sensor_connection_thread() {
+        if (sensor_connection_thread->joinable()) {
+            sensor_connection_active = false;
+            sensor_connection_thread->join();
+        }
+    }
+
     LifecycleNodeInterface::CallbackReturn on_deactivate(
         const rclcpp_lifecycle::State& state) {
         RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
         LifecycleNode::on_deactivate(state);
-        connection_loop_timer->cancel();
-
+        stop_sensor_connection_thread();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
@@ -148,8 +152,7 @@ class OusterSensor : public OusterSensorNodeBase {
         }
 
         if (state.label() == "active") {
-            // stop the timer first then perform cleanup
-            connection_loop_timer->cancel();
+            stop_sensor_connection_thread();
         }
 
         // whether state was 'active' or 'inactive' do cleanup
@@ -169,15 +172,15 @@ class OusterSensor : public OusterSensorNodeBase {
    private:
     void declare_parameters() {
         declare_parameter<std::string>("sensor_hostname");
-        declare_parameter<std::string>("metadata");
-        declare_parameter<std::string>("udp_dest");
-        declare_parameter<std::string>("mtp_dest");
-        declare_parameter<bool>("mtp_main");
+        declare_parameter<std::string>("metadata", "");
+        declare_parameter<std::string>("udp_dest", "");
+        declare_parameter<std::string>("mtp_dest", "");
+        declare_parameter<bool>("mtp_main", false);
         declare_parameter<int>("lidar_port", 0);
         declare_parameter<int>("imu_port", 0);
-        declare_parameter<std::string>("lidar_mode");
-        declare_parameter<std::string>("timestamp_mode");
-        declare_parameter<std::string>("udp_profile_lidar");
+        declare_parameter<std::string>("lidar_mode", "");
+        declare_parameter<std::string>("timestamp_mode", "");
+        declare_parameter<std::string>("udp_profile_lidar", "");
     }
 
     std::string get_sensor_hostname() {
@@ -310,16 +313,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     // param init_id_reset is overriden to true when force_reinit is true
     void reset_sensor(bool force_reinit, bool init_id_reset = false) {
-        if (reset_in_progress) {
-            RCLCPP_WARN(
-                get_logger(),
-                "sensor reset is already in progress, ignoring second call!");
+        if (!sensor_connection_active) {
+            RCLCPP_WARN(get_logger(),
+                        "sensor reset is invoked but sensor connection is not "
+                        "active, ignoring call!");
             return;
         }
 
-        reset_in_progress = true;
         force_sensor_reinit = force_reinit;
-        connection_loop_timer->cancel();
         reset_last_init_id = force_reinit ? true : init_id_reset;
         auto request_transitions = std::vector<uint8_t>{
             lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
@@ -331,15 +332,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     // TODO: need to notify dependent node(s) of the update
     void reactivate_sensor(bool init_id_reset = false) {
-        if (reset_in_progress) {
-            RCLCPP_WARN(
-                get_logger(),
-                "sensor reset is already in progress, ignoring second call!");
+        if (!sensor_connection_active) {
+            // This may indicate that we are in the process of re-activation
+            RCLCPP_WARN(get_logger(),
+                        "sensor reactivate is invoked but sensor connection is "
+                        "not active, ignoring call!");
             return;
         }
 
-        reset_in_progress = true;
-        connection_loop_timer->cancel();
         reset_last_init_id = init_id_reset;
         update_config_and_metadata(*sensor_client);
         publish_metadata();
@@ -798,7 +798,7 @@ class OusterSensor : public OusterSensorNodeBase {
         get_metadata_srv.reset();
         get_config_srv.reset();
         set_config_srv.reset();
-        connection_loop_timer.reset();
+        sensor_connection_thread.reset();
     }
 
    private:
@@ -816,11 +816,11 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
-    std::shared_ptr<rclcpp::TimerBase> connection_loop_timer;
+    std::unique_ptr<std::thread> sensor_connection_thread;
 
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
-    std::atomic<bool> reset_in_progress = {false};
+    std::atomic<bool> sensor_connection_active = {false};
 
     bool last_init_id_initialized = false;
     uint32_t last_init_id;

@@ -15,4 +15,4 @@ ouster/os_cloud:
     sensor_frame: 'os_sensor'
     lidar_frame: 'os_lidar'
     imu_frame: 'os_imu'
-    timestamp_mode: ''
+    timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
