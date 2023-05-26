@@ -58,6 +58,19 @@ bool read_lidar_packet(const sensor::client& cli,
 
 /**
  * Parse an imu packet message into a ROS imu message
+ * @param[in] pf the packet format
+ * @param[in] timestamp the timestamp to give the resulting ROS message
+ * @param[in] frame the frame to set in the resulting ROS message
+ * @param[in] buf the raw packet message populated by read_imu_packet
+ * @return ROS sensor message with fields populated from the packet
+ */
+sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
+                                        const rclcpp::Time& timestamp,
+                                        const std::string& frame,
+                                        const uint8_t* buf);
+
+/**
+ * Parse an imu packet message into a ROS imu message
  * @param[in] pm packet message populated by read_imu_packet
  * @param[in] timestamp the timestamp to give the resulting ROS message
  * @param[in] frame the frame to set in the resulting ROS message

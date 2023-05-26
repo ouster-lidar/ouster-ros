@@ -38,22 +38,20 @@ bool read_lidar_packet(const sensor::client& cli, PacketMsg& pm,
     return read_lidar_packet(cli, pm.buf.data(), pf);
 }
 
-sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
-                                        const rclcpp::Time& timestamp,
-                                        const std::string& frame,
-                                        const sensor::packet_format& pf) {
-    const double standard_g = 9.80665;
+sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
+                                               const rclcpp::Time& timestamp,
+                                               const std::string& frame,
+                                               const uint8_t* buf) {
     sensor_msgs::msg::Imu m;
-    const uint8_t* buf = pm.buf.data();
-
     m.header.stamp = timestamp;
     m.header.frame_id = frame;
 
     m.orientation.x = 0;
     m.orientation.y = 0;
     m.orientation.z = 0;
-    m.orientation.w = 0;
+    m.orientation.w = 1;
 
+    const double standard_g = 9.80665;
     m.linear_acceleration.x = pf.imu_la_x(buf) * standard_g;
     m.linear_acceleration.y = pf.imu_la_y(buf) * standard_g;
     m.linear_acceleration.z = pf.imu_la_z(buf) * standard_g;
@@ -67,12 +65,21 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
         m.angular_velocity_covariance[i] = 0;
         m.linear_acceleration_covariance[i] = 0;
     }
+
     for (int i = 0; i < 9; i += 4) {
         m.linear_acceleration_covariance[i] = 0.01;
         m.angular_velocity_covariance[i] = 6e-4;
     }
 
     return m;
+}
+
+sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
+                                        const rclcpp::Time& timestamp,
+                                        const std::string& frame,
+                                        const sensor::packet_format& pf) {
+
+    return packet_to_imu_msg(pf, timestamp, frame, pm.buf.data());
 }
 
 struct read_and_cast {

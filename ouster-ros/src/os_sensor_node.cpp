@@ -89,6 +89,7 @@ class OusterSensor : public OusterSensorNodeBase {
         RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
         allocate_buffers();
+        start_packet_processing_thread();
         start_sensor_connection_thread();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
@@ -100,29 +101,12 @@ class OusterSensor : public OusterSensorNodeBase {
         return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-    void start_sensor_connection_thread() {
-        sensor_connection_active = true;
-        sensor_connection_thread = std::make_unique<std::thread>([this]() {
-            auto& pf = sensor::get_format(info);
-            while (sensor_connection_active) {
-                connection_loop(*sensor_client, pf);
-            }
-            RCLCPP_INFO(get_logger(), "connection_loop DONE.");
-        });
-    }
-
-    void stop_sensor_connection_thread() {
-        if (sensor_connection_thread->joinable()) {
-            sensor_connection_active = false;
-            sensor_connection_thread->join();
-        }
-    }
-
     LifecycleNodeInterface::CallbackReturn on_deactivate(
         const rclcpp_lifecycle::State& state) {
         RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
         LifecycleNode::on_deactivate(state);
         stop_sensor_connection_thread();
+        stop_packet_processing_thread();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
@@ -153,6 +137,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
         if (state.label() == "active") {
             stop_sensor_connection_thread();
+            stop_packet_processing_thread();
         }
 
         // whether state was 'active' or 'inactive' do cleanup
@@ -733,43 +718,70 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void handle_lidar_packet(sensor::client& cli,
                              const sensor::packet_format& pf) {
-        if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
-            read_lidar_packet_errors = 0;
-            if (is_non_legacy_lidar_profile(info) &&
-                init_id_changed(pf, lidar_packet.buf.data())) {
-                // TODO: short circut reset if no breaking changes occured?
-                RCLCPP_WARN(get_logger(),
-                            "sensor init_id has changed! reactivating..");
-                reactivate_sensor();
-            } else {
-                lidar_packet_pub->publish(lidar_packet);
-            }
-        } else {
-            if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
-                RCLCPP_ERROR_STREAM(
-                    get_logger(),
-                    "maximum number of allowed errors from "
-                    "sensor::read_lidar_packet() reached, reactivating...");
-                read_lidar_packet_errors = 0;
-                reactivate_sensor(true);
-            }
-        }
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [this]{ return lidar_data_processed; });
+        lidar_data_processed = false;
+        bool success = sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf);
+        lidar_data_available_for_processing = true;
+        lock.unlock();
+        cv.notify_all();
+
+        // if (success) {
+        //     read_lidar_packet_errors = 0;
+        //     if (is_non_legacy_lidar_profile(info) &&
+        //         init_id_changed(pf, lidar_packet.buf.data())) {
+        //         // TODO: short circut reset if no breaking changes occured?
+        //         RCLCPP_WARN(get_logger(),
+        //                     "sensor init_id has changed! reactivating..");
+        //         reactivate_sensor();
+        //     } else {
+        //         lidar_packet_pub->publish(lidar_packet);
+        //     }
+        // } else {
+        //     if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
+        //         RCLCPP_ERROR_STREAM(
+        //             get_logger(),
+        //             "maximum number of allowed errors from "
+        //             "sensor::read_lidar_packet() reached, reactivating...");
+        //         read_lidar_packet_errors = 0;
+        //         reactivate_sensor(true);
+        //     }
+        // }
     }
 
     void handle_imu_packet(sensor::client& cli,
                            const sensor::packet_format& pf) {
-        if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf)) {
-            imu_packet_pub->publish(imu_packet);
-        } else {
-            if (++read_imu_packet_errors > max_read_imu_packet_errors) {
-                RCLCPP_ERROR_STREAM(
-                    get_logger(),
-                    "maximum number of allowed errors from "
-                    "sensor::read_imu_packet() reached, reactivating...");
-                read_imu_packet_errors = 0;
-                reactivate_sensor(true);
-            }
-        }
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [this]{ return imu_data_processed; });
+        imu_data_processed = false;
+        bool success = sensor::read_imu_packet(cli, imu_packet.buf.data(), pf);
+        imu_data_available_for_processing = true;
+        lock.unlock();
+        cv.notify_all();
+
+        // if (success) {
+        //     imu_packet_pub->publish(imu_packet);
+        // } else {
+        //     if (++read_imu_packet_errors > max_read_imu_packet_errors) {
+        //         RCLCPP_ERROR_STREAM(
+        //             get_logger(),
+        //             "maximum number of allowed errors from "
+        //             "sensor::read_imu_packet() reached, reactivating...");
+        //         read_imu_packet_errors = 0;
+        //         reactivate_sensor(true);
+        //     }
+        // }
+    }
+
+    void cleanup() {
+        sensor_client.reset();
+        lidar_packet_pub.reset();
+        imu_packet_pub.reset();
+        get_metadata_srv.reset();
+        get_config_srv.reset();
+        set_config_srv.reset();
+        sensor_connection_thread.reset();
+        packet_processing_thread.reset();
     }
 
     void connection_loop(sensor::client& cli, const sensor::packet_format& pf) {
@@ -791,14 +803,66 @@ class OusterSensor : public OusterSensorNodeBase {
         }
     }
 
-    void cleanup() {
-        sensor_client.reset();
-        lidar_packet_pub.reset();
-        imu_packet_pub.reset();
-        get_metadata_srv.reset();
-        get_config_srv.reset();
-        set_config_srv.reset();
-        sensor_connection_thread.reset();
+    void start_sensor_connection_thread() {
+        sensor_connection_active = true;
+        sensor_connection_thread = std::make_unique<std::thread>([this]() {
+            auto& pf = sensor::get_format(info);
+            while (sensor_connection_active) {
+                connection_loop(*sensor_client, pf);
+            }
+            RCLCPP_DEBUG(get_logger(), "sensor_connection_thread done.");
+        });
+    }
+
+    void stop_sensor_connection_thread() {
+        RCLCPP_DEBUG(get_logger(), "sensor_connection_thread stopping.");
+        if (sensor_connection_thread->joinable()) {
+            sensor_connection_active = false;
+            sensor_connection_thread->join();
+        }
+    }
+
+    void start_packet_processing_thread() {
+        packet_processing_active = true;
+        packet_processing_thread = std::make_unique<std::thread>([this]() {
+            while (packet_processing_active) {
+                process_packets();
+            }
+            RCLCPP_DEBUG(get_logger(), "packet_processing_thread done.");
+        });
+    }
+
+    void stop_packet_processing_thread() {
+        RCLCPP_DEBUG(get_logger(), "packet_processing_thread stopping.");
+        if (packet_processing_thread->joinable()) {
+            packet_processing_active = false;
+            packet_processing_thread->join();
+        }
+    }
+
+    void process_packets() {
+        while (packet_processing_active) {
+            std::unique_lock<std::mutex> lock(mtx);
+
+            // Wait until there is a job in the queue
+            cv.wait(lock, [this]{
+                return lidar_data_available_for_processing || imu_data_available_for_processing; });
+
+            if (lidar_data_available_for_processing) {
+                lidar_data_available_for_processing = false;
+                lidar_packet_pub->publish(lidar_packet);
+                lidar_data_processed = true;
+            }
+
+            if (imu_data_available_for_processing) {
+                imu_data_available_for_processing = false;
+                imu_packet_pub->publish(imu_packet);
+                imu_data_processed = true;
+            }
+
+            lock.unlock();
+            cv.notify_all();
+        }
     }
 
    private:
@@ -816,11 +880,23 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool lidar_data_available_for_processing = false;
+    bool lidar_data_processed = true;
+
+    bool imu_data_available_for_processing = false;
+    bool imu_data_processed = true;
+
+    std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
+
+    std::atomic<bool> packet_processing_active = {false};
+    std::unique_ptr<std::thread> packet_processing_thread;
 
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
-    std::atomic<bool> sensor_connection_active = {false};
 
     bool last_init_id_initialized = false;
     uint32_t last_init_id;
