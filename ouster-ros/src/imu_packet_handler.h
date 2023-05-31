@@ -1,4 +1,3 @@
-#pragma once
 /**
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
@@ -6,6 +5,8 @@
  * @file imu_packet_handler.h
  * @brief ...
  */
+
+#pragma once
 
 // prevent clang-format from altering the location of "ouster_ros/ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
