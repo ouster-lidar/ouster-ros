@@ -156,6 +156,16 @@ rclcpp_components_register_node(os_image_component
   EXECUTABLE os_image
 )
 
+# ==== os_sensor_component ====
+create_ros2_component(os_driver_component
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp"
+  "std_srvs"
+)
+rclcpp_components_register_node(os_driver_component
+  PLUGIN "ouster_ros::OusterDriver"
+  EXECUTABLE os_driver
+)
+
 # ==== Install ====
 install(
   TARGETS
@@ -164,6 +174,7 @@ install(
     os_replay_component
     os_cloud_component
     os_image_component
+    os_driver_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

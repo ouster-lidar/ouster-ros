@@ -97,7 +97,8 @@ def generate_launch_description():
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
+        rviz_launch,
         os_container,
         sensor_configure_cmd,
-        TimerAction(period=1.0, actions=[sensor_activate_cmd]),
-        rviz_launch])
+        TimerAction(period=1.0, actions=[sensor_activate_cmd])
+    ])

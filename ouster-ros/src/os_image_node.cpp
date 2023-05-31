@@ -62,7 +62,7 @@ class OusterImage : public OusterProcessingNodeBase {
                     "OusterImage: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
         create_cloud_object();
-        const int n_returns = get_n_returns();
+        const int n_returns = get_n_returns(info);
         create_publishers(n_returns);
         create_subscriptions(n_returns);
     }

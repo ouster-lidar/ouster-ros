@@ -39,10 +39,10 @@ def generate_launch_description():
     rviz_enable = LaunchConfiguration('viz')
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
-    os_sensor = LifecycleNode(
+    os_driver = LifecycleNode(
         package='ouster_ros',
-        executable='os_sensor',
-        name='os_sensor',
+        executable='os_driver',
+        name='os_driver',
         namespace=ouster_ns,
         parameters=[params_file],
         output='screen',
@@ -50,18 +50,18 @@ def generate_launch_description():
 
     sensor_configure_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=matches_action(os_sensor),
+            lifecycle_node_matcher=matches_action(os_driver),
             transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
         )
     )
 
     sensor_activate_event = RegisterEventHandler(
         OnStateTransition(
-            target_lifecycle_node=os_sensor, goal_state='inactive',
+            target_lifecycle_node=os_driver, goal_state='inactive',
             entities=[
-                LogInfo(msg="os_sensor activating..."),
+                LogInfo(msg="os_driver activating..."),
                 EmitEvent(event=ChangeState(
-                    lifecycle_node_matcher=matches_action(os_sensor),
+                    lifecycle_node_matcher=matches_action(os_driver),
                     transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
                 )),
             ],
@@ -82,15 +82,6 @@ def generate_launch_description():
     #         ],
     #     )
     # )
-
-    os_cloud = Node(
-        package='ouster_ros',
-        executable='os_cloud',
-        name='os_cloud',
-        namespace=ouster_ns,
-        parameters=[params_file],
-        output='screen',
-    )
 
     os_image = Node(
         package='ouster_ros',
@@ -113,8 +104,7 @@ def generate_launch_description():
         ouster_ns_arg,
         rviz_enable_arg,
         rviz_launch,
-        os_sensor,
-        os_cloud,
+        os_driver,
         os_image,
         sensor_configure_event,
         sensor_activate_event,

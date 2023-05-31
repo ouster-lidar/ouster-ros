@@ -17,20 +17,13 @@ namespace ouster_ros {
 
 class OusterProcessingNodeBase : public rclcpp::Node {
    protected:
-    explicit OusterProcessingNodeBase(const std::string& name,
+    OusterProcessingNodeBase(const std::string& name,
                                       const rclcpp::NodeOptions& options)
         : rclcpp::Node(name, options) {}
 
     void create_metadata_subscriber(
         std::function<void(const std_msgs::msg::String::ConstSharedPtr&)>
             on_sensor_metadata);
-
-    int get_n_returns() const;
-
-    static std::string topic_for_return(std::string base, int idx) {
-        if (idx == 0) return base;
-        return base + std::to_string(idx + 1);
-    }
 
    protected:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr metadata_sub;

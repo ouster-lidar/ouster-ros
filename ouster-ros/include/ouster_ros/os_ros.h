@@ -34,6 +34,28 @@ using Cloud = pcl::PointCloud<Point>;
 using ns = std::chrono::nanoseconds;
 
 /**
+ * Checks sensor_info if it currently represents a legacy udp lidar profile
+ * @param[in] info sensor_info
+ * @return whether sensor_info represents the legacy udp lidar profile
+ */
+bool is_legacy_lidar_profile(const sensor::sensor_info& info);
+
+/**
+ * Gets the number of point cloud returns that this sensor_info object represents
+ * @param[in] info sensor_info
+ * @return number of returns
+ */
+int get_n_returns(const sensor::sensor_info& info);
+
+/**
+ * Adds a suffix to the topic base name based on the return index
+ * @param[in] topic_base topic base name
+ * @param[in] return_idx return index {0, 1, ... n_returns }
+ * @return number of returns
+ */
+std::string topic_for_return(const std::string& topic_base, int return_idx);
+
+/**
  * Read an imu packet into a ROS message. Blocks for up to a second if no data
  * is available.
  * @param[in] cli the sensor client
@@ -41,6 +63,7 @@ using ns = std::chrono::nanoseconds;
  * @param[in] pf the packet format
  * @return whether reading was successful
  */
+[[deprecated("no longer used internally and will be removed")]]
 bool read_imu_packet(const sensor::client& cli, ouster_msgs::msg::PacketMsg& pm,
                      const sensor::packet_format& pf);
 
@@ -52,6 +75,7 @@ bool read_imu_packet(const sensor::client& cli, ouster_msgs::msg::PacketMsg& pm,
  * @param[in] pf the packet format
  * @return whether reading was successful
  */
+[[deprecated("no longer used internally and will be removed")]]
 bool read_lidar_packet(const sensor::client& cli,
                        ouster_msgs::msg::PacketMsg& pm,
                        const sensor::packet_format& pf);

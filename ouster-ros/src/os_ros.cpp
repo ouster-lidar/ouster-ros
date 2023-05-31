@@ -26,6 +26,24 @@ using ouster_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
 
+bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
+    using sensor::UDPProfileLidar;
+    return info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_LIDAR_LEGACY;
+}
+
+int get_n_returns(const sensor::sensor_info& info) {
+    using sensor::UDPProfileLidar;
+    return info.format.udp_profile_lidar ==
+                UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
+            ? 2
+            : 1;
+}
+
+std::string topic_for_return(const std::string& base, int idx) {
+    return idx == 0 ? base : base + std::to_string(idx + 1);
+}
+
+
 bool read_imu_packet(const sensor::client& cli, PacketMsg& pm,
                      const sensor::packet_format& pf) {
     pm.buf.resize(pf.imu_packet_size + 1);
