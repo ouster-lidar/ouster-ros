@@ -32,7 +32,6 @@ OusterSensor::OusterSensor(const std::string& name, const rclcpp::NodeOptions& o
 
 OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
     : OusterSensor("os_sensor", options) {
-    declare_parameters();
 }
 
 void OusterSensor::declare_parameters() {

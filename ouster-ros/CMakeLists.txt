@@ -166,6 +166,18 @@ rclcpp_components_register_node(os_driver_component
   EXECUTABLE os_driver
 )
 
+
+# ==== Test ====
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(${PROJECT_NAME}_test test/ring_buffer_test.cpp)
+  target_include_directories(${PROJECT_NAME}_test PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+endif()
+
+
 # ==== Install ====
 install(
   TARGETS
