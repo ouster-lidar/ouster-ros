@@ -8,8 +8,8 @@ using namespace std::chrono_literals;
 
 class ThreadSafeRingBufferTest : public ::testing::Test {
   protected:
-    static const int ITEM_SIZE = 4;
-    static const int ITEM_COUNT = 3;
+    static const int ITEM_SIZE = 4;   // predefined size for all items used in
+    static const int ITEM_COUNT = 3;  // number of item the buffer could hold
 
     void SetUp() override {
         buffer = std::make_unique<ThreadSafeRingBuffer>(ITEM_SIZE, ITEM_COUNT);
@@ -49,6 +49,49 @@ class ThreadSafeRingBufferTest : public ::testing::Test {
 
     std::unique_ptr<ThreadSafeRingBuffer> buffer;
 };
+
+TEST_F(ThreadSafeRingBufferTest, ReadWriteToBufferSimple) {
+
+    assert (ITEM_COUNT > 1 && "or this test can't run");
+
+    const int TOTAL_ITEMS = 10; // total items to process
+    const std::vector<std::string> source = rand_vector_str(TOTAL_ITEMS, ITEM_SIZE);
+    std::vector<std::string> target = known_vector_str(TOTAL_ITEMS, "0000");
+
+    EXPECT_TRUE(buffer->empty());
+    EXPECT_FALSE(buffer->full());
+
+    for (int i = 0; i < ITEM_COUNT; ++i) {
+      buffer->write([i, &source](uint8_t* buffer) {
+          std::memcpy(buffer, &source[i][0], ITEM_SIZE);
+      });
+    }
+
+    EXPECT_FALSE(buffer->empty());
+    EXPECT_TRUE(buffer->full());
+
+    // remove one item
+    buffer->read([&target](uint8_t* buffer){
+        std::memcpy(&target[0][0], buffer, ITEM_SIZE);
+    });
+
+    EXPECT_FALSE(buffer->empty());
+    EXPECT_FALSE(buffer->full());
+
+    for (int i = 1; i < ITEM_COUNT; ++i) {
+      buffer->read([i, &target](uint8_t* buffer){
+          std::memcpy(&target[i][0], buffer, ITEM_SIZE);
+      });
+    }
+
+    EXPECT_TRUE(buffer->empty());
+    EXPECT_FALSE(buffer->full());
+
+    for (int i = 0; i < ITEM_COUNT; ++i) {
+        std::cout << "source " << source[i] << ", target " << target[i] << std::endl;
+        EXPECT_EQ(target[i], source[i]); 
+    }
+}
 
 TEST_F(ThreadSafeRingBufferTest, ReadWriteToBuffer) {
 
@@ -127,7 +170,7 @@ TEST_F(ThreadSafeRingBufferTest, ReadWriteToBufferWithOverwrite) {
 
     for (int i = ITEM_COUNT; i < TOTAL_ITEMS; ++i) {
         std::cout << "source " << source[i] << ", target " << target[i] << std::endl;
-        EXPECT_EQ(target[i], "XSDS"); 
+        EXPECT_EQ(target[i], "0000"); 
     }
 }
 
