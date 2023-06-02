@@ -148,6 +148,7 @@ private:
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
 
+    // TODO: reduce sync objects
     std::mutex mtx;
     std::condition_variable receiving_cv;
     std::condition_variable processing_cv;

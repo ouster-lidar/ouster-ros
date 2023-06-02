@@ -813,11 +813,19 @@ void OusterSensor::stop_packet_processing_thread() {
 }
 
 void OusterSensor::on_lidar_packet_msg(const uint8_t* raw_lidar_packet) {
+    // copying the data from queue buffer into the message buffer
+    // this can be avoided by constructing an abstraction where
+    // OusterSensor has its own RingBuffer of PacketMsg but for
+    // now we are focusing on optimizing the code for OusterDriver
     std::memcpy(lidar_packet.buf.data(), raw_lidar_packet, lidar_packet.buf.size());
     lidar_packet_pub->publish(lidar_packet);
 }
 
 void  OusterSensor::on_imu_packet_msg(const uint8_t* raw_imu_packet) {
+    // copying the data from queue buffer into the message buffer
+    // this can be avoided by constructing an abstraction where
+    // OusterSensor has its own RingBuffer of PacketMsg but for
+    // now we are focusing on optimizing the code for OusterDriver
     std::memcpy(imu_packet.buf.data(), raw_imu_packet, imu_packet.buf.size());
     imu_packet_pub->publish(imu_packet);
 }

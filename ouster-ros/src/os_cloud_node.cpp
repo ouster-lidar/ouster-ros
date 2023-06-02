@@ -59,6 +59,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter<std::string>("sensor_frame", "os_sensor");
         declare_parameter<std::string>("lidar_frame", "os_lidar");
         declare_parameter<std::string>("imu_frame", "os_imu");
+        declare_parameter<std::string>("point_cloud_frame", "os_lidar");
         declare_parameter<std::string>("timestamp_mode", "");
     }
 
@@ -66,6 +67,18 @@ class OusterCloud : public OusterProcessingNodeBase {
         sensor_frame = get_parameter("sensor_frame").as_string();
         lidar_frame = get_parameter("lidar_frame").as_string();
         imu_frame = get_parameter("imu_frame").as_string();
+        point_cloud_frame = get_parameter("point_cloud_frame").as_string();
+
+        // validate point_cloud_frame
+        if (point_cloud_frame.empty()) {
+            point_cloud_frame = lidar_frame;    // for ROS1 we'd still use sensor_frame
+        } else if (point_cloud_frame != sensor_frame && point_cloud_frame != lidar_frame) {
+            RCLCPP_WARN(get_logger(),
+                     "point_cloud_frame value needs to match the value of either sensor_frame"
+                     " or lidar_frame but a different value was supplied, using lidar_frame's"
+                     " value as the value for point_cloud_frame");
+            point_cloud_frame = lidar_frame;
+        }
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
@@ -111,7 +124,7 @@ class OusterCloud : public OusterProcessingNodeBase {
             });
 
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, sensor_frame, use_ros_time);  // TODO: add an option to select sensor_frame
+            info, point_cloud_frame, use_ros_time);
         lidar_packet_sub = create_subscription<PacketMsg>(
             "lidar_packets", qos,
             [this](const PacketMsg::ConstSharedPtr msg) {
@@ -133,6 +146,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     std::string sensor_frame;
     std::string imu_frame;
     std::string lidar_frame;
+    std::string point_cloud_frame;
 
     tf2_ros::StaticTransformBroadcaster tf_bcast;
 
