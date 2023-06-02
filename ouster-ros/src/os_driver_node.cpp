@@ -78,15 +78,15 @@ private:
             info, sensor_frame, use_ros_time);  // TODO: add an option to select sensor_frame
     }
 
-    virtual void on_lidar_packet_msg(const PacketMsg& lidar_packet) override {
-        auto point_cloud_msgs = lidar_packet_handler(lidar_packet.buf.data());
+    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
+        auto point_cloud_msgs = lidar_packet_handler(raw_lidar_packet);
         for (size_t i = 0; i < point_cloud_msgs.size(); ++i) {
             lidar_pubs[i]->publish(*point_cloud_msgs[i]);
         }
     }
 
-    virtual void on_imu_packet_msg(const PacketMsg& imu_packet) override {
-        auto imu_msg = imu_packet_handler(imu_packet.buf.data());
+    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
+        auto imu_msg = imu_packet_handler(raw_imu_packet);
         imu_pub->publish(imu_msg);
     }
 

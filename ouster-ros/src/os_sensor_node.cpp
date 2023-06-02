@@ -643,8 +643,13 @@ void OusterSensor::create_publishers() {
 
 void OusterSensor::allocate_buffers() {
     auto& pf = sensor::get_format(info);
+    // TODO: Do we need the +1?
     lidar_packet.buf.resize(pf.lidar_packet_size + 1);
+    lidar_packets = std::make_unique<ThreadSafeRingBuffer>(
+        pf.lidar_packet_size + 1, 1024);
     imu_packet.buf.resize(pf.imu_packet_size + 1);
+    imu_packets = std::make_unique<ThreadSafeRingBuffer>(
+        pf.imu_packet_size + 1, 1024);
 }
 
 bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
@@ -683,7 +688,10 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
                             const sensor::packet_format& pf) {
     std::unique_lock<std::mutex> lock(mtx);
     receiving_cv.wait(lock, [this]{ return lidar_data_processed; });
-    bool success = sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf);
+    bool success = true;
+    lidar_packets->write_overwrite([&cli, pf, &success](uint8_t* buffer) {
+        success = sensor::read_lidar_packet(cli, buffer, pf);
+    });
     lidar_data_processed = false;
     lock.unlock();
     processing_cv.notify_all();
@@ -715,7 +723,10 @@ void OusterSensor::handle_imu_packet(sensor::client& cli,
                         const sensor::packet_format& pf) {
     std::unique_lock<std::mutex> lock(mtx);
     receiving_cv.wait(lock, [this]{ return imu_data_processed; });
-    bool success = sensor::read_imu_packet(cli, imu_packet.buf.data(), pf);
+    bool success = true;
+    imu_packets->write_overwrite([&cli, pf, &success](uint8_t* buffer) {
+        success = sensor::read_imu_packet(cli, buffer, pf);
+    });
     imu_data_processed = false;
     lock.unlock();
     processing_cv.notify_one();
@@ -801,11 +812,13 @@ void OusterSensor::stop_packet_processing_thread() {
     }
 }
 
-void OusterSensor::on_lidar_packet_msg(const PacketMsg& lidar_packet) {
+void OusterSensor::on_lidar_packet_msg(const uint8_t* raw_lidar_packet) {
+    std::memcpy(lidar_packet.buf.data(), raw_lidar_packet, lidar_packet.buf.size());
     lidar_packet_pub->publish(lidar_packet);
 }
 
-void  OusterSensor::on_imu_packet_msg(const PacketMsg& imu_packet) {
+void  OusterSensor::on_imu_packet_msg(const uint8_t* raw_imu_packet) {
+    std::memcpy(imu_packet.buf.data(), raw_imu_packet, imu_packet.buf.size());
     imu_packet_pub->publish(imu_packet);
 }
 
@@ -819,12 +832,16 @@ void OusterSensor::process_packets() {
             return !lidar_data_processed || !imu_data_processed; });
 
         if (!lidar_data_processed) {
-            on_lidar_packet_msg(lidar_packet);
+            lidar_packets->read([this](const uint8_t* buffer) {
+                on_lidar_packet_msg(buffer);
+            });
             lidar_data_processed = true;
         }
 
         if (!imu_data_processed) {
-            on_imu_packet_msg(imu_packet);
+            imu_packets->read([this](const uint8_t* buffer) {
+                on_imu_packet_msg(buffer);
+            });
             imu_data_processed = true;
         }
 

@@ -226,7 +226,7 @@ class LidarPacketHandler {
         return current_time - delta_time;
     }
 
-    bool lidar_handler_sensor_time(const sensor::packet_format& pf, const uint8_t* lidar_buf) {
+    bool lidar_handler_sensor_time(const sensor::packet_format&, const uint8_t* lidar_buf) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
         auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
         convert_scan_to_pointcloud(scan_ts, rclcpp::Time(scan_ts));

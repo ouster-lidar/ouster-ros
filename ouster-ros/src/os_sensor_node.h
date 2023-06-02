@@ -26,6 +26,8 @@
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_sensor_node_base.h"
 
+#include "thread_safe_ring_buffer.h"
+
 namespace sensor = ouster::sensor;
 using lifecycle_msgs::srv::ChangeState;
 using ouster_srvs::srv::GetConfig;
@@ -55,9 +57,9 @@ protected:
 
     virtual void create_publishers();
 
-    virtual void on_lidar_packet_msg(const ouster_msgs::msg::PacketMsg& lidar_packet);
+    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
 
-    virtual void on_imu_packet_msg(const ouster_msgs::msg::PacketMsg& imu_packet);
+    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
 
 private:
     void declare_parameters();
@@ -151,6 +153,10 @@ private:
     std::condition_variable processing_cv;
     bool lidar_data_processed = true;
     bool imu_data_processed = true;
+
+    // TODO: implement & utilize a lock-free ring buffer in future
+    std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
+    std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
 
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
