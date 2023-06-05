@@ -13,12 +13,11 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <tf2_ros/static_transform_broadcaster.h>
-
 #include "os_sensor_node.h"
 
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
+#include "os_static_transforms_broadcaster.h"
 
 namespace ouster_ros {
 
@@ -28,51 +27,14 @@ class OusterDriver : public OusterSensor {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterDriver(const rclcpp::NodeOptions& options)
-        : OusterSensor("os_driver", options), tf_bcast(this) {
-        declare_parameters();
-        parse_parameters();
-    }
-
-   private:
-    void declare_parameters() {
-        declare_parameter<std::string>("sensor_frame", "os_sensor");
-        declare_parameter<std::string>("lidar_frame", "os_lidar");
-        declare_parameter<std::string>("imu_frame", "os_imu");
-        declare_parameter<std::string>("point_cloud_frame", "os_lidar");
-    }
-
-    void parse_parameters() {
-        // TODO: avoid duplication of tf frames code
-        sensor_frame = get_parameter("sensor_frame").as_string();
-        lidar_frame = get_parameter("lidar_frame").as_string();
-        imu_frame = get_parameter("imu_frame").as_string();
-        point_cloud_frame = get_parameter("point_cloud_frame").as_string();
-
-        // validate point_cloud_frame
-        if (point_cloud_frame.empty()) {
-            point_cloud_frame =
-                lidar_frame;  // for ROS1 we'd still use sensor_frame
-        } else if (point_cloud_frame != sensor_frame &&
-                   point_cloud_frame != lidar_frame) {
-            RCLCPP_WARN(get_logger(),
-                        "point_cloud_frame value needs to match the value of "
-                        "either sensor_frame or lidar_frame but a different "
-                        "value was supplied, using lidar_frame's value as the "
-                        "value for point_cloud_frame");
-            point_cloud_frame = lidar_frame;
-        }
+        : OusterSensor("os_driver", options), os_tf_bcast(this) {
+        os_tf_bcast.declare_parameters();
+        os_tf_bcast.parse_parameters();
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
-        send_static_transforms(info);
-    }
-
-    void send_static_transforms(const sensor::sensor_info& info) {
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now()));
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.imu_to_sensor_transform, sensor_frame, imu_frame, now()));
+        os_tf_bcast.broadcast_transforms(info);
     }
 
     virtual void create_publishers() override {
@@ -90,11 +52,10 @@ class OusterDriver : public OusterSensor {
         bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
 
         imu_packet_handler =
-            ImuPacketHandler::create_handler(info, imu_frame, use_ros_time);
-        bool apply_lidar_to_sensor_transform =
-            point_cloud_frame == sensor_frame;
+            ImuPacketHandler::create_handler(info, os_tf_bcast.imu_frame_id(), use_ros_time);
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, point_cloud_frame, apply_lidar_to_sensor_transform,
+            info, os_tf_bcast.point_cloud_frame_id(),
+            os_tf_bcast.apply_lidar_to_sensor_transform(),
             use_ros_time);
     }
 
@@ -111,12 +72,7 @@ class OusterDriver : public OusterSensor {
     }
 
    private:
-    std::string sensor_frame;
-    std::string imu_frame;
-    std::string lidar_frame;
-    std::string point_cloud_frame;
-
-    tf2_ros::StaticTransformBroadcaster tf_bcast;
+    OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode> os_tf_bcast;
 
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
         lidar_pubs;

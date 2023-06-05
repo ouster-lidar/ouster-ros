@@ -28,6 +28,7 @@
 
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
+#include "os_static_transforms_broadcaster.h"
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
@@ -38,7 +39,7 @@ class OusterCloud : public OusterProcessingNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterCloud(const rclcpp::NodeOptions& options)
-        : OusterProcessingNodeBase("os_cloud", options), tf_bcast(this) {
+        : OusterProcessingNodeBase("os_cloud", options), os_tf_bcast(this) {
         on_init();
     }
 
@@ -56,30 +57,12 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void declare_parameters() {
-        declare_parameter<std::string>("sensor_frame", "os_sensor");
-        declare_parameter<std::string>("lidar_frame", "os_lidar");
-        declare_parameter<std::string>("imu_frame", "os_imu");
-        declare_parameter<std::string>("point_cloud_frame", "os_lidar");
+        os_tf_bcast.declare_parameters();
         declare_parameter<std::string>("timestamp_mode", "");
     }
 
     void parse_parameters() {
-        sensor_frame = get_parameter("sensor_frame").as_string();
-        lidar_frame = get_parameter("lidar_frame").as_string();
-        imu_frame = get_parameter("imu_frame").as_string();
-        point_cloud_frame = get_parameter("point_cloud_frame").as_string();
-
-        // validate point_cloud_frame
-        if (point_cloud_frame.empty()) {
-            point_cloud_frame = lidar_frame;    // for ROS1 we'd still use sensor_frame
-        } else if (point_cloud_frame != sensor_frame && point_cloud_frame != lidar_frame) {
-            RCLCPP_WARN(get_logger(),
-                     "point_cloud_frame value needs to match the value of either sensor_frame"
-                     " or lidar_frame but a different value was supplied, using lidar_frame's"
-                     " value as the value for point_cloud_frame");
-            point_cloud_frame = lidar_frame;
-        }
-
+        os_tf_bcast.parse_parameters();
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
     }
@@ -89,16 +72,9 @@ class OusterCloud : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
-        send_static_transforms();
+        os_tf_bcast.broadcast_transforms(info);
         create_publishers(get_n_returns(info));
         create_subscriptions();
-    }
-
-    void send_static_transforms() {
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now()));
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.imu_to_sensor_transform, sensor_frame, imu_frame, now()));
     }
 
     void create_publishers(int num_returns) {
@@ -115,7 +91,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         rclcpp::SensorDataQoS qos;
 
         imu_packet_handler = ImuPacketHandler::create_handler(
-            info, imu_frame, use_ros_time);
+            info, os_tf_bcast.imu_frame_id(), use_ros_time);
         imu_packet_sub = create_subscription<PacketMsg>(
             "imu_packets", qos,
             [this](const PacketMsg::ConstSharedPtr msg) {
@@ -123,9 +99,8 @@ class OusterCloud : public OusterProcessingNodeBase {
                 imu_pub->publish(imu_msg);
             });
 
-        bool apply_lidar_to_sensor_transform = point_cloud_frame == sensor_frame;
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, point_cloud_frame, apply_lidar_to_sensor_transform, use_ros_time);
+            info, os_tf_bcast.point_cloud_frame_id(), os_tf_bcast.apply_lidar_to_sensor_transform(), use_ros_time);
         lidar_packet_sub = create_subscription<PacketMsg>(
             "lidar_packets", qos,
             [this](const PacketMsg::ConstSharedPtr msg) {
@@ -144,12 +119,7 @@ class OusterCloud : public OusterProcessingNodeBase {
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
-    std::string sensor_frame;
-    std::string imu_frame;
-    std::string lidar_frame;
-    std::string point_cloud_frame;
-
-    tf2_ros::StaticTransformBroadcaster tf_bcast;
+    OusterStaticTransformsBroadcaster<rclcpp::Node> os_tf_bcast;
 
     bool use_ros_time;
 
