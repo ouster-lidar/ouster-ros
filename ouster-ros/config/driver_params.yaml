@@ -1,4 +1,4 @@
-ouster/os_sensor:
+ouster/os_driver:
   ros__parameters:
     sensor_hostname: ''
     udp_dest: ''
@@ -10,9 +10,8 @@ ouster/os_sensor:
     metadata: ''
     lidar_port: 0
     imu_port: 0
-ouster/os_cloud:
-  ros__parameters:
-    sensor_frame: 'os_sensor'
-    lidar_frame: 'os_lidar'
-    imu_frame: 'os_imu'
+    sensor_frame: os_sensor
+    lidar_frame: os_lidar
+    imu_frame: os_imu
+    point_cloud_frame: os_lidar
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode

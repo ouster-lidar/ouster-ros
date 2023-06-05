@@ -123,8 +123,9 @@ class OusterCloud : public OusterProcessingNodeBase {
                 imu_pub->publish(imu_msg);
             });
 
+        bool apply_lidar_to_sensor_transform = point_cloud_frame == sensor_frame;
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, point_cloud_frame, use_ros_time);
+            info, point_cloud_frame, apply_lidar_to_sensor_transform, use_ros_time);
         lidar_packet_sub = create_subscription<PacketMsg>(
             "lidar_packets", qos,
             [this](const PacketMsg::ConstSharedPtr msg) {

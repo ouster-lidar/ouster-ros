@@ -65,9 +65,10 @@ class LidarPacketHandler {
     using HandlerType = std::function<HandlerOutput(const uint8_t*)>;
 
    public:
-    LidarPacketHandler(const ouster::sensor::sensor_info& info, const std::string& frame, bool use_ros_time) :
+    LidarPacketHandler(const ouster::sensor::sensor_info& info, const std::string& frame,
+                       bool apply_lidar_to_sensor_transform, bool use_ros_time) :
         ref_frame(frame) {
-        create_lidarscan_objects(info);
+        create_lidarscan_objects(info, apply_lidar_to_sensor_transform);
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_0(ts_v);
         };
@@ -88,8 +89,8 @@ class LidarPacketHandler {
 
    public:
     static HandlerType create_handler(
-        const ouster::sensor::sensor_info& info, const std::string& frame, bool use_ros_time) {
-        auto handler = std::make_shared<LidarPacketHandler>(info, frame, use_ros_time);
+        const ouster::sensor::sensor_info& info, const std::string& frame, bool apply_lidar_to_sensor_transform, bool use_ros_time) {
+        auto handler = std::make_shared<LidarPacketHandler>(info, frame, apply_lidar_to_sensor_transform, use_ros_time);
         return [handler](const uint8_t* lidar_buf) {
             return handler->lidar_packet_accumlator(lidar_buf) ? handler->pc_msgs : HandlerOutput{};
         };
@@ -104,11 +105,22 @@ class LidarPacketHandler {
     }
 
     private:
-    void create_lidarscan_objects(const ouster::sensor::sensor_info& info) {
+    void create_lidarscan_objects(const ouster::sensor::sensor_info& info, bool apply_lidar_to_sensor_transform) {
+        ouster::mat4d additional_transform =
+            apply_lidar_to_sensor_transform ?
+                info.lidar_to_sensor_transform :
+                ouster::mat4d::Identity();
+        auto xyz_lut = ouster::make_xyz_lut(
+                        info.format.columns_per_frame,
+                        info.format.pixels_per_column,
+                        ouster::sensor::range_unit,
+                        additional_transform,
+                        ouster::mat4d::Identity(),
+                        info.beam_azimuth_angles,
+                        info.beam_altitude_angles);
         // The ouster_ros drive currently only uses single precision when it
         // produces the point cloud. So it isn't of a benefit to compute point
         // cloud xyz coordinates using double precision (for the time being).
-        auto xyz_lut = ouster::make_xyz_lut(info);
         lut_direction = xyz_lut.direction.cast<float>();
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());

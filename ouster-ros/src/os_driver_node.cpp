@@ -88,8 +88,9 @@ private:
 
         imu_packet_handler = ImuPacketHandler::create_handler(
             info, imu_frame, use_ros_time);
+        bool apply_lidar_to_sensor_transform = point_cloud_frame == sensor_frame;
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, point_cloud_frame, use_ros_time);
+            info, point_cloud_frame, apply_lidar_to_sensor_transform, use_ros_time);
     }
 
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
