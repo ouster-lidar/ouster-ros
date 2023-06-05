@@ -81,7 +81,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         }
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
-        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
     }
 
     void metadata_handler(

@@ -87,7 +87,7 @@ class OusterDriver : public OusterSensor {
         }
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
-        bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+        bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
 
         imu_packet_handler =
             ImuPacketHandler::create_handler(info, imu_frame, use_ros_time);

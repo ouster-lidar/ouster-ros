@@ -36,9 +36,11 @@ OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
     : OusterSensor("os_sensor", options) {}
 
 void OusterSensor::declare_parameters() {
-    declare_parameter<std::string>("sensor_hostname");
+    declare_parameter<std::string>("sensor_hostname", "");
+    declare_parameter<std::string>("lidar_ip", ""); // community
     declare_parameter<std::string>("metadata", "");
     declare_parameter<std::string>("udp_dest", "");
+    declare_parameter<std::string>("computer_ip", ""); // community
     declare_parameter<std::string>("mtp_dest", "");
     declare_parameter<bool>("mtp_main", false);
     declare_parameter<int>("lidar_port", 0);
@@ -150,9 +152,12 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_shutdown(
 std::string OusterSensor::get_sensor_hostname() {
     auto hostname = get_parameter("sensor_hostname").as_string();
     if (!is_arg_set(hostname)) {
-        auto error_msg = "Must specify a sensor hostname";
-        RCLCPP_ERROR_STREAM(get_logger(), error_msg);
-        throw std::runtime_error(error_msg);
+        hostname = get_parameter("lidar_ip").as_string();
+        if (!is_arg_set(hostname)) {
+            auto error_msg = "Must specify a sensor hostname";
+            RCLCPP_ERROR_STREAM(get_logger(), error_msg);
+            throw std::runtime_error(error_msg);
+        }
     }
 
     return hostname;
@@ -416,6 +421,9 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
 
 sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     auto udp_dest = get_parameter("udp_dest").as_string();
+    if (!is_arg_set(udp_dest))
+        udp_dest = get_parameter("computer_ip").as_string();
+
     auto mtp_dest_arg = get_parameter("mtp_dest").as_string();
     auto mtp_main_arg = get_parameter("mtp_main").as_bool();
     auto lidar_port = get_parameter("lidar_port").as_int();
@@ -469,7 +477,8 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     if (is_arg_set(timestamp_mode_arg)) {
         // In case the option TIME_FROM_ROS_TIME is set then leave the
         // sensor timestamp_mode unmodified
-        if (timestamp_mode_arg == "TIME_FROM_ROS_TIME") {
+        if (timestamp_mode_arg == "TIME_FROM_ROS_TIME" ||
+            timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION") {
             RCLCPP_INFO(get_logger(),
                         "TIME_FROM_ROS_TIME timestamp mode specified."
                         " IMU and pointcloud messages will use ros time");

@@ -39,10 +39,13 @@ def generate_launch_description():
     rviz_enable = LaunchConfiguration('viz')
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
+    os_driver_name = LaunchConfiguration('os_driver_name')
+    os_driver_name_arg = DeclareLaunchArgument('os_driver_name', default_value='os_driver')
+
     os_driver = LifecycleNode(
         package='ouster_ros',
         executable='os_driver',
-        name='os_driver',
+        name=os_driver_name,
         namespace=ouster_ns,
         parameters=[params_file],
         output='screen',
@@ -103,6 +106,7 @@ def generate_launch_description():
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
+        os_driver_name_arg,
         rviz_launch,
         os_driver,
         os_image,

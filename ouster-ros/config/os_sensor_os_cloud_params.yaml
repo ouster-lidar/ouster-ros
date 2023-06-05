@@ -1,3 +1,7 @@
+# [Not recommended] Use this configuration only when utilizing the disjointed
+# os_sensor and os_cloud configuration
+# For the future and for better results consider migrating to combined node/component os_driver
+# and utilize the driver_params.yaml along with it. 
 ouster/os_sensor:
   ros__parameters:
     sensor_hostname: ''
