@@ -15,14 +15,14 @@
 // clang-format on
 
 class ImuPacketHandler {
-    public:
+   public:
     using HandlerOutput = sensor_msgs::msg::Imu;
     using HandlerType = std::function<HandlerOutput(const uint8_t*)>;
 
    public:
-    static HandlerType create_handler(
-        const ouster::sensor::sensor_info& info, const std::string& frame,
-        bool use_ros_time) {
+    static HandlerType create_handler(const ouster::sensor::sensor_info& info,
+                                      const std::string& frame,
+                                      bool use_ros_time) {
         const auto& pf = ouster::sensor::get_format(info);
         using Timestamper = std::function<rclcpp::Time(const uint8_t*)>;
         // clang-format off
@@ -34,7 +34,7 @@ class ImuPacketHandler {
         // clang-format on
         return [&pf, &frame, timestamper](const uint8_t* imu_buf) {
             return ouster_ros::packet_to_imu_msg(pf, timestamper(imu_buf),
-                                                       frame, imu_buf);
+                                                 frame, imu_buf);
         };
     }
 };
