@@ -99,7 +99,7 @@ class LidarPacketHandler {
             info, frame, apply_lidar_to_sensor_transform, use_ros_time);
         return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
-                return handler->pc_msgs
+                return handler->pc_msgs;
             } else {
                 return HandlerOutput{};
             }
@@ -122,8 +122,8 @@ class LidarPacketHandler {
                                             : ouster::mat4d::Identity();
         auto xyz_lut = ouster::make_xyz_lut(
             info.format.columns_per_frame, info.format.pixels_per_column,
-            ouster::sensor::range_unit, additional_transform,
-            ouster::mat4d::Identity(), info.beam_azimuth_angles,
+            ouster::sensor::range_unit, info.beam_to_lidar_transform,
+            additional_transform, info.beam_azimuth_angles,
             info.beam_altitude_angles);
         // The ouster_ros drive currently only uses single precision when it
         // produces the point cloud. So it isn't of a benefit to compute point
