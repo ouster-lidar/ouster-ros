@@ -20,6 +20,7 @@
 
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include "sensor_msgs/msg/laser_scan.hpp"
 
 #include <chrono>
 #include <string>
@@ -165,4 +166,23 @@ sensor_msgs::msg::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
 geometry_msgs::msg::TransformStamped transform_to_tf_msg(
     const ouster::mat4d& mat, const std::string& frame,
     const std::string& child_frame, rclcpp::Time timestamp);
+
+
+/**
+ * Convert transformation matrix return by sensor to ROS transform
+ * @param[in] ls lidar scan object
+ * @param[in] timestamp value to set as the timestamp of the generated
+ * @param[in] frame the parent frame of the generated laser scan message
+ * @param[in] lidar_mode lidar mode (width x frequency)
+ * @param[in] ring selected ring to be published
+ * @return ROS message suitable for publishing as a LaserScan
+ */
+sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
+    const ouster::LidarScan& ls,
+    const rclcpp::Time& timestamp,
+    const std::string &frame,
+    const ouster::sensor::lidar_mode lidar_mode,
+    const uint16_t ring,
+    const int return_index);
+
 }  // namespace ouster_ros
