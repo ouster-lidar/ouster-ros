@@ -68,12 +68,17 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
     return tokens;
 }
 
+inline bool check_token(const std::set<std::string>& tokens,
+                        const std::string& token) {
+    return tokens.find(token) != tokens.end();
+}
+
 }  // namespace
 
 namespace sensor = ouster::sensor;
 
-using LidarScanProcessor =
-    std::function<void(const ouster::LidarScan&, uint64_t, const rclcpp::Time&)>;
+using LidarScanProcessor = std::function<void(const ouster::LidarScan&,
+                                              uint64_t, const rclcpp::Time&)>;
 
 class LidarPacketHandler {
     using LidarPacketAccumlator = std::function<bool(const uint8_t*)>;
@@ -89,8 +94,7 @@ class LidarPacketHandler {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
         lidar_scan = std::make_unique<ouster::LidarScan>(
-            info.format.columns_per_frame,
-            info.format.pixels_per_column,
+            info.format.columns_per_frame, info.format.pixels_per_column,
             info.format.udp_profile_lidar);
 
         // initalize time handlers
@@ -123,25 +127,22 @@ class LidarPacketHandler {
     }
 
    public:
-    static HandlerType create_handler(const ouster::sensor::sensor_info& info,
-                                      bool use_ros_time,
-                                      const std::vector<LidarScanProcessor>& handlers) {
-        auto handler = std::make_shared<LidarPacketHandler>(
-            info, use_ros_time);
+    static HandlerType create_handler(
+        const ouster::sensor::sensor_info& info, bool use_ros_time,
+        const std::vector<LidarScanProcessor>& handlers) {
+        auto handler = std::make_shared<LidarPacketHandler>(info, use_ros_time);
 
         handler->lidar_scan_handlers = handlers;
 
         return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
                 for (auto h : handler->lidar_scan_handlers) {
-                    h(*handler->lidar_scan,
-                      handler->lidar_scan_estimated_ts,
+                    h(*handler->lidar_scan, handler->lidar_scan_estimated_ts,
                       handler->lidar_scan_estimated_msg_ts);
                 }
             }
         };
     }
-
 
     // time interpolation methods
     uint64_t impute_value(int last_scan_last_nonzero_idx,

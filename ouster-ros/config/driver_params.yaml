@@ -15,4 +15,4 @@ ouster/os_driver:
     imu_frame: os_imu
     point_cloud_frame: os_lidar
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
-    proc_mask: IMG|PCL|IMU|SCAN # currently only PCL and SCAN are effective
+    proc_mask: IMG|PCL|IMU|SCAN # currently IMG is not supported

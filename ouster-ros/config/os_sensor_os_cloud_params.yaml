@@ -21,4 +21,4 @@ ouster/os_cloud:
     imu_frame: os_imu
     point_cloud_frame: os_lidar
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
-    proc_mask: PCL|SCAN # select PCL and SCAN or either
+    proc_mask: IMU|PCL|SCAN # pick IMU, PCL, SCAN or any combination of the three options

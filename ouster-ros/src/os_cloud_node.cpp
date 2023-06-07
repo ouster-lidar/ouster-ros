@@ -61,13 +61,14 @@ class OusterCloud : public OusterProcessingNodeBase {
     void declare_parameters() {
         os_tf_bcast.declare_parameters();
         declare_parameter<std::string>("timestamp_mode", "");
-        declare_parameter("proc_mask", std::string("PCL|SCAN"));
+        declare_parameter("proc_mask", std::string("IMU|PCL|SCAN"));
     }
 
     void parse_parameters() {
         os_tf_bcast.parse_parameters();
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
-        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
+        use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" ||
+                       timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
     }
 
     void metadata_handler(
@@ -97,21 +98,24 @@ class OusterCloud : public OusterProcessingNodeBase {
     }
 
     void create_subscriptions() {
-        rclcpp::SensorDataQoS qos;
-
-        imu_packet_handler = ImuPacketHandler::create_handler(
-            info, os_tf_bcast.imu_frame_id(), use_ros_time);
-        imu_packet_sub = create_subscription<PacketMsg>(
-            "imu_packets", qos,
-            [this](const PacketMsg::ConstSharedPtr msg) {
-                auto imu_msg = imu_packet_handler(msg->buf.data());
-                imu_pub->publish(imu_msg);
-            });
-
-        std::vector<LidarScanProcessor> processors;
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = parse_tokens(proc_mask, '|');
-        if (tokens.find("PCL") != tokens.end())
+
+        rclcpp::SensorDataQoS qos;
+
+        if (check_token(tokens, "IMU")) {
+            imu_packet_handler = ImuPacketHandler::create_handler(
+                info, os_tf_bcast.imu_frame_id(), use_ros_time);
+            imu_packet_sub = create_subscription<PacketMsg>(
+                "imu_packets", qos,
+                [this](const PacketMsg::ConstSharedPtr msg) {
+                    auto imu_msg = imu_packet_handler(msg->buf.data());
+                    imu_pub->publish(imu_msg);
+                });
+        }
+
+        std::vector<LidarScanProcessor> processors;
+        if (check_token(tokens, "PCL")) {
             processors.push_back(PointCloudProcessor::create(
                 info, os_tf_bcast.point_cloud_frame_id(),
                 os_tf_bcast.apply_lidar_to_sensor_transform(),
@@ -119,27 +123,33 @@ class OusterCloud : public OusterProcessingNodeBase {
                     for (size_t i = 0; i < point_cloud_msg.size(); ++i)
                         lidar_pubs[i]->publish(*point_cloud_msg[i]);
                 }));
+        }
 
-        if (tokens.find("SCAN") != tokens.end())
+        if (check_token(tokens, "SCAN")) {
             processors.push_back(LaserScanProcessor::create(
-                info, os_tf_bcast.point_cloud_frame_id(), // TODO: should we have different frame for the laser scan than point cloud???
+                info,
+                os_tf_bcast
+                    .point_cloud_frame_id(),  // TODO: should we have different
+                                              // frame for the laser scan than
+                                              // point cloud???
                 0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
                     for (size_t i = 0; i < laser_scan_msg.size(); ++i)
                         scan_pubs[i]->publish(*laser_scan_msg[i]);
                 }));
+        }
 
-        lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, use_ros_time, processors);
-
-        lidar_packet_sub = create_subscription<PacketMsg>(
-            "lidar_packets", qos,
-            [this](const PacketMsg::ConstSharedPtr msg) {
-                lidar_packet_handler(msg->buf.data());
-            });
+        if (check_token(tokens, "PCL") || check_token(tokens, "SCAN")) {
+            lidar_packet_handler = LidarPacketHandler::create_handler(
+                info, use_ros_time, processors);
+            lidar_packet_sub = create_subscription<PacketMsg>(
+                "lidar_packets", qos,
+                [this](const PacketMsg::ConstSharedPtr msg) {
+                    lidar_packet_handler(msg->buf.data());
+                });
+        }
     }
 
    private:
-
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
