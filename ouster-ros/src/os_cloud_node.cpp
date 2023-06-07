@@ -26,9 +26,11 @@
 #include "ouster_ros/os_processing_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
+#include "os_static_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
-#include "os_static_transforms_broadcaster.h"
+#include "point_cloud_processor.h"
+#include "laser_scan_processor.h"
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::msg::PacketMsg;
@@ -105,16 +107,34 @@ class OusterCloud : public OusterProcessingNodeBase {
                 imu_pub->publish(imu_msg);
             });
 
-        // lidar_packet_handler = LidarPacketHandler::create_handler(
-        //     info, use_ros_time);
-        // lidar_packet_sub = create_subscription<PacketMsg>(
-        //     "lidar_packets", qos,
-        //     [this](const PacketMsg::ConstSharedPtr msg) {
-        //         auto point_cloud_msgs = lidar_packet_handler(msg->buf.data());
-        //         for (size_t i = 0; i < point_cloud_msgs.size(); ++i) {
-        //             lidar_pubs[i]->publish(*point_cloud_msgs[i]);
-        //         }
-        //     });
+        std::vector<LidarScanProcessor> processors;
+        auto process_pc = true;
+        if (process_pc)
+            processors.push_back(PointCloudProcessor::create(
+                info, os_tf_bcast.point_cloud_frame_id(),
+                os_tf_bcast.apply_lidar_to_sensor_transform(),
+                [this](PointCloudProcessor::OutputType point_cloud_msg) {
+                    for (size_t i = 0; i < point_cloud_msg.size(); ++i)
+                        lidar_pubs[i]->publish(*point_cloud_msg[i]);
+                }));
+
+        auto process_scan = true;
+        if (process_scan)
+            processors.push_back(LaserScanProcessor::create(
+                info, os_tf_bcast.point_cloud_frame_id(), // TODO: should we have different frame for the laser scan than point cloud???
+                0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
+                    for (size_t i = 0; i < laser_scan_msg.size(); ++i)
+                        scan_pubs[i]->publish(*laser_scan_msg[i]);
+                }));
+
+        lidar_packet_handler = LidarPacketHandler::create_handler(
+            info, use_ros_time, processors);
+
+        lidar_packet_sub = create_subscription<PacketMsg>(
+            "lidar_packets", qos,
+            [this](const PacketMsg::ConstSharedPtr msg) {
+                lidar_packet_handler(msg->buf.data());
+            });
     }
 
    private:
