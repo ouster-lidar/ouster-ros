@@ -15,9 +15,11 @@
 
 #include "os_sensor_node.h"
 
+#include "os_static_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
-#include "os_static_transforms_broadcaster.h"
+#include "point_cloud_processor.h"
+#include "laser_scan_processor.h"
 
 namespace ouster_ros {
 
@@ -48,22 +50,44 @@ class OusterDriver : public OusterSensor {
                 topic_for_return("points", i), qos);
         }
 
+        scan_pubs.resize(num_returns);
+        for (int i = 0; i < num_returns; i++) {
+            scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
+                topic_for_return("scan", i), qos);
+        }
+
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" || timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
 
         imu_packet_handler =
             ImuPacketHandler::create_handler(info, os_tf_bcast.imu_frame_id(), use_ros_time);
+
+        std::vector<LidarScanProcessor> processors;
+        auto process_pc = true;
+        if (process_pc)
+            processors.push_back(PointCloudProcessor::create(
+                info, os_tf_bcast.point_cloud_frame_id(),
+                os_tf_bcast.apply_lidar_to_sensor_transform(),
+                [this](PointCloudProcessor::OutputType point_cloud_msg) {
+                    for (size_t i = 0; i < point_cloud_msg.size(); ++i)
+                        lidar_pubs[i]->publish(*point_cloud_msg[i]);
+                }));
+
+        auto process_scan = true;
+        if (process_scan)
+            processors.push_back(LaserScanProcessor::create(
+                info, os_tf_bcast.point_cloud_frame_id(), // TODO: should we have different frame for the laser scan than point cloud???
+                0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
+                    for (size_t i = 0; i < laser_scan_msg.size(); ++i)
+                        scan_pubs[i]->publish(*laser_scan_msg[i]);
+                }));
+
         lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, os_tf_bcast.point_cloud_frame_id(),
-            os_tf_bcast.apply_lidar_to_sensor_transform(),
-            use_ros_time);
+            info, use_ros_time, processors);
     }
 
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
-        auto point_cloud_msgs = lidar_packet_handler(raw_lidar_packet);
-        for (size_t i = 0; i < point_cloud_msgs.size(); ++i) {
-            lidar_pubs[i]->publish(*point_cloud_msgs[i]);
-        }
+        lidar_packet_handler(raw_lidar_packet);
     }
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
@@ -74,9 +98,11 @@ class OusterDriver : public OusterSensor {
    private:
     OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode> os_tf_bcast;
 
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
         lidar_pubs;
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
+        scan_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };

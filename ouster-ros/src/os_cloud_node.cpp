@@ -85,6 +85,12 @@ class OusterCloud : public OusterProcessingNodeBase {
             lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
                 topic_for_return("points", i), qos);
         }
+
+        scan_pubs.resize(num_returns);
+        for (int i = 0; i < num_returns; i++) {
+            scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
+                topic_for_return("scan", i), qos);
+        }
     }
 
     void create_subscriptions() {
@@ -99,32 +105,33 @@ class OusterCloud : public OusterProcessingNodeBase {
                 imu_pub->publish(imu_msg);
             });
 
-        lidar_packet_handler = LidarPacketHandler::create_handler(
-            info, os_tf_bcast.point_cloud_frame_id(), os_tf_bcast.apply_lidar_to_sensor_transform(), use_ros_time);
-        lidar_packet_sub = create_subscription<PacketMsg>(
-            "lidar_packets", qos,
-            [this](const PacketMsg::ConstSharedPtr msg) {
-                auto point_cloud_msgs = lidar_packet_handler(msg->buf.data());
-                for (size_t i = 0; i < point_cloud_msgs.size(); ++i) {
-                    lidar_pubs[i]->publish(*point_cloud_msgs[i]);
-                }
-            });
+        // lidar_packet_handler = LidarPacketHandler::create_handler(
+        //     info, use_ros_time);
+        // lidar_packet_sub = create_subscription<PacketMsg>(
+        //     "lidar_packets", qos,
+        //     [this](const PacketMsg::ConstSharedPtr msg) {
+        //         auto point_cloud_msgs = lidar_packet_handler(msg->buf.data());
+        //         for (size_t i = 0; i < point_cloud_msgs.size(); ++i) {
+        //             lidar_pubs[i]->publish(*point_cloud_msgs[i]);
+        //         }
+        //     });
     }
 
    private:
-    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
-        lidar_pubs;
 
     rclcpp::Subscription<PacketMsg>::SharedPtr imu_packet_sub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
 
-    OusterStaticTransformsBroadcaster<rclcpp::Node> os_tf_bcast;
+    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
+        lidar_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
+        scan_pubs;
 
+    OusterStaticTransformsBroadcaster<rclcpp::Node> os_tf_bcast;
     bool use_ros_time;
 
     ImuPacketHandler::HandlerType imu_packet_handler;
-
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
 

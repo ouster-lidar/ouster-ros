@@ -55,25 +55,32 @@ uint64_t ulround(T value) {
 
 namespace sensor = ouster::sensor;
 
+using LidarScanProcessor =
+    std::function<void(const ouster::LidarScan&, uint64_t, const rclcpp::Time&)>;
+
 class LidarPacketHandler {
     using LidarPacketAccumlator = std::function<bool(const uint8_t*)>;
 
    public:
-    using HandlerOutput =
-        std::vector<std::shared_ptr<sensor_msgs::msg::PointCloud2>>;
-    using HandlerType = std::function<HandlerOutput(const uint8_t*)>;
+    using HandlerOutput = ouster::LidarScan;
+
+    using HandlerType = std::function<void(const uint8_t*)>;
 
    public:
     LidarPacketHandler(const ouster::sensor::sensor_info& info,
-                       const std::string& frame,
-                       bool apply_lidar_to_sensor_transform, bool use_ros_time)
-        : ref_frame(frame) {
-        create_lidarscan_objects(info, apply_lidar_to_sensor_transform);
+                       bool use_ros_time) {
+        // initialize lidar_scan processor and buffer
+        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
+        lidar_scan = std::make_unique<ouster::LidarScan>(
+            info.format.columns_per_frame,
+            info.format.pixels_per_column,
+            info.format.udp_profile_lidar);
+
+        // initalize time handlers
+        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.mode);
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_0(ts_v);
         };
-
-        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.mode);
         const sensor::packet_format& pf = sensor::get_format(info);
 
         lidar_packet_accumlator =
@@ -90,74 +97,34 @@ class LidarPacketHandler {
     LidarPacketHandler& operator=(const LidarPacketHandler&) = delete;
     ~LidarPacketHandler() = default;
 
+    void register_lidar_scan_handler(LidarScanProcessor handler) {
+        lidar_scan_handlers.push_back(handler);
+    }
+
+    void clear_registered_lidar_scan_handlers() {
+        lidar_scan_handlers.clear();
+    }
+
    public:
     static HandlerType create_handler(const ouster::sensor::sensor_info& info,
-                                      const std::string& frame,
-                                      bool apply_lidar_to_sensor_transform,
-                                      bool use_ros_time) {
+                                      bool use_ros_time,
+                                      const std::vector<LidarScanProcessor>& handlers) {
         auto handler = std::make_shared<LidarPacketHandler>(
-            info, frame, apply_lidar_to_sensor_transform, use_ros_time);
+            info, use_ros_time);
+
+        handler->lidar_scan_handlers = handlers;
+
         return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
-                return handler->pc_msgs;
-            } else {
-                return HandlerOutput{};
+                for (auto h : handler->lidar_scan_handlers) {
+                    h(*handler->lidar_scan,
+                      handler->lidar_scan_estimated_ts,
+                      handler->lidar_scan_estimated_msg_ts);
+                }
             }
         };
     }
 
-    static int num_returns(const ouster::sensor::sensor_info& info) {
-        using ouster::sensor::UDPProfileLidar;
-        return info.format.udp_profile_lidar ==
-                       UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-                   ? 2
-                   : 1;
-    }
-
-   private:
-    void create_lidarscan_objects(const ouster::sensor::sensor_info& info,
-                                  bool apply_lidar_to_sensor_transform) {
-        ouster::mat4d additional_transform =
-            apply_lidar_to_sensor_transform ? info.lidar_to_sensor_transform
-                                            : ouster::mat4d::Identity();
-        auto xyz_lut = ouster::make_xyz_lut(
-            info.format.columns_per_frame, info.format.pixels_per_column,
-            ouster::sensor::range_unit, info.beam_to_lidar_transform,
-            additional_transform, info.beam_azimuth_angles,
-            info.beam_altitude_angles);
-        // The ouster_ros drive currently only uses single precision when it
-        // produces the point cloud. So it isn't of a benefit to compute point
-        // cloud xyz coordinates using double precision (for the time being).
-        lut_direction = xyz_lut.direction.cast<float>();
-        lut_offset = xyz_lut.offset.cast<float>();
-        points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
-        scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-        lidar_scan = std::make_unique<ouster::LidarScan>(
-            W, H, info.format.udp_profile_lidar);
-        cloud = ouster_ros::Cloud{W, H};
-        pc_msgs.resize(num_returns(info),
-                       std::make_shared<sensor_msgs::msg::PointCloud2>());
-    }
-
-    void pcl_toROSMsg(const ouster_ros::Cloud& pcl_cloud,
-                      sensor_msgs::msg::PointCloud2& cloud) {
-        // TODO: remove the staging step in the future
-        pcl::toPCLPointCloud2(pcl_cloud, staging_pcl_pc2);
-        pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud);
-    }
-
-    void convert_scan_to_pointcloud(uint64_t scan_ts,
-                                    const rclcpp::Time& msg_ts) {
-        for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
-            scan_to_cloud_f(points, lut_direction, lut_offset, scan_ts,
-                            *lidar_scan, cloud, i);
-            pcl_toROSMsg(cloud, *pc_msgs[i]);
-            pc_msgs[i]->header.stamp = msg_ts;
-            pc_msgs[i]->header.frame_id = ref_frame;
-        }
-    }
 
     // time interpolation methods
     uint64_t impute_value(int last_scan_last_nonzero_idx,
@@ -250,8 +217,8 @@ class LidarPacketHandler {
     bool lidar_handler_sensor_time(const sensor::packet_format&,
                                    const uint8_t* lidar_buf) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
-        convert_scan_to_pointcloud(scan_ts, rclcpp::Time(scan_ts));
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
+        lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
         return true;
     }
 
@@ -264,8 +231,8 @@ class LidarPacketHandler {
             lidar_handler_ros_time_frame_ts_initialized = true;
         }
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        auto scan_ts = compute_scan_ts(lidar_scan->timestamp());
-        convert_scan_to_pointcloud(scan_ts, lidar_handler_ros_time_frame_ts);
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
+        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts;
         // set time for next point cloud msg
         lidar_handler_ros_time_frame_ts =
             extrapolate_frame_ts(pf, lidar_buf, packet_receive_time);
@@ -280,18 +247,10 @@ class LidarPacketHandler {
     }
 
    private:
-    std::string ref_frame;
-
-    ouster::PointsF lut_direction;
-    ouster::PointsF lut_offset;
-    ouster::PointsF points;
-    std::unique_ptr<ouster::LidarScan> lidar_scan;
-    ouster_ros::Cloud cloud;
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
-
-    // a buffer used for staging during the conversion
-    // from a PCL point cloud to a ros point cloud message
-    pcl::PCLPointCloud2 staging_pcl_pc2;
+    std::unique_ptr<ouster::LidarScan> lidar_scan;
+    uint64_t lidar_scan_estimated_ts;
+    rclcpp::Time lidar_scan_estimated_msg_ts;
 
     bool lidar_handler_ros_time_frame_ts_initialized = false;
     rclcpp::Time lidar_handler_ros_time_frame_ts;
@@ -305,7 +264,7 @@ class LidarPacketHandler {
     std::function<uint64_t(const ouster::LidarScan::Header<uint64_t>&)>
         compute_scan_ts;
 
-   public:
-    HandlerOutput pc_msgs;
+    std::vector<LidarScanProcessor> lidar_scan_handlers;
+
     LidarPacketAccumlator lidar_packet_accumlator;
 };
