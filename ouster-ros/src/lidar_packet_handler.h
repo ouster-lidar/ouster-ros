@@ -51,6 +51,23 @@ uint64_t ulround(T value) {
     return static_cast<uint64_t>(rounded_value);
 }
 
+// TODO: move to a separate file
+std::set<std::string> parse_tokens(const std::string& input, char delim) {
+    std::set<std::string> tokens;
+    std::stringstream ss(input);
+    std::string token;
+
+    while (getline(ss, token, delim)) {
+        // Remove leading and trailing whitespaces from the token
+        size_t start = token.find_first_not_of(" ");
+        size_t end = token.find_last_not_of(" ");
+        token = token.substr(start, end - start + 1);
+        if (!token.empty()) tokens.insert(token);
+    }
+
+    return tokens;
+}
+
 }  // namespace
 
 namespace sensor = ouster::sensor;

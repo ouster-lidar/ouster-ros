@@ -32,6 +32,7 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), os_tf_bcast(this) {
         os_tf_bcast.declare_parameters();
         os_tf_bcast.parse_parameters();
+        declare_parameter("proc_mask", std::string("PCL|SCAN"));
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
@@ -63,8 +64,9 @@ class OusterDriver : public OusterSensor {
             ImuPacketHandler::create_handler(info, os_tf_bcast.imu_frame_id(), use_ros_time);
 
         std::vector<LidarScanProcessor> processors;
-        auto process_pc = true;
-        if (process_pc)
+        auto proc_mask = get_parameter("proc_mask").as_string();
+        auto tokens = parse_tokens(proc_mask, '|');
+        if (tokens.find("PCL") != tokens.end())
             processors.push_back(PointCloudProcessor::create(
                 info, os_tf_bcast.point_cloud_frame_id(),
                 os_tf_bcast.apply_lidar_to_sensor_transform(),
@@ -72,9 +74,7 @@ class OusterDriver : public OusterSensor {
                     for (size_t i = 0; i < point_cloud_msg.size(); ++i)
                         lidar_pubs[i]->publish(*point_cloud_msg[i]);
                 }));
-
-        auto process_scan = true;
-        if (process_scan)
+        if (tokens.find("SCAN") != tokens.end())
             processors.push_back(LaserScanProcessor::create(
                 info, os_tf_bcast.point_cloud_frame_id(), // TODO: should we have different frame for the laser scan than point cloud???
                 0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
