@@ -45,6 +45,10 @@
   <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
 
   <arg name="use_system_default_qos" default="false" description="Use the default system QoS settings"/>
+  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
+    currently IMG is not supported and does not affect anything,
+    to disable image topics you would need to omit the os_image node
+    from the launch file"/>
 
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
@@ -60,6 +64,7 @@
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      <param name="proc_mask" value="$(var proc_mask)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -67,6 +72,7 @@
       <param name="imu_frame" value="$(var imu_frame)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      <param name="proc_mask" value="$(var proc_mask)"/>
     </node>
     <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen">
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
