@@ -13,7 +13,8 @@ ouster/os_driver:
     sensor_frame: os_sensor
     lidar_frame: os_lidar
     imu_frame: os_imu
-    point_cloud_frame: os_lidar
+    point_cloud_frame: os_lidar # select between the values of lidar_frame and
+                                # sensor_frame 
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
     proc_mask: IMG|PCL|IMU|SCAN # currently IMG is not supported and does not
                                 # affect anything, to disable image topics
