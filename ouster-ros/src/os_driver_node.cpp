@@ -41,28 +41,35 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void create_publishers() override {
-        int num_returns = get_n_returns(info);
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = parse_tokens(proc_mask, '|');
 
-        rclcpp::SensorDataQoS qos;
+        bool use_system_default_qos =
+            get_parameter("use_system_default_qos").as_bool();
+        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
+        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
+        auto selected_qos =
+            use_system_default_qos ? system_default_qos : sensor_data_qos;
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME" ||
                             timestamp_mode_arg == "TIME_FROM_ROS_RECEPTION";
 
         if (check_token(tokens, "IMU")) {
-            imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", qos);
+            imu_pub =
+                create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, os_tf_bcast.imu_frame_id(), use_ros_time);
         }
+
+        int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
         if (check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                    topic_for_return("points", i), qos);
+                    topic_for_return("points", i), selected_qos);
             }
 
             processors.push_back(PointCloudProcessor::create(
@@ -78,7 +85,7 @@ class OusterDriver : public OusterSensor {
             scan_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
-                    topic_for_return("scan", i), qos);
+                    topic_for_return("scan", i), selected_qos);
             }
 
             processors.push_back(LaserScanProcessor::create(

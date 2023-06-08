@@ -37,10 +37,11 @@ OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
 
 void OusterSensor::declare_parameters() {
     declare_parameter<std::string>("sensor_hostname", "");
-    declare_parameter<std::string>("lidar_ip", "");     // community driver param
+    declare_parameter<std::string>("lidar_ip", "");  // community driver param
     declare_parameter<std::string>("metadata", "");
     declare_parameter<std::string>("udp_dest", "");
-    declare_parameter<std::string>("computer_ip", "");  // community driver param
+    declare_parameter<std::string>("computer_ip",
+                                   "");  // community driver param
     declare_parameter<std::string>("mtp_dest", "");
     declare_parameter<bool>("mtp_main", false);
     declare_parameter<int>("lidar_port", 0);
@@ -48,6 +49,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter<std::string>("lidar_mode", "");
     declare_parameter<std::string>("timestamp_mode", "");
     declare_parameter<std::string>("udp_profile_lidar", "");
+    declare_parameter("use_system_default_qos", false);
 }
 
 LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
@@ -638,9 +640,15 @@ void OusterSensor::create_services() {
 }
 
 void OusterSensor::create_publishers() {
-    rclcpp::SensorDataQoS qos;
-    lidar_packet_pub = create_publisher<PacketMsg>("lidar_packets", qos);
-    imu_packet_pub = create_publisher<PacketMsg>("imu_packets", qos);
+    bool use_system_default_qos =
+        get_parameter("use_system_default_qos").as_bool();
+    rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
+    rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
+    auto selected_qos =
+        use_system_default_qos ? system_default_qos : sensor_data_qos;
+    lidar_packet_pub =
+        create_publisher<PacketMsg>("lidar_packets", selected_qos);
+    imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos);
 }
 
 void OusterSensor::allocate_buffers() {
