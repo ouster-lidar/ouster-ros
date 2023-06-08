@@ -35,7 +35,7 @@ class LaserScanProcessor {
           post_processing_fn(func) {}
 
    private:
-    void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+    void process(const ouster::LidarScan& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         for (int i = 0; i < static_cast<int>(scan_msgs.size()); ++i) {
             *scan_msgs[i] = lidar_scan_to_laser_scan_msg(
