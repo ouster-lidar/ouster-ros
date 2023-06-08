@@ -27,20 +27,21 @@ ouster_ros(2)
 * bugfix: fixed an issue that prevents running multiple instances of the sensor and cloud components
   in the same process.
 * switch to using static transform publisher for the ros2 driver.
-* implemented a new node `os_driver` which combines the functionality of os_sensor and os_cloud into
-  one a single node (os_image to be combined later)
+* implemented a new node ``os_driver`` which combines the functionality of ``os_sensor`` and
+  ``os_cloud`` into a single node (``os_image`` to follow as well in a separate PR)
 * added support to parse the same parameters provided by the ``ros2_ouster_driver``, the parameters
-  are `lidar_ip`, `computer_ip`, `proc_mask` and `use_system_default_qos`. The parameters are fully
-  functional with the exception of `proc_mask` lack of suppressing image topics through `IMG`.
-* for convenience introduced a new launch file `driver_launch.py` that is compatible with the 
+  are ``lidar_ip``, ``computer_ip``, ``proc_mask`` and ``use_system_default_qos``. The parameters
+  are fully functional with the exception of ``proc_mask`` lack of suppressing image topics through
+  `IMG` flag.
+* for convenience introduced a new launch file ``driver_launch.py`` that is compatible with the 
   ``ros2_ouster_driver`` in terms of parameters it accepts and the name of published topics
-* introduced a new parameter `point_cloud_frame` to allow users to select which frame to use when
-  publishing the point cloud (choose between sensor and lidar)
-* breaking: lidar is the default frame used when publishing point clouds 
-* added the ability to choose between `SensorDataQoS`` or `SystemDefaultQoS`` across all published
-  topics with `SensorDataQoS`` selected by default for live sensor mode and `SystemDefaultQoS`
+* introduced a new parameter ``point_cloud_frame`` to allow users to select which frame to use when
+  publishing the point cloud (choose between ``sensor`` and ``lidar``).
+* breaking: ``lidar`` frame is the default frame used when publishing point clouds 
+* added the ability to choose between ``SensorDataQoS`` or ``SystemDefaultQoS`` across all published
+  topics with ``SensorDataQoS`` selected by default for live sensor mode and ``SystemDefaultQoS``
   enabled for record and replay modes.
-* introduced a new topic `/ouster/scan` which publishes `sensor_msgs::msg::LaserScan` messages
+* introduced a new topic ``/ouster/scan`` which publishes ``sensor_msgs::msg::LaserScan`` messages
 
 ouster_client
 -------------
