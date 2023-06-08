@@ -16,7 +16,9 @@ ouster/os_driver:
     point_cloud_frame: os_lidar
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
     proc_mask: IMG|PCL|IMU|SCAN # currently IMG is not supported and does not
-                                # affect anything
+                                # affect anything, to disable image topics
+                                # you would need to omit the os_image node
+                                # from the launch file
     # if False, data are published with sensor data QoS. This is preferrable
     # for production but default QoS is needed for rosbag.
     # See: https://github.com/ros2/rosbag2/issues/125
