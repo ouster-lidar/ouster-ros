@@ -18,7 +18,7 @@ namespace ouster_ros {
 class OusterProcessingNodeBase : public rclcpp::Node {
    protected:
     OusterProcessingNodeBase(const std::string& name,
-                                      const rclcpp::NodeOptions& options)
+                             const rclcpp::NodeOptions& options)
         : rclcpp::Node(name, options) {}
 
     void create_metadata_subscriber(

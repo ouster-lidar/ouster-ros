@@ -122,9 +122,7 @@ class LidarPacketHandler {
         lidar_scan_handlers.push_back(handler);
     }
 
-    void clear_registered_lidar_scan_handlers() {
-        lidar_scan_handlers.clear();
-    }
+    void clear_registered_lidar_scan_handlers() { lidar_scan_handlers.clear(); }
 
    public:
     static HandlerType create_handler(

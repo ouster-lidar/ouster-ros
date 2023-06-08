@@ -794,10 +794,11 @@ void OusterSensor::start_packet_processing_threads() {
     imu_packets_skip = false;
     imu_packets_processing_thread_active = true;
     imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
+        auto read_packet = [this](const uint8_t* buffer) {
+            if (!imu_packets_skip) on_imu_packet_msg(buffer);
+        };
         while (imu_packets_processing_thread_active) {
-            imu_packets->read([this](const uint8_t* buffer) {
-                if (!imu_packets_skip) on_imu_packet_msg(buffer);
-            });
+            imu_packets->read(read_packet);
         }
         RCLCPP_DEBUG(get_logger(), "imu_packets_processing_thread done.");
     });

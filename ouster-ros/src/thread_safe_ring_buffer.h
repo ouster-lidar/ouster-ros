@@ -57,8 +57,8 @@ public:
      * Writes to the buffer safely, the method will keep blocking until the there
      * is a space available within the buffer.
      */
-    template <class BufferWriteT>
-    void write(BufferWriteT buffer_write) {
+    template <class BufferWriteFn>
+    void write(BufferWriteFn&& buffer_write) {
         std::unique_lock<std::mutex> lock(mutex);
         fullCondition.wait(lock, [this] { return active_items_count < capacity(); });
         buffer_write(&buffer[write_idx * item_size]);
@@ -72,8 +72,8 @@ public:
      * Writes to the buffer safely, if there is not space left then this method
      * will overite the last item.
      */
-    template <class BufferWriteT>
-    void write_overwrite(BufferWriteT buffer_write) {
+    template <class BufferWriteFn>
+    void write_overwrite(BufferWriteFn&& buffer_write) {
         std::unique_lock<std::mutex> lock(mutex);
         buffer_write(&buffer[write_idx * item_size]);
         write_idx = (write_idx + 1) % capacity();
@@ -89,8 +89,8 @@ public:
      * Gives access to read the buffer through a callback, the method will block
      * until there is something to read is available.
      */
-    template <typename BufferReadT>
-    void read(BufferReadT&& buffer_read) {
+    template <typename BufferReadFn>
+    void read(BufferReadFn&& buffer_read) {
         std::unique_lock<std::mutex> lock(mutex);
         emptyCondition.wait(lock, [this] { return active_items_count > 0; });
         buffer_read(&buffer[read_idx * item_size]);
@@ -103,8 +103,8 @@ public:
      * Gives access to read the buffer through a callback, if buffer is
      * inaccessible the method will timeout and buffer_read gets a nullptr.
      */
-    template <typename BufferReadT>
-    void read_timeout(BufferReadT buffer_read, std::chrono::seconds timeout) {
+    template <typename BufferReadFn>
+    void read_timeout(BufferReadFn&& buffer_read, std::chrono::seconds timeout) {
         std::unique_lock<std::mutex> lock(mutex);
         if (emptyCondition.wait_for(lock, timeout, [this] { return active_items_count > 0; })) {
             buffer_read(&buffer[read_idx * item_size]);
