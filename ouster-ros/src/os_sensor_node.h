@@ -34,23 +34,28 @@ using ouster_srvs::srv::GetConfig;
 using ouster_srvs::srv::SetConfig;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
-
 namespace ouster_ros {
 
 class OusterSensor : public OusterSensorNodeBase {
-public:
+   public:
     OUSTER_ROS_PUBLIC
     OusterSensor(const std::string& name, const rclcpp::NodeOptions& options);
     explicit OusterSensor(const rclcpp::NodeOptions& options);
 
-    LifecycleNodeInterface::CallbackReturn on_configure(const rclcpp_lifecycle::State& state);
-    LifecycleNodeInterface::CallbackReturn on_activate(const rclcpp_lifecycle::State& state);
-    LifecycleNodeInterface::CallbackReturn on_error(const rclcpp_lifecycle::State& state);
-    LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State& state);
-    LifecycleNodeInterface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State&);
-    LifecycleNodeInterface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& state);
+    LifecycleNodeInterface::CallbackReturn on_configure(
+        const rclcpp_lifecycle::State& state);
+    LifecycleNodeInterface::CallbackReturn on_activate(
+        const rclcpp_lifecycle::State& state);
+    LifecycleNodeInterface::CallbackReturn on_error(
+        const rclcpp_lifecycle::State& state);
+    LifecycleNodeInterface::CallbackReturn on_deactivate(
+        const rclcpp_lifecycle::State& state);
+    LifecycleNodeInterface::CallbackReturn on_cleanup(
+        const rclcpp_lifecycle::State&);
+    LifecycleNodeInterface::CallbackReturn on_shutdown(
+        const rclcpp_lifecycle::State& state);
 
-protected:
+   protected:
     virtual void on_metadata_updated(const sensor::sensor_info& info);
 
     virtual void create_services();
@@ -61,10 +66,13 @@ protected:
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
 
-private:
+   private:
     void declare_parameters();
+
     std::string get_sensor_hostname();
+
     void update_config_and_metadata(sensor::client& cli);
+
     void save_metadata();
 
     static std::string transition_id_to_string(uint8_t transition_id);
@@ -72,15 +80,15 @@ private:
     bool change_state(std::uint8_t transition_id, CallbackT callback,
                       CallbackT_Args... callback_args,
                       std::chrono::seconds time_out = std::chrono::seconds{3});
+
     void execute_transitions_sequence(std::vector<uint8_t> transitions_sequence,
                                       size_t at);
-
 
     // param init_id_reset is overriden to true when force_reinit is true
     void reset_sensor(bool force_reinit, bool init_id_reset = false);
 
     // TODO: need to notify dependent node(s) of the update
-    void reactivate_sensor(bool init_id_reset);
+    void reactivate_sensor(bool init_id_reset = false);
 
     void create_reset_service();
 
@@ -97,7 +105,8 @@ private:
 
     uint8_t compose_config_flags(const sensor::sensor_config& config);
 
-    void configure_sensor(const std::string& hostname, sensor::sensor_config& config);
+    void configure_sensor(const std::string& hostname,
+                          sensor::sensor_config& config);
 
     std::string load_config_file(const std::string& config_file);
 
@@ -126,11 +135,9 @@ private:
 
     void stop_sensor_connection_thread();
 
-    void start_packet_processing_thread();
+    void start_packet_processing_threads();
 
-    void stop_packet_processing_thread();
-
-    void process_packets();
+    void stop_packet_processing_threads();
 
    private:
     std::string sensor_hostname;
@@ -148,13 +155,6 @@ private:
     rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
 
-    // TODO: reduce sync objects
-    std::mutex mtx;
-    std::condition_variable receiving_cv;
-    std::condition_variable processing_cv;
-    bool lidar_data_processed = true;
-    bool imu_data_processed = true;
-
     // TODO: implement & utilize a lock-free ring buffer in future
     std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
     std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
@@ -162,8 +162,13 @@ private:
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
 
-    std::atomic<bool> packet_processing_active = {false};
-    std::unique_ptr<std::thread> packet_processing_thread;
+    std::atomic<bool> imu_packets_processing_thread_active = {false};
+    std::atomic<bool> imu_packets_skip;
+    std::unique_ptr<std::thread> imu_packets_processing_thread;
+
+    std::atomic<bool> lidar_packets_processing_thread_active = {false};
+    std::atomic<bool> lidar_packets_skip;
+    std::unique_ptr<std::thread> lidar_packets_processing_thread;
 
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
