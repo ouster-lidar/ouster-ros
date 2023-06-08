@@ -25,10 +25,13 @@
 
   <let name="_use_metadata_file" value="$(eval '\'$(var metadata)\' != \'\'')"/>
 
+  <arg name="use_system_default_qos" default="true" description="Use the default system QoS settings"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
       <param name="metadata" value="$(var metadata)"/>
+      <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
     </node>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
@@ -36,8 +39,11 @@
         <param name="lidar_frame" value="$(var lidar_frame)"/>
         <param name="imu_frame" value="$(var imu_frame)"/>
         <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+      <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       </composable_node>
-      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
+      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
+        <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      </composable_node>
     </node_container>
   </group>
 

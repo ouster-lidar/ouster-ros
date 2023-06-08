@@ -44,6 +44,8 @@
   <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
   <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
 
+  <arg name="use_system_default_qos" default="false" description="Use the default system QoS settings"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
@@ -58,14 +60,18 @@
         <param name="lidar_mode" value="$(var lidar_mode)"/>
         <param name="timestamp_mode" value="$(var timestamp_mode)"/>
         <param name="metadata" value="$(var metadata)"/>
+        <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
         <param name="sensor_frame" value="$(var sensor_frame)"/>
         <param name="lidar_frame" value="$(var lidar_frame)"/>
         <param name="imu_frame" value="$(var imu_frame)"/>
         <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+        <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       </composable_node>
-      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
+      <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
+        <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      </composable_node>
     </node_container>
   </group>
 
