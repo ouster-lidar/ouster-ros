@@ -16,11 +16,10 @@ ouster/os_driver:
     point_cloud_frame: os_lidar # select between the values of lidar_frame and
                                 # sensor_frame 
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
-    proc_mask: IMG|PCL|IMU|SCAN # currently IMG is not supported and does not
-                                # affect anything, to disable image topics
-                                # you would need to omit the os_image node
-                                # from the launch file
+    proc_mask: IMG|PCL|IMU|SCAN # use any combination of the 4 flags
     # if False, data are published with sensor data QoS. This is preferrable
     # for production but default QoS is needed for rosbag.
     # See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: False
+    scan_ring: 0  # use this parameter in conjunction with the SCAN flag and
+                  # choose a value the range [0, sensor_beams_count)

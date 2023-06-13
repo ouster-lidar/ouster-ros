@@ -20,10 +20,11 @@
 #include "lidar_packet_handler.h"
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
+#include "image_processor.h"
 
 namespace ouster_ros {
 
-using ouster_msgs::msg::PacketMsg;
+namespace sensor = ouster::sensor;
 
 class OusterDriver : public OusterSensor {
    public:
@@ -32,7 +33,8 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), os_tf_bcast(this) {
         os_tf_bcast.declare_parameters();
         os_tf_bcast.parse_parameters();
-        declare_parameter("proc_mask", std::string("IMU|PCL|SCAN"));
+        declare_parameter<std::string>("proc_mask", "IMU|PCL|SCAN");
+        declare_parameter<int>("scan_ring", 0);
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
@@ -75,9 +77,9 @@ class OusterDriver : public OusterSensor {
             processors.push_back(PointCloudProcessor::create(
                 info, os_tf_bcast.point_cloud_frame_id(),
                 os_tf_bcast.apply_lidar_to_sensor_transform(),
-                [this](PointCloudProcessor::OutputType point_cloud_msg) {
-                    for (size_t i = 0; i < point_cloud_msg.size(); ++i)
-                        lidar_pubs[i]->publish(*point_cloud_msg[i]);
+                [this](PointCloudProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i)
+                        lidar_pubs[i]->publish(*msgs[i]);
                 }));
         }
 
@@ -88,19 +90,70 @@ class OusterDriver : public OusterSensor {
                     topic_for_return("scan", i), selected_qos);
             }
 
+            // TODO: avoid duplication in os_cloud_node
+            int beams_count = static_cast<int>(get_beams_count(info));
+            int scan_ring = get_parameter("scan_ring").as_int();
+            scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
+            if (scan_ring != get_parameter("scan_ring").as_int()) {
+                RCLCPP_WARN_STREAM(
+                    get_logger(),
+                    "scan ring is set to a value that exceeds available range"
+                    "please choose a value between [0, "
+                        << beams_count
+                        << "], "
+                           "ring value clamped to: "
+                        << scan_ring);
+            }
+
             processors.push_back(LaserScanProcessor::create(
                 info,
                 os_tf_bcast
                     .point_cloud_frame_id(),  // TODO: should we have different
                                               // frame for the laser scan than
                                               // point cloud???
-                0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
-                    for (size_t i = 0; i < laser_scan_msg.size(); ++i)
-                        scan_pubs[i]->publish(*laser_scan_msg[i]);
+                scan_ring, [this](LaserScanProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i)
+                        scan_pubs[i]->publish(*msgs[i]);
                 }));
         }
 
-        if (check_token(tokens, "PCL") || check_token(tokens, "SCAN"))
+        if (check_token(tokens, "IMG")) {
+            const std::map<sensor::ChanField, std::string>
+                channel_field_topic_map_1{
+                    {sensor::ChanField::RANGE, "range_image"},
+                    {sensor::ChanField::SIGNAL, "signal_image"},
+                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                    {sensor::ChanField::NEAR_IR, "nearir_image"}};
+
+            const std::map<sensor::ChanField, std::string>
+                channel_field_topic_map_2{
+                    {sensor::ChanField::RANGE, "range_image"},
+                    {sensor::ChanField::SIGNAL, "signal_image"},
+                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                    {sensor::ChanField::NEAR_IR, "nearir_image"},
+                    {sensor::ChanField::RANGE2, "range_image2"},
+                    {sensor::ChanField::SIGNAL2, "signal_image2"},
+                    {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+
+            auto which_map = num_returns == 1 ? &channel_field_topic_map_1
+                                              : &channel_field_topic_map_2;
+            for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+                image_pubs[it->first] =
+                    create_publisher<sensor_msgs::msg::Image>(it->second,
+                                                              selected_qos);
+            }
+
+            processors.push_back(ImageProcessor::create(
+                info, os_tf_bcast.point_cloud_frame_id(),
+                [this](ImageProcessor::OutputType msgs) {
+                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                        image_pubs[it->first]->publish(*it->second);
+                    }
+                }));
+        }
+
+        if (check_token(tokens, "PCL") || check_token(tokens, "SCAN") ||
+            check_token(tokens, "IMG"))
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, use_ros_time, processors);
     }
@@ -123,6 +176,9 @@ class OusterDriver : public OusterSensor {
         lidar_pubs;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
         scan_pubs;
+    std::map<sensor::ChanField,
+             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };

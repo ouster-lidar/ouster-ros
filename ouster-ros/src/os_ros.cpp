@@ -40,6 +40,10 @@ int get_n_returns(const sensor::sensor_info& info) {
                : 1;
 }
 
+size_t get_beams_count(const sensor::sensor_info& info) {
+    return info.beam_azimuth_angles.size();
+}
+
 std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }
@@ -99,14 +103,7 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
     return packet_to_imu_msg(pf, timestamp, frame, pm.buf.data());
 }
 
-struct read_and_cast {
-    template <typename T, typename U>
-    void operator()(Eigen::Ref<const ouster::img_t<T>> field,
-                    ouster::img_t<U>& dest) {
-        dest = field.template cast<U>();
-    }
-};
-
+namespace impl {
 sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
     switch (input_field) {
         case sensor::ChanField::RANGE:
@@ -127,17 +124,6 @@ sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
             throw std::runtime_error("Unreachable");
     }
 }
-
-template <typename T>
-inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField f,
-                                         const ouster::LidarScan& ls) {
-    if (!ls.field_type(f)) {
-        return ouster::img_t<T>::Zero(ls.h, ls.w);
-    }
-
-    ouster::img_t<T> result{ls.h, ls.w};
-    ouster::impl::visit_field(ls, f, read_and_cast(), result);
-    return result;
 }
 
 template <typename PointT, typename RangeT, typename ReflectivityT,
@@ -233,14 +219,14 @@ void scan_to_cloud_f(ouster::PointsF& points,
         second ? sensor::ChanField::RANGE2 : sensor::ChanField::RANGE;
     ouster::img_t<uint32_t> range = ls.field<uint32_t>(range_channel_field);
 
-    ouster::img_t<uint16_t> reflectivity = get_or_fill_zero<uint16_t>(
-        suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
+    ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
+        impl::suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
 
-    ouster::img_t<uint32_t> signal = get_or_fill_zero<uint32_t>(
-        suitable_return(sensor::ChanField::SIGNAL, second), ls);
+    ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
+        impl::suitable_return(sensor::ChanField::SIGNAL, second), ls);
 
-    ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
-        suitable_return(sensor::ChanField::NEAR_IR, second), ls);
+    ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
+        impl::suitable_return(sensor::ChanField::NEAR_IR, second), ls);
 
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
@@ -264,14 +250,14 @@ void scan_to_cloud_f(ouster::PointsF& points,
         second ? sensor::ChanField::RANGE2 : sensor::ChanField::RANGE;
     ouster::img_t<uint32_t> range = ls.field<uint32_t>(range_channel_field);
 
-    ouster::img_t<uint16_t> reflectivity = get_or_fill_zero<uint16_t>(
-        suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
+    ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
+        impl::suitable_return(sensor::ChanField::REFLECTIVITY, second), ls);
 
-    ouster::img_t<uint32_t> signal = get_or_fill_zero<uint32_t>(
-        suitable_return(sensor::ChanField::SIGNAL, second), ls);
+    ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
+        impl::suitable_return(sensor::ChanField::SIGNAL, second), ls);
 
-    ouster::img_t<uint16_t> near_ir = get_or_fill_zero<uint16_t>(
-        suitable_return(sensor::ChanField::NEAR_IR, second), ls);
+    ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
+        impl::suitable_return(sensor::ChanField::NEAR_IR, second), ls);
 
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
@@ -304,6 +290,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
     return msg;
 }
 
+// TODO: provide a method that accepts sensor_msgs::msg::LaserScan object
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const ouster::LidarScan& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const ouster::sensor::lidar_mode ld_mode,
@@ -328,7 +315,7 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     auto which_signal = return_index == 0 ? sensor::ChanField::SIGNAL
                                           : sensor::ChanField::SIGNAL2;
     ouster::img_t<uint32_t> signal =
-        get_or_fill_zero<uint32_t>(which_signal, ls);
+        impl::get_or_fill_zero<uint32_t>(which_signal, ls);
     const auto rg = range.data();
     const auto sg = signal.data();
     msg.ranges.resize(ls.w);

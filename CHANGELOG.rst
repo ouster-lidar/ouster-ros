@@ -31,8 +31,7 @@ ouster_ros(2)
   ``os_cloud`` into a single node (``os_image`` to follow as well in a separate PR)
 * added support to parse the same parameters provided by the ``ros2_ouster_driver``, the parameters
   are ``lidar_ip``, ``computer_ip``, ``proc_mask`` and ``use_system_default_qos``. The parameters
-  are fully functional with the exception of ``proc_mask`` lack of suppressing image topics through
-  `IMG` flag.
+  are fully functional similar to what the ``ros2_ouster_driver`` provides.
 * for convenience introduced a new launch file ``driver_launch.py`` that is compatible with the 
   ``ros2_ouster_driver`` in terms of parameters it accepts and the name of published topics
 * introduced a new parameter ``point_cloud_frame`` to allow users to select which frame to use when

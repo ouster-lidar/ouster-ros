@@ -86,14 +86,6 @@ def generate_launch_description():
     #     )
     # )
 
-    os_image = Node(
-        package='ouster_ros',
-        executable='os_image',
-        name='os_image',
-        namespace=ouster_ns,
-        parameters=[params_file],
-        output='screen',
-    )
 
     rviz_launch_file_path = \
         Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
@@ -109,7 +101,6 @@ def generate_launch_description():
         os_driver_name_arg,
         rviz_launch,
         os_driver,
-        os_image,
         sensor_configure_event,
         sensor_activate_event,
         # shutdown_event

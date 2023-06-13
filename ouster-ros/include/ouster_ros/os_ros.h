@@ -48,6 +48,14 @@ bool is_legacy_lidar_profile(const sensor::sensor_info& info);
  */
 int get_n_returns(const sensor::sensor_info& info);
 
+
+/**
+ * Gets the number beams based on supplied sensor_info
+ * @param[in] info sensor_info
+ * @return number of beams a sensor has
+ */
+size_t get_beams_count(const sensor::sensor_info& info);
+
 /**
  * Adds a suffix to the topic base name based on the return index
  * @param[in] topic_base topic base name
@@ -184,5 +192,29 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const ouster::sensor::lidar_mode lidar_mode,
     const uint16_t ring,
     const int return_index);
+
+namespace impl {
+sensor::ChanField suitable_return(sensor::ChanField input_field, bool second);
+
+struct read_and_cast {
+    template <typename T, typename U>
+    void operator()(Eigen::Ref<const ouster::img_t<T>> field,
+                    ouster::img_t<U>& dest) {
+        dest = field.template cast<U>();
+    }
+};
+
+template <typename T>
+inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
+                                         const ouster::LidarScan& ls) {
+    if (!ls.field_type(field)) {
+        return ouster::img_t<T>::Zero(ls.h, ls.w);
+    }
+
+    ouster::img_t<T> result{ls.h, ls.w};
+    ouster::impl::visit_field(ls, field, read_and_cast(), result);
+    return result;
+}
+} // namespace impl
 
 }  // namespace ouster_ros

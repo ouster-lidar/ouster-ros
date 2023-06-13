@@ -61,8 +61,9 @@ class OusterCloud : public OusterProcessingNodeBase {
     void declare_parameters() {
         os_tf_bcast.declare_parameters();
         declare_parameter<std::string>("timestamp_mode", "");
-        declare_parameter("proc_mask", std::string("IMU|PCL|SCAN"));
-        declare_parameter("use_system_default_qos", false);
+        declare_parameter<std::string>("proc_mask", "IMU|PCL|SCAN");
+        declare_parameter<bool>("use_system_default_qos", false);
+        declare_parameter<int>("scan_ring", 0);
     }
 
     void parse_parameters() {
@@ -138,6 +139,17 @@ class OusterCloud : public OusterProcessingNodeBase {
         }
 
         if (check_token(tokens, "SCAN")) {
+            // TODO: avoid duplication in os_cloud_node
+            int beams_count = static_cast<int>(get_beams_count(info));
+            int scan_ring = get_parameter("scan_ring").as_int();
+            scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
+            if (scan_ring != get_parameter("scan_ring").as_int()) {
+                RCLCPP_WARN_STREAM(get_logger(),
+                    "scan ring is set to a value that exceeds available range"
+                    "please choose a value between [0, " << beams_count << "], "
+                    "ring value clamped to: " << scan_ring);
+            }
+
             processors.push_back(LaserScanProcessor::create(
                 info,
                 os_tf_bcast
