@@ -65,31 +65,6 @@ size_t get_beams_count(const sensor::sensor_info& info);
 std::string topic_for_return(const std::string& topic_base, int return_idx);
 
 /**
- * Read an imu packet into a ROS message. Blocks for up to a second if no data
- * is available.
- * @param[in] cli the sensor client
- * @param[out] pm the destination packet message
- * @param[in] pf the packet format
- * @return whether reading was successful
- */
-[[deprecated("no longer used internally and will be removed")]]
-bool read_imu_packet(const sensor::client& cli, ouster_msgs::msg::PacketMsg& pm,
-                     const sensor::packet_format& pf);
-
-/**
- * Read a lidar packet into a ROS message. Blocks for up to a second if no data
- * is available.
- * @param[in] cli the sensor client
- * @param[out] pm the destination packet message
- * @param[in] pf the packet format
- * @return whether reading was successful
- */
-[[deprecated("no longer used internally and will be removed")]]
-bool read_lidar_packet(const sensor::client& cli,
-                       ouster_msgs::msg::PacketMsg& pm,
-                       const sensor::packet_format& pf);
-
-/**
  * Parse an imu packet message into a ROS imu message
  * @param[in] pf the packet format
  * @param[in] timestamp the timestamp to give the resulting ROS message

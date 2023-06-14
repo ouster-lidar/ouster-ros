@@ -48,18 +48,6 @@ std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }
 
-bool read_imu_packet(const sensor::client& cli, PacketMsg& pm,
-                     const sensor::packet_format& pf) {
-    pm.buf.resize(pf.imu_packet_size + 1);
-    return read_imu_packet(cli, pm.buf.data(), pf);
-}
-
-bool read_lidar_packet(const sensor::client& cli, PacketMsg& pm,
-                       const sensor::packet_format& pf) {
-    pm.buf.resize(pf.lidar_packet_size + 1);
-    return read_lidar_packet(cli, pm.buf.data(), pf);
-}
-
 sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
