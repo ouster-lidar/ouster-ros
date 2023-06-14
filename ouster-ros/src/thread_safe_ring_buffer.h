@@ -30,7 +30,13 @@ public:
     size_t capacity() const { return max_items_count; }
 
     /**
-     * Gets the number of item that currently occupy the ring buffer.
+     * Gets the number of item that currently occupy the ring buffer. This
+     * number would vary between 0 and the capacity().
+     * 
+     * @remarks
+     *  if returned value was 0 or the value was equal to the buffer capacity(),
+     *  this does not guarantee that a subsequent call to read() or write()
+     *  wouldn't cause the calling thread to be blocked.
      */
     size_t size() const {
         std::lock_guard<std::mutex> lock(mutex);
@@ -39,6 +45,10 @@ public:
 
     /**
      * Checks if the ring buffer is empty.
+     * 
+     * @remarks
+     *  if empty() returns true this does not guarantee that calling the write()
+     *  operation directly right after wouldn't block the calling thread.
      */
     bool empty() const {
         std::lock_guard<std::mutex> lock(mutex);
@@ -47,6 +57,10 @@ public:
 
     /**
      * Checks if the ring buffer is full.
+     * 
+     * @remarks
+     *  if full() returns true this does not guarantee that calling the read()
+     *  operation directly right after wouldn't block the calling thread.
      */
     bool full() const {
         std::lock_guard<std::mutex> lock(mutex);
