@@ -1,7 +1,7 @@
 # Official ROS driver for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
