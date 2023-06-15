@@ -14,7 +14,6 @@
 
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <tf2_ros/static_transform_broadcaster.h>
 
 #include <algorithm>
 #include <chrono>
