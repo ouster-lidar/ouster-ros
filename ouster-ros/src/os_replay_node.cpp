@@ -114,6 +114,7 @@ class OusterReplay : public OusterSensorNodeBase {
 
     void load_metadata_from_file(const std::string& meta_file) {
         try {
+            cached_metadata = read_text_file(meta_file);
             info = sensor::parse_metadata(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {

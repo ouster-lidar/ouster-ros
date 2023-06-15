@@ -30,8 +30,8 @@ ouster_ros(2)
 * bugfix: fixed an issue that prevents running multiple instances of the sensor and cloud components
   in the same process.
 * switch to using static transform publisher for the ros2 driver.
-* implemented a new node ``os_driver`` which combines the functionality of ``os_sensor`` and
-  ``os_cloud`` into a single node.
+* implemented a new node named ``os_driver`` which combines the functionality of ``os_sensor``,
+  ``os_cloud`` and ``os_image`` into a single node.
 * added support to parse the same parameters provided by the ``ros2_ouster_driver``, the parameters
   are ``lidar_ip``, ``computer_ip``, ``proc_mask`` and ``use_system_default_qos``; the parameters
   are fully functional and similar to what the ``ros2_ouster_driver`` provides.

@@ -61,7 +61,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         os_tf_bcast.declare_parameters();
         declare_parameter("timestamp_mode", "");
         declare_parameter("proc_mask", "IMU|PCL|SCAN");
-        declare_paramete("use_system_default_qos", false);
+        declare_parameter("use_system_default_qos", false);
         declare_parameter("scan_ring", 0);
     }
 
@@ -136,7 +136,6 @@ class OusterCloud : public OusterProcessingNodeBase {
                         lidar_pubs[i]->publish(*point_cloud_msg[i]);
                 }));
         }
-    }
 
         if (check_token(tokens, "SCAN")) {
             // TODO: avoid duplication in os_cloud_node
