@@ -8,8 +8,6 @@
 
 #include "ouster_ros/os_processing_node_base.h"
 
-using ouster::sensor::UDPProfileLidar;
-
 namespace ouster_ros {
 
 void OusterProcessingNodeBase::create_metadata_subscriber(
@@ -20,13 +18,6 @@ void OusterProcessingNodeBase::create_metadata_subscriber(
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
     metadata_sub = create_subscription<std_msgs::msg::String>(
         std::string("metadata"), latching_qos, on_sensor_metadata);
-}
-
-int OusterProcessingNodeBase::get_n_returns() const {
-    return info.format.udp_profile_lidar ==
-                   UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-               ? 2
-               : 1;
 }
 
 }  // namespace ouster_ros

@@ -25,7 +25,7 @@ def generate_launch_description():
     """
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
     default_params_file = \
-        Path(ouster_ros_pkg_dir) / 'config' / 'os_sensor_cloud_image_params.yaml'
+        Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
     params_file = LaunchConfiguration('params_file')
     params_file_arg = DeclareLaunchArgument('params_file',
                                             default_value=str(
@@ -39,10 +39,13 @@ def generate_launch_description():
     rviz_enable = LaunchConfiguration('viz')
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
-    os_sensor = LifecycleNode(
+    os_driver_name = LaunchConfiguration('os_driver_name')
+    os_driver_name_arg = DeclareLaunchArgument('os_driver_name', default_value='os_driver')
+
+    os_driver = LifecycleNode(
         package='ouster_ros',
-        executable='os_sensor',
-        name='os_sensor',
+        executable='os_driver',
+        name=os_driver_name,
         namespace=ouster_ns,
         parameters=[params_file],
         output='screen',
@@ -50,18 +53,18 @@ def generate_launch_description():
 
     sensor_configure_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=matches_action(os_sensor),
+            lifecycle_node_matcher=matches_action(os_driver),
             transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
         )
     )
 
     sensor_activate_event = RegisterEventHandler(
         OnStateTransition(
-            target_lifecycle_node=os_sensor, goal_state='inactive',
+            target_lifecycle_node=os_driver, goal_state='inactive',
             entities=[
-                LogInfo(msg="os_sensor activating..."),
+                LogInfo(msg="os_driver activating..."),
                 EmitEvent(event=ChangeState(
-                    lifecycle_node_matcher=matches_action(os_sensor),
+                    lifecycle_node_matcher=matches_action(os_driver),
                     transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
                 )),
             ],
@@ -83,23 +86,6 @@ def generate_launch_description():
     #     )
     # )
 
-    os_cloud = Node(
-        package='ouster_ros',
-        executable='os_cloud',
-        name='os_cloud',
-        namespace=ouster_ns,
-        parameters=[params_file],
-        output='screen',
-    )
-
-    os_image = Node(
-        package='ouster_ros',
-        executable='os_image',
-        name='os_image',
-        namespace=ouster_ns,
-        parameters=[params_file],
-        output='screen',
-    )
 
     rviz_launch_file_path = \
         Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
@@ -112,10 +98,9 @@ def generate_launch_description():
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
+        os_driver_name_arg,
         rviz_launch,
-        os_sensor,
-        os_cloud,
-        os_image,
+        os_driver,
         sensor_configure_event,
         sensor_activate_event,
         # shutdown_event
