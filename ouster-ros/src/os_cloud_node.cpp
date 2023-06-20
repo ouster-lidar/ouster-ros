@@ -95,6 +95,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter<std::string>("lidar_frame", "os_lidar");
         declare_parameter<std::string>("imu_frame", "os_imu");
         declare_parameter<std::string>("timestamp_mode", "");
+        declare_parameter<bool>("publish_sensor_frames", true);
     }
 
     void parse_parameters() {
@@ -104,6 +105,8 @@ class OusterCloud : public OusterProcessingNodeBase {
 
         auto timestamp_mode_arg = get_parameter("timestamp_mode").as_string();
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+
+        publish_sensor_frames = get_parameter("publish_sensor_frames").as_bool();
     }
 
     static double compute_scan_col_ts_spacing_ns(sensor::lidar_mode ld_mode) {
@@ -118,7 +121,10 @@ class OusterCloud : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
-        send_static_transforms();
+        if (publish_sensor_frames)
+        {
+            send_static_transforms();
+        }
         n_returns = get_n_returns();
         create_lidarscan_objects();
         compute_scan_ts = [this](const auto& ts_v) {
@@ -348,6 +354,8 @@ class OusterCloud : public OusterProcessingNodeBase {
     std::string sensor_frame;
     std::string imu_frame;
     std::string lidar_frame;
+
+    bool publish_sensor_frames;
 
     tf2_ros::StaticTransformBroadcaster tf_bcast;
 
