@@ -1,9 +1,9 @@
 # [Not recommended] Provided to support existing users of the ROS2 Community
-#  please migrate to the parameters format as specified in driver_params.yaml
+# please migrate to the parameters format as specified in driver_params.yaml
 ouster_driver:
   ros__parameters:
-    lidar_ip: os-122250002426.local
-    # computer_ip:
+    lidar_ip: 169.254.200.2
+    computer_ip: 169.254.219.146
     lidar_mode: "1024x10"
     imu_port: 7503
     lidar_port: 7502
