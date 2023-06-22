@@ -84,11 +84,11 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
     const rclcpp_lifecycle::State& state) {
     RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
     LifecycleNode::on_activate(state);
-    lidar_packet_pub->on_activate();
-    imu_packet_pub->on_activate();
     if (active_config.empty() || cached_metadata.empty())
         update_config_and_metadata(*sensor_client);
     create_publishers();
+    if (imu_packet_pub) imu_packet_pub->on_activate();
+    if (lidar_packet_pub) lidar_packet_pub->on_activate();
     allocate_buffers();
     start_packet_processing_threads();
     start_sensor_connection_thread();

@@ -33,8 +33,21 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), os_tf_bcast(this) {
         os_tf_bcast.declare_parameters();
         os_tf_bcast.parse_parameters();
-        declare_parameter<std::string>("proc_mask", "IMU|PCL|SCAN");
+        declare_parameter<std::string>("proc_mask", "IMU|IMG|PCL|SCAN");
         declare_parameter<int>("scan_ring", 0);
+    }
+
+    LifecycleNodeInterface::CallbackReturn on_activate(
+        const rclcpp_lifecycle::State& state) {
+        RCLCPP_DEBUG(get_logger(), "os_driver::on_activate() is called.");
+        auto cb_return = OusterSensor::on_activate(state);
+        if (cb_return != LifecycleNodeInterface::CallbackReturn::SUCCESS)
+            return cb_return;
+        imu_pub->on_activate();
+        for (auto p : lidar_pubs) p->on_activate();
+        for (auto p : scan_pubs) p->on_activate();
+        for (auto p : image_pubs) p.second->on_activate();
+        return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
@@ -167,17 +180,27 @@ class OusterDriver : public OusterSensor {
             imu_pub->publish(imu_packet_handler(raw_imu_packet));
     }
 
+    virtual void cleanup() override {
+        imu_packet_handler = nullptr;
+        lidar_packet_handler = nullptr;
+        imu_pub.reset();
+        for (auto p : lidar_pubs) p.reset();
+        for (auto p : scan_pubs) p.reset();
+        for (auto p : image_pubs) p.second.reset();
+        OusterSensor::cleanup();
+    }
+
    private:
     OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode>
         os_tf_bcast;
 
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
+    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
+    std::vector<rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
         lidar_pubs;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
+    std::vector<rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::LaserScan>::SharedPtr>
         scan_pubs;
     std::map<sensor::ChanField,
-             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+             rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr>
         image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
