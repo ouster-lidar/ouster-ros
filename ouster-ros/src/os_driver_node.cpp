@@ -33,7 +33,7 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), os_tf_bcast(this) {
         os_tf_bcast.declare_parameters();
         os_tf_bcast.parse_parameters();
-        declare_parameter<std::string>("proc_mask", "IMU|PCL|SCAN");
+        declare_parameter<std::string>("proc_mask", "IMU|IMG|PCL|SCAN");
         declare_parameter<int>("scan_ring", 0);
     }
 
@@ -165,6 +165,16 @@ class OusterDriver : public OusterSensor {
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
         if (imu_packet_handler)
             imu_pub->publish(imu_packet_handler(raw_imu_packet));
+    }
+
+    virtual void cleanup() override {
+        imu_packet_handler = nullptr;
+        lidar_packet_handler = nullptr;
+        imu_pub.reset();
+        for (auto p : lidar_pubs) p.reset();
+        for (auto p : scan_pubs) p.reset();
+        for (auto p : image_pubs) p.second.reset();
+        OusterSensor::cleanup();
     }
 
    private:
