@@ -43,10 +43,10 @@ class OusterDriver : public OusterSensor {
         auto cb_return = OusterSensor::on_activate(state);
         if (cb_return != LifecycleNodeInterface::CallbackReturn::SUCCESS)
             return cb_return;
-        imu_pub->on_activate();
-        for (auto p : lidar_pubs) p->on_activate();
-        for (auto p : scan_pubs) p->on_activate();
-        for (auto p : image_pubs) p.second->on_activate();
+        if (imu_pub) imu_pub->on_activate();
+        for (auto& p : lidar_pubs) p->on_activate();
+        for (auto& p : scan_pubs) p->on_activate();
+        for (auto& p : image_pubs) p.second->on_activate();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
