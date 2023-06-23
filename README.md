@@ -1,7 +1,7 @@
 # Official ROS driver for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,7 +9,7 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble) | [![rolling/humble](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
 - [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
@@ -43,8 +43,8 @@ dual return and it was configured to use this capability, then another topic wil
 name `/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
-This driver only supports **Foxy** ROS 2 distro. Please refer to ROS 2 online documentation on how to
-setup ros on your machine before proceeding with the remainder of this guide.
+This branch is only intended for use with the **Foxy** ROS 2 distro. Please refer to ROS 2 online documentation on how to
+setup ROS on your machine before proceeding with the remainder of this guide.
 
 > **Note**  
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
@@ -127,7 +127,7 @@ source ros2_ws/install/setup.bash
 The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a 
 recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
 added a new mode that supports multicast. The commands are listed below, for convenience we do
-provide both launch file formats (xml and python) but the python format is recommended:
+provide both launch file formats (xml and python) but the python format is preferred method:
 
 #### Sensor Mode
 To connect to a live sensor you use the following launch file
@@ -140,7 +140,16 @@ The equivalent python file is
 ros2 launch ouster_ros driver.launch.py    \
     params_files:=<path to params yaml file>
 ```
-If you don't pass a params_file then the file located at `ouster/config/driver_params.yaml` will be used
+If you don't pass a params_file then the file located at `ouster/config/driver_params.yaml` will be used. Note that in
+the params you can start with default options for everything except the `sensor_hostname` param which you should adjust
+to match the hostname or ip address of the Ouster sensor you are trying to connect to.
+
+**comptability mode**
+If you are migrating from https://github.com/ros-drivers/ros2_ouster_drivers to the official ouster drivers
+we supply you with a file `driver_launch.py` which provides users with same topic name and accepts the same
+parameter file `community_driver_config.yaml`. Please note that this is provided for backward compatibilty
+it may not be maintained in the future, so it would be better to update to the new format `driver_params.yaml`
+which offers the same options and more.
 
 #### Recording Mode
 > Note
