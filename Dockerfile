@@ -53,9 +53,13 @@ RUN set -xe \
 FROM build-env
 
 SHELL ["/bin/bash", "-c"]
+
 RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon build \
     --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations"
+
+RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon test \
+    --ctest-args tests ouster_ros --rerun-failed --output-on-failure
 
 # Entrypoint for running Ouster ros:
 #

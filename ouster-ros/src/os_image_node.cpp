@@ -52,6 +52,7 @@ class OusterImage : public OusterProcessingNodeBase {
 
    private:
     void on_init() {
+        declare_parameter("use_system_default_qos", false);
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
@@ -62,7 +63,7 @@ class OusterImage : public OusterProcessingNodeBase {
                     "OusterImage: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
         create_cloud_object();
-        const int n_returns = get_n_returns();
+        const int n_returns = get_n_returns(info);
         create_publishers(n_returns);
         create_subscriptions(n_returns);
     }
@@ -74,22 +75,28 @@ class OusterImage : public OusterProcessingNodeBase {
     }
 
     void create_publishers(int n_returns) {
-        rclcpp::SensorDataQoS qos;
-        nearir_image_pub =
-            create_publisher<sensor_msgs::msg::Image>("nearir_image", qos);
+        bool use_system_default_qos =
+            get_parameter("use_system_default_qos").as_bool();
+        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
+        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
+        auto selected_qos =
+            use_system_default_qos ? system_default_qos : sensor_data_qos;
+
+        nearir_image_pub = create_publisher<sensor_msgs::msg::Image>(
+            "nearir_image", selected_qos);
 
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
         for (int i = 0; i < n_returns; i++) {
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("range_image", i), qos);
+                topic_for_return("range_image", i), selected_qos);
             range_image_pubs.push_back(a_pub);
 
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("signal_image", i), qos);
+                topic_for_return("signal_image", i), selected_qos);
             signal_image_pubs.push_back(a_pub);
 
             a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("reflec_image", i), qos);
+                topic_for_return("reflec_image", i), selected_qos);
             reflec_image_pubs.push_back(a_pub);
         }
     }

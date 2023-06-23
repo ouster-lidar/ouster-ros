@@ -36,6 +36,10 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
 
     void display_lidar_info(const ouster::sensor::sensor_info& info);
 
+    static std::string read_text_file(const std::string& text_file);
+
+    static bool write_text_to_file(const std::string& file_path, const std::string& text);
+
    protected:
     ouster::sensor::sensor_info info;
     rclcpp::Service<ouster_srvs::srv::GetMetadata>::SharedPtr get_metadata_srv;

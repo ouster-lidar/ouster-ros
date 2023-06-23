@@ -6,6 +6,8 @@
  * @brief implementation of OusterSensorNodeBase interface
  */
 
+#include <fstream>
+
 #include "ouster_ros/os_sensor_node_base.h"
 
 #include <ouster/impl/build.h>
@@ -48,10 +50,28 @@ void OusterSensorNodeBase::display_lidar_info(const sensor::sensor_info& info) {
         get_logger(),
         "ouster client version: "
             << ouster::SDK_VERSION_FULL << "\n"
-            << "product: " << info.prod_line << ", sn: " << info.sn
-            << ", firmware rev: " << info.fw_rev << "\n"
+            << "product: " << info.prod_line << ", sn: " << info.sn << ", "
+            << "firmware rev: " << info.fw_rev << "\n"
             << "lidar mode: " << sensor::to_string(info.mode) << ", "
             << "lidar udp profile: " << sensor::to_string(lidar_profile));
+}
+
+std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {
+    std::ifstream ifs{};
+    ifs.open(text_file);
+    if (ifs.fail()) return {};
+    std::stringstream buf;
+    buf << ifs.rdbuf();
+    return buf.str();
+}
+
+bool OusterSensorNodeBase::write_text_to_file(const std::string& file_path,
+                    const std::string& text) {
+    std::ofstream ofs(file_path);
+    if (!ofs.is_open()) return false;
+    ofs << text << std::endl;
+    ofs.close();
+    return true;
 }
 
 }  // namespace ouster_ros

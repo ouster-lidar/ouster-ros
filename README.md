@@ -1,7 +1,7 @@
 # Official ROS driver for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,23 +9,28 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble) | [![rolling/humble](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-  - [Launching Nodes](#launching-nodes)
-    - [Sensor Mode](#sensor-mode)
-    - [Recording Mode](#recording-mode)
-    - [Replay Mode](#replay-mode)
-    - [Multicast Mode (experimental)](#multicast-mode-experimental)
-  - [Invoking Services](#invoking-services)
-    - [GetMetadata](#getmetadata)
-    - [GetConfig](#getconfig)
-    - [SetConfig (experimental)](#setconfig-experimental)
-- [License](#license)
+- [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
+  - [Overview](#overview)
+  - [Requirements](#requirements)
+    - [Linux](#linux)
+    - [Windows](#windows)
+    - [Mac](#mac)
+  - [Getting Started](#getting-started)
+  - [Usage](#usage)
+    - [Launching Nodes](#launching-nodes)
+      - [Sensor Mode](#sensor-mode)
+      - [Recording Mode](#recording-mode)
+      - [Replay Mode](#replay-mode)
+      - [Multicast Mode (experimental)](#multicast-mode-experimental)
+    - [Invoking Services](#invoking-services)
+      - [GetMetadata](#getmetadata)
+      - [GetConfig](#getconfig)
+      - [SetConfig](#setconfig)
+      - [Reset](#reset)
+  - [License](#license)
 
 
 ## Overview
@@ -38,8 +43,9 @@ dual return and it was configured to use this capability, then another topic wil
 name `/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
-This driver only supports **Rolling** and **Humble** ROS 2 distros. Please refer to ROS 2 online
-documentation on how to setup ros on your machine before proceeding with the remainder of this guide.
+This branch is only intended for use with **Rolling**, **Humble** and **Iron** ROS 2 distros. Please
+refer to ROS 2 online documentation on how to setup ROS on your machine before proceeding with the
+remainder of this guide.
 
 > **Note**  
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
@@ -57,7 +63,7 @@ sudo apt install -y             \
     ros-$ROS_DISTRO-tf2-eigen   \
     ros-$ROS_DISTRO-rviz2
 ```
-where `$ROS_DISTRO` is either ``rolling`` or ``humble``.
+where `$ROS_DISTRO` can be either ``rolling``, ``humble`` or ``iron``.
 
 > **Note**  
 > Installing `ros-$ROS_DISTRO-rviz` package is optional in case you didn't need to visualize the
@@ -99,7 +105,7 @@ git clone -b ros2 --recurse-submodules https://github.com/ouster-lidar/ouster-ro
 
 Next to compile the driver you need to source the ROS environemt into the active termainl:
 ```bash
-source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'rolling' or 'humble'
+source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'rolling', 'humble', or 'iron'
 ```
 
 Finally, invoke `colcon build` command from within the catkin workspace as shown below:
@@ -119,14 +125,32 @@ source ros2_ws/install/setup.bash
 ## Usage
 
 ### Launching Nodes
-The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
-added a new mode that supports multicast. The commands are listed below:
+The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a recorded
+bag or _record_ a new bag file using the corresponding launch files. Recently, we have added a new mode
+that supports multicast. The commands are listed below, for convenience we do provide both launch file
+formats (xml and python) but the python format is the preferred method:
 
 #### Sensor Mode
+To connect to a live sensor you use the following launch file
 ```bash
 ros2 launch ouster_ros sensor.launch.xml    \
     sensor_hostname:=<sensor host name>
 ```
+The equivalent python file is:
+```bash
+ros2 launch ouster_ros driver.launch.py    \
+    params_files:=<path to params yaml file>
+```
+If you don't pass a params_file then the file located at `ouster/config/driver_params.yaml` will be used. Note that in
+the params you can start with default options for everything except the `sensor_hostname` param which you should adjust
+to match the hostname or ip address of the Ouster sensor you are trying to connect to.
+
+**comptability mode**
+If you are migrating from https://github.com/ros-drivers/ros2_ouster_drivers to the official ouster drivers
+we supply you with a file `driver_launch.py` which provides users with same topic name and accepts the same
+parameter file `community_driver_config.yaml`. Please note that this is provided for backward compatibilty
+it may not be maintained in the future, so it would be better to update to the new format `driver_params.yaml`
+which offers the same options and more.
 
 #### Recording Mode
 > Note
@@ -197,14 +221,14 @@ To get the current config of a live sensor, invoke the command:
 ros2 service call /ouster/get_config ouster_srvs/srv/GetConfig
 ```
 
-#### SetConfig (experimental)
+#### SetConfig
 To change config via a file while connected to a live sensor, invoke the command:
 ```bash
 ros2 service call /ouster/set_config ouster_srvs/srv/SetConfig \
     "{config_file: 'some_config.json'}"
 ```
 
-#### Reset (experimental)
+#### Reset
 To reset the new reset service, execute the following commnad:
 ```bash
 ros2 service call /ouster/reset std_srvs/srv/Empty

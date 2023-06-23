@@ -17,6 +17,7 @@ jobs:
         ros_distro:
           - rolling
           - humble
+          - iron
     steps:
       - uses: actions/checkout@v3
         with:
