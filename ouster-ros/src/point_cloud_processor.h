@@ -31,9 +31,10 @@ class PointCloudProcessor {
                         PostProcessingFn func)
         : frame(frame_id),
           cloud{info.format.columns_per_frame, info.format.pixels_per_column},
-          pc_msgs(get_n_returns(info),
-                  std::make_shared<sensor_msgs::msg::PointCloud2>()),
+          pc_msgs(get_n_returns(info)),
           post_processing_fn(func) {
+        for (size_t i = 0; i < pc_msgs.size(); ++i)
+            pc_msgs[i] = std::make_shared<sensor_msgs::msg::PointCloud2>();
         ouster::mat4d additional_transform =
             apply_lidar_to_sensor_transform ? info.lidar_to_sensor_transform
                                             : ouster::mat4d::Identity();
