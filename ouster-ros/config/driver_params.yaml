@@ -1,0 +1,66 @@
+ouster/os_driver:
+  ros__parameters:
+    # sensor_hostname[required]: hostname or IP address of the sensor (IP4 or
+    # IP6).
+    sensor_hostname: ''
+    # udp_dest[optional]: hostname or multicast group IP where the sensor will
+    # send UDP data packets.
+    udp_dest: ''
+    # mtp_dest[optional]: hostname IP address for receiving data packets via
+    # multicast, by default it is INADDR_ANY, so packets will be received on
+    # first available network interface.
+    mtp_dest: ''
+    # mtp_main[optional]: if true, then configure and reinit the sensor,
+    # otherwise start client with active configuration of sensor
+    mtp_main: false
+    # lidar_mode[optional]: resolution and rate; possible values: { 512x10,
+    # 512x20, 1024x10, 1024x20, 2048x10, 4096x5 }. Leave empty to remain on
+    # current the lidar mode.
+    lidar_mode: ''
+    # timestamp_mode[optional]: method used to timestamp measurements; possible
+    # values:
+    # - TIME_FROM_INTERNAL_OSC
+    # - TIME_FROM_SYNC_PULSE_IN
+    # - TIME_FROM_PTP_1588
+    # - TIME_FROM_ROS_TIME: This option uses the time of reception of first
+    #                       packet of a LidarScan as the timestamp of the IMU,
+    #                       PointCloud2 and LaserScan messages.
+    timestamp_mode: ''
+    # udp_profile_lidar[optional]: lidar packet profile; possible values:
+    # - LEGACY: not recommended
+    # - RNG19_RFL8_SIG16_NIR16_DUAL
+    # - RNG19_RFL8_SIG16_NIR16
+    # - RNG15_RFL8_NIR8
+    udp_profile_lidar: ''
+    # metadata[optional]: path to save metadata file to, if left empty a file
+    # with the sensor hostname or ip will be crearted in ~/.ros folder.
+    metadata: ''
+    # lidar_port[optional]: port value should be in the range [0, 65535]. If you
+    # use 0 as the port value then the first avaliable port number will be
+    # assigned.
+    lidar_port: 0
+    # imu_port[optional]: port value should be in the range [0, 65535]. If you
+    # use 0 as the port value then the first avaliable port number will be
+    # assigned.
+    imu_port: 0
+    # sensor_frame[optional]: name to use when referring to the sensor frame.
+    sensor_frame: os_sensor
+    # lidar_frame[optional]: name to use when referring to the lidar frame.
+    lidar_frame: os_lidar
+    # imu_frame[optional]: name to use when referring to the imu frame.
+    imu_frame: os_imu
+    # point_cloud_frame[optional]: which frame of reference to use when
+    # generating PointCloud2 or LaserScan messages, select between the values of
+    # lidar_frame and sensor_frame.
+    point_cloud_frame: os_lidar 
+    # proc_mask[optional]: use any combination of the 4 flags IMG, PCL, IMU and
+    # SCAN to enable or disable their respective messages.
+    proc_mask: IMG|PCL|IMU|SCAN
+    # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
+    # to select which beam of the LidarScan to use when producing the LaserScan
+    # message. Choose a value the range [0, sensor_beams_count).
+    scan_ring: 0
+    # use_system_default_qos[optional]: if False, data are published with sensor
+    # data QoS. This is preferrable for production but default QoS is needed for
+    # rosbag. See: https://github.com/ros2/rosbag2/issues/125
+    use_system_default_qos: False

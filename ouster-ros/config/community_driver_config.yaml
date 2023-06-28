@@ -1,0 +1,54 @@
+# [Not recommended] Provided to support existing users of the ROS2 Community
+# please migrate to the parameters format as specified in driver_params.yaml
+ouster_driver:
+  ros__parameters:
+    lidar_ip: 169.254.200.2
+    computer_ip: 169.254.219.146
+    lidar_mode: "1024x10"
+    imu_port: 7503
+    lidar_port: 7502
+    sensor_frame: laser_sensor_frame
+    laser_frame: laser_data_frame
+    imu_frame: imu_data_frame
+
+    # if False, data are published with sensor data QoS. This is preferrable
+    # for production but default QoS is needed for rosbag.
+    # See: https://github.com/ros2/rosbag2/issues/125
+    use_system_default_qos: False
+
+    # Set the method used to timestamp measurements.
+    # Valid modes are:
+    #
+    #   TIME_FROM_INTERNAL_OSC
+    #   TIME_FROM_SYNC_PULSE_IN
+    #   TIME_FROM_PTP_1588
+    #   TIME_FROM_ROS_RECEPTION
+    #
+    # (See this project's README and/or the Ouster Software Guide for more
+    # information).
+    #
+    timestamp_mode: TIME_FROM_INTERNAL_OSC
+
+    # Mask-like-string used to define the data processors that should be
+    # activated upon startup of the driver. This will determine the topics
+    # that are available for client applications to consume. The defacto
+    # reference for these values are defined in:
+    # `include/ros2_ouster/processors/processor_factories.hpp`
+    #
+    # For convenience, the available data processors are:
+    #
+    # IMG   - Provides 8-bit image topics suitable for ML applications encoding
+    #         the range, ambient and intensity data from a scan
+    # PCL   - Provides a point cloud encoding of a LiDAR scan
+    # IMU   - Provides a data stream from the LiDARs integral IMU
+    # SCAN  - Provides a synthesized 2D LaserScan from the 3D LiDAR data
+    #
+    # To construct a valid string for this parameter join the tokens from above
+    # (in any combination) with the pipe character. For example, valid strings
+    # include (but are not limited to):
+    #
+    # IMG|PCL
+    # IMG|PCL|IMU|SCAN
+    # PCL
+    #
+    proc_mask: IMG|PCL|IMU|SCAN

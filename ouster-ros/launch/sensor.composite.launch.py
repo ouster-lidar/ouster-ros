@@ -22,7 +22,7 @@ def generate_launch_description():
     """
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
     default_params_file = \
-        Path(ouster_ros_pkg_dir) / 'config' / 'parameters.yaml'
+        Path(ouster_ros_pkg_dir) / 'config' / 'os_sensor_cloud_image_params.yaml'
     params_file = LaunchConfiguration('params_file')
     params_file_arg = DeclareLaunchArgument('params_file',
                                             default_value=str(
@@ -97,7 +97,8 @@ def generate_launch_description():
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
+        rviz_launch,
         os_container,
         sensor_configure_cmd,
-        TimerAction(period=1.0, actions=[sensor_activate_cmd]),
-        rviz_launch])
+        TimerAction(period=1.0, actions=[sensor_activate_cmd])
+    ])
