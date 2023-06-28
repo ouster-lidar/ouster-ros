@@ -218,8 +218,7 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-
-    if (!write_text_to_file(meta_file, cached_metadata)) {
+    if (write_text_to_file(meta_file, cached_metadata)) {
         RCLCPP_INFO_STREAM(get_logger(),
                            "Wrote sensor metadata to " << meta_file);
     } else {
