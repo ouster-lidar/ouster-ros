@@ -41,6 +41,7 @@ ouster_ros(2)
   topics with ``SensorDataQoS`` selected by default for live sensor mode and ``SystemDefaultQoS``
   enabled for record and replay modes.
 * introduced a new topic ``/ouster/scan`` which publishes ``sensor_msgs::msg::LaserScan`` messages
+* fix: on dual returns the 2nd point cloud replaces the 1st one. 
 
 ouster_client
 -------------
