@@ -14,7 +14,7 @@
 
 namespace nodelets_os {
 
-class OusterClientBase : public nodelet::Nodelet {
+class OusterSensorNodeletBase : public nodelet::Nodelet {
    protected:
     bool is_arg_set(const std::string& arg) const {
         return arg.find_first_not_of(' ') != std::string::npos;
@@ -27,6 +27,11 @@ class OusterClientBase : public nodelet::Nodelet {
     void publish_metadata();
 
     void display_lidar_info(const ouster::sensor::sensor_info& info);
+
+    std::string read_text_file(const std::string& text_file);
+
+    bool write_text_to_file(
+        const std::string& file_path, const std::string& text);
 
    protected:
     ouster::sensor::sensor_info info;

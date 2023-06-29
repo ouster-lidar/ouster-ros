@@ -78,7 +78,7 @@ add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
 add_library(nodelets_os
-  src/os_client_base_nodelet.cpp
+  src/os_sensor_nodelet_base.cpp
   src/os_sensor_nodelet.cpp
   src/os_replay_nodelet.cpp
   src/os_cloud_nodelet.cpp

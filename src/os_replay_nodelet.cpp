@@ -11,13 +11,13 @@
 
 #include <fstream>
 
-#include "ouster_ros/os_client_base_nodelet.h"
+#include "ouster_ros/os_sensor_nodelet_base.h"
 
 namespace sensor = ouster::sensor;
 
 namespace nodelets_os {
 
-class OusterReplay : public OusterClientBase {
+class OusterReplay : public OusterSensorNodeletBase {
    private:
     virtual void onInit() override {
         NODELET_INFO("Running in replay mode");
@@ -37,12 +37,9 @@ class OusterReplay : public OusterClientBase {
         return meta_file;
     }
 
-    void load_metadata_from_file(const std::string meta_file) {
+    void load_metadata_from_file(const std::string& meta_file) {
         try {
-            std::ifstream in_file(meta_file);
-            std::stringstream buffer;
-            buffer << in_file.rdbuf();
-            cached_metadata = buffer.str();
+            cached_metadata = read_text_file(meta_file);
             info = sensor::parse_metadata(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
@@ -51,6 +48,7 @@ class OusterReplay : public OusterClientBase {
                 "Error when running in replay mode: " << e.what());
         }
     }
+
 };
 
 }  // namespace nodelets_os

@@ -19,7 +19,6 @@
 #include <std_msgs/String.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <tf2_ros/transform_broadcaster.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <algorithm>
@@ -28,6 +27,7 @@
 #include <cassert>
 
 #include "ouster_ros/PacketMsg.h"
+#include "os_transforms_broadcaster.h"
 
 namespace sensor = ouster::sensor;
 using ouster_ros::PacketMsg;
@@ -73,6 +73,10 @@ uint64_t ulround(T value) {
 
 namespace nodelets_os {
 class OusterCloud : public nodelet::Nodelet {
+   public:
+    OusterCloud() : tf_bcast(getName()) {
+    }
+
    private:
     bool is_arg_set(const std::string& arg) const {
         return arg.find_first_not_of(' ') != std::string::npos;
@@ -86,12 +90,7 @@ class OusterCloud : public nodelet::Nodelet {
 
     void parse_parameters() {
         auto& pnh = getPrivateNodeHandle();
-        auto tf_prefix = pnh.param("tf_prefix", std::string{});
-        if (is_arg_set(tf_prefix) && tf_prefix.back() != '/')
-            tf_prefix.append("/");
-        sensor_frame = tf_prefix + "os_sensor";
-        imu_frame = tf_prefix + "os_imu";
-        lidar_frame = tf_prefix + "os_lidar";
+        tf_bcast.parse_parameters(pnh);
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
         use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
     }
@@ -191,15 +190,11 @@ class OusterCloud : public nodelet::Nodelet {
                             cloud, i);
             pcl_toROSMsg(cloud, *pc_ptr);
             pc_ptr->header.stamp = msg_ts;
-            pc_ptr->header.frame_id = sensor_frame;
+            pc_ptr->header.frame_id = tf_bcast.point_cloud_frame_id();
             lidar_pubs[i].publish(pc_ptr);
         }
 
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.lidar_to_sensor_transform, sensor_frame, lidar_frame, msg_ts));
-
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
-            info.imu_to_sensor_transform, sensor_frame, imu_frame, msg_ts));
+        tf_bcast.broadcast_transforms(info, msg_ts);
     }
 
     uint64_t impute_value(int last_scan_last_nonzero_idx,
@@ -310,8 +305,8 @@ class OusterCloud : public nodelet::Nodelet {
         ros::Time msg_ts =
             use_ros_time ? ros::Time::now()
                          : to_ros_time(pf.imu_gyro_ts(packet->buf.data()));
-        sensor_msgs::Imu imu_msg =
-            ouster_ros::packet_to_imu_msg(*packet, msg_ts, imu_frame, pf);
+        sensor_msgs::Imu imu_msg = ouster_ros::packet_to_imu_msg(
+                            *packet, msg_ts, tf_bcast.imu_frame_id(), pf);
         sensor_msgs::ImuPtr imu_msg_ptr =
             boost::make_shared<sensor_msgs::Imu>(imu_msg);
         imu_pub.publish(imu_msg_ptr);
@@ -341,11 +336,7 @@ class OusterCloud : public nodelet::Nodelet {
     ouster_ros::Cloud cloud;
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
 
-    std::string sensor_frame;
-    std::string imu_frame;
-    std::string lidar_frame;
-
-    tf2_ros::TransformBroadcaster tf_bcast;
+    ouster_ros::OusterTransformsBroadcaster tf_bcast;
 
     bool use_ros_time;
 
