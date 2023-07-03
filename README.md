@@ -136,12 +136,12 @@ To connect to a live sensor you use the following launch file
 ros2 launch ouster_ros sensor.launch.xml    \
     sensor_hostname:=<sensor host name>
 ```
-The equivalent python file is:
+The equivalent python launch file is:
 ```bash
 ros2 launch ouster_ros driver.launch.py    \
-    params_files:=<path to params yaml file>
+    params_file:=<path to params yaml file>
 ```
-If you don't pass a params_file then the file located at `ouster/config/driver_params.yaml` will be used. Note that in
+If you don't pass a `params_file` then the file located at `ouster/config/driver_params.yaml` will be used. Note that in
 the params you can start with default options for everything except the `sensor_hostname` param which you should adjust
 to match the hostname or ip address of the Ouster sensor you are trying to connect to.
 
