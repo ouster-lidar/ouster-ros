@@ -44,7 +44,8 @@
   <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
   <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
 
-  <arg name="use_system_default_qos" default="false" description="Use the default system QoS settings"/>
+  <arg name="use_system_default_qos" default="false"
+    description="Use the default system QoS settings"/>
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
     currently IMG is not supported and does not affect anything,
     to disable image topics you would need to omit the os_image node
