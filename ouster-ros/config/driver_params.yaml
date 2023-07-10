@@ -60,7 +60,7 @@ ouster/os_driver:
     # to select which beam of the LidarScan to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
     scan_ring: 0
-    # use_system_default_qos[optional]: if False, data are published with sensor
+    # use_system_default_qos[optional]: if false, data are published with sensor
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
-    use_system_default_qos: False
+    use_system_default_qos: false
