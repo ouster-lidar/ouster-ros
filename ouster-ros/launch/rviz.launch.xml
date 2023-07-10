@@ -5,10 +5,6 @@
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
     description="optional rviz config file"/>
 
-  <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
-  <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
-  <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
-
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
