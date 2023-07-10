@@ -40,14 +40,22 @@
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
     description="optional rviz config file"/>
 
-  <arg name="sensor_frame" default="os_sensor" description="value can not be empty"/>
-  <arg name="lidar_frame" default="os_lidar" description="value can not be empty"/>
-  <arg name="imu_frame" default="os_imu" description="value can not be empty"/>
+  <arg name="sensor_frame" default="os_sensor"
+    description="sets name of choice for the sensor_frame tf frame, value can not be empty"/>
+  <arg name="lidar_frame" default="os_lidar"
+    description="sets name of choice for the os_lidar tf frame, value can not be empty"/>
+  <arg name="imu_frame" default="os_imu"
+      description="sets name of choice for the os_imu tf frame, value can not be empty"/>
+  <arg name="point_cloud_frame" default=""
+    description="which frame to be used when publishing PointCloud2 or LaserScan messages.
+    Choose between the value of sensor_frame or lidar_frame, leaving this value empty
+    would set lidar_frame to be the frame used when publishing these messages."/>
 
-  <arg name="use_system_default_qos" default="false" description="Use the default system QoS settings"/>
-  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
-    use any combination of the 4 flags to enable or disable specific processors"
-  />
+  <arg name="use_system_default_qos" default="false"
+    description="Use the default system QoS settings"/>
+  
+  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN"
+    description="use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" description="
     use this parameter in conjunction with the SCAN flag
@@ -65,11 +73,11 @@
       <param name="imu_port" value="$(var imu_port)"/>
       <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
       <param name="lidar_mode" value="$(var lidar_mode)"/>
-      <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
       <param name="sensor_frame" value="$(var sensor_frame)"/>
       <param name="lidar_frame" value="$(var lidar_frame)"/>
       <param name="imu_frame" value="$(var imu_frame)"/>
+      <param name="point_cloud_frame" value="$(var point_cloud_frame)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       <param name="proc_mask" value="$(var proc_mask)"/>
