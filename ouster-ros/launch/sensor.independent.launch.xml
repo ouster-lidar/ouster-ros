@@ -77,7 +77,6 @@
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
-      <param name="proc_mask" value="$(var proc_mask)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="sensor_frame" value="$(var sensor_frame)"/>
