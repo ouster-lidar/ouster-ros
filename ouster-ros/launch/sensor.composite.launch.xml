@@ -87,9 +87,9 @@
 
   <!-- HACK: configure and activate the sensor node via a process execute since state
     transition is currently not availabe through launch.xml format -->
-  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_sensor configure"
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_driver configure"
     launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
-  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_sensor activate"
+  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_driver activate"
     launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
 
   <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
