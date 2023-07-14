@@ -22,7 +22,7 @@ class OusterStaticTransformsBroadcaster {
         node->declare_parameter("sensor_frame", "os_sensor");
         node->declare_parameter("lidar_frame", "os_lidar");
         node->declare_parameter("imu_frame", "os_imu");
-        node->declare_parameter("point_cloud_frame", "os_lidar");
+        node->declare_parameter("point_cloud_frame", "");
     }
 
     void parse_parameters() {
@@ -33,8 +33,8 @@ class OusterStaticTransformsBroadcaster {
 
         // validate point_cloud_frame
         if (point_cloud_frame.empty()) {
-            point_cloud_frame =
-                lidar_frame;  // for ROS1 we'd still use sensor_frame
+            // ROS2 uses lidar_frame as the default point_cloud_frame
+            point_cloud_frame = lidar_frame;
         } else if (point_cloud_frame != sensor_frame &&
                    point_cloud_frame != lidar_frame) {
             RCLCPP_WARN(node->get_logger(),
