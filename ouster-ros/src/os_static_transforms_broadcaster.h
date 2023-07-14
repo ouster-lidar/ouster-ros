@@ -22,7 +22,7 @@ class OusterStaticTransformsBroadcaster {
         node->declare_parameter("sensor_frame", "os_sensor");
         node->declare_parameter("lidar_frame", "os_lidar");
         node->declare_parameter("imu_frame", "os_imu");
-        node->declare_parameter("point_cloud_frame", "os_lidar");
+        node->declare_parameter("point_cloud_frame", "");
     }
 
     void parse_parameters() {
