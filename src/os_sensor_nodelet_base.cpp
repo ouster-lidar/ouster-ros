@@ -20,7 +20,8 @@ using ouster_ros::GetMetadata;
 
 namespace nodelets_os {
 
-void OusterSensorNodeletBase::create_get_metadata_service(ros::NodeHandle& nh) {
+void OusterSensorNodeletBase::create_get_metadata_service() {
+    auto& nh = getNodeHandle();
     get_metadata_srv =
         nh.advertiseService<GetMetadata::Request, GetMetadata::Response>(
             "get_metadata",
@@ -32,7 +33,8 @@ void OusterSensorNodeletBase::create_get_metadata_service(ros::NodeHandle& nh) {
     NODELET_INFO("get_metadata service created");
 }
 
-void OusterSensorNodeletBase::create_metadata_publisher(ros::NodeHandle& nh) {
+void OusterSensorNodeletBase::create_metadata_publisher() {
+    auto& nh = getNodeHandle();
     metadata_pub = nh.advertise<std_msgs::String>("metadata", 1, true);
 }
 

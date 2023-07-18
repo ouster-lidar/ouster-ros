@@ -20,16 +20,16 @@ namespace nodelets_os {
 class OusterReplay : public OusterSensorNodeletBase {
    private:
     virtual void onInit() override {
-        NODELET_INFO("Running in replay mode");
         auto meta_file = get_meta_file();
-        create_metadata_publisher(getNodeHandle());
+        create_metadata_publisher();
         load_metadata_from_file(meta_file);
         publish_metadata();
+        create_get_metadata_service();
+        NODELET_INFO("Running in replay mode");
     }
 
     std::string get_meta_file() const {
-        auto& pnh = getPrivateNodeHandle();
-        auto meta_file = pnh.param("metadata", std::string{});
+        auto meta_file = getPrivateNodeHandle().param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
             NODELET_ERROR("Must specify metadata file in replay mode");
             throw std::runtime_error("metadata no specificed");
