@@ -111,6 +111,13 @@ sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
             throw std::runtime_error("Unreachable");
     }
 }
+
+ros::Time ts_to_ros_time(uint64_t ts) {
+    ros::Time t;
+    t.fromNSec(ts);
+    return t;
+}
+
 }
 
 template <typename PointT, typename RangeT, typename ReflectivityT,

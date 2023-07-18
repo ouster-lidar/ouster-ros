@@ -188,6 +188,9 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
     ouster::impl::visit_field(ls, field, read_and_cast(), result);
     return result;
 }
+
+ros::Time ts_to_ros_time(uint64_t ts);
+
 } // namespace impl
 
 }  // namespace ouster_ros
