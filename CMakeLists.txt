@@ -87,6 +87,12 @@ add_library(nodelets_os
 target_link_libraries(nodelets_os ouster_ros ${catkin_LIBRARIES})
 add_dependencies(nodelets_os ${PROJECT_NAME}_gencpp)
 
+# ==== Test ====
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(${PROJECT_NAME}_test tests/ring_buffer_test.cpp)
+  target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES})
+endif()
+
 # ==== Install ====
 install(
   TARGETS
