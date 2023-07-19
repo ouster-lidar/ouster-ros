@@ -27,7 +27,6 @@
 
 #include "ouster_ros/PacketMsg.h"
 #include "os_transforms_broadcaster.h"
-
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
 #include "point_cloud_processor.h"
@@ -43,12 +42,7 @@ class OusterCloud : public nodelet::Nodelet {
     OusterCloud() : tf_bcast(getName()) {}
 
    private:
-    static bool is_arg_set(const std::string& arg) {
-        return arg.find_first_not_of(' ') != std::string::npos;
-    }
-
     virtual void onInit() override {
-        tf_bcast.parse_parameters(getPrivateNodeHandle());
         create_metadata_subscriber();
         NODELET_INFO("OusterCloud: nodelet created!");
     }
@@ -63,6 +57,8 @@ class OusterCloud : public nodelet::Nodelet {
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
 
         auto info = sensor::parse_metadata(metadata_msg->data);
+
+        tf_bcast.parse_parameters(getPrivateNodeHandle());
 
         auto dynamic_transforms =
             getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
@@ -90,27 +86,10 @@ class OusterCloud : public nodelet::Nodelet {
                 });
         }
 
-        create_publishers(get_n_returns(info));
-        create_subscriptions(info);
+        create_publishers_subscribers(info);
     }
 
-    void create_publishers(int num_returns) {
-        auto& nh = getNodeHandle();
-        imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
-        lidar_pubs.resize(num_returns);
-        for (int i = 0; i < num_returns; ++i) {
-            lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                ouster_ros::topic_for_return("points", i), 10);
-        }
-
-        scan_pubs.resize(num_returns);
-        for (int i = 0; i < num_returns; i++) {
-            scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                ouster_ros::topic_for_return("scan", i), 10);
-        }
-    }
-
-    void create_subscriptions(const sensor::sensor_info& info) {
+    void create_publishers_subscribers(const sensor::sensor_info& info) {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = parse_tokens(proc_mask, '|');
@@ -121,45 +100,57 @@ class OusterCloud : public nodelet::Nodelet {
         auto& nh = getNodeHandle();
 
         if (check_token(tokens, "IMU")) {
+            imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), use_ros_time);
             imu_packet_sub = nh.subscribe<PacketMsg>(
                 "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     auto imu_msg = imu_packet_handler(msg->buf.data());
-
                     if (imu_msg.header.stamp > last_msg_ts)
                         last_msg_ts = imu_msg.header.stamp;
-
                     imu_pub.publish(imu_msg);
                 });
         }
 
+        int num_returns = get_n_returns(info);
+
         std::vector<LidarScanProcessor> processors;
         if (check_token(tokens, "PCL")) {
+            lidar_pubs.resize(num_returns);
+            for (int i = 0; i < num_returns; ++i) {
+                lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
+                    ouster_ros::topic_for_return("points", i), 10);
+            }
+
             processors.push_back(PointCloudProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(),
                 tf_bcast.apply_lidar_to_sensor_transform(),
-                [this](PointCloudProcessor::OutputType point_cloud_msg) {
-                    for (size_t i = 0; i < point_cloud_msg.size(); ++i) {
-                        if (point_cloud_msg[i]->header.stamp > last_msg_ts)
-                            last_msg_ts = point_cloud_msg[i]->header.stamp;
-
-                        lidar_pubs[i].publish(*point_cloud_msg[i]);
+                [this](PointCloudProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i) {
+                        if (msgs[i]->header.stamp > last_msg_ts)
+                            last_msg_ts = msgs[i]->header.stamp;
+                        lidar_pubs[i].publish(*msgs[i]);
                     }
                 }));
         }
 
         if (check_token(tokens, "SCAN")) {
+            scan_pubs.resize(num_returns);
+            for (int i = 0; i < num_returns; ++i) {
+                scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
+                    ouster_ros::topic_for_return("scan", i), 10);
+            }
+
             // TODO: avoid duplication in os_cloud_node
             int beams_count =
                 static_cast<int>(ouster_ros::get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != pnh.param("scan_ring", 0)) {
-                ROS_WARN_STREAM(
+                NODELET_WARN_STREAM(
                     "scan ring is set to a value that exceeds available range"
-                    "please choose a value between [0, " << beams_count
-                    << "], ring value clamped to: " << scan_ring);
+                    "please choose a value between [0, " << beams_count <<
+                    "], ring value clamped to: " << scan_ring);
             }
 
             processors.push_back(LaserScanProcessor::create(
@@ -168,12 +159,11 @@ class OusterCloud : public nodelet::Nodelet {
                     .point_cloud_frame_id(),  // TODO: should we allow having a
                                               // different frame for the laser
                                               // scan than point cloud???
-                0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
-                    for (size_t i = 0; i < laser_scan_msg.size(); ++i) {
-                        if (laser_scan_msg[i]->header.stamp > last_msg_ts)
-                            last_msg_ts = laser_scan_msg[i]->header.stamp;
-
-                        scan_pubs[i].publish(*laser_scan_msg[i]);
+                scan_ring, [this](LaserScanProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i) {
+                        if (msgs[i]->header.stamp > last_msg_ts)
+                            last_msg_ts = msgs[i]->header.stamp;
+                        scan_pubs[i].publish(*msgs[i]);
                     }
                 }));
         }
