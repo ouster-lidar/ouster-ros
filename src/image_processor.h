@@ -14,11 +14,9 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/image_encodings.h>
 
 #include "ouster/image_processing.h"
-
-namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
@@ -26,7 +24,7 @@ namespace viz = ouster::viz;
 class ImageProcessor {
    public:
     using OutputType =
-        std::map<sensor::ChanField, std::shared_ptr<sensor_msgs::msg::Image>>;
+        std::map<sensor::ChanField, std::shared_ptr<sensor_msgs::Image>>;
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
@@ -37,20 +35,20 @@ class ImageProcessor {
         uint32_t W = info.format.columns_per_frame;
 
         image_msgs[sensor::ChanField::RANGE] =
-            std::make_shared<sensor_msgs::msg::Image>();
+            std::make_shared<sensor_msgs::Image>();
         image_msgs[sensor::ChanField::SIGNAL] =
-            std::make_shared<sensor_msgs::msg::Image>();
+            std::make_shared<sensor_msgs::Image>();
         image_msgs[sensor::ChanField::REFLECTIVITY] =
-            std::make_shared<sensor_msgs::msg::Image>();
+            std::make_shared<sensor_msgs::Image>();
         image_msgs[sensor::ChanField::NEAR_IR] =
-            std::make_shared<sensor_msgs::msg::Image>();
+            std::make_shared<sensor_msgs::Image>();
         if (get_n_returns(info) == 2) {
             image_msgs[sensor::ChanField::RANGE2] =
-                std::make_shared<sensor_msgs::msg::Image>();
+                std::make_shared<sensor_msgs::Image>();
             image_msgs[sensor::ChanField::SIGNAL2] =
-                std::make_shared<sensor_msgs::msg::Image>();
+                std::make_shared<sensor_msgs::Image>();
             image_msgs[sensor::ChanField::REFLECTIVITY2] =
-                std::make_shared<sensor_msgs::msg::Image>();
+                std::make_shared<sensor_msgs::Image>();
         }
 
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
@@ -62,7 +60,7 @@ class ImageProcessor {
     using pixel_type = uint16_t;
     const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
 
-    static void init_image_msg(sensor_msgs::msg::Image& msg, size_t H, size_t W,
+    static void init_image_msg(sensor_msgs::Image& msg, size_t H, size_t W,
                                const std::string& frame) {
         msg.width = W;
         msg.height = H;
@@ -93,18 +91,18 @@ class ImageProcessor {
         ouster::img_t<uint32_t> range =
             lidar_scan.field<uint32_t>(range_channel);
 
-        ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
-            impl::suitable_return(sensor::ChanField::REFLECTIVITY, !first),
+        ouster::img_t<uint16_t> reflectivity = ouster_ros::impl::get_or_fill_zero<uint16_t>(
+            ouster_ros::impl::suitable_return(sensor::ChanField::REFLECTIVITY, !first),
             lidar_scan);
 
-        ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
-            impl::suitable_return(sensor::ChanField::SIGNAL, !first),
+        ouster::img_t<uint32_t> signal = ouster_ros::impl::get_or_fill_zero<uint32_t>(
+            ouster_ros::impl::suitable_return(sensor::ChanField::SIGNAL, !first),
             lidar_scan);
 
         // TODO: note that near_ir will be processed twice for DUAL return
         // sensor
-        ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
-            impl::suitable_return(sensor::ChanField::NEAR_IR, !first),
+        ouster::img_t<uint16_t> near_ir = ouster_ros::impl::get_or_fill_zero<uint16_t>(
+            ouster_ros::impl::suitable_return(sensor::ChanField::NEAR_IR, !first),
             lidar_scan);
 
         uint32_t H = info_.format.pixels_per_column;
@@ -112,23 +110,23 @@ class ImageProcessor {
 
         // views into message data
         auto range_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
+            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
                                         sensor::ChanField::RANGE, !first)]
                 ->data.data(),
             H, W);
         auto signal_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
+            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
                                         sensor::ChanField::SIGNAL, !first)]
                 ->data.data(),
             H, W);
         auto reflec_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
             (pixel_type*)
-                image_msgs[impl::suitable_return(
+                image_msgs[ouster_ros::impl::suitable_return(
                                sensor::ChanField::REFLECTIVITY, !first)]
                     ->data.data(),
             H, W);
         auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
+            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
                                         sensor::ChanField::NEAR_IR, !first)]
                 ->data.data(),
             H, W);
@@ -195,5 +193,3 @@ class ImageProcessor {
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
 };
-
-}  // namespace ouster_ros

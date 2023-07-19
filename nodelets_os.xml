@@ -19,4 +19,9 @@
       A nodelet that processes Ouster point clouds and publish them as depth images.
     </description>
   </class>
+  <class name="nodelets_os/OusterDriver" type="nodelets_os::OusterDriver" base_class_type="nodelet::Nodelet">
+    <description> 
+      A nodelet that combines the capabilities of OusterSensor, OusterCloud and OusterImage into a single nodelet.
+    </description>
+  </class>
 </library>
