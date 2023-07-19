@@ -1,7 +1,7 @@
 # Official ROS1/ROS2 drivers for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,7 +9,7 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble) | [![rolling/humble](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
 - [Overview](#overview)
@@ -30,12 +30,12 @@
 
 ## Overview
 
-This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
-will configure and connect to the selected sensor device, once connected the driver will handle
-incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages on the
-topics of `/ouster/imu` and `/ouster/points`. In the case the sensor supports dual return and it was
-configured to use this capability, then another topic will published named `/ouster/points2` which
-corresponds to the second point cloud.
+This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the
+driver will configure and connect to the selected sensor device, once connected the driver will
+handle incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages
+on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports dual
+return and it was configured to use this capability, then another topic will published named
+`/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
 This package only supports **Melodic** and **Noetic** ROS distros. Please refer to ROS online

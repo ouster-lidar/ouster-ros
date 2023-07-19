@@ -5,6 +5,10 @@
   <arg name="rviz_config" doc="optional rviz config file"/>
   <arg name="tf_prefix" doc="namespace for tf transforms"/>
   <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
+  <arg name="dynamic_transforms_broadcast"
+    doc="static or dynamic transforms broadcast"/>
+  <arg name="dynamic_transforms_broadcast_rate"
+    doc="set the rate (Hz) of broadcast when using dynamic broadcast; minimum value is 1 Hz"/>
 
   <arg name="_no_bond" default="" doc="set the no-bond option when loading nodelets"/>
 
@@ -14,6 +18,10 @@
       args="load nodelets_os/OusterCloud os_nodelet_mgr $(arg _no_bond)">
       <param name="~/tf_prefix" type="str" value="$(arg tf_prefix)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/dynamic_transforms_broadcast" type="bool"
+        value="$(arg dynamic_transforms_broadcast)"/>
+      <param name="~/dynamic_transforms_broadcast_rate" type="double"
+        value="$(arg dynamic_transforms_broadcast_rate)"/>
     </node>
   </group>
 
@@ -31,10 +39,12 @@
     launch-prefix="bash -c 'sleep 5; $0 $@' "
     args="-d $(arg rviz_config)"/>
 
-  <!-- for compatibility with < 2.0 rosbags -->
+  <!-- for compatibility with < 2.0 rosbags, enable the following block -->
+  <!--
   <node pkg="topic_tools" name="relay_lidar" type="relay"
     args="/os_node/lidar_packets /$(arg ouster_ns)/lidar_packets"/>
   <node pkg="topic_tools" name="relay_imu" type="relay"
     args="/os_node/imu_packets /$(arg ouster_ns)/imu_packets"/>
+  -->
 
 </launch>

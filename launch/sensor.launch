@@ -35,6 +35,11 @@
   <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
   <arg unless="$(arg no_bond)" name="_no_bond" value="" />
 
+  <arg name="dynamic_transforms_broadcast" default="false"
+    doc="static or dynamic transforms broadcast"/>
+  <arg name="dynamic_transforms_broadcast_rate" default="1.0"
+    doc="set the rate (Hz) of broadcast when using dynamic broadcast; minimum value is 1 Hz"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true"
@@ -64,6 +69,10 @@
     <arg name="tf_prefix" value="$(arg tf_prefix)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
     <arg name="_no_bond" value="$(arg _no_bond)"/>
+    <arg name="dynamic_transforms_broadcast"
+      value="$(arg dynamic_transforms_broadcast)"/>
+    <arg name="dynamic_transforms_broadcast_rate"
+      value="$(arg dynamic_transforms_broadcast_rate)"/>
   </include>
 
 </launch>

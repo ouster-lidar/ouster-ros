@@ -40,8 +40,7 @@ namespace nodelets_os {
 
 class OusterCloud : public nodelet::Nodelet {
    public:
-    OusterCloud() : tf_bcast(getName()) {
-    }
+    OusterCloud() : tf_bcast(getName()) {}
 
    private:
     static bool is_arg_set(const std::string& arg) {
@@ -62,9 +61,35 @@ class OusterCloud : public nodelet::Nodelet {
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
         // TODO: handle sensor reconfigurtion
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
+
         auto info = sensor::parse_metadata(metadata_msg->data);
-        // NOTE using the static broadcast form for now!
-        tf_bcast.broadcast_transforms(info);
+
+        auto dynamic_transforms =
+            getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
+        auto dynamic_transforms_rate = getPrivateNodeHandle().param(
+            "dynamic_transforms_broadcast_rate", 1.0);
+        if (dynamic_transforms && dynamic_transforms_rate < 1.0) {
+            NODELET_WARN(
+                "OusterCloud: dynamic transforms enabled but wrong rate is "
+                "set, clamping to 1 Hz!");
+            dynamic_transforms_rate = 1.0;
+        }
+
+        if (!dynamic_transforms) {
+            NODELET_INFO("OusterCloud: using static transforms broadcast");
+            tf_bcast.broadcast_transforms(info);
+        } else {
+            NODELET_INFO_STREAM(
+                "OusterCloud: dynamic transforms broadcast enabled wit "
+                "broadcast rate of: "
+                << dynamic_transforms_rate << " Hz");
+            timer_ = getNodeHandle().createTimer(
+                ros::Duration(1.0 / dynamic_transforms_rate),
+                [this, info](const ros::TimerEvent&) {
+                    tf_bcast.broadcast_transforms(info, last_msg_ts);
+                });
+        }
+
         create_publishers(get_n_returns(info));
         create_subscriptions(info);
     }
@@ -86,7 +111,6 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     void create_subscriptions(const sensor::sensor_info& info) {
-
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = parse_tokens(proc_mask, '|');
@@ -100,9 +124,12 @@ class OusterCloud : public nodelet::Nodelet {
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), use_ros_time);
             imu_packet_sub = nh.subscribe<PacketMsg>(
-                "imu_packets", 100,
-                [this](const PacketMsg::ConstPtr msg) {
+                "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     auto imu_msg = imu_packet_handler(msg->buf.data());
+
+                    if (imu_msg.header.stamp > last_msg_ts)
+                        last_msg_ts = imu_msg.header.stamp;
+
                     imu_pub.publish(imu_msg);
                 });
         }
@@ -113,21 +140,26 @@ class OusterCloud : public nodelet::Nodelet {
                 info, tf_bcast.point_cloud_frame_id(),
                 tf_bcast.apply_lidar_to_sensor_transform(),
                 [this](PointCloudProcessor::OutputType point_cloud_msg) {
-                    for (size_t i = 0; i < point_cloud_msg.size(); ++i)
+                    for (size_t i = 0; i < point_cloud_msg.size(); ++i) {
+                        if (point_cloud_msg[i]->header.stamp > last_msg_ts)
+                            last_msg_ts = point_cloud_msg[i]->header.stamp;
+
                         lidar_pubs[i].publish(*point_cloud_msg[i]);
+                    }
                 }));
         }
 
         if (check_token(tokens, "SCAN")) {
             // TODO: avoid duplication in os_cloud_node
-            int beams_count = static_cast<int>(ouster_ros::get_beams_count(info));
+            int beams_count =
+                static_cast<int>(ouster_ros::get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != pnh.param("scan_ring", 0)) {
                 ROS_WARN_STREAM(
                     "scan ring is set to a value that exceeds available range"
-                    "please choose a value between [0, " << beams_count << "], "
-                    "ring value clamped to: " << scan_ring);
+                    "please choose a value between [0, " << beams_count
+                    << "], ring value clamped to: " << scan_ring);
             }
 
             processors.push_back(LaserScanProcessor::create(
@@ -137,8 +169,12 @@ class OusterCloud : public nodelet::Nodelet {
                                               // different frame for the laser
                                               // scan than point cloud???
                 0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
-                    for (size_t i = 0; i < laser_scan_msg.size(); ++i)
+                    for (size_t i = 0; i < laser_scan_msg.size(); ++i) {
+                        if (laser_scan_msg[i]->header.stamp > last_msg_ts)
+                            last_msg_ts = laser_scan_msg[i]->header.stamp;
+
                         scan_pubs[i].publish(*laser_scan_msg[i]);
+                    }
                 }));
         }
 
@@ -146,8 +182,7 @@ class OusterCloud : public nodelet::Nodelet {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, use_ros_time, processors);
             lidar_packet_sub = nh.subscribe<PacketMsg>(
-                "lidar_packets", 100,
-                [this](const PacketMsg::ConstPtr msg) {
+                "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     lidar_packet_handler(msg->buf.data());
                 });
         }
@@ -165,9 +200,11 @@ class OusterCloud : public nodelet::Nodelet {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+
+    ros::Timer timer_;
+    ros::Time last_msg_ts;
 };
 
-}  // namespace ouster_ros
-
+}  // namespace nodelets_os
 
 PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterCloud, nodelet::Nodelet)
