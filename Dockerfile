@@ -56,7 +56,7 @@ RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make         \
     -DCMAKE_BUILD_TYPE=Release --make-args tests    \
     && /opt/ros/$ROS_DISTRO/env.sh catkin_make install
 
-RUN /opt/ros/$ROS_DISTRO/env.sh rosrun ouster_ros ouster_ros_test
+RUN . ./devel/setup.bash && rosrun ouster_ros ouster_ros_test
 
 # Entrypoint for running Ouster ros:
 #
