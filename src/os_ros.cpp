@@ -48,9 +48,9 @@ std::string topic_for_return(const std::string& base, int idx) {
 }
 
 sensor_msgs::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
-                                        const ros::Time& timestamp,
-                                        const std::string& frame,
-                                        const uint8_t* buf) {
+                                   const ros::Time& timestamp,
+                                   const std::string& frame,
+                                   const uint8_t* buf) {
     sensor_msgs::Imu m;
     m.header.stamp = timestamp;
     m.header.frame_id = frame;
@@ -84,9 +84,9 @@ sensor_msgs::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
 }
 
 sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
-                                        const ros::Time& timestamp,
-                                        const std::string& frame,
-                                        const sensor::packet_format& pf) {
+                                   const ros::Time& timestamp,
+                                   const std::string& frame,
+                                   const sensor::packet_format& pf) {
     return packet_to_imu_msg(pf, timestamp, frame, pm.buf.data());
 }
 
@@ -118,7 +118,7 @@ ros::Time ts_to_ros_time(uint64_t ts) {
     return t;
 }
 
-}
+}  // namespace impl
 
 template <typename PointT, typename RangeT, typename ReflectivityT,
           typename NearIrT, typename SignalT>
@@ -260,8 +260,8 @@ void scan_to_cloud_f(ouster::PointsF& points,
 }
 
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
-                                                 const ros::Time& timestamp,
-                                                 const std::string& frame) {
+                                            const ros::Time& timestamp,
+                                            const std::string& frame) {
     sensor_msgs::PointCloud2 msg{};
     pcl::toROSMsg(cloud, msg);
     msg.header.frame_id = frame;

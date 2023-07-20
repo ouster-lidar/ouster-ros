@@ -9,13 +9,11 @@
 
 #include <pluginlib/class_list_macros.h>
 
-#include <fstream>
-
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
 namespace sensor = ouster::sensor;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterReplay : public OusterSensorNodeletBase {
    private:
@@ -29,7 +27,8 @@ class OusterReplay : public OusterSensorNodeletBase {
     }
 
     std::string get_meta_file() const {
-        auto meta_file = getPrivateNodeHandle().param("metadata", std::string{});
+        auto meta_file =
+            getPrivateNodeHandle().param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
             NODELET_ERROR("Must specify metadata file in replay mode");
             throw std::runtime_error("metadata no specificed");
@@ -48,9 +47,8 @@ class OusterReplay : public OusterSensorNodeletBase {
                 "Error when running in replay mode: " << e.what());
         }
     }
-
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterReplay, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterReplay, nodelet::Nodelet)

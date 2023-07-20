@@ -54,11 +54,12 @@ FROM build-env
 SHELL ["/bin/bash", "-c"]
 
 ENV CXXFLAGS="-Werror -Wno-deprecated-declarations"
-RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make         \
-    -DCMAKE_BUILD_TYPE=Release --make-args tests    \
-    && /opt/ros/$ROS_DISTRO/env.sh catkin_make install
+RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make     \
+-DCMAKE_BUILD_TYPE=Release                      \
+&& /opt/ros/$ROS_DISTRO/env.sh catkin_make install
 
-RUN source ./devel/setup.bash && rosrun ouster_ros ouster_ros_test
+RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make --make-args tests \
+&& source ./devel/setup.bash && rosrun ouster_ros ouster_ros_test
 
 # Entrypoint for running Ouster ros:
 #

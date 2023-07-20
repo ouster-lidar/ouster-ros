@@ -35,6 +35,6 @@
   <test_depend>gtest</test_depend>
 
   <export>
-    <nodelet plugin="${prefix}/nodelets_os.xml"/>
+    <nodelet plugin="${prefix}/ouster_ros_nodelets.xml"/>
   </export>
 </package>

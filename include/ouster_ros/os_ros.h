@@ -17,8 +17,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/PointCloud2.h>
 
 #include <chrono>
 #include <string>
@@ -40,12 +40,12 @@ using ns = std::chrono::nanoseconds;
 bool is_legacy_lidar_profile(const sensor::sensor_info& info);
 
 /**
- * Gets the number of point cloud returns that this sensor_info object represents
+ * Gets the number of point cloud returns that this sensor_info object
+ * represents
  * @param[in] info sensor_info
  * @return number of returns
  */
 int get_n_returns(const sensor::sensor_info& info);
-
 
 /**
  * Gets the number beams based on supplied sensor_info
@@ -71,9 +71,9 @@ std::string topic_for_return(const std::string& topic_base, int return_idx);
  * @return ROS sensor message with fields populated from the packet
  */
 sensor_msgs::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
-                                        const ros::Time& timestamp,
-                                        const std::string& frame,
-                                        const uint8_t* buf);
+                                   const ros::Time& timestamp,
+                                   const std::string& frame,
+                                   const uint8_t* buf);
 
 /**
  * Parse an imu packet message into a ROS imu message
@@ -84,9 +84,9 @@ sensor_msgs::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
  * @return ROS sensor message with fields populated from the packet
  */
 sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
-                                        const ros::Time& timestamp,
-                                        const std::string& frame,
-                                        const sensor::packet_format& pf);
+                                   const ros::Time& timestamp,
+                                   const std::string& frame,
+                                   const sensor::packet_format& pf);
 
 /**
  * Populate a PCL point cloud from a LidarScan.
@@ -132,8 +132,8 @@ void scan_to_cloud_f(ouster::PointsF& points,
  * @return a ROS message containing the point cloud
  */
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
-                                                 const ros::Time& timestamp,
-                                                 const std::string& frame);
+                                            const ros::Time& timestamp,
+                                            const std::string& frame);
 
 /**
  * Convert transformation matrix return by sensor to ROS transform
@@ -148,7 +148,6 @@ geometry_msgs::TransformStamped transform_to_tf_msg(
     const ouster::mat4d& mat, const std::string& frame,
     const std::string& child_frame, ros::Time timestamp);
 
-
 /**
  * Convert transformation matrix return by sensor to ROS transform
  * @param[in] ls lidar scan object
@@ -159,12 +158,9 @@ geometry_msgs::TransformStamped transform_to_tf_msg(
  * @return ROS message suitable for publishing as a LaserScan
  */
 sensor_msgs::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::LidarScan& ls,
-    const ros::Time& timestamp,
-    const std::string &frame,
-    const ouster::sensor::lidar_mode lidar_mode,
-    const uint16_t ring,
-    const int return_index);
+    const ouster::LidarScan& ls, const ros::Time& timestamp,
+    const std::string& frame, const ouster::sensor::lidar_mode lidar_mode,
+    const uint16_t ring, const int return_index);
 
 namespace impl {
 sensor::ChanField suitable_return(sensor::ChanField input_field, bool second);
@@ -191,6 +187,6 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
 
 ros::Time ts_to_ros_time(uint64_t ts);
 
-} // namespace impl
+}  // namespace impl
 
 }  // namespace ouster_ros

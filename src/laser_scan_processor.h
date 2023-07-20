@@ -8,19 +8,17 @@
 
 #pragma once
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-using ouster_ros::get_n_returns;
-using ouster_ros::lidar_scan_to_laser_scan_msg;
+namespace ouster_ros {
 
 class LaserScanProcessor {
    public:
-    using OutputType =
-        std::vector<std::shared_ptr<sensor_msgs::LaserScan>>;
+    using OutputType = std::vector<std::shared_ptr<sensor_msgs::LaserScan>>;
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
@@ -65,3 +63,5 @@ class LaserScanProcessor {
     OutputType scan_msgs;
     PostProcessingFn post_processing_fn;
 };
+
+}  // namespace ouster_ros

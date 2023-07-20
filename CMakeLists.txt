@@ -77,15 +77,15 @@ target_link_libraries(ouster_ros PUBLIC ${catkin_LIBRARIES} ouster_build pcl_com
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
-add_library(nodelets_os
+add_library(${PROJECT_NAME}_nodelets
   src/os_sensor_nodelet_base.cpp
   src/os_sensor_nodelet.cpp
   src/os_replay_nodelet.cpp
   src/os_cloud_nodelet.cpp
   src/os_image_nodelet.cpp
   src/os_driver_nodelet.cpp)
-target_link_libraries(nodelets_os ouster_ros ${catkin_LIBRARIES})
-add_dependencies(nodelets_os ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_nodelets ouster_ros ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
 # ==== Test ====
 if(CATKIN_ENABLE_TESTING)
@@ -96,8 +96,8 @@ endif()
 # ==== Install ====
 install(
   TARGETS
-    ouster_ros
-    nodelets_os
+    ${PROJECT_NAME}
+    ${PROJECT_NAME}_nodelets
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -111,7 +111,7 @@ install(
 install(
   FILES
     LICENSE
-    nodelets_os.xml
+    ${PROJECT_NAME}_nodelets.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 

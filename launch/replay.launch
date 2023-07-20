@@ -17,7 +17,7 @@
     doc="sets name of choice for the os_lidar tf frame, value can not be empty"/>
   <arg name="imu_frame" default="os_imu"
     doc="sets name of choice for the os_imu tf frame, value can not be empty"/>
-  <arg name="point_cloud_frame" default=""
+  <arg name="point_cloud_frame" default=" "
     doc="which frame to be used when publishing PointCloud2 or LaserScan messages.
     Choose between the value of sensor_frame or lidar_frame, leaving this value empty
     would set lidar_frame to be the frame used when publishing these messages."/>
@@ -49,7 +49,7 @@
     <node if="$(arg _use_metadata_file)" pkg="nodelet" type="nodelet"
       name="os_node" output="screen" required="true"
       launch-prefix="bash -c 'sleep 3; $0 $@' "
-      args="load nodelets_os/OusterReplay os_nodelet_mgr">
+      args="load ouster_ros/OusterReplay os_nodelet_mgr">
       <param name="~/metadata" value="$(arg metadata)"/>
     </node>
   </group>

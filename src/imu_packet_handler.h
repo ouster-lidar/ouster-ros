@@ -8,11 +8,13 @@
 
 #pragma once
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
 // clang-format on
+
+namespace ouster_ros {
 
 class ImuPacketHandler {
    public:
@@ -30,11 +32,12 @@ class ImuPacketHandler {
             Timestamper{[](const uint8_t* /*imu_buf*/) {
                 return ros::Time::now(); }} :
             Timestamper{[pf](const uint8_t* imu_buf) {
-                return ouster_ros::impl::ts_to_ros_time(pf.imu_gyro_ts(imu_buf)); }};
+                return impl::ts_to_ros_time(pf.imu_gyro_ts(imu_buf)); }};
         // clang-format on
         return [&pf, &frame, timestamper](const uint8_t* imu_buf) {
-            return ouster_ros::packet_to_imu_msg(pf, timestamper(imu_buf),
-                                                 frame, imu_buf);
+            return packet_to_imu_msg(pf, timestamper(imu_buf), frame, imu_buf);
         };
     }
 };
+
+}  // namespace ouster_ros

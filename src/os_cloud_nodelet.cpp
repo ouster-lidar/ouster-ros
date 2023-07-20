@@ -6,7 +6,7 @@
  * @brief A nodelet to publish point clouds and imu topics
  */
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
@@ -33,9 +33,8 @@
 #include "laser_scan_processor.h"
 
 namespace sensor = ouster::sensor;
-using ouster_ros::PacketMsg;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterCloud : public nodelet::Nodelet {
    public:
@@ -119,7 +118,7 @@ class OusterCloud : public nodelet::Nodelet {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    ouster_ros::topic_for_return("points", i), 10);
+                    topic_for_return("points", i), 10);
             }
 
             processors.push_back(PointCloudProcessor::create(
@@ -138,12 +137,11 @@ class OusterCloud : public nodelet::Nodelet {
             scan_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    ouster_ros::topic_for_return("scan", i), 10);
+                    topic_for_return("scan", i), 10);
             }
 
             // TODO: avoid duplication in os_cloud_node
-            int beams_count =
-                static_cast<int>(ouster_ros::get_beams_count(info));
+            int beams_count = static_cast<int>(get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != pnh.param("scan_ring", 0)) {
@@ -186,7 +184,7 @@ class OusterCloud : public nodelet::Nodelet {
     std::vector<ros::Publisher> lidar_pubs;
     std::vector<ros::Publisher> scan_pubs;
 
-    ouster_ros::OusterTransformsBroadcaster tf_bcast;
+    OusterTransformsBroadcaster tf_bcast;
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
@@ -195,6 +193,6 @@ class OusterCloud : public nodelet::Nodelet {
     ros::Time last_msg_ts;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterCloud, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterCloud, nodelet::Nodelet)

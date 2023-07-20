@@ -8,7 +8,7 @@
 
 #pragma once
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
@@ -77,8 +77,10 @@ inline bool check_token(const std::set<std::string>& tokens,
 
 namespace sensor = ouster::sensor;
 
-using LidarScanProcessor = std::function<void(const ouster::LidarScan&,
-                                              uint64_t, const ros::Time&)>;
+using LidarScanProcessor =
+    std::function<void(const ouster::LidarScan&, uint64_t, const ros::Time&)>;
+
+namespace ouster_ros {
 
 class LidarPacketHandler {
     using LidarPacketAccumlator = std::function<bool(const uint8_t*)>;
@@ -221,8 +223,8 @@ class LidarPacketHandler {
     }
 
     ros::Time extrapolate_frame_ts(const sensor::packet_format& pf,
-                                      const uint8_t* lidar_buf,
-                                      const ros::Time current_time) {
+                                   const uint8_t* lidar_buf,
+                                   const ros::Time current_time) {
         auto curr_scan_first_arrived_idx = packet_col_index(pf, lidar_buf);
         auto delta_time = ros::Duration(
             0,
@@ -235,7 +237,7 @@ class LidarPacketHandler {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
         lidar_scan_estimated_msg_ts =
-            ouster_ros::impl::ts_to_ros_time(lidar_scan_estimated_ts);
+            impl::ts_to_ros_time(lidar_scan_estimated_ts);
         return true;
     }
 
@@ -285,3 +287,5 @@ class LidarPacketHandler {
 
     LidarPacketAccumlator lidar_packet_accumlator;
 };
+
+}  // namespace ouster_ros

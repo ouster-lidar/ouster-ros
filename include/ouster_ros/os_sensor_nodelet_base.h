@@ -12,7 +12,7 @@
 
 #include <ouster/types.h>
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterSensorNodeletBase : public nodelet::Nodelet {
    protected:
@@ -40,4 +40,4 @@ class OusterSensorNodeletBase : public nodelet::Nodelet {
     ros::Publisher metadata_pub;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros

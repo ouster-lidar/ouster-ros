@@ -7,7 +7,7 @@
  * into a single ROS nodelet
  */
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
@@ -27,7 +27,7 @@
 
 namespace sensor = ouster::sensor;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterDriver : public OusterSensor {
    public:
@@ -48,7 +48,8 @@ class OusterDriver : public OusterSensor {
 
     virtual void create_publishers() override {
         auto& pnh = getPrivateNodeHandle();
-        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|IMG|PCL|SCAN"});
+        auto proc_mask =
+            pnh.param("proc_mask", std::string{"IMU|IMG|PCL|SCAN"});
         auto tokens = parse_tokens(proc_mask, '|');
 
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
@@ -69,7 +70,7 @@ class OusterDriver : public OusterSensor {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    ouster_ros::topic_for_return("points", i), 10);
+                    topic_for_return("points", i), 10);
             }
 
             processors.push_back(PointCloudProcessor::create(
@@ -86,12 +87,11 @@ class OusterDriver : public OusterSensor {
             scan_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    ouster_ros::topic_for_return("scan", i), 10);
+                    topic_for_return("scan", i), 10);
             }
 
             // TODO: avoid duplication in os_cloud_node
-            int beams_count =
-                static_cast<int>(ouster_ros::get_beams_count(info));
+            int beams_count = static_cast<int>(get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != pnh.param("scan_ring", 0)) {
@@ -113,7 +113,6 @@ class OusterDriver : public OusterSensor {
                     }
                 }));
         }
-
 
         if (check_token(tokens, "IMG")) {
             const std::map<sensor::ChanField, std::string>
@@ -170,12 +169,12 @@ class OusterDriver : public OusterSensor {
     std::vector<ros::Publisher> scan_pubs;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
 
-    ouster_ros::OusterTransformsBroadcaster tf_bcast;
+    OusterTransformsBroadcaster tf_bcast;
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterDriver, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterDriver, nodelet::Nodelet)

@@ -16,9 +16,8 @@
 #include "ouster_ros/GetMetadata.h"
 
 namespace sensor = ouster::sensor;
-using ouster_ros::GetMetadata;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 void OusterSensorNodeletBase::create_get_metadata_service() {
     auto& nh = getNodeHandle();
@@ -44,7 +43,8 @@ void OusterSensorNodeletBase::publish_metadata() {
     metadata_pub.publish(metadata_msg);
 }
 
-void OusterSensorNodeletBase::display_lidar_info(const sensor::sensor_info& info) {
+void OusterSensorNodeletBase::display_lidar_info(
+    const sensor::sensor_info& info) {
     auto lidar_profile = info.format.udp_profile_lidar;
     NODELET_INFO_STREAM(
         "ouster client version: "
@@ -55,7 +55,8 @@ void OusterSensorNodeletBase::display_lidar_info(const sensor::sensor_info& info
         << "lidar udp profile: " << sensor::to_string(lidar_profile));
 }
 
-std::string OusterSensorNodeletBase::read_text_file(const std::string& text_file) {
+std::string OusterSensorNodeletBase::read_text_file(
+    const std::string& text_file) {
     std::ifstream ifs{};
     ifs.open(text_file);
     if (ifs.fail()) return {};
@@ -65,7 +66,7 @@ std::string OusterSensorNodeletBase::read_text_file(const std::string& text_file
 }
 
 bool OusterSensorNodeletBase::write_text_to_file(const std::string& file_path,
-                    const std::string& text) {
+                                                 const std::string& text) {
     std::ofstream ofs(file_path);
     if (!ofs.is_open()) return false;
     ofs << text << std::endl;
@@ -73,4 +74,4 @@ bool OusterSensorNodeletBase::write_text_to_file(const std::string& file_path,
     return true;
 }
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros

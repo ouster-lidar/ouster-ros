@@ -25,11 +25,8 @@
 #include "thread_safe_ring_buffer.h"
 
 namespace sensor = ouster::sensor;
-using ouster_ros::GetConfig;
-using ouster_ros::SetConfig;
-using ouster_ros::PacketMsg;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 class OusterSensor : public OusterSensorNodeletBase {
    private:
@@ -156,4 +153,4 @@ class OusterSensor : public OusterSensorNodeletBase {
     int read_imu_packet_errors = 0;
 };
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros

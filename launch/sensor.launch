@@ -36,7 +36,7 @@
     doc="sets name of choice for the os_lidar tf frame, value can not be empty"/>
   <arg name="imu_frame" default="os_imu"
     doc="sets name of choice for the os_imu tf frame, value can not be empty"/>
-  <arg name="point_cloud_frame" default=""
+  <arg name="point_cloud_frame" default=" "
     doc="which frame to be used when publishing PointCloud2 or LaserScan messages.
     Choose between the value of sensor_frame or lidar_frame, leaving this value empty
     would set lidar_frame to be the frame used when publishing these messages."/>
@@ -44,7 +44,7 @@
   <arg name="no_bond" default="false"
     doc="request no bond setup when nodelets are created"/>
   <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
-  <arg unless="$(arg no_bond)" name="_no_bond" value="" />
+  <arg unless="$(arg no_bond)" name="_no_bond" value=" "/>
 
   <arg name="dynamic_transforms_broadcast" default="false"
     doc="static or dynamic transforms broadcast"/>
@@ -70,7 +70,7 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_node"
       output="screen" required="true"
-      args="load nodelets_os/OusterSensor os_nodelet_mgr $(arg _no_bond)">
+      args="load ouster_ros/OusterSensor os_nodelet_mgr $(arg _no_bond)">
       <param name="~/sensor_hostname" type="str" value="$(arg sensor_hostname)"/>
       <param name="~/udp_dest" type="str" value="$(arg udp_dest)"/>
       <param name="~/lidar_port" type="int" value="$(arg lidar_port)"/>

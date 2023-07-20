@@ -23,7 +23,7 @@ class OusterTransformsBroadcaster {
         return arg.find_first_not_of(' ') != std::string::npos;
     }
 
-   std::string getName() const { return node_name; }
+    const std::string& getName() const { return node_name; }
 
    public:
     void parse_parameters(ros::NodeHandle& pnh) {
@@ -41,8 +41,8 @@ class OusterTransformsBroadcaster {
 
         // validate point_cloud_frame
         if (!is_arg_set(point_cloud_frame)) {
-            point_cloud_frame =
-                sensor_frame;  // for ROS1 we'd still use sensor_frame
+            // for ROS1 we'd still default to sensor_frame
+            point_cloud_frame = sensor_frame;
         } else if (point_cloud_frame != sensor_frame &&
                    point_cloud_frame != lidar_frame) {
             NODELET_WARN(
@@ -73,17 +73,17 @@ class OusterTransformsBroadcaster {
 
     void broadcast_transforms(const sensor::sensor_info& info) {
         auto now = ros::Time::now();
-        static_tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+        static_tf_bcast.sendTransform(transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now));
-        static_tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+        static_tf_bcast.sendTransform(transform_to_tf_msg(
             info.imu_to_sensor_transform, sensor_frame, imu_frame, now));
     }
 
     void broadcast_transforms(const sensor::sensor_info& info,
                               const ros::Time& ts) {
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+        tf_bcast.sendTransform(transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, ts));
-        tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
+        tf_bcast.sendTransform(transform_to_tf_msg(
             info.imu_to_sensor_transform, sensor_frame, imu_frame, ts));
     }
 

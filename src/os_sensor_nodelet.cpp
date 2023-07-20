@@ -27,7 +27,7 @@ using nonstd::optional;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
-namespace nodelets_os {
+namespace ouster_ros {
 
 void OusterSensor::onInit() {
     sensor_hostname = get_sensor_hostname();
@@ -474,8 +474,7 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
         bool success = sensor::read_lidar_packet(cli, buffer, pf);
         if (success) {
             read_lidar_packet_errors = 0;
-            if (!ouster_ros::is_legacy_lidar_profile(info) &&
-                init_id_changed(pf, buffer)) {
+            if (!is_legacy_lidar_profile(info) && init_id_changed(pf, buffer)) {
                 // TODO: short circut reset if no breaking changes occured?
                 NODELET_WARN("sensor init_id has changed! reactivating..");
                 reactivate_sensor();
@@ -616,6 +615,6 @@ void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
         "sensor reactivate is invoked but sensor it is not implemented");
 }
 
-}  // namespace nodelets_os
+}  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterSensor, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterSensor, nodelet::Nodelet)

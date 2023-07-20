@@ -8,7 +8,7 @@
 
 #pragma once
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
@@ -21,6 +21,7 @@
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
 
+namespace ouster_ros {
 class ImageProcessor {
    public:
     using OutputType =
@@ -91,18 +92,18 @@ class ImageProcessor {
         ouster::img_t<uint32_t> range =
             lidar_scan.field<uint32_t>(range_channel);
 
-        ouster::img_t<uint16_t> reflectivity = ouster_ros::impl::get_or_fill_zero<uint16_t>(
-            ouster_ros::impl::suitable_return(sensor::ChanField::REFLECTIVITY, !first),
+        ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
+            impl::suitable_return(sensor::ChanField::REFLECTIVITY, !first),
             lidar_scan);
 
-        ouster::img_t<uint32_t> signal = ouster_ros::impl::get_or_fill_zero<uint32_t>(
-            ouster_ros::impl::suitable_return(sensor::ChanField::SIGNAL, !first),
+        ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
+            impl::suitable_return(sensor::ChanField::SIGNAL, !first),
             lidar_scan);
 
         // TODO: note that near_ir will be processed twice for DUAL return
         // sensor
-        ouster::img_t<uint16_t> near_ir = ouster_ros::impl::get_or_fill_zero<uint16_t>(
-            ouster_ros::impl::suitable_return(sensor::ChanField::NEAR_IR, !first),
+        ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
+            impl::suitable_return(sensor::ChanField::NEAR_IR, !first),
             lidar_scan);
 
         uint32_t H = info_.format.pixels_per_column;
@@ -110,23 +111,23 @@ class ImageProcessor {
 
         // views into message data
         auto range_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
+            (pixel_type*)image_msgs[impl::suitable_return(
                                         sensor::ChanField::RANGE, !first)]
                 ->data.data(),
             H, W);
         auto signal_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
+            (pixel_type*)image_msgs[impl::suitable_return(
                                         sensor::ChanField::SIGNAL, !first)]
                 ->data.data(),
             H, W);
         auto reflec_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
             (pixel_type*)
-                image_msgs[ouster_ros::impl::suitable_return(
+                image_msgs[impl::suitable_return(
                                sensor::ChanField::REFLECTIVITY, !first)]
                     ->data.data(),
             H, W);
         auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[ouster_ros::impl::suitable_return(
+            (pixel_type*)image_msgs[impl::suitable_return(
                                         sensor::ChanField::NEAR_IR, !first)]
                 ->data.data(),
             H, W);
@@ -147,7 +148,7 @@ class ImageProcessor {
             for (size_t v = 0; v < W; v++) {
                 const size_t vv = (v + W - px_offset[u]) % W;
                 const size_t idx = u * W + vv;
-                 // TODO: re-examine this truncation later
+                // TODO: re-examine this truncation later
                 // 16 bit img: use 4mm resolution and throw out returns > 260m
                 auto r = (rg[idx] + 0b10) >> 2;
                 range_image_map(u, v) = r > pixel_value_max ? 0 : r;
@@ -193,3 +194,5 @@ class ImageProcessor {
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
 };
+
+}  // namespace ouster_ros

@@ -8,21 +8,22 @@
 
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include <vector>
 
 /**
  * @class ThreadSafeRingBuffer thread safe ring buffer.
  */
 class ThreadSafeRingBuffer {
-public:
-    ThreadSafeRingBuffer(size_t item_size_, size_t items_count_) :
-        buffer(item_size_ * items_count_), item_size(item_size_),
-        max_items_count(items_count_), active_items_count(0),
-        write_idx(0), read_idx(0) {
-    }
+   public:
+    ThreadSafeRingBuffer(size_t item_size_, size_t items_count_)
+        : buffer(item_size_ * items_count_),
+          item_size(item_size_),
+          max_items_count(items_count_),
+          active_items_count(0),
+          write_idx(0),
+          read_idx(0) {}
 
     /**
      * Gets the maximum number of items that this ring buffer can hold.
@@ -32,7 +33,7 @@ public:
     /**
      * Gets the number of item that currently occupy the ring buffer. This
      * number would vary between 0 and the capacity().
-     * 
+     *
      * @remarks
      *  if returned value was 0 or the value was equal to the buffer capacity(),
      *  this does not guarantee that a subsequent call to read() or write()
@@ -45,7 +46,7 @@ public:
 
     /**
      * Checks if the ring buffer is empty.
-     * 
+     *
      * @remarks
      *  if empty() returns true this does not guarantee that calling the write()
      *  operation directly right after wouldn't block the calling thread.
@@ -57,7 +58,7 @@ public:
 
     /**
      * Checks if the ring buffer is full.
-     * 
+     *
      * @remarks
      *  if full() returns true this does not guarantee that calling the read()
      *  operation directly right after wouldn't block the calling thread.
@@ -68,19 +69,19 @@ public:
     }
 
     /**
-     * Writes to the buffer safely, the method will keep blocking until the there
-     * is a space available within the buffer.
+     * Writes to the buffer safely, the method will keep blocking until the
+     * there is a space available within the buffer.
      */
     template <class BufferWriteFn>
     void write(BufferWriteFn&& buffer_write) {
         std::unique_lock<std::mutex> lock(mutex);
-        fullCondition.wait(lock, [this] { return active_items_count < capacity(); });
+        fullCondition.wait(lock,
+                           [this] { return active_items_count < capacity(); });
         buffer_write(&buffer[write_idx * item_size]);
         write_idx = (write_idx + 1) % capacity();
         ++active_items_count;
         emptyCondition.notify_one();
     }
-
 
     /**
      * Writes to the buffer safely, if there is not space left then this method
@@ -118,9 +119,11 @@ public:
      * inaccessible the method will timeout and buffer_read gets a nullptr.
      */
     template <typename BufferReadFn>
-    void read_timeout(BufferReadFn&& buffer_read, std::chrono::seconds timeout) {
+    void read_timeout(BufferReadFn&& buffer_read,
+                      std::chrono::seconds timeout) {
         std::unique_lock<std::mutex> lock(mutex);
-        if (emptyCondition.wait_for(lock, timeout, [this] { return active_items_count > 0; })) {
+        if (emptyCondition.wait_for(
+                lock, timeout, [this] { return active_items_count > 0; })) {
             buffer_read(&buffer[read_idx * item_size]);
             read_idx = (read_idx + 1) % capacity();
             --active_items_count;
@@ -130,7 +133,7 @@ public:
         }
     }
 
-private:
+   private:
     std::vector<uint8_t> buffer;
     size_t item_size;
     size_t max_items_count;
