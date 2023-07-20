@@ -22,6 +22,15 @@ ouster_ros(1)
 * make specifying metadata file optional during record and replay modes as of package version 8.1
 * added a no-bond option to the ``sensor.launch`` file
 * reduce the publish rate of imu tf transforms
+* implemented a new node named ``os_driver`` which combines the functionality of ``os_sensor``,
+  ``os_cloud`` and ``os_image`` into a single node. The new node can be launch via the new 
+  ``driver.launch`` file.
+* introduced a new topic ``/ouster/scan`` which publishes ``sensor_msgs::msg::LaserScan`` messages
+* added ability to pick which messsages to process and through the new ``proc_mask`` launch file
+  argument.
+* introduced a new parameter ``point_cloud_frame`` to allow users to select which frame to use when
+  publishing the point cloud (choose between ``sensor`` and ``lidar``). The default publishing frame
+  the sensor one which is in line with the current behavior.
 
 ouster_ros(2)
 -------------
