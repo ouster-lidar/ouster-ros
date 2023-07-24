@@ -21,6 +21,7 @@
     - [Recording Mode](#recording-mode)
     - [Replay Mode](#replay-mode)
     - [Multicast Mode (experimental)](#multicast-mode-experimental)
+  - [Launch Files Arguments](#launch-files-arguments)
   - [Invoking Services](#invoking-services)
     - [GetMetadata](#getmetadata)
     - [GetConfig](#getconfig)
@@ -162,6 +163,17 @@ roslaunch ouster_ros sensor_mtp.launch      \
 > **Note:** 
 > In both cases the **mtp_dest** is optional and if left unset the client will utilize the first
 available interface.
+
+### Launch Files Arguments
+Each of the previously mentioned launch files include a variety of launch arguments that helps the
+user customize the driver behaivor. To view the arguments that each launch file provides and their
+purpose pass `--ros-args` along with the specific launch file that you are interested in. For
+example, to view launche arguments of the `driver.launch` use the following command:
+```bash
+roslaunch ouster_ros driver.launch --ros-args
+```
+The command should list all available arguments, whether they are optional or required and the
+description and posible values of each argument.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal
