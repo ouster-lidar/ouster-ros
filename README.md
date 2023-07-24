@@ -96,11 +96,20 @@ recorded bag or _record_ a new bag file using the corresponding launch files. Re
 added a new mode that supports multicast. The commands are listed below:
 
 #### Sensor Mode
+The driver offers two launch files to connect to an Ouster sensor: `sensor.launch` and
+`driver.launch`; they differ in terms of how the processing of incoming packets is performed.
+`sensor.launch` spawns three nodelets, one to connect to the sensor and publishes raw packets to
+the two other nodelets which handles converting them into **Imu**, **Image** and **PointCloud2**
+messages. Meanwhile, `driver.launch` file spawn a single nodelet that handles all of these tasks.
+You can invoke the two files in the same way. The following line shows how to run the node using
+`driver.launch`:
 ```bash
-roslaunch ouster_ros sensor.launch      \
+roslaunch ouster_ros driver.launch      \
     sensor_hostname:=<sensor host name> \
     metadata:=<json file name>          # optional
 ```
+`driver.launch` offers better performance and reduced overhead on the ROS bus, thus it is preferred
+over `sensor.launch`. `sensor.launch` is mainly provided for backward compatibilty.
 
 #### Recording Mode
 > Note
