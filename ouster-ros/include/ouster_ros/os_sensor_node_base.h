@@ -38,7 +38,8 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
 
     static std::string read_text_file(const std::string& text_file);
 
-    static bool write_text_to_file(const std::string& file_path, const std::string& text);
+    static bool write_text_to_file(const std::string& file_path,
+                                   const std::string& text);
 
    protected:
     ouster::sensor::sensor_info info;
