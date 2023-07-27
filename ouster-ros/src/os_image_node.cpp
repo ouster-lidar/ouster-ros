@@ -32,7 +32,6 @@
 #include "ouster/image_processing.h"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_processing_node_base.h"
-#include "ouster_srvs/srv/get_metadata.hpp"
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;

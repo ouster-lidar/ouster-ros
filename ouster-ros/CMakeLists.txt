@@ -15,7 +15,6 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_msgs REQUIRED)
-find_package(ouster_srvs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -65,7 +64,6 @@ set(ouster_ros_library_deps
   sensor_msgs
   geometry_msgs
   ouster_msgs
-  ouster_srvs
   pcl_conversions
   tf2
   tf2_eigen

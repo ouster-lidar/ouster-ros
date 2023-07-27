@@ -69,7 +69,7 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: true
       Max Color: 255; 255; 255
-      Max Intensity: 3000
+      Max Intensity: 10000
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: PointCloud2

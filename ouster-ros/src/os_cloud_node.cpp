@@ -21,7 +21,6 @@
 #include <cassert>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
-#include "ouster_srvs/srv/get_metadata.hpp"
 #include "ouster_ros/os_processing_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
@@ -78,11 +77,11 @@ class OusterCloud : public OusterProcessingNodeBase {
                     "OusterCloud: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
         os_tf_bcast.broadcast_transforms(info);
-        create_publishers(get_n_returns(info));
-        create_subscriptions();
+        create_publishers_subscriptions(info);
     }
 
-    void create_publishers(int num_returns) {
+    void create_publishers_subscriptions(const sensor::sensor_info& info) {
+
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
         rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
@@ -90,32 +89,11 @@ class OusterCloud : public OusterProcessingNodeBase {
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
 
-        imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
-        lidar_pubs.resize(num_returns);
-        for (int i = 0; i < num_returns; i++) {
-            lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                topic_for_return("points", i), selected_qos);
-        }
-
-        scan_pubs.resize(num_returns);
-        for (int i = 0; i < num_returns; i++) {
-            scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
-                topic_for_return("scan", i), selected_qos);
-        }
-    }
-
-    void create_subscriptions() {
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = parse_tokens(proc_mask, '|');
 
-        bool use_system_default_qos =
-            get_parameter("use_system_default_qos").as_bool();
-        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
-        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
-        auto selected_qos =
-            use_system_default_qos ? system_default_qos : sensor_data_qos;
-
         if (check_token(tokens, "IMU")) {
+            imu_pub = create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, os_tf_bcast.imu_frame_id(), use_ros_time);
             imu_packet_sub = create_subscription<PacketMsg>(
@@ -126,19 +104,31 @@ class OusterCloud : public OusterProcessingNodeBase {
                 });
         }
 
+        int num_returns = get_n_returns(info);
+
         std::vector<LidarScanProcessor> processors;
         if (check_token(tokens, "PCL")) {
+            lidar_pubs.resize(num_returns);
+            for (int i = 0; i < num_returns; ++i) {
+                lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
+                    topic_for_return("points", i), selected_qos);
+            }
             processors.push_back(PointCloudProcessor::create(
                 info, os_tf_bcast.point_cloud_frame_id(),
                 os_tf_bcast.apply_lidar_to_sensor_transform(),
-                [this](PointCloudProcessor::OutputType point_cloud_msg) {
-                    for (size_t i = 0; i < point_cloud_msg.size(); ++i)
-                        lidar_pubs[i]->publish(*point_cloud_msg[i]);
+                [this](PointCloudProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i)
+                        lidar_pubs[i]->publish(*msgs[i]);
                 }));
         }
 
         if (check_token(tokens, "SCAN")) {
-            // TODO: avoid duplication in os_cloud_node
+            scan_pubs.resize(num_returns);
+            for (int i = 0; i < num_returns; ++i) {
+                scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
+                    topic_for_return("scan", i), selected_qos);
+            }
+            // TODO: avoid this duplication in os_cloud_node
             int beams_count = static_cast<int>(get_beams_count(info));
             int scan_ring = get_parameter("scan_ring").as_int();
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
@@ -155,9 +145,9 @@ class OusterCloud : public OusterProcessingNodeBase {
                     .point_cloud_frame_id(),  // TODO: should we allow having a
                                               // different frame for the laser
                                               // scan than point cloud???
-                0, [this](LaserScanProcessor::OutputType laser_scan_msg) {
-                    for (size_t i = 0; i < laser_scan_msg.size(); ++i)
-                        scan_pubs[i]->publish(*laser_scan_msg[i]);
+                scan_ring, [this](LaserScanProcessor::OutputType msgs) {
+                    for (size_t i = 0; i < msgs.size(); ++i)
+                        scan_pubs[i]->publish(*msgs[i]);
                 }));
         }
 
