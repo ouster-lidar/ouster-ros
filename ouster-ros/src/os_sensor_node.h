@@ -21,8 +21,8 @@
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <lifecycle_msgs/srv/change_state.hpp>
 #include "ouster_msgs/msg/packet_msg.hpp"
-#include "ouster_srvs/srv/get_config.hpp"
-#include "ouster_srvs/srv/set_config.hpp"
+#include "ouster_msgs/srv/get_config.hpp"
+#include "ouster_msgs/srv/set_config.hpp"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_sensor_node_base.h"
 
@@ -30,8 +30,6 @@
 
 namespace sensor = ouster::sensor;
 using lifecycle_msgs::srv::ChangeState;
-using ouster_srvs::srv::GetConfig;
-using ouster_srvs::srv::SetConfig;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace ouster_ros {
@@ -65,7 +63,7 @@ class OusterSensor : public OusterSensorNodeBase {
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
- 
+
     virtual void cleanup();
 
    private:
@@ -129,8 +127,7 @@ class OusterSensor : public OusterSensorNodeBase {
     void handle_imu_packet(sensor::client& client,
                            const sensor::packet_format& pf);
 
-    void connection_loop(sensor::client& client,
-                         const sensor::packet_format& pf);
+    void connection_loop(sensor::client& client, const sensor::packet_format& pf);
 
     void start_sensor_connection_thread();
 
@@ -154,8 +151,8 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp_lifecycle::LifecyclePublisher<ouster_msgs::msg::PacketMsg>::SharedPtr
         imu_packet_pub;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
-    rclcpp::Service<GetConfig>::SharedPtr get_config_srv;
-    rclcpp::Service<SetConfig>::SharedPtr set_config_srv;
+    rclcpp::Service<ouster_msgs::srv::GetConfig>::SharedPtr get_config_srv;
+    rclcpp::Service<ouster_msgs::srv::SetConfig>::SharedPtr set_config_srv;
     std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
 
     // TODO: implement & utilize a lock-free ring buffer in future

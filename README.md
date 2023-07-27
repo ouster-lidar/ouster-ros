@@ -124,10 +124,10 @@ source ros2_ws/install/setup.bash
 ## Usage
 
 ### Launching Nodes
-The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a 
-recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
-added a new mode that supports multicast. The commands are listed below, for convenience we do
-provide both launch file formats (xml and python) but the python format is preferred method:
+The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a recorded
+bag or _record_ a new bag file using the corresponding launch files. Recently, we have added a new mode
+that supports multicast. The commands are listed below, for convenience we do provide both launch file
+formats (xml and python) but the python format is the preferred method.
 
 #### Sensor Mode
 To connect to a live sensor you use the following launch file
@@ -135,7 +135,7 @@ To connect to a live sensor you use the following launch file
 ros2 launch ouster_ros sensor.launch.xml    \
     sensor_hostname:=<sensor host name>
 ```
-The equivalent python launch file is 
+The equivalent python launch file is:
 ```bash
 ros2 launch ouster_ros driver.launch.py    \
     params_file:=<path to params yaml file>

@@ -13,7 +13,7 @@
 #include <ouster/impl/build.h>
 
 namespace sensor = ouster::sensor;
-using ouster_srvs::srv::GetMetadata;
+using ouster_msgs::srv::GetMetadata;
 using sensor::UDPProfileLidar;
 
 namespace ouster_ros {
