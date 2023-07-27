@@ -38,7 +38,7 @@ RUN set -xe         \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
 && rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src \
-&& apt remove ros-${ROS_DISTRO}-ouster-msgs
+&& apt remove -y ros-${ROS_DISTRO}-ouster-msgs
 
 
 # Set up build environment
