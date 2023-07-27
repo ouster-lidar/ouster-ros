@@ -12,7 +12,6 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <tuple>
 #include <chrono>
 
 #include "os_sensor_node.h"
