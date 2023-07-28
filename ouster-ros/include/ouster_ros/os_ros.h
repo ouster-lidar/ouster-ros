@@ -20,7 +20,7 @@
 
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include "sensor_msgs/msg/laser_scan.hpp"
+#include <sensor_msgs/msg/laser_scan.hpp>
 
 #include <chrono>
 #include <string>

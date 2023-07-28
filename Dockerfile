@@ -29,15 +29,17 @@ RUN set -xe \
 && useradd -o -u ${BUILD_UID} -d ${BUILD_HOME} -rm -s /bin/bash -g build build
 
 # Install build dependencies using rosdep
-COPY --chown=build:build ouster-ros/package.xml $OUSTER_ROS_PATH/ouster-ros/package.xml
+COPY --chown=build:build \
+    ouster-ros/package.xml \
+    $OUSTER_ROS_PATH/ouster-ros/package.xml
 
 RUN set -xe         \
 && apt-get update   \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
-&& rosdep install -y --from-paths $OUSTER_ROS_PATH \
-# use -r for now to prevent rosdep from complaining about ouster_srvs
-    -r
+&& rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src -r
+# using -r for now to prevent rosdep from complaining within iron
+
 
 # Set up build environment
 COPY --chown=build:build . $OUSTER_ROS_PATH
@@ -67,5 +69,5 @@ RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon test \
 #
 ENTRYPOINT ["bash", "-c", "set -e \
 && source ./install/setup.bash \
-&& ros2 launch ouster_ros sensor.composite.launch.xml \"$@\" \
+&& ros2 launch ouster_ros sensor.launch.xml \"$@\" \
 ", "ros-entrypoint"]

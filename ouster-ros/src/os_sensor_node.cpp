@@ -12,12 +12,13 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <tuple>
 #include <chrono>
 
 #include "os_sensor_node.h"
 
 using ouster_msgs::msg::PacketMsg;
+using ouster_msgs::srv::GetConfig;
+using ouster_msgs::srv::SetConfig;
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -189,7 +190,6 @@ void OusterSensor::update_config_and_metadata(sensor::client& cli) {
     }
 
     if (cached_metadata.empty()) {
-        RCLCPP_ERROR(get_logger(), "Failed to collect sensor metadata");
         auto error_msg = "Failed to collect sensor metadata";
         RCLCPP_ERROR_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
@@ -324,8 +324,7 @@ void OusterSensor::reactivate_sensor(bool init_id_reset) {
     reset_last_init_id = init_id_reset;
     active_config.clear();
     cached_metadata.clear();
-    imu_packets_skip = false;
-    lidar_packets_skip = false;
+    imu_packets_skip = lidar_packets_skip = true;
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
         lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
@@ -410,9 +409,7 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
-        cli =
-            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+        cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
                                 sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 

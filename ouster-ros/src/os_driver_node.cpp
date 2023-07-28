@@ -3,8 +3,8 @@
  * All rights reserved.
  *
  * @file os_driver.cpp
- * @brief This node combines the capabilities of os_sensor and os_cloud into
- * one ROS node/component
+ * @brief This node combines the capabilities of os_sensor, os_cloud and os_image
+ * into a single ROS node/component
  */
 
 // prevent clang-format from altering the location of "ouster_ros/ros.h", the
