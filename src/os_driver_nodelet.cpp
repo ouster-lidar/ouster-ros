@@ -2,8 +2,9 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_cloud_nodelet.cpp
- * @brief A nodelet to publish point clouds and imu topics
+ * @file os_driver_nodelet.cpp
+ * @brief This node combines the capabilities of os_sensor, os_cloud and os_img
+ * into a single ROS nodelet
  */
 
 // prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
@@ -12,85 +13,43 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
-#include <ros/console.h>
-#include <ros/ros.h>
-#include <std_msgs/String.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <algorithm>
-#include <chrono>
-#include <memory>
-#include <cassert>
-
-#include "ouster_ros/PacketMsg.h"
+#include "os_sensor_nodelet.h"
 #include "os_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
+#include "image_processor.h"
 
 namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
 
-class OusterCloud : public nodelet::Nodelet {
+class OusterDriver : public OusterSensor {
    public:
-    OusterCloud() : tf_bcast(getName()) {}
+    OusterDriver() : tf_bcast(getName()) {}
 
    private:
-    virtual void onInit() override {
-        create_metadata_subscriber();
-        NODELET_INFO("OusterCloud: nodelet created!");
-    }
+    // virtual void onInit() override {
+    // }
 
-    void create_metadata_subscriber() {
-        metadata_sub = getNodeHandle().subscribe<std_msgs::String>(
-            "metadata", 1, &OusterCloud::metadata_handler, this);
-    }
+    virtual void on_metadata_updated(const sensor::sensor_info& info) override {
+        OusterSensor::on_metadata_updated(info);
 
-    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
-        // TODO: handle sensor reconfigurtion
-        NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
-
-        auto info = sensor::parse_metadata(metadata_msg->data);
-
+        // for OusterDriver we are going to always assume static broadcast
+        // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
-
-        auto dynamic_transforms =
-            getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
-        auto dynamic_transforms_rate = getPrivateNodeHandle().param(
-            "dynamic_transforms_broadcast_rate", 1.0);
-        if (dynamic_transforms && dynamic_transforms_rate < 1.0) {
-            NODELET_WARN(
-                "OusterCloud: dynamic transforms enabled but wrong rate is "
-                "set, clamping to 1 Hz!");
-            dynamic_transforms_rate = 1.0;
-        }
-
-        if (!dynamic_transforms) {
-            NODELET_INFO("OusterCloud: using static transforms broadcast");
-            tf_bcast.broadcast_transforms(info);
-        } else {
-            NODELET_INFO_STREAM(
-                "OusterCloud: dynamic transforms broadcast enabled wit "
-                "broadcast rate of: "
-                << dynamic_transforms_rate << " Hz");
-            timer_ = getNodeHandle().createTimer(
-                ros::Duration(1.0 / dynamic_transforms_rate),
-                [this, info](const ros::TimerEvent&) {
-                    tf_bcast.broadcast_transforms(info, last_msg_ts);
-                });
-        }
-
-        create_publishers_subscribers(info);
+        tf_bcast.broadcast_transforms(info);
     }
 
-    void create_publishers_subscribers(const sensor::sensor_info& info) {
+    virtual void create_publishers() override {
         auto& pnh = getPrivateNodeHandle();
-        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
+        auto proc_mask =
+            pnh.param("proc_mask", std::string{"IMU|IMG|PCL|SCAN"});
         auto tokens = parse_tokens(proc_mask, '|');
 
         auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
@@ -102,13 +61,6 @@ class OusterCloud : public nodelet::Nodelet {
             imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), use_ros_time);
-            imu_packet_sub = nh.subscribe<PacketMsg>(
-                "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                    auto imu_msg = imu_packet_handler(msg->buf.data());
-                    if (imu_msg.header.stamp > last_msg_ts)
-                        last_msg_ts = imu_msg.header.stamp;
-                    imu_pub.publish(imu_msg);
-                });
         }
 
         int num_returns = get_n_returns(info);
@@ -126,8 +78,6 @@ class OusterCloud : public nodelet::Nodelet {
                 tf_bcast.apply_lidar_to_sensor_transform(),
                 [this](PointCloudProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) {
-                        if (msgs[i]->header.stamp > last_msg_ts)
-                            last_msg_ts = msgs[i]->header.stamp;
                         lidar_pubs[i].publish(*msgs[i]);
                     }
                 }));
@@ -159,40 +109,72 @@ class OusterCloud : public nodelet::Nodelet {
                                               // scan than point cloud???
                 scan_ring, [this](LaserScanProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) {
-                        if (msgs[i]->header.stamp > last_msg_ts)
-                            last_msg_ts = msgs[i]->header.stamp;
                         scan_pubs[i].publish(*msgs[i]);
                     }
                 }));
         }
 
-        if (check_token(tokens, "PCL") || check_token(tokens, "SCAN")) {
+        if (check_token(tokens, "IMG")) {
+            const std::map<sensor::ChanField, std::string>
+                channel_field_topic_map_1{
+                    {sensor::ChanField::RANGE, "range_image"},
+                    {sensor::ChanField::SIGNAL, "signal_image"},
+                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                    {sensor::ChanField::NEAR_IR, "nearir_image"}};
+
+            const std::map<sensor::ChanField, std::string>
+                channel_field_topic_map_2{
+                    {sensor::ChanField::RANGE, "range_image"},
+                    {sensor::ChanField::SIGNAL, "signal_image"},
+                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                    {sensor::ChanField::NEAR_IR, "nearir_image"},
+                    {sensor::ChanField::RANGE2, "range_image2"},
+                    {sensor::ChanField::SIGNAL2, "signal_image2"},
+                    {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+
+            auto which_map = num_returns == 1 ? &channel_field_topic_map_1
+                                              : &channel_field_topic_map_2;
+            for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+                image_pubs[it->first] =
+                    nh.advertise<sensor_msgs::Image>(it->second, 10);
+            }
+
+            processors.push_back(ImageProcessor::create(
+                info, tf_bcast.point_cloud_frame_id(),
+                [this](ImageProcessor::OutputType msgs) {
+                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                        image_pubs[it->first].publish(*it->second);
+                    }
+                }));
+        }
+
+        if (check_token(tokens, "PCL") || check_token(tokens, "SCAN") ||
+            check_token(tokens, "IMG"))
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, use_ros_time, processors);
-            lidar_packet_sub = nh.subscribe<PacketMsg>(
-                "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
-                });
-        }
+    }
+
+    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
+        if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
+    }
+
+    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
+        if (imu_packet_handler)
+            imu_pub.publish(imu_packet_handler(raw_imu_packet));
     }
 
    private:
-    ros::Subscriber metadata_sub;
-    ros::Subscriber imu_packet_sub;
     ros::Publisher imu_pub;
-    ros::Subscriber lidar_packet_sub;
     std::vector<ros::Publisher> lidar_pubs;
     std::vector<ros::Publisher> scan_pubs;
+    std::map<sensor::ChanField, ros::Publisher> image_pubs;
 
     OusterTransformsBroadcaster tf_bcast;
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
-
-    ros::Timer timer_;
-    ros::Time last_msg_ts;
 };
 
 }  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterCloud, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterDriver, nodelet::Nodelet)

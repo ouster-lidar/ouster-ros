@@ -13,318 +13,359 @@
 // clang-format on
 
 #include <pluginlib/class_list_macros.h>
+#include <std_srvs/Empty.h>
 
-#include <fstream>
-#include <string>
 #include <tuple>
+#include <chrono>
 
-#include "ouster_ros/GetConfig.h"
 #include "ouster_ros/PacketMsg.h"
-#include "ouster_ros/SetConfig.h"
-#include "ouster_ros/os_client_base_nodelet.h"
+#include "os_sensor_nodelet.h"
 
 namespace sensor = ouster::sensor;
 using nonstd::optional;
-using ouster_ros::GetConfig;
-using ouster_ros::PacketMsg;
-using ouster_ros::SetConfig;
 
-namespace nodelets_os {
+using namespace std::chrono_literals;
+using namespace std::string_literals;
 
-class OusterSensor : public OusterClientBase {
-   private:
-    virtual void onInit() override {
-        auto& pnh = getPrivateNodeHandle();
-        sensor_hostname = get_sensor_hostname(pnh);
-        bool retry_configuration = false;
-        std::tie(config, flags) = create_sensor_config_rosparams(pnh, retry_configuration);
-        configure_sensor(sensor_hostname, config, flags, retry_configuration);
-        sensor_client = create_sensor_client(sensor_hostname, config);
-        auto& nh = getNodeHandle();
-        create_metadata_publisher(nh);
-        update_config_and_metadata(*sensor_client);
-        publish_metadata();
-        save_metadata(pnh);
-        create_get_metadata_service(nh);
-        create_get_config_service(nh);
-        create_set_config_service(nh);
-        start_connection_loop(nh);
+namespace ouster_ros {
+
+void OusterSensor::onInit() {
+    bool retry_configuration = false;
+    sensor_hostname = get_sensor_hostname();
+    config = parse_config_from_ros_parameters(retry_configuration);
+    configure_sensor(sensor_hostname, config, retry_configuration);
+    sensor_client = create_sensor_client(sensor_hostname, config);
+    if (!sensor_client) {
+        auto error_msg = "Failed to initialize client";
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
     }
 
-    std::string get_sensor_hostname(ros::NodeHandle& nh) {
-        auto hostname = nh.param("sensor_hostname", std::string{});
-        if (!is_arg_set(hostname)) {
-            auto error_msg = "Must specify a sensor hostname";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
+    create_metadata_publisher();
+    update_config_and_metadata(*sensor_client);
+    create_services();
 
-        return hostname;
+    // activate
+    create_publishers();
+    allocate_buffers();
+    start_packet_processing_threads();
+    start_sensor_connection_thread();
+}
+
+std::string OusterSensor::get_sensor_hostname() {
+    auto& nh = getPrivateNodeHandle();
+    auto hostname = nh.param("sensor_hostname", std::string{});
+    if (!is_arg_set(hostname)) {
+        auto error_msg = "Must specify a sensor hostname";
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
     }
 
-    bool update_config_and_metadata(sensor::client& cli) {
-        sensor::sensor_config config;
-        auto success = get_config(sensor_hostname, config);
-        if (!success) {
-            NODELET_ERROR("Failed to collect sensor config");
-            cached_config.clear();
-            cached_metadata.clear();
-            return false;
-        }
+    return hostname;
+}
 
-        cached_config = to_string(config);
-
-        try {
-            cached_metadata = sensor::get_metadata(cli);
-        } catch (const std::exception& e) {
-            NODELET_ERROR_STREAM(
-                "sensor::get_metadata exception: " << e.what());
-            cached_metadata.clear();
-        }
-
-        if (cached_metadata.empty()) {
-            NODELET_ERROR("Failed to collect sensor metadata");
-            return false;
-        }
-
-        info = sensor::parse_metadata(cached_metadata);
-        // TODO: revist when *min_version* is changed
-        populate_metadata_defaults(info, sensor::MODE_UNSPEC);
-        display_lidar_info(info);
-
-        return cached_config.size() > 0 && cached_metadata.size() > 0;
+void OusterSensor::update_config_and_metadata(sensor::client& cli) {
+    auto success = get_config(sensor_hostname, config);
+    if (!success) {
+        active_config.clear();
+        cached_metadata.clear();
+        auto error_msg = std::string{"Failed to collect sensor config"};
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
     }
 
-    void save_metadata(ros::NodeHandle& nh) {
-        auto meta_file = nh.param("metadata", std::string{});
-        if (!is_arg_set(meta_file)) {
-            meta_file = sensor_hostname.substr(0, sensor_hostname.rfind('.')) +
-                        "-metadata.json";
-            NODELET_INFO_STREAM(
-                "No metadata file was specified, using: " << meta_file);
-        }
+    active_config = sensor::to_string(config);
 
-        // write metadata file. If metadata_path is relative, will use cwd
-        // (usually ~/.ros)
-        if (!write_metadata(meta_file, cached_metadata)) {
-            NODELET_ERROR("Exiting because of failure to write metadata path");
-            throw std::runtime_error("Failure to write metadata path");
-        }
+    try {
+        cached_metadata = sensor::get_metadata(cli, 60, false);
+    } catch (const std::exception& e) {
+        NODELET_ERROR_STREAM("sensor::get_metadata exception: " << e.what());
+        cached_metadata.clear();
     }
 
-    void create_get_config_service(ros::NodeHandle& nh) {
-        get_config_srv =
-            nh.advertiseService<GetConfig::Request, GetConfig::Response>(
+    if (cached_metadata.empty()) {
+        auto error_msg = std::string{"Failed to collect sensor metadata"};
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+
+    info = sensor::parse_metadata(cached_metadata);
+    // TODO: revist when *min_version* is changed
+    populate_metadata_defaults(info, sensor::MODE_UNSPEC);
+
+    publish_metadata();
+    save_metadata();
+    on_metadata_updated(info);
+}
+
+void OusterSensor::save_metadata() {
+    auto& nh = getPrivateNodeHandle();
+    auto meta_file = nh.param("metadata", std::string{});
+    if (!is_arg_set(meta_file)) {
+        meta_file = sensor_hostname.substr(0, sensor_hostname.rfind('.')) +
+                    "-metadata.json";
+        NODELET_INFO_STREAM(
+            "No metadata file was specified, using: " << meta_file);
+    }
+
+    // write metadata file. If metadata_path is relative, will use cwd
+    // (usually ~/.ros)
+    if (write_text_to_file(meta_file, cached_metadata)) {
+        NODELET_INFO_STREAM("Wrote sensor metadata to " << meta_file);
+    } else {
+        NODELET_WARN_STREAM(
+            "Failed to write metadata to " << meta_file <<
+            "; check that the path is valid. If you provided a relative "
+            "path, please note that the working directory of all ROS "
+            "nodes is set by default to $ROS_HOME");
+    }
+}
+
+void OusterSensor::create_reset_service() {
+    reset_srv = getNodeHandle()
+                    .advertiseService<std_srvs::Empty::Request,
+                                      std_srvs::Empty::Response>(
+                        "reset", [this](std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&) {
+                            NODELET_INFO("reset service invoked");
+                            // reset_sensor(true);
+                            return true;
+                        });
+
+    NODELET_INFO("reset service created");
+}
+
+void OusterSensor::create_get_config_service() {
+    get_config_srv =
+        getNodeHandle()
+            .advertiseService<GetConfig::Request, GetConfig::Response>(
                 "get_config",
                 [this](GetConfig::Request&, GetConfig::Response& response) {
-                    response.config = cached_config;
-                    return cached_config.size() > 0;
+                    response.config = active_config;
+                    return active_config.size() > 0;
                 });
 
-        NODELET_INFO("get_config service created");
-    }
+    NODELET_INFO("get_config service created");
+}
 
-    void create_set_config_service(ros::NodeHandle& nh) {
-        set_config_srv =
-            nh.advertiseService<SetConfig::Request, SetConfig::Response>(
+void OusterSensor::create_set_config_service() {
+    set_config_srv =
+        getNodeHandle()
+            .advertiseService<SetConfig::Request, SetConfig::Response>(
                 "set_config", [this](SetConfig::Request& request,
                                      SetConfig::Response& response) {
-                    sensor::sensor_config config;
                     response.config = "";
-                    auto success =
-                        load_config_file(request.config_file, config);
-                    if (!success) {
-                        NODELET_ERROR_STREAM("Failed to load and parse file: "
-                                             << request.config_file);
-                        return false;
-                    }
 
                     try {
-                        configure_sensor(sensor_hostname, config, 0, false);
+                        staged_config = read_text_file(request.config_file);
+                        if (staged_config.empty()) {
+                            NODELET_ERROR_STREAM(
+                                "provided config file: "
+                                << request.config_file
+                                << " turned to be empty. set_config ignored!");
+                            return false;
+                        }
                     } catch (const std::exception& e) {
+                        NODELET_ERROR_STREAM(
+                            "exception thrown while loading config file: "
+                            << request.config_file
+                            << ", exception details: " << e.what());
                         return false;
                     }
-                    success = update_config_and_metadata(*sensor_client);
-                    response.config = cached_config;
-                    return success;
+
+                    response.config = staged_config;
+                    // TODO: this is currently set to force_reinit but it
+                    // doesn't need to be the case if it was possible to know
+                    // that the new config would result in a reinit when a
+                    // reinit is not forced
+                    reset_sensor(true);
+                    return true;
                 });
 
-        NODELET_INFO("set_config service created");
+    NODELET_INFO("set_config service created");
+}
+
+std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
+    const std::string& hostname, const sensor::sensor_config& config) {
+    NODELET_INFO_STREAM("Starting sensor " << hostname << " initialization...");
+
+    int lidar_port = config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
+    int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
+    auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
+
+    std::shared_ptr<sensor::client> cli;
+    if (sensor::in_multicast(udp_dest)) {
+        // use the mtp_init_client to recieve data via multicast
+        // if mtp_main is true when sensor will be configured
+        cli = sensor::mtp_init_client(hostname, config, mtp_dest, mtp_main);
+    } else if (lidar_port != 0 && imu_port != 0) {
+        // use no-config version of init_client to bind to pre-configured
+        // ports
+        cli = sensor::init_client(hostname, lidar_port, imu_port);
+    } else {
+        // use the full init_client to generate and assign random ports to
+        // sensor
+        cli =
+            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+                                sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 
-    std::shared_ptr<sensor::client> create_sensor_client(
-        const std::string& hostname, const sensor::sensor_config& config) {
-        NODELET_INFO_STREAM("Starting sensor " << hostname
-                                               << " initialization...");
+    return cli;
+}
 
-        int lidar_port =
-            config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
-        int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
-        auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
+sensor::sensor_config OusterSensor::parse_config_from_ros_parameters(bool& retry_configuration) {
+    auto& nh = getPrivateNodeHandle();
+    auto udp_dest = nh.param("udp_dest", std::string{});
+    auto mtp_dest_arg = nh.param("mtp_dest", std::string{});
+    auto mtp_main_arg = nh.param("mtp_main", false);
+    auto lidar_port = nh.param("lidar_port", 0);
+    auto imu_port = nh.param("imu_port", 0);
+    auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
+    auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
+    auto udp_profile_lidar_arg = nh.param("udp_profile_lidar", std::string{});
+ 
+    retry_configuration = nh.param("retry_configuration", false);
 
-        std::shared_ptr<sensor::client> cli;
-        if (sensor::in_multicast(udp_dest)) {
-            // use the mtp_init_client to recieve data via multicast
-            // if mtp_main is true when sensor will be configured
-            cli = sensor::mtp_init_client(hostname, config, mtp_dest, mtp_main);
-        } else if (lidar_port != 0 && imu_port != 0) {
-            // use no-config version of init_client to bind to pre-configured
-            // ports
-            cli = sensor::init_client(hostname, lidar_port, imu_port);
+    if (lidar_port < 0 || lidar_port > 65535) {
+        auto error_msg =
+            "Invalid lidar port number! port value should be in the range "
+            "[0, 65535].";
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+
+    if (imu_port < 0 || imu_port > 65535) {
+        auto error_msg =
+            "Invalid imu port number! port value should be in the range "
+            "[0, 65535].";
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+
+    nonstd::optional<sensor::UDPProfileLidar> udp_profile_lidar;
+    if (is_arg_set(udp_profile_lidar_arg)) {
+        // set lidar profile from param
+        udp_profile_lidar =
+            sensor::udp_profile_lidar_of_string(udp_profile_lidar_arg);
+        if (!udp_profile_lidar) {
+            auto error_msg =
+                "Invalid udp profile lidar: " + udp_profile_lidar_arg;
+            NODELET_ERROR_STREAM(error_msg);
+            throw std::runtime_error(error_msg);
+        }
+    }
+
+    // set lidar mode from param
+    sensor::lidar_mode lidar_mode = sensor::MODE_UNSPEC;
+    if (is_arg_set(lidar_mode_arg)) {
+        lidar_mode = sensor::lidar_mode_of_string(lidar_mode_arg);
+        if (!lidar_mode) {
+            auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
+            NODELET_ERROR_STREAM(error_msg);
+            throw std::runtime_error(error_msg);
+        }
+    }
+
+    // set timestamp mode from param
+    sensor::timestamp_mode timestamp_mode = sensor::TIME_FROM_UNSPEC;
+    if (is_arg_set(timestamp_mode_arg)) {
+        // In case the option TIME_FROM_ROS_TIME is set then leave the
+        // sensor timestamp_mode unmodified
+        if (timestamp_mode_arg == "TIME_FROM_ROS_TIME") {
+            NODELET_INFO(
+                "TIME_FROM_ROS_TIME timestamp mode specified."
+                " IMU and pointcloud messages will use ros time");
         } else {
-            // use the full init_client to generate and assign random ports to
-            // sensor
-            cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
-                                      sensor::TIME_FROM_UNSPEC, lidar_port,
-                                      imu_port);
-        }
-
-        if (!cli) {
-            auto error_msg = "Failed to initialize client";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        return cli;
-    }
-
-    std::pair<sensor::sensor_config, uint8_t> create_sensor_config_rosparams(
-        ros::NodeHandle& nh, bool& retry_configuration) {
-        auto udp_dest = nh.param("udp_dest", std::string{});
-        auto mtp_dest_arg = nh.param("mtp_dest", std::string{});
-        auto mtp_main_arg = nh.param("mtp_main", false);
-        auto lidar_port = nh.param("lidar_port", 0);
-        auto imu_port = nh.param("imu_port", 0);
-        auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
-        auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
-        auto udp_profile_lidar_arg =
-            nh.param("udp_profile_lidar", std::string{});
-
-        retry_configuration = nh.param("retry_configuration", false);
-
-        if (lidar_port < 0 || lidar_port > 65535) {
-            auto error_msg =
-                "Invalid lidar port number! port value should be in the range "
-                "[0, 65535].";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        if (imu_port < 0 || imu_port > 65535) {
-            auto error_msg =
-                "Invalid imu port number! port value should be in the range "
-                "[0, 65535].";
-            NODELET_ERROR_STREAM(error_msg);
-            throw std::runtime_error(error_msg);
-        }
-
-        optional<sensor::UDPProfileLidar> udp_profile_lidar;
-        if (is_arg_set(udp_profile_lidar_arg)) {
-            // set lidar profile from param
-            udp_profile_lidar =
-                sensor::udp_profile_lidar_of_string(udp_profile_lidar_arg);
-            if (!udp_profile_lidar) {
+            timestamp_mode =
+                sensor::timestamp_mode_of_string(timestamp_mode_arg);
+            if (!timestamp_mode) {
                 auto error_msg =
-                    "Invalid udp profile lidar: " + udp_profile_lidar_arg;
+                    "Invalid timestamp mode: " + timestamp_mode_arg;
                 NODELET_ERROR_STREAM(error_msg);
                 throw std::runtime_error(error_msg);
             }
         }
-
-        // set lidar mode from param
-        sensor::lidar_mode lidar_mode = sensor::MODE_UNSPEC;
-        if (is_arg_set(lidar_mode_arg)) {
-            lidar_mode = sensor::lidar_mode_of_string(lidar_mode_arg);
-            if (!lidar_mode) {
-                auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
-                NODELET_ERROR_STREAM(error_msg);
-                throw std::runtime_error(error_msg);
-            }
-        }
-
-        // set timestamp mode from param
-        sensor::timestamp_mode timestamp_mode = sensor::TIME_FROM_UNSPEC;
-        if (is_arg_set(timestamp_mode_arg)) {
-            // In case the option TIME_FROM_ROS_TIME is set then leave the
-            // sensor timestamp_mode unmodified
-            if (timestamp_mode_arg == "TIME_FROM_ROS_TIME") {
-                NODELET_INFO(
-                    "TIME_FROM_ROS_TIME timestamp mode specified."
-                    " IMU and pointcloud messages will use ros time");
-            } else {
-                timestamp_mode =
-                    sensor::timestamp_mode_of_string(timestamp_mode_arg);
-                if (!timestamp_mode) {
-                    auto error_msg =
-                        "Invalid timestamp mode: " + timestamp_mode_arg;
-                    NODELET_ERROR_STREAM(error_msg);
-                    throw std::runtime_error(error_msg);
-                }
-            }
-        }
-
-        sensor::sensor_config config;
-        if (lidar_port == 0) {
-            NODELET_WARN_COND(
-                !is_arg_set(mtp_dest_arg),
-                "lidar port set to zero, the client will assign a random port "
-                "number!");
-        } else {
-            config.udp_port_lidar = lidar_port;
-        }
-
-        if (imu_port == 0) {
-            NODELET_WARN_COND(
-                !is_arg_set(mtp_dest_arg),
-                "imu port set to zero, the client will assign a random port "
-                "number!");
-        } else {
-            config.udp_port_imu = imu_port;
-        }
-
-        config.udp_profile_lidar = udp_profile_lidar;
-        config.operating_mode = sensor::OPERATING_NORMAL;
-        if (lidar_mode) config.ld_mode = lidar_mode;
-        if (timestamp_mode) config.ts_mode = timestamp_mode;
-
-        uint8_t config_flags = 0;
-
-        if (is_arg_set(udp_dest)) {
-            NODELET_INFO_STREAM("Will send UDP data to " << udp_dest);
-            config.udp_dest = udp_dest;
-            if (sensor::in_multicast(udp_dest)) {
-                if (is_arg_set(mtp_dest_arg)) {
-                    NODELET_INFO_STREAM("Will recieve data via multicast on "
-                                        << mtp_dest_arg);
-                    mtp_dest = mtp_dest_arg;
-                } else {
-                    NODELET_INFO(
-                        "mtp_dest was not set, will recieve data via multicast "
-                        "on first available interface");
-                    mtp_dest = std::string{};
-                }
-                mtp_main = mtp_main_arg;
-            }
-        } else {
-            NODELET_INFO("Will use automatic UDP destination");
-            config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
-        }
-
-        return std::make_pair(config, config_flags);
     }
 
-    bool configure_sensor(const std::string& hostname,
-                          sensor::sensor_config& config,
-                          const int config_flags,
-                          const bool retry_configuration) {
-        bool is_configured = false;
-        bool is_first_attempt = true;
-        do {
-            // Throttling
-            if (!is_first_attempt) {
-                ros::Duration(0.01).sleep();
-            }
+    if (lidar_port == 0) {
+        NODELET_WARN_COND(
+            !is_arg_set(mtp_dest_arg),
+            "lidar port set to zero, the client will assign a random port "
+            "number!");
+    } else {
+        config.udp_port_lidar = lidar_port;
+    }
 
+    if (imu_port == 0) {
+        NODELET_WARN_COND(
+            !is_arg_set(mtp_dest_arg),
+            "imu port set to zero, the client will assign a random port "
+            "number!");
+    } else {
+        config.udp_port_imu = imu_port;
+    }
+
+    config.udp_profile_lidar = udp_profile_lidar;
+    config.operating_mode = sensor::OPERATING_NORMAL;
+    if (lidar_mode) config.ld_mode = lidar_mode;
+    if (timestamp_mode) config.ts_mode = timestamp_mode;
+    if (is_arg_set(udp_dest)) {
+        config.udp_dest = udp_dest;
+        if (sensor::in_multicast(udp_dest)) {
+            mtp_dest = is_arg_set(mtp_dest_arg) ? mtp_dest_arg : std::string{};
+            mtp_main = mtp_main_arg;
+        }
+    }
+
+    return config;
+}
+
+sensor::sensor_config OusterSensor::parse_config_from_staged_config_string() {
+    config = sensor::parse_config(staged_config);
+    staged_config.clear();
+    return config;
+}
+
+uint8_t OusterSensor::compose_config_flags(
+    const sensor::sensor_config& config) {
+    uint8_t config_flags = 0;
+    if (config.udp_dest) {
+        NODELET_INFO_STREAM("Will send UDP data to "
+                            << config.udp_dest.value());
+        // TODO: revise multicast setup inference
+        if (sensor::in_multicast(*config.udp_dest)) {
+            if (is_arg_set(mtp_dest)) {
+                NODELET_INFO_STREAM("Will recieve data via multicast on "
+                                    << mtp_dest);
+            } else {
+                NODELET_INFO(
+                    "mtp_dest was not set, will recieve data via multicast "
+                    "on first available interface");
+            }
+        }
+    } else {
+        NODELET_INFO("Will use automatic UDP destination");
+        config_flags |= ouster::sensor::CONFIG_UDP_DEST_AUTO;
+    }
+
+    if (force_sensor_reinit) {
+        force_sensor_reinit = false;
+        NODELET_INFO("Forcing sensor to reinitialize");
+        config_flags |= ouster::sensor::CONFIG_FORCE_REINIT;
+    }
+
+    return config_flags;
+}
+
+bool OusterSensor::configure_sensor(const std::string& hostname,
+                                    sensor::sensor_config& config,
+                                    const bool retry_configuration) {
+    bool is_configured = false;
+    bool is_first_attempt = true;
+    do {
+        // Throttling
+        if (!is_first_attempt) {
+            ros::Duration(0.01).sleep();
             if (config.udp_dest &&
                 sensor::in_multicast(config.udp_dest.value()) &&
                 !mtp_main) {
@@ -344,159 +385,265 @@ class OusterSensor : public OusterClientBase {
                     NODELET_ERROR("Error setting config:  %s", e.what());
                 }
             }
-
-            is_first_attempt = false;
-        } while (!is_configured && retry_configuration);
-
-        NODELET_INFO_STREAM("Sensor " << hostname
-                                      << " was "
-                                      << (is_configured ? "" : "not ") << "configured successfully");
-
-        return is_configured;
-    }
-
-    bool load_config_file(const std::string& config_file,
-                          sensor::sensor_config& out_config) {
-        std::ifstream ifs{};
-        ifs.open(config_file);
-        if (ifs.fail()) return false;
-        std::stringstream buf;
-        buf << ifs.rdbuf();
-        out_config = sensor::parse_config(buf.str());
-        return true;
-    }
-
-   private:
-    // fill in values that could not be parsed from metadata
-    void populate_metadata_defaults(sensor::sensor_info& info,
-                                    sensor::lidar_mode specified_lidar_mode) {
-        if (!info.name.size()) info.name = "UNKNOWN";
-        if (!info.sn.size()) info.sn = "UNKNOWN";
-
-        ouster::util::version v = ouster::util::version_of_string(info.fw_rev);
-        if (v == ouster::util::invalid_version)
-            NODELET_WARN(
-                "Unknown sensor firmware version; output may not be reliable");
-        else if (v < sensor::min_version)
-            NODELET_WARN(
-                "Firmware < %s not supported; output may not be reliable",
-                to_string(sensor::min_version).c_str());
-
-        if (!info.mode) {
-            NODELET_WARN(
-                "Lidar mode not found in metadata; output may not be reliable");
-            info.mode = specified_lidar_mode;
         }
+        is_first_attempt = false;
+    } while (!is_configured && retry_configuration);
 
-        if (!info.prod_line.size()) info.prod_line = "UNKNOWN";
+    NODELET_INFO_STREAM("Sensor " << hostname
+                                  << " was "
+                                  << (is_configured ? "" : "not ") << "configured successfully");
+}
 
-        if (info.beam_azimuth_angles.empty() ||
-            info.beam_altitude_angles.empty()) {
-            NODELET_ERROR(
-                "Beam angles not found in metadata; using design values");
-            info.beam_azimuth_angles = sensor::gen1_azimuth_angles;
-            info.beam_altitude_angles = sensor::gen1_altitude_angles;
-        }
+void OusterSensor::populate_metadata_defaults(
+    sensor::sensor_info& info, sensor::lidar_mode specified_lidar_mode) {
+    if (!info.name.size()) info.name = "UNKNOWN";
+    if (!info.sn.size()) info.sn = "UNKNOWN";
+
+    ouster::util::version v = ouster::util::version_of_string(info.fw_rev);
+    if (v == ouster::util::invalid_version)
+        NODELET_WARN(
+            "Unknown sensor firmware version; output may not be reliable");
+    else if (v < sensor::min_version)
+        NODELET_WARN("Firmware < %s not supported; output may not be reliable",
+                     to_string(sensor::min_version).c_str());
+
+    if (!info.mode) {
+        NODELET_WARN(
+            "Lidar mode not found in metadata; output may not be reliable");
+        info.mode = specified_lidar_mode;
     }
 
-    // try to write metadata file
-    bool write_metadata(const std::string& meta_file,
-                        const std::string& metadata) {
-        std::ofstream ofs(meta_file);
-        if (ofs.is_open()) {
-            ofs << metadata << std::endl;
-            ofs.close();
-            NODELET_INFO("Wrote metadata to %s", meta_file.c_str());
+    if (!info.prod_line.size()) info.prod_line = "UNKNOWN";
+
+    if (info.beam_azimuth_angles.empty() || info.beam_altitude_angles.empty()) {
+        NODELET_ERROR("Beam angles not found in metadata; using design values");
+        info.beam_azimuth_angles = sensor::gen1_azimuth_angles;
+        info.beam_altitude_angles = sensor::gen1_altitude_angles;
+    }
+}
+
+void OusterSensor::on_metadata_updated(const sensor::sensor_info& info) {
+    display_lidar_info(info);
+}
+
+void OusterSensor::create_services() {
+    create_reset_service();
+    create_get_metadata_service();
+    create_get_config_service();
+    create_set_config_service();
+}
+
+void OusterSensor::create_publishers() {
+    auto& nh = getNodeHandle();
+    lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
+    imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
+}
+
+void OusterSensor::allocate_buffers() {
+    auto& pf = sensor::get_format(info);
+
+    lidar_packet.buf.resize(pf.lidar_packet_size);
+    // TODO: gauge necessary queue size for lidar packets
+    lidar_packets =
+        std::make_unique<ThreadSafeRingBuffer>(pf.lidar_packet_size, 1024);
+
+    imu_packet.buf.resize(pf.imu_packet_size);
+    // TODO: gauge necessary queue size for lidar packets
+    imu_packets =
+        std::make_unique<ThreadSafeRingBuffer>(pf.imu_packet_size, 1024);
+}
+
+bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
+                                   const uint8_t* lidar_buf) {
+    uint32_t current_init_id = pf.init_id(lidar_buf);
+    if (!last_init_id_initialized) {
+        last_init_id = current_init_id + 1;
+        last_init_id_initialized = true;
+    }
+    if (reset_last_init_id && last_init_id != current_init_id) {
+        last_init_id = current_init_id;
+        reset_last_init_id = false;
+        return false;
+    }
+    if (last_init_id == current_init_id) return false;
+    last_init_id = current_init_id;
+    return true;
+}
+
+void OusterSensor::handle_poll_client_error() {
+    NODELET_WARN_THROTTLE(1, "sensor::poll_client()) returned error");
+    // in case error continues for a while attempt to recover by
+    // performing sensor reset
+    if (++poll_client_error_count > max_poll_client_error_count) {
+        NODELET_ERROR_STREAM(
+            "maximum number of allowed errors from "
+            "sensor::poll_client() reached, performing self reset...");
+        poll_client_error_count = 0;
+        reset_sensor(true);
+    }
+}
+
+void OusterSensor::handle_lidar_packet(sensor::client& cli,
+                                       const sensor::packet_format& pf) {
+    lidar_packets->write_overwrite([this, &cli, pf](uint8_t* buffer) {
+        bool success = sensor::read_lidar_packet(cli, buffer, pf);
+        if (success) {
+            had_reconnection_success = false;
+            first_lidar_data_rx = ros::Time::now();
+            read_lidar_packet_errors = 0;
+            if (!is_legacy_lidar_profile(info) && init_id_changed(pf, buffer)) {
+                // TODO: short circut reset if no breaking changes occured?
+                NODELET_WARN("sensor init_id has changed! reactivating..");
+                reactivate_sensor();
+            }
         } else {
-            NODELET_WARN(
-                "Failed to write metadata to %s; check that the path is valid. "
-                "If you provided a relative path, please note that the working "
-                "directory of all ROS nodes is set by default to $ROS_HOME",
-                meta_file.c_str());
-            return false;
+            if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
+                NODELET_ERROR(
+                    "maximum number of allowed errors from "
+                    "sensor::read_lidar_packet() reached, reactivating...");
+                read_lidar_packet_errors = 0;
+                reactivate_sensor(true);
+            }
         }
-        return true;
-    }
+    });
+}
 
-    void allocate_buffers() {
+void OusterSensor::handle_imu_packet(sensor::client& cli,
+                                     const sensor::packet_format& pf) {
+    imu_packets->write_overwrite([this, &cli, pf](uint8_t* buffer) {
+        bool success = sensor::read_imu_packet(cli, buffer, pf);
+        if (!success) {
+            if (++read_imu_packet_errors > max_read_imu_packet_errors) {
+                NODELET_ERROR_STREAM(
+                    "maximum number of allowed errors from "
+                    "sensor::read_imu_packet() reached, reactivating...");
+                read_imu_packet_errors = 0;
+                reactivate_sensor(true);
+            }
+        }
+    });
+}
+
+void OusterSensor::connection_loop(sensor::client& cli,
+                                   const sensor::packet_format& pf) {
+    static constexpr double TIMEOUT = 3.0;
+
+    auto state = sensor::poll_client(cli);
+    if (state == sensor::EXIT) {
+        NODELET_INFO("poll_client: caught signal, exiting!");
+        return;
+    }
+    if (state & sensor::CLIENT_ERROR) {
+        handle_poll_client_error();
+        return;
+    }
+    poll_client_error_count = 0;
+    if (state & sensor::LIDAR_DATA) {
+        handle_lidar_packet(cli, pf);
+    }
+    else if (!had_reconnection_success &&
+             (first_lidar_data_rx != ros::Time(0.0)) &&
+             (ros::Time::now().toSec() - first_lidar_data_rx.toSec()) > TIMEOUT) {
+        NODELET_ERROR("poll_client: attempting reconnection");
+        had_reconnection_success = configure_sensor(sensor_hostname, config, false);
+
+        if (had_reconnection_success) {
+            sensor_client = create_sensor_client(sensor_hostname, config);
+        }
+    }
+    if (state & sensor::IMU_DATA) {
+        handle_imu_packet(cli, pf);
+    }
+}
+
+void OusterSensor::start_sensor_connection_thread() {
+    sensor_connection_active = true;
+    sensor_connection_thread = std::make_unique<std::thread>([this]() {
         auto& pf = sensor::get_format(info);
-        lidar_packet.buf.resize(pf.lidar_packet_size + 1);
-        imu_packet.buf.resize(pf.imu_packet_size + 1);
+        while (sensor_connection_active) {
+            connection_loop(*sensor_client, pf);
+        }
+        NODELET_DEBUG("sensor_connection_thread done.");
+    });
+}
+
+void OusterSensor::stop_sensor_connection_thread() {
+    NODELET_DEBUG("sensor_connection_thread stopping.");
+    if (sensor_connection_thread->joinable()) {
+        sensor_connection_active = false;
+        sensor_connection_thread->join();
+    }
+}
+
+void OusterSensor::start_packet_processing_threads() {
+    imu_packets_skip = false;
+    imu_packets_processing_thread_active = true;
+    imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
+        auto read_packet = [this](const uint8_t* buffer) {
+            if (!imu_packets_skip) on_imu_packet_msg(buffer);
+        };
+        while (imu_packets_processing_thread_active) {
+            imu_packets->read(read_packet);
+        }
+        NODELET_DEBUG("imu_packets_processing_thread done.");
+    });
+
+    lidar_packets_skip = false;
+    lidar_packets_processing_thread_active = true;
+    lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
+        while (lidar_packets_processing_thread_active) {
+            lidar_packets->read([this](const uint8_t* buffer) {
+                if (!lidar_packets_skip) on_lidar_packet_msg(buffer);
+            });
+        }
+
+        NODELET_DEBUG("lidar_packets_processing_thread done.");
+    });
+}
+
+void OusterSensor::stop_packet_processing_threads() {
+    NODELET_DEBUG("stopping packet processing threads.");
+
+    if (imu_packets_processing_thread->joinable()) {
+        imu_packets_processing_thread_active = false;
+        imu_packets_processing_thread->join();
     }
 
-    void create_publishers(ros::NodeHandle& nh) {
-        lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
-        imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
+    if (lidar_packets_processing_thread->joinable()) {
+        lidar_packets_processing_thread_active = false;
+        lidar_packets_processing_thread->join();
     }
+}
 
-    void start_connection_loop(ros::NodeHandle& nh) {
-        allocate_buffers();
-        create_publishers(nh);
-        timer_ = nh.createTimer(
-            ros::Duration(0),
-            [this](const ros::TimerEvent&) {
-                auto& pf = sensor::get_format(info);
-                connection_loop(*sensor_client, pf);
-                timer_.stop();
-                timer_.start();
-            },
-            true);
-    }
+void OusterSensor::on_lidar_packet_msg(const uint8_t* raw_lidar_packet) {
+    // copying the data from queue buffer into the message buffer
+    // this can be avoided by constructing an abstraction where
+    // OusterSensor has its own RingBuffer of PacketMsg but for
+    // now we are focusing on optimizing the code for OusterDriver
+    std::memcpy(lidar_packet.buf.data(), raw_lidar_packet,
+                lidar_packet.buf.size());
+    lidar_packet_pub.publish(lidar_packet);
+}
 
-    void connection_loop(sensor::client& cli, const sensor::packet_format& pf) {
-        static constexpr double TIMEOUT = 3.0;
+void OusterSensor::on_imu_packet_msg(const uint8_t* raw_imu_packet) {
+    // copying the data from queue buffer into the message buffer
+    // this can be avoided by constructing an abstraction where
+    // OusterSensor has its own RingBuffer of PacketMsg but for
+    // now we are focusing on optimizing the code for OusterDriver
+    std::memcpy(imu_packet.buf.data(), raw_imu_packet, imu_packet.buf.size());
+    imu_packet_pub.publish(imu_packet);
+}
 
-        auto state = sensor::poll_client(cli);
-        if (state == sensor::EXIT) {
-            NODELET_INFO("poll_client: caught signal, exiting");
-            return;
-        }
-        if (state & sensor::CLIENT_ERROR) {
-            NODELET_ERROR("poll_client: returned error");
-            return;
-        }
-        if (state & sensor::LIDAR_DATA) {
-            if (sensor::read_lidar_packet(cli, lidar_packet.buf.data(), pf)) {
-                had_reconnection_success = false;
-                first_lidar_data_rx = ros::Time::now();
-                lidar_packet_pub.publish(lidar_packet);
-            }
-        }
-        else if (!had_reconnection_success &&
-                 (first_lidar_data_rx != ros::Time(0.0)) &&
-                 (ros::Time::now().toSec() - first_lidar_data_rx.toSec()) > TIMEOUT) {
-            NODELET_ERROR("poll_client: attempting reconnection");
-            had_reconnection_success = configure_sensor(sensor_hostname, config, flags, false);
+// param init_id_reset is overriden to true when force_reinit is true
+void OusterSensor::reset_sensor(bool /*force_reinit*/, bool /*init_id_reset*/) {
+    NODELET_WARN("sensor reset is invoked but sensor it is not implemented");
+}
 
-            if (had_reconnection_success) {
-                sensor_client = create_sensor_client(sensor_hostname, config);
-            }
-        }
-        if (state & sensor::IMU_DATA) {
-            if (sensor::read_imu_packet(cli, imu_packet.buf.data(), pf))
-                imu_packet_pub.publish(imu_packet);
-        }
-    }
+void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
+    NODELET_WARN(
+        "sensor reactivate is invoked but sensor it is not implemented");
+}
 
-   private:
-    PacketMsg lidar_packet;
-    PacketMsg imu_packet;
-    ros::Publisher lidar_packet_pub;
-    ros::Publisher imu_packet_pub;
-    std::shared_ptr<sensor::client> sensor_client;
-    ros::Timer timer_;
-    std::string sensor_hostname;
-    ros::ServiceServer get_config_srv;
-    ros::ServiceServer set_config_srv;
-    ros::Time first_lidar_data_rx = ros::Time(0.0);
-    std::string cached_config;
-    std::string mtp_dest;
-    bool mtp_main;
-    bool had_reconnection_success = false;
-    uint8_t flags;
-    sensor::sensor_config config;
-};
+}  // namespace ouster_ros
 
-}  // namespace nodelets_os
-
-PLUGINLIB_EXPORT_CLASS(nodelets_os::OusterSensor, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterSensor, nodelet::Nodelet)

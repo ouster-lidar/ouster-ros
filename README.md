@@ -1,7 +1,7 @@
 # Official ROS1/ROS2 drivers for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,7 +9,7 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble) | [![rolling/humble](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
 - [Overview](#overview)
@@ -21,6 +21,7 @@
     - [Recording Mode](#recording-mode)
     - [Replay Mode](#replay-mode)
     - [Multicast Mode (experimental)](#multicast-mode-experimental)
+  - [Launch Files Arguments](#launch-files-arguments)
   - [Invoking Services](#invoking-services)
     - [GetMetadata](#getmetadata)
     - [GetConfig](#getconfig)
@@ -30,12 +31,12 @@
 
 ## Overview
 
-This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the driver
-will configure and connect to the selected sensor device, once connected the driver will handle
-incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages on the
-topics of `/ouster/imu` and `/ouster/points`. In the case the sensor supports dual return and it was
-configured to use this capability, then another topic will published named `/ouster/points2` which
-corresponds to the second point cloud.
+This ROS package provide support for all Ouster sensors with FW v2.0 or later. Upon launch the
+driver will configure and connect to the selected sensor device, once connected the driver will
+handle incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS messages
+on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports dual
+return and it was configured to use this capability, then another topic will published named
+`/ouster/points2` which corresponds to the second point cloud.
 
 ## Requirements
 This package only supports **Melodic** and **Noetic** ROS distros. Please refer to ROS online
@@ -96,11 +97,20 @@ recorded bag or _record_ a new bag file using the corresponding launch files. Re
 added a new mode that supports multicast. The commands are listed below:
 
 #### Sensor Mode
+The driver offers two launch files to connect to an Ouster sensor: `sensor.launch` and
+`driver.launch`; they differ in terms of how the processing of incoming packets is performed.
+`sensor.launch` spawns three nodelets, one to connect to the sensor and publishes raw packets to
+the two other nodelets which handles converting them into **Imu**, **Image** and **PointCloud2**
+messages. Meanwhile, `driver.launch` file spawn a single nodelet that handles all of these tasks.
+You can invoke the two files in the same way. The following line shows how to run the node using
+`driver.launch`:
 ```bash
-roslaunch ouster_ros sensor.launch      \
+roslaunch ouster_ros driver.launch      \
     sensor_hostname:=<sensor host name> \
     metadata:=<json file name>          # optional
 ```
+`driver.launch` offers better performance and reduced overhead on the ROS bus, thus it is preferred
+over `sensor.launch`. `sensor.launch` is mainly provided for backward compatibilty.
 
 #### Recording Mode
 > Note
@@ -153,6 +163,17 @@ roslaunch ouster_ros sensor_mtp.launch      \
 > **Note:** 
 > In both cases the **mtp_dest** is optional and if left unset the client will utilize the first
 available interface.
+
+### Launch Files Arguments
+Each of the previously mentioned launch files include a variety of launch arguments that helps the
+user customize the driver behaivor. To view the arguments that each launch file provides and their
+purpose pass `--ros-args` along with the specific launch file that you are interested in. For
+example, to view launche arguments of the `driver.launch` use the following command:
+```bash
+roslaunch ouster_ros driver.launch --ros-args
+```
+The command should list all available arguments, whether they are optional or required and the
+description and posible values of each argument.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal
