@@ -12,25 +12,24 @@
 | ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (foxy) | [![foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
-- [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
-  - [Overview](#overview)
-  - [Requirements](#requirements)
-    - [Linux](#linux)
-    - [Windows](#windows)
-    - [Mac](#mac)
-  - [Getting Started](#getting-started)
-  - [Usage](#usage)
-    - [Launching Nodes](#launching-nodes)
-      - [Sensor Mode](#sensor-mode)
-      - [Recording Mode](#recording-mode)
-      - [Replay Mode](#replay-mode)
-      - [Multicast Mode (experimental)](#multicast-mode-experimental)
-    - [Invoking Services](#invoking-services)
-      - [GetMetadata](#getmetadata)
-      - [GetConfig](#getconfig)
-      - [SetConfig](#setconfig)
-      - [Reset](#reset)
-  - [License](#license)
+- [Overview](#overview)
+- [Requirements](#requirements)
+  - [Linux](#linux)
+  - [Windows](#windows)
+  - [Mac](#mac)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+  - [Launching Nodes](#launching-nodes)
+    - [Sensor Mode](#sensor-mode)
+    - [Recording Mode](#recording-mode)
+    - [Replay Mode](#replay-mode)
+    - [Multicast Mode (experimental)](#multicast-mode-experimental)
+  - [Invoking Services](#invoking-services)
+    - [GetMetadata](#getmetadata)
+    - [GetConfig](#getconfig)
+    - [SetConfig](#setconfig)
+    - [Reset](#reset)
+- [License](#license)
 
 
 ## Overview
@@ -52,6 +51,10 @@ setup ROS on your machine before proceeding with the remainder of this guide.
     ```
     rosdep install -y --from-paths $OUSTER_ROS_PATH -r
     ```
+
+> **Note**
+The ROS foxy includes a different ros-foxy-ouster-msgs package. If this is installed on your system you will need to
+uninstall it first from your system before you can compile this workspace. 
 
 ### Linux
 
@@ -124,10 +127,10 @@ source ros2_ws/install/setup.bash
 ## Usage
 
 ### Launching Nodes
-The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a 
-recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
-added a new mode that supports multicast. The commands are listed below, for convenience we do
-provide both launch file formats (xml and python) but the python format is preferred method:
+The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a recorded
+bag or _record_ a new bag file using the corresponding launch files. Recently, we have added a new mode
+that supports multicast. The commands are listed below, for convenience we do provide both launch file
+formats (xml and python) but the python format is the preferred method.
 
 #### Sensor Mode
 To connect to a live sensor you use the following launch file
@@ -135,7 +138,7 @@ To connect to a live sensor you use the following launch file
 ros2 launch ouster_ros sensor.launch.xml    \
     sensor_hostname:=<sensor host name>
 ```
-The equivalent python launch file is 
+The equivalent python launch file is:
 ```bash
 ros2 launch ouster_ros driver.launch.py    \
     params_file:=<path to params yaml file>
