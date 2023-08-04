@@ -127,6 +127,14 @@ void scan_to_cloud_f(ouster::PointsF& points,
                      ouster_ros::Cloud& cloud, int return_index);
 
 /**
+ * Converts a staggered point cloud to a destaggered one.
+ * @param[in] cloud output pcl pointcloud to populate.
+ * @param[in] pixel_shift_by_row shifts per each column.
+ */
+ouster_ros::Cloud cloud_destagger(const ouster_ros::Cloud &cloud,
+                                  const std::vector<int> &pixel_shift_by_row);
+
+/**
  * Serialize a PCL point cloud to a ROS message
  * @param[in] cloud the PCL point cloud to convert
  * @param[in] timestamp the timestamp to apply to the resulting ROS message

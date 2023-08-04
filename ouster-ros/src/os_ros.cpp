@@ -253,6 +253,19 @@ void scan_to_cloud_f(ouster::PointsF& points,
                        signal);
 }
 
+ouster_ros::Cloud cloud_destagger(const ouster_ros::Cloud &cloud, const std::vector<int> &pixel_shift_by_row) {
+    const uint32_t h = cloud.height;
+    const uint32_t w = cloud.width;
+    ouster_ros::Cloud destaggered{w, h};
+    for (uint32_t u = 0; u < h; ++u) {
+        for (uint32_t v = 0; v < w; ++v) {
+            const int offset = (v + w - pixel_shift_by_row[u]) % w;
+            destaggered.at(v, u) = cloud.at(offset, u);
+        }
+    }
+    return destaggered;
+}
+
 sensor_msgs::msg::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
                                                  const rclcpp::Time& timestamp,
                                                  const std::string& frame) {

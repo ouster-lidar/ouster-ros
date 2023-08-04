@@ -30,6 +30,7 @@ class PointCloudProcessor {
                         bool apply_lidar_to_sensor_transform,
                         PostProcessingFn func)
         : frame(frame_id),
+          pixel_shift_by_row(info.format.pixel_shift_by_row),
           cloud{info.format.columns_per_frame, info.format.pixels_per_column},
           pc_msgs(get_n_returns(info)),
           post_processing_fn(func) {
@@ -64,6 +65,7 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             ouster_ros::scan_to_cloud_f(points, lut_direction, lut_offset,
                                         scan_ts, lidar_scan, cloud, i);
+            cloud = ouster_ros::cloud_destagger(cloud, pixel_shift_by_row);
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;
             pc_msgs[i]->header.frame_id = frame;
@@ -96,6 +98,7 @@ class PointCloudProcessor {
     ouster::PointsF lut_direction;
     ouster::PointsF lut_offset;
     ouster::PointsF points;
+    std::vector<int> pixel_shift_by_row;
     ouster_ros::Cloud cloud;
 
     OutputType pc_msgs;
