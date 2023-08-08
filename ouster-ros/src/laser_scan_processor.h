@@ -14,8 +14,8 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-using ouster_ros::get_n_returns;
-using ouster_ros::lidar_scan_to_laser_scan_msg;
+
+namespace ouster_ros {
 
 class LaserScanProcessor {
    public:
@@ -65,3 +65,5 @@ class LaserScanProcessor {
     OutputType scan_msgs;
     PostProcessingFn post_processing_fn;
 };
+
+}   // namespace ouster_ros
