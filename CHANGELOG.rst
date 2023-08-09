@@ -4,6 +4,11 @@ Changelog
 
 [unreleased]
 ============
+* breaking: publish PCL point clouds destaggered.
+
+
+ouster_ros v0.10.0
+==================
 
 ouster_ros(2)
 -------------
@@ -43,7 +48,6 @@ ouster_ros(2)
 * introduced a new topic ``/ouster/scan`` which publishes ``sensor_msgs::msg::LaserScan`` messages
 * fix: on dual returns the 2nd point cloud replaces the 1st one.
 * breaking: merge ``ouster-srvs`` package into ``ouster-msgs``.
-* breaking: publish PCL point clouds destaggered.
 
 ouster_client
 -------------
