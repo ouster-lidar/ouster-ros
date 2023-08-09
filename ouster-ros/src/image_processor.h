@@ -133,6 +133,8 @@ class ImageProcessor {
                 ->data.data(),
             H, W);
 
+        const auto& px_offset = info_.format.pixel_shift_by_row;
+
         ouster::img_t<float> signal_image_eigen(H, W);
         ouster::img_t<float> reflec_image_eigen(H, W);
         ouster::img_t<float> nearir_image_eigen(H, W);
@@ -145,7 +147,8 @@ class ImageProcessor {
         // copy data out of Cloud message, with destaggering
         for (size_t u = 0; u < H; u++) {
             for (size_t v = 0; v < W; v++) {
-                const size_t idx = u * W + v;
+                const size_t vv = (v + W - px_offset[u]) % W;
+                const size_t idx = u * W + vv;
                  // TODO: re-examine this truncation later
                 // 16 bit img: use 4mm resolution and throw out returns > 260m
                 auto r = (rg[idx] + 0b10) >> 2;
