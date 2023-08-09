@@ -75,6 +75,8 @@ inline bool check_token(const std::set<std::string>& tokens,
 
 }  // namespace
 
+namespace ouster_ros {
+
 namespace sensor = ouster::sensor;
 
 using LidarScanProcessor = std::function<void(const ouster::LidarScan&,
@@ -284,3 +286,5 @@ class LidarPacketHandler {
 
     LidarPacketAccumlator lidar_packet_accumlator;
 };
+
+}   // namespace ouster_ros
