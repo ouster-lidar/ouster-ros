@@ -14,6 +14,8 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+namespace ouster_ros {
+
 class ImuPacketHandler {
    public:
     using HandlerOutput = sensor_msgs::msg::Imu;
@@ -33,8 +35,10 @@ class ImuPacketHandler {
                 return rclcpp::Time(pf.imu_gyro_ts(imu_buf)); }};
         // clang-format on
         return [&pf, &frame, timestamper](const uint8_t* imu_buf) {
-            return ouster_ros::packet_to_imu_msg(pf, timestamper(imu_buf),
+            return packet_to_imu_msg(pf, timestamper(imu_buf),
                                                  frame, imu_buf);
         };
     }
 };
+
+}   // namespace ouster_ros

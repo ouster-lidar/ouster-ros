@@ -39,7 +39,7 @@
     description="file name to use for the recorded bag file"/>
   <arg name="viz" default="true"
     description="whether to run a rviz"/>
-  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz.rviz"
+  <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz-reliable.rviz"
     description="optional rviz config file"/>
 
   <arg name="sensor_frame" default="os_sensor"
