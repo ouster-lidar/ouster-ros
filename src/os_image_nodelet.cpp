@@ -134,13 +134,10 @@ class OusterImage : public nodelet::Nodelet {
         auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
             (pixel_type*)nearir_image->data.data(), H, W);
 
-        const auto& px_offset = info.format.pixel_shift_by_row;
-
         // copy data out of Cloud message, with destaggering
         for (size_t u = 0; u < H; u++) {
             for (size_t v = 0; v < W; v++) {
-                const size_t vv = (v + W - px_offset[u]) % W;
-                const auto& pt = cloud[u * W + vv];
+                const auto& pt = cloud[u * W + v];
 
                 // 16 bit img: use 4mm resolution and throw out returns >
                 // 260m
