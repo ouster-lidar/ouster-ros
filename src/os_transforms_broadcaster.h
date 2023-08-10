@@ -68,6 +68,7 @@ class OusterTransformsBroadcaster {
             sensor_frame = tf_prefix + sensor_frame;
             lidar_frame = tf_prefix + lidar_frame;
             imu_frame = tf_prefix + imu_frame;
+            point_cloud_frame = tf_prefix + point_cloud_frame;
         }
     }
 
