@@ -4,6 +4,13 @@ Changelog
 
 [unreleased]
 ============
+ouster_ros(1)
+-------------
+* breaking: publish PCL point clouds destaggered.
+
+
+ouster_ros v0.10.0
+==================
 
 ouster_ros(1)
 -------------

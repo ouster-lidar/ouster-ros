@@ -40,4 +40,4 @@ class ImuPacketHandler {
     }
 };
 
-}  // namespace ouster_ros
+}   // namespace ouster_ros
