@@ -16,7 +16,7 @@
 
 #include "lidar_packet_handler.h"
 
-using ouster_ros::get_n_returns;
+namespace ouster_ros {
 
 class PointCloudProcessor {
    public:
@@ -30,6 +30,7 @@ class PointCloudProcessor {
                         bool apply_lidar_to_sensor_transform,
                         PostProcessingFn func)
         : frame(frame_id),
+          pixel_shift_by_row(info.format.pixel_shift_by_row),
           cloud{info.format.columns_per_frame, info.format.pixels_per_column},
           pc_msgs(get_n_returns(info)),
           post_processing_fn(func) {
@@ -62,8 +63,9 @@ class PointCloudProcessor {
     void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                  const rclcpp::Time& msg_ts) {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
-            ouster_ros::scan_to_cloud_f(points, lut_direction, lut_offset,
-                                        scan_ts, lidar_scan, cloud, i);
+            scan_to_cloud_f_destaggered(cloud,
+                points, lut_direction, lut_offset,
+                scan_ts, lidar_scan, pixel_shift_by_row, i);
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;
             pc_msgs[i]->header.frame_id = frame;
@@ -96,9 +98,12 @@ class PointCloudProcessor {
     ouster::PointsF lut_direction;
     ouster::PointsF lut_offset;
     ouster::PointsF points;
+    std::vector<int> pixel_shift_by_row;
     ouster_ros::Cloud cloud;
 
     OutputType pc_msgs;
 
     PostProcessingFn post_processing_fn;
 };
+
+}   // namespace ouster_ros
