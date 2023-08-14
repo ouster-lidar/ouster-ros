@@ -203,7 +203,7 @@ void copy_scan_to_cloud_destaggered(
     const PointT& points, const ouster::img_t<RangeT>& range,
     const ouster::img_t<ReflectivityT>& reflectivity,
     const ouster::img_t<NearIrT>& near_ir, const ouster::img_t<SignalT>& signal,
-    const std::vector<int>& pixel_shift_by_row) {
+    const std::vector<int>& pixel_shift_by_row, int skip_rings) {
     auto timestamp = ls.timestamp();
 
     const auto rg = range.data();
@@ -214,13 +214,13 @@ void copy_scan_to_cloud_destaggered(
 #ifdef __OUSTER_UTILIZE_OPENMP__
 #pragma omp parallel for collapse(2)
 #endif
-    for (auto u = 0; u < ls.h; u++) {
+    for (auto u = 0; u < ls.h; u+=skip_rings) {
         for (auto v = 0; v < ls.w; v++) {
             const auto col_ts = timestamp[v];
             const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
             const auto src_idx =
                 u * ls.w + (v + ls.w - pixel_shift_by_row[u]) % ls.w;
-            const auto tgt_idx = u * ls.w + v;
+            const auto tgt_idx = (u / skip_rings) * ls.w + v;
             const auto xyz = points.row(src_idx);
             cloud.points[tgt_idx] = ouster_ros::Point{
                 {static_cast<float>(xyz(0)), static_cast<float>(xyz(1)),
@@ -305,7 +305,7 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud& cloud,
                                  const ouster::PointsF& lut_offset,
                                  uint64_t scan_ts, const ouster::LidarScan& ls,
                                  const std::vector<int>& pixel_shift_by_row,
-                                 int return_index) {
+                                 int return_index, int skip_rings) {
     bool second = (return_index == 1);
 
     assert(cloud.width == static_cast<std::uint32_t>(ls.w) &&
@@ -330,7 +330,7 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud& cloud,
 
     copy_scan_to_cloud_destaggered(cloud, ls, scan_ts, points, range,
                                    reflectivity, near_ir, signal,
-                                   pixel_shift_by_row);
+                                   pixel_shift_by_row, skip_rings);
 }
 
 sensor_msgs::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,

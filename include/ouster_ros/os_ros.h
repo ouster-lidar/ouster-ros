@@ -143,7 +143,7 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud& cloud,
                      const ouster::PointsF& lut_offset, uint64_t scan_ts,
                      const ouster::LidarScan& ls,
                      const std::vector<int>& pixel_shift_by_row,
-                     int return_index);
+                     int return_index, int skip_rings = 1);
 
 /**
  * Serialize a PCL point cloud to a ROS message
