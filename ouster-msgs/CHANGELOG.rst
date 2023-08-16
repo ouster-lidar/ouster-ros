@@ -2,6 +2,11 @@
 Changelog for package ouster_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add per package LICENSE file
+* Contributors: Ussama Naal
+
 0.10.2 (2023-08-15)
 -------------------
 * match ouster_msg version with ouster_ros

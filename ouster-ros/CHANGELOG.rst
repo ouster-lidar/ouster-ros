@@ -2,6 +2,12 @@
 Changelog for package ouster_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add per package LICENSE file
+* manifest symbolic links as files
+* Contributors: Ussama Naal
+
 0.10.2 (2023-08-15)
 -------------------
 * SW-5396: publish point cloud in destaggered form (#182)
