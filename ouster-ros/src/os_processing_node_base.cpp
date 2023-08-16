@@ -16,8 +16,10 @@ void OusterProcessingNodeBase::create_metadata_subscriber(
     auto latching_qos = rclcpp::QoS(rclcpp::KeepLast(1));
     latching_qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+    rclcpp::SubscriptionOptions subscription_options;
+    subscription_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
     metadata_sub = create_subscription<std_msgs::msg::String>(
-        "metadata", latching_qos, on_sensor_metadata);
+        "metadata", latching_qos, on_sensor_metadata, subscription_options);
 }
 
 }  // namespace ouster_ros
