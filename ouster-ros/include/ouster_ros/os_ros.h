@@ -213,7 +213,7 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
 }
 
 /**
- * simple utility to function that ensures we don't wrap around uint64_t due
+ * simple utility function that ensures we don't wrap around uint64_t due
  * to a negative value being bigger than ts value in absolute terms.
  * @remark method does not check upper boundary
  */
