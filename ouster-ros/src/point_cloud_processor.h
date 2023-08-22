@@ -63,9 +63,9 @@ class PointCloudProcessor {
     void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                  const rclcpp::Time& msg_ts) {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
-            scan_to_cloud_f_destaggered(cloud,
-                points, lut_direction, lut_offset,
-                scan_ts, lidar_scan, pixel_shift_by_row, i);
+            scan_to_cloud_f_destaggered(cloud, points, lut_direction,
+                                        lut_offset, scan_ts, lidar_scan,
+                                        pixel_shift_by_row, i);
 
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;
@@ -107,4 +107,4 @@ class PointCloudProcessor {
     PostProcessingFn post_processing_fn;
 };
 
-}   // namespace ouster_ros
+}  // namespace ouster_ros
