@@ -258,8 +258,7 @@ class LidarPacketHandler {
                 return impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
             });
         lidar_scan_estimated_ts = compute_scan_ts(utc_timestamp);
-        lidar_scan_estimated_msg_ts =
-            impl::ts_to_ros_time(lidar_scan_estimated_ts);
+        lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
         return true;
     }
 
