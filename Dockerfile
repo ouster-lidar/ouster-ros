@@ -35,8 +35,7 @@ RUN set -xe         \
 && apt-get update   \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
-&& rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src -r
-# using -r for now to prevent rosdep from complaining within iron
+&& rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src
 
 
 USER build:build
