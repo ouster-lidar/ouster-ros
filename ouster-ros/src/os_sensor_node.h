@@ -127,7 +127,8 @@ class OusterSensor : public OusterSensorNodeBase {
     void handle_imu_packet(sensor::client& client,
                            const sensor::packet_format& pf);
 
-    void connection_loop(sensor::client& client, const sensor::packet_format& pf);
+    void connection_loop(sensor::client& client,
+                         const sensor::packet_format& pf);
 
     void start_sensor_connection_thread();
 

@@ -112,7 +112,7 @@ sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
             throw std::runtime_error("Unreachable");
     }
 }
-}
+}  // namespace impl
 
 template <typename PointT, typename RangeT, typename ReflectivityT,
           typename NearIrT, typename SignalT>
@@ -192,13 +192,12 @@ void copy_scan_to_cloud(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
 
 template <typename PointT, typename RangeT, typename ReflectivityT,
           typename NearIrT, typename SignalT>
-void copy_scan_to_cloud_destaggered(ouster_ros::Cloud& cloud, const ouster::LidarScan& ls,
-                        uint64_t scan_ts, const PointT& points,
-                        const ouster::img_t<RangeT>& range,
-                        const ouster::img_t<ReflectivityT>& reflectivity,
-                        const ouster::img_t<NearIrT>& near_ir,
-                        const ouster::img_t<SignalT>& signal,
-                        const std::vector<int>& pixel_shift_by_row) {
+void copy_scan_to_cloud_destaggered(
+    ouster_ros::Cloud& cloud, const ouster::LidarScan& ls, uint64_t scan_ts,
+    const PointT& points, const ouster::img_t<RangeT>& range,
+    const ouster::img_t<ReflectivityT>& reflectivity,
+    const ouster::img_t<NearIrT>& near_ir, const ouster::img_t<SignalT>& signal,
+    const std::vector<int>& pixel_shift_by_row) {
     auto timestamp = ls.timestamp();
 
     const auto rg = range.data();
@@ -213,7 +212,8 @@ void copy_scan_to_cloud_destaggered(ouster_ros::Cloud& cloud, const ouster::Lida
         for (auto v = 0; v < ls.w; v++) {
             const auto col_ts = timestamp[v];
             const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
-            const auto src_idx = u * ls.w + (v + ls.w - pixel_shift_by_row[u]) % ls.w;
+            const auto src_idx =
+                u * ls.w + (v + ls.w - pixel_shift_by_row[u]) % ls.w;
             const auto tgt_idx = u * ls.w + v;
             const auto xyz = points.row(src_idx);
             cloud.points[tgt_idx] = ouster_ros::Point{
@@ -293,14 +293,13 @@ void scan_to_cloud_f(ouster::PointsF& points,
                        signal);
 }
 
-
 void scan_to_cloud_f_destaggered(ouster_ros::Cloud& cloud,
-                     ouster::PointsF& points,
-                     const ouster::PointsF& lut_direction,
-                     const ouster::PointsF& lut_offset, uint64_t scan_ts,
-                     const ouster::LidarScan& ls,
-                     const std::vector<int>& pixel_shift_by_row,
-                     int return_index) {
+                                 ouster::PointsF& points,
+                                 const ouster::PointsF& lut_direction,
+                                 const ouster::PointsF& lut_offset,
+                                 uint64_t scan_ts, const ouster::LidarScan& ls,
+                                 const std::vector<int>& pixel_shift_by_row,
+                                 int return_index) {
     bool second = (return_index == 1);
 
     assert(cloud.width == static_cast<std::uint32_t>(ls.w) &&
@@ -323,10 +322,10 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud& cloud,
 
     ouster::cartesianT(points, range, lut_direction, lut_offset);
 
-    copy_scan_to_cloud_destaggered(cloud, ls, scan_ts, points, range, reflectivity, near_ir,
-                                   signal, pixel_shift_by_row);
+    copy_scan_to_cloud_destaggered(cloud, ls, scan_ts, points, range,
+                                   reflectivity, near_ir, signal,
+                                   pixel_shift_by_row);
 }
-
 
 sensor_msgs::msg::PointCloud2 cloud_to_cloud_msg(const Cloud& cloud,
                                                  const rclcpp::Time& timestamp,

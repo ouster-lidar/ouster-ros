@@ -14,7 +14,6 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-
 namespace ouster_ros {
 
 class LaserScanProcessor {
@@ -66,4 +65,4 @@ class LaserScanProcessor {
     PostProcessingFn post_processing_fn;
 };
 
-}   // namespace ouster_ros
+}  // namespace ouster_ros
