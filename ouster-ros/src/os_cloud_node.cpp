@@ -39,7 +39,7 @@ class OusterCloud : public OusterProcessingNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterCloud(const rclcpp::NodeOptions& options)
-        : OusterProcessingNodeBase("os_cloud", options), os_tf_bcast(this) {
+        : OusterProcessingNodeBase("os_cloud", options), tf_bcast(this) {
         on_init();
     }
 
