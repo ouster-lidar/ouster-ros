@@ -35,6 +35,7 @@ class OusterDriver : public OusterSensor {
         tf_bcast.parse_parameters();
         declare_parameter<std::string>("proc_mask", "IMU|IMG|PCL|SCAN");
         declare_parameter<int>("scan_ring", 0);
+        declare_parameter<double>("ptp_utc_tai_offset", -37.0);
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {

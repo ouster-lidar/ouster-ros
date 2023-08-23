@@ -50,7 +50,7 @@ remainder of this guide.
 > If you have _rosdep_ tool installed on your system you can then use the following command to get all
     required dependencies:  
     ```
-    rosdep install -y --from-paths $OUSTER_ROS_PATH -r
+    rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src
     ```
 
 ### Linux

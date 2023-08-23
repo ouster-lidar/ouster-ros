@@ -90,6 +90,7 @@
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
     cmd="ros2 bag play $(var bag_file) --clock
-      --qos-profile-overrides-path $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
+      --qos-profile-overrides-path
+      $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 
 </launch>

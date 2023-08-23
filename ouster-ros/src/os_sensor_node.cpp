@@ -49,7 +49,6 @@ void OusterSensor::declare_parameters() {
     declare_parameter<int>("imu_port", 0);
     declare_parameter<std::string>("lidar_mode", "");
     declare_parameter<std::string>("timestamp_mode", "");
-    declare_parameter<double>("ptp_utc_tai_offset", -37.0);
     declare_parameter<std::string>("udp_profile_lidar", "");
     declare_parameter("use_system_default_qos", false);
 }
