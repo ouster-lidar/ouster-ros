@@ -199,7 +199,6 @@ void copy_scan_to_cloud_destaggered(
     const ouster::img_t<NearIrT>& near_ir, const ouster::img_t<SignalT>& signal,
     const std::vector<int>& pixel_shift_by_row) {
     auto timestamp = ls.timestamp();
-
     const auto rg = range.data();
     const auto rf = reflectivity.data();
     const auto nr = near_ir.data();
@@ -210,11 +209,9 @@ void copy_scan_to_cloud_destaggered(
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto ts_src_idx = (v + ls.w - pixel_shift_by_row[u]) % ls.w;
-            const auto col_ts = timestamp[ts_src_idx];
-            const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
-            const auto src_idx =
-                u * ls.w + (v + ls.w - pixel_shift_by_row[u]) % ls.w;
+            const auto v_shift = (v + ls.w - pixel_shift_by_row[u]) % ls.w;
+            auto ts = timestamp[v_shift]; ts = ts > scan_ts ? ts - scan_ts : 0UL;
+            const auto src_idx = u * ls.w + v_shift;
             const auto tgt_idx = u * ls.w + v;
             const auto xyz = points.row(src_idx);
             cloud.points[tgt_idx] = ouster_ros::Point{
