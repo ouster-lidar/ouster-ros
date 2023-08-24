@@ -95,8 +95,7 @@
     <arg name="imu_frame" value="$(arg imu_frame)"/>
     <arg name="point_cloud_frame" value="$(arg point_cloud_frame)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
-    <param name="~/ptp_utc_tai_offset" type="double"
-      value="$(arg ptp_utc_tai_offset)"/>
+    <arg name="ptp_utc_tai_offset" value="$(arg ptp_utc_tai_offset)"/>
     <arg name="_no_bond" value="$(arg _no_bond)"/>
     <arg name="dynamic_transforms_broadcast"
       value="$(arg dynamic_transforms_broadcast)"/>
