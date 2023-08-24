@@ -216,7 +216,8 @@ void copy_scan_to_cloud_destaggered(
 #endif
     for (auto u = 0; u < ls.h; u++) {
         for (auto v = 0; v < ls.w; v++) {
-            const auto col_ts = timestamp[v];
+            const auto ts_src_idx = (v + ls.w - pixel_shift_by_row[u]) % ls.w;
+            const auto col_ts = timestamp[ts_src_idx];
             const auto ts = col_ts > scan_ts ? col_ts - scan_ts : 0UL;
             const auto src_idx =
                 u * ls.w + (v + ls.w - pixel_shift_by_row[u]) % ls.w;
