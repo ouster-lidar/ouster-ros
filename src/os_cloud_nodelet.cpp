@@ -93,15 +93,16 @@ class OusterCloud : public nodelet::Nodelet {
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = parse_tokens(proc_mask, '|');
 
-        auto timestamp_mode_arg = pnh.param("timestamp_mode", std::string{});
-        bool use_ros_time = timestamp_mode_arg == "TIME_FROM_ROS_TIME";
+        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
+        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
         auto& nh = getNodeHandle();
 
         if (check_token(tokens, "IMU")) {
             imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
             imu_packet_handler = ImuPacketHandler::create_handler(
-                info, tf_bcast.imu_frame_id(), use_ros_time);
+                info, tf_bcast.imu_frame_id(), timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             imu_packet_sub = nh.subscribe<PacketMsg>(
                 "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     auto imu_msg = imu_packet_handler(msg->buf.data());
@@ -153,10 +154,7 @@ class OusterCloud : public nodelet::Nodelet {
 
             processors.push_back(LaserScanProcessor::create(
                 info,
-                tf_bcast
-                    .point_cloud_frame_id(),  // TODO: should we allow having a
-                                              // different frame for the laser
-                                              // scan than point cloud???
+                tf_bcast.lidar_frame_id(),
                 scan_ring, [this](LaserScanProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) {
                         if (msgs[i]->header.stamp > last_msg_ts)
@@ -168,7 +166,8 @@ class OusterCloud : public nodelet::Nodelet {
 
         if (check_token(tokens, "PCL") || check_token(tokens, "SCAN")) {
             lidar_packet_handler = LidarPacketHandler::create_handler(
-                info, use_ros_time, processors);
+                info, processors, timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             lidar_packet_sub = nh.subscribe<PacketMsg>(
                 "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     lidar_packet_handler(msg->buf.data());

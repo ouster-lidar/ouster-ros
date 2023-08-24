@@ -17,8 +17,9 @@
     would set lidar_frame to be the frame used when publishing these messages."/>
 
   <arg name="timestamp_mode" doc="method used to timestamp measurements"/>
-  <arg name="dynamic_transforms_broadcast"
-    doc="static or dynamic transforms broadcast"/>
+  <arg name="ptp_utc_tai_offset" doc="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
+
+  <arg name="dynamic_transforms_broadcast" doc="static or dynamic transforms broadcast"/>
   <arg name="dynamic_transforms_broadcast_rate"
     doc="set the rate (Hz) of broadcast when using dynamic broadcast; minimum value is 1 Hz"/>
 
@@ -47,6 +48,7 @@
         value="$(arg dynamic_transforms_broadcast_rate)"/>
       <param name="~/proc_mask" value="$(arg proc_mask)"/>
       <param name="~/scan_ring" value="$(arg scan_ring)"/>
+      <param name="~/ptp_utc_tai_offset" type="double" value="$(arg ptp_utc_tai_offset)"/>
     </node>
   </group>
 

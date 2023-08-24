@@ -112,6 +112,12 @@ sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
     }
 }
 
+uint64_t ts_safe_offset_add(uint64_t ts, int64_t offset) {
+    if (offset >= 0 || ts > static_cast<uint64_t>(std::abs(offset)))
+        ts += offset;
+    return ts;
+}
+
 ros::Time ts_to_ros_time(uint64_t ts) {
     ros::Time t;
     t.fromNSec(ts);

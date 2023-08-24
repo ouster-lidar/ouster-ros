@@ -206,6 +206,12 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
     return result;
 }
 
+/**
+ * simple utility to function that ensures we don't wrap around uint64_t due
+ * to negative value bigger than ts value
+ */
+uint64_t ts_safe_offset_add(uint64_t ts, int64_t offset);
+
 ros::Time ts_to_ros_time(uint64_t ts);
 
 }  // namespace impl
