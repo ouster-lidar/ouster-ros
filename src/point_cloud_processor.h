@@ -19,6 +19,9 @@
 namespace ouster_ros {
 
 class PointCloudProcessor {
+   private:
+    const int skip_rings = 4;   // acceptable values = {1 (default), 2, 4, 8, 16}
+
    public:
     using OutputType = std::vector<std::shared_ptr<sensor_msgs::PointCloud2>>;
     using PostProcessingFn = std::function<void(OutputType)>;
@@ -30,7 +33,7 @@ class PointCloudProcessor {
                         PostProcessingFn func)
         : frame(frame_id),
           pixel_shift_by_row(info.format.pixel_shift_by_row),
-          cloud{info.format.columns_per_frame, info.format.pixels_per_column},
+          cloud{info.format.columns_per_frame, info.format.pixels_per_column / skip_rings},
           pc_msgs(get_n_returns(info)),
           post_processing_fn(func) {
         for (size_t i = 0; i < pc_msgs.size(); ++i)
@@ -64,7 +67,7 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             scan_to_cloud_f_destaggered(cloud,
                 points, lut_direction, lut_offset,
-                scan_ts, lidar_scan, pixel_shift_by_row, i);
+                scan_ts, lidar_scan, pixel_shift_by_row, i, skip_rings);
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;
             pc_msgs[i]->header.frame_id = frame;
