@@ -103,9 +103,8 @@ class OusterDriver : public OusterSensor {
             }
 
             processors.push_back(LaserScanProcessor::create(
-                info,
-                tf_bcast.lidar_frame_id(),
-                scan_ring, [this](LaserScanProcessor::OutputType msgs) {
+                info, tf_bcast.lidar_frame_id(), scan_ring,
+                [this](LaserScanProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) {
                         scan_pubs[i].publish(*msgs[i]);
                     }

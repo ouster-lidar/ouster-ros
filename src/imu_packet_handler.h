@@ -29,28 +29,26 @@ class ImuPacketHandler {
         const auto& pf = ouster::sensor::get_format(info);
         using Timestamper = std::function<ros::Time(const uint8_t*)>;
         Timestamper timestamper;
-        // clang-format off
         if (timestamp_mode == "TIME_FROM_ROS_TIME") {
-            timestamper = Timestamper{[](const uint8_t* /*imu_buf*/) {
-                return ros::Time::now();
-            }};
+            timestamper = Timestamper{
+                [](const uint8_t* /*imu_buf*/) { return ros::Time::now(); }};
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
-            timestamper = Timestamper{[pf, ptp_utc_tai_offset](const uint8_t* imu_buf) {
-                uint64_t ts = pf.imu_gyro_ts(imu_buf);
-                ts = impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
-                return impl::ts_to_ros_time(ts);
-            }};
+            timestamper =
+                Timestamper{[pf, ptp_utc_tai_offset](const uint8_t* imu_buf) {
+                    uint64_t ts = pf.imu_gyro_ts(imu_buf);
+                    ts = impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
+                    return impl::ts_to_ros_time(ts);
+                }};
         } else {
             timestamper = Timestamper{[pf](const uint8_t* imu_buf) {
                 return impl::ts_to_ros_time(pf.imu_gyro_ts(imu_buf));
             }};
         }
 
-        // clang-format on
         return [&pf, &frame, timestamper](const uint8_t* imu_buf) {
             return packet_to_imu_msg(pf, timestamper(imu_buf), frame, imu_buf);
         };
     }
 };
 
-}   // namespace ouster_ros
+}  // namespace ouster_ros

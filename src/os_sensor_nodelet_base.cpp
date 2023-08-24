@@ -6,12 +6,12 @@
  * @brief implementation of OusterSensorNodeletBase interface
  */
 
-#include <fstream>
-
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
 #include <ouster/impl/build.h>
 #include <std_msgs/String.h>
+
+#include <fstream>
 
 #include "ouster_ros/GetMetadata.h"
 

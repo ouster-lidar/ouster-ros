@@ -82,7 +82,6 @@ namespace sensor = ouster::sensor;
 using LidarScanProcessor =
     std::function<void(const ouster::LidarScan&, uint64_t, const ros::Time&)>;
 
-
 class LidarPacketHandler {
     using LidarPacketAccumlator = std::function<bool(const uint8_t*)>;
 
@@ -95,8 +94,8 @@ class LidarPacketHandler {
     LidarPacketHandler(const ouster::sensor::sensor_info& info,
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
-                       int64_t ptp_utc_tai_offset) :
-                       lidar_scan_handlers{handlers} {
+                       int64_t ptp_utc_tai_offset)
+        : lidar_scan_handlers{handlers} {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
         lidar_scan = std::make_unique<ouster::LidarScan>(
@@ -116,9 +115,10 @@ class LidarPacketHandler {
                     return lidar_handler_ros_time(pf, lidar_buf);
                 }};
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
-            lidar_packet_accumlator =
-                LidarPacketAccumlator{[this, pf, ptp_utc_tai_offset](const uint8_t* lidar_buf) {
-                    return lidar_handler_sensor_time_ptp(pf, lidar_buf, ptp_utc_tai_offset);
+            lidar_packet_accumlator = LidarPacketAccumlator{
+                [this, pf, ptp_utc_tai_offset](const uint8_t* lidar_buf) {
+                    return lidar_handler_sensor_time_ptp(pf, lidar_buf,
+                                                         ptp_utc_tai_offset);
                 }};
         } else {
             lidar_packet_accumlator =
@@ -142,8 +142,7 @@ class LidarPacketHandler {
     static HandlerType create_handler(
         const ouster::sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
-        const std::string& timestamp_mode,
-        int64_t ptp_utc_tai_offset) {
+        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
         auto handler = std::make_shared<LidarPacketHandler>(
             info, handlers, timestamp_mode, ptp_utc_tai_offset);
         return [handler](const uint8_t* lidar_buf) {
@@ -236,7 +235,9 @@ class LidarPacketHandler {
                                    const uint8_t* lidar_buf,
                                    const ros::Time current_time) {
         auto curr_scan_first_arrived_idx = packet_col_index(pf, lidar_buf);
-        auto delta_time = ros::Duration(0, std::lround(scan_col_ts_spacing_ns * curr_scan_first_arrived_idx));
+        auto delta_time = ros::Duration(
+            0,
+            std::lround(scan_col_ts_spacing_ns * curr_scan_first_arrived_idx));
         return current_time - delta_time;
     }
 
@@ -244,16 +245,20 @@ class LidarPacketHandler {
                                    const uint8_t* lidar_buf) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
-        lidar_scan_estimated_msg_ts = impl::ts_to_ros_time(lidar_scan_estimated_ts);
+        lidar_scan_estimated_msg_ts =
+            impl::ts_to_ros_time(lidar_scan_estimated_ts);
         return true;
     }
 
     bool lidar_handler_sensor_time_ptp(const sensor::packet_format&,
-                                   const uint8_t* lidar_buf, int64_t ptp_utc_tai_offset) {
+                                       const uint8_t* lidar_buf,
+                                       int64_t ptp_utc_tai_offset) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
-        lidar_scan_estimated_ts = impl::ts_safe_offset_add(lidar_scan_estimated_ts, ptp_utc_tai_offset);
-        lidar_scan_estimated_msg_ts = impl::ts_to_ros_time(lidar_scan_estimated_ts);
+        lidar_scan_estimated_ts = impl::ts_safe_offset_add(
+            lidar_scan_estimated_ts, ptp_utc_tai_offset);
+        lidar_scan_estimated_msg_ts =
+            impl::ts_to_ros_time(lidar_scan_estimated_ts);
         return true;
     }
 
@@ -304,4 +309,4 @@ class LidarPacketHandler {
     LidarPacketAccumlator lidar_packet_accumlator;
 };
 
-}   // namespace ouster_ros
+}  // namespace ouster_ros
