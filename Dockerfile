@@ -29,17 +29,14 @@ RUN set -xe \
 && groupadd -o -g ${BUILD_GID} build \
 && useradd -o -u ${BUILD_UID} -d ${BUILD_HOME} -rm -s /bin/bash -g build build
 
-# Install build dependencies using rosdep
-COPY --chown=build:build package.xml $OUSTER_ROS_PATH/package.xml
+# Set up build environment
+COPY --chown=build:build . $OUSTER_ROS_PATH
 
 RUN set -xe         \
 && apt-get update   \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
 && rosdep install -y --from-paths $OUSTER_ROS_PATH
-
-# Set up build environment
-COPY --chown=build:build . $OUSTER_ROS_PATH
 
 USER build:build
 WORKDIR ${BUILD_HOME}
