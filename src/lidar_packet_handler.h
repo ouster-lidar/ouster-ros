@@ -254,12 +254,10 @@ class LidarPacketHandler {
                                        const uint8_t* lidar_buf,
                                        int64_t ptp_utc_tai_offset) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        ouster::LidarScan::Header<uint64_t> utc_timestamp =
-            lidar_scan->timestamp().unaryExpr(
-                [ptp_utc_tai_offset](uint64_t ts) {
-                    return impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
-                });
-        lidar_scan_estimated_ts = compute_scan_ts(utc_timestamp);
+        auto ts_v = lidar_scan->timestamp();
+        for (int i = 0; i < ts_v.rows(); ++i)
+            ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset);
+        lidar_scan_estimated_ts = compute_scan_ts(ts_v);
         lidar_scan_estimated_msg_ts =
             impl::ts_to_ros_time(lidar_scan_estimated_ts);
         return true;
