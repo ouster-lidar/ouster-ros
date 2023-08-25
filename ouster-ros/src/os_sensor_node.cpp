@@ -409,7 +409,8 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+        cli =
+            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
                                 sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 

@@ -33,6 +33,8 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  <arg name="ptp_utc_tai_offset" default="-37.0"
+    description="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
   <arg name="metadata" default=""
     description="path to write metadata file when receiving sensor data"/>
   <arg name="viz" default="true"
@@ -84,6 +86,7 @@
       <param name="imu_frame" value="$(var imu_frame)"/>
       <param name="point_cloud_frame" value="$(var point_cloud_frame)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+      <param name="ptp_utc_tai_offset" value="$(var ptp_utc_tai_offset)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       <param name="proc_mask" value="$(var proc_mask)"/>
       <param name="scan_ring" value="$(var scan_ring)"/>

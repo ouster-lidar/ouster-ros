@@ -5,6 +5,10 @@ Changelog
 [unreleased]
 ============
 * breaking: publish PCL point clouds destaggered.
+* introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
+  to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
+  is used.
+* fix: destagger columns timestamp when generating destaggered point clouds.
 
 
 ouster_ros v0.10.0

@@ -6,11 +6,11 @@
  * @brief implementation of OusterSensorNodeBase interface
  */
 
-#include <fstream>
-
 #include "ouster_ros/os_sensor_node_base.h"
 
 #include <ouster/impl/build.h>
+
+#include <fstream>
 
 namespace sensor = ouster::sensor;
 using ouster_msgs::srv::GetMetadata;
@@ -66,7 +66,7 @@ std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {
 }
 
 bool OusterSensorNodeBase::write_text_to_file(const std::string& file_path,
-                    const std::string& text) {
+                                              const std::string& text) {
     std::ofstream ofs(file_path);
     if (!ofs.is_open()) return false;
     ofs << text << std::endl;

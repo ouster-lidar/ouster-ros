@@ -8,7 +8,7 @@
 
 #pragma once
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
@@ -92,7 +92,10 @@ class LidarPacketHandler {
 
    public:
     LidarPacketHandler(const ouster::sensor::sensor_info& info,
-                       bool use_ros_time) {
+                       const std::vector<LidarScanProcessor>& handlers,
+                       const std::string& timestamp_mode,
+                       int64_t ptp_utc_tai_offset)
+        : lidar_scan_handlers{handlers} {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
         lidar_scan = std::make_unique<ouster::LidarScan>(
@@ -106,14 +109,23 @@ class LidarPacketHandler {
         };
         const sensor::packet_format& pf = sensor::get_format(info);
 
-        lidar_packet_accumlator =
-            use_ros_time
-                ? LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
-                      return lidar_handler_ros_time(pf, lidar_buf);
-                  }}
-                : LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
-                      return lidar_handler_sensor_time(pf, lidar_buf);
-                  }};
+        if (timestamp_mode == "TIME_FROM_ROS_TIME") {
+            lidar_packet_accumlator =
+                LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
+                    return lidar_handler_ros_time(pf, lidar_buf);
+                }};
+        } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
+            lidar_packet_accumlator = LidarPacketAccumlator{
+                [this, pf, ptp_utc_tai_offset](const uint8_t* lidar_buf) {
+                    return lidar_handler_sensor_time_ptp(pf, lidar_buf,
+                                                         ptp_utc_tai_offset);
+                }};
+        } else {
+            lidar_packet_accumlator =
+                LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
+                    return lidar_handler_sensor_time(pf, lidar_buf);
+                }};
+        }
     }
 
     LidarPacketHandler(const LidarPacketHandler&) = delete;
@@ -128,12 +140,11 @@ class LidarPacketHandler {
 
    public:
     static HandlerType create_handler(
-        const ouster::sensor::sensor_info& info, bool use_ros_time,
-        const std::vector<LidarScanProcessor>& handlers) {
-        auto handler = std::make_shared<LidarPacketHandler>(info, use_ros_time);
-
-        handler->lidar_scan_handlers = handlers;
-
+        const ouster::sensor::sensor_info& info,
+        const std::vector<LidarScanProcessor>& handlers,
+        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
+        auto handler = std::make_shared<LidarPacketHandler>(
+            info, handlers, timestamp_mode, ptp_utc_tai_offset);
         return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
                 for (auto h : handler->lidar_scan_handlers) {
@@ -201,7 +212,6 @@ class LidarPacketHandler {
         assert(idx != ts_v.data() + ts_v.size());  // should never happen
         int curr_scan_first_nonzero_idx = idx - ts_v.data();
         uint64_t curr_scan_first_nonzero_value = *idx;
-
         uint64_t scan_ns = curr_scan_first_nonzero_idx == 0
                                ? curr_scan_first_nonzero_value
                                : impute_value(last_scan_last_nonzero_idx,
@@ -209,7 +219,6 @@ class LidarPacketHandler {
                                               curr_scan_first_nonzero_idx,
                                               curr_scan_first_nonzero_value,
                                               static_cast<int>(ts_v.size()));
-
         last_scan_last_nonzero_idx =
             find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
         assert(last_scan_last_nonzero_idx >= 0);  // should never happen
@@ -236,6 +245,18 @@ class LidarPacketHandler {
                                    const uint8_t* lidar_buf) {
         if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
+        lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
+        return true;
+    }
+
+    bool lidar_handler_sensor_time_ptp(const sensor::packet_format&,
+                                       const uint8_t* lidar_buf,
+                                       int64_t ptp_utc_tai_offset) {
+        if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
+        auto ts_v = lidar_scan->timestamp();
+        for (int i = 0; i < ts_v.rows(); ++i)
+            ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset);
+        lidar_scan_estimated_ts = compute_scan_ts(ts_v);
         lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
         return true;
     }
@@ -287,4 +308,4 @@ class LidarPacketHandler {
     LidarPacketAccumlator lidar_packet_accumlator;
 };
 
-}   // namespace ouster_ros
+}  // namespace ouster_ros
