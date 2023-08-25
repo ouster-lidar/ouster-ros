@@ -149,7 +149,7 @@ class ImageProcessor {
             for (size_t v = 0; v < W; v++) {
                 const size_t vv = (v + W - px_offset[u]) % W;
                 const size_t idx = u * W + vv;
-                 // TODO: re-examine this truncation later
+                // TODO: re-examine this truncation later
                 // 16 bit img: use 4mm resolution and throw out returns > 260m
                 auto r = (rg[idx] + 0b10) >> 2;
                 range_image_map(u, v) = r > pixel_value_max ? 0 : r;

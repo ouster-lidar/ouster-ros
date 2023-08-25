@@ -4,7 +4,7 @@ Upstream-Contact: Ouster Sensor SDK Developers <oss@ouster.io>
 Source: https://github.com/ouster-lidar/ouster_example
 
 Files: *
-Copyright: 2018-2022 Ouster, Inc
+Copyright: 2018-2023 Ouster, Inc
 License: BSD-3-Clause
 
 Files: include/optional-lite/*

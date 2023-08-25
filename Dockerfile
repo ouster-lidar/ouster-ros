@@ -3,7 +3,7 @@ ARG ROS_DISTRO=rolling
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
 ENV DEBIAN_FRONTEND=noninteractive \
     BUILD_HOME=/var/lib/build \
-    OUSTER_ROS_PATH=/opt/catkin_ws/src/ouster-ros
+    OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
 RUN set -xue \
 # Turn off installing extra packages globally to slim down rosdep install
@@ -28,21 +28,15 @@ RUN set -xe \
 && groupadd -o -g ${BUILD_GID} build \
 && useradd -o -u ${BUILD_UID} -d ${BUILD_HOME} -rm -s /bin/bash -g build build
 
-# Install build dependencies using rosdep
-COPY --chown=build:build \
-    ouster-ros/package.xml \
-    $OUSTER_ROS_PATH/ouster-ros/package.xml
+# Set up build environment
+COPY --chown=build:build . $OUSTER_ROS_PATH
 
 RUN set -xe         \
 && apt-get update   \
 && rosdep init      \
 && rosdep update --rosdistro=$ROS_DISTRO \
-&& rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src \
-&& apt remove -y ros-${ROS_DISTRO}-ouster-msgs
+&& rosdep install --from-paths $OUSTER_ROS_PATH -y --ignore-src
 
-
-# Set up build environment
-COPY --chown=build:build . $OUSTER_ROS_PATH
 
 USER build:build
 WORKDIR ${BUILD_HOME}

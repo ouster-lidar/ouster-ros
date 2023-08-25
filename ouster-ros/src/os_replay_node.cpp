@@ -96,9 +96,7 @@ class OusterReplay : public OusterSensorNodeBase {
     }
 
    private:
-    void declare_parameters() {
-        declare_parameter("metadata");
-    }
+    void declare_parameters() { declare_parameter("metadata"); }
 
     std::string parse_parameters() {
         auto meta_file = get_parameter("metadata").as_string();
@@ -123,9 +121,7 @@ class OusterReplay : public OusterSensorNodeBase {
         }
     }
 
-    void cleanup() {
-        get_metadata_srv.reset();
-    }
+    void cleanup() { get_metadata_srv.reset(); }
 };
 
 }  // namespace ouster_ros

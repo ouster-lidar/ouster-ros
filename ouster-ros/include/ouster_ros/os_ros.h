@@ -211,6 +211,17 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
     ouster::impl::visit_field(ls, field, read_and_cast(), result);
     return result;
 }
+
+/**
+ * simple utility function that ensures we don't wrap around uint64_t due
+ * to a negative value being bigger than ts value in absolute terms.
+ * @remark method does not check upper boundary
+ */
+inline uint64_t ts_safe_offset_add(uint64_t ts, int64_t offset) {
+    return offset < 0 && ts < static_cast<uint64_t>(std::abs(offset)) ? 0 : ts + offset;
+}
+
+
 } // namespace impl
 
 }  // namespace ouster_ros
