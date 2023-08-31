@@ -4,6 +4,7 @@
   <name>ouster_ros</name>
   <version>0.10.3</version>
   <description>Ouster ROS2 driver</description>
+  <maintainer email="ussama.naal@ouster.io">Ussama Naal</maintainer>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
   <license file="LICENSE">BSD</license>
 

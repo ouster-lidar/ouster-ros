@@ -2,6 +2,9 @@
 Changelog for package ouster_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.10.3 (2023-08-15)
 -------------------
 * Add per package LICENSE file
