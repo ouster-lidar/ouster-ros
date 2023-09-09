@@ -7,7 +7,7 @@ from pathlib import Path
 import launch
 import lifecycle_msgs.msg
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import Node, LifecycleNode
+from launch_ros.actions import LifecycleNode
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
                             RegisterEventHandler, EmitEvent, LogInfo)
 from launch.conditions import IfCondition

@@ -69,19 +69,18 @@ def generate_launch_description():
         )
     )
 
-    # TODO: figure out why registering for on_shutdown event causes an exception
-    # and error handling
-    # shutdown_event = RegisterEventHandler(
-    #     OnShutdown(
-    #         on_shutdown=[
-    #             EmitEvent(event=ChangeState(
-    #               lifecycle_node_matcher=matches_node_name(node_name=F"/ouster/os_sensor"),
-    #               transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVE_SHUTDOWN,
-    #             )),
-    #             LogInfo(msg="os_sensor node exiting..."),
-    #         ],
-    #     )
-    # )
+    sensor_finalized_event = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=os_sensor, goal_state='finalized',
+            entities=[
+                LogInfo(
+                    msg="Failed to communicate with the sensor in a timely manner."),
+                EmitEvent(event=launch.events.Shutdown(
+                    reason="Couldn't communicate with sensor"))
+            ],
+        )
+    )
+
 
     os_cloud = Node(
         package='ouster_ros',
@@ -118,5 +117,5 @@ def generate_launch_description():
         os_image,
         sensor_configure_event,
         sensor_activate_event,
-        # shutdown_event
+        sensor_finalized_event
     ])
