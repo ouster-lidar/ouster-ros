@@ -7,7 +7,7 @@ from pathlib import Path
 import launch
 import lifecycle_msgs.msg
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import Node, LifecycleNode
+from launch_ros.actions import LifecycleNode
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
                             RegisterEventHandler, EmitEvent, LogInfo)
 from launch.conditions import IfCondition
@@ -40,7 +40,8 @@ def generate_launch_description():
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
     os_driver_name = LaunchConfiguration('os_driver_name')
-    os_driver_name_arg = DeclareLaunchArgument('os_driver_name', default_value='os_driver')
+    os_driver_name_arg = DeclareLaunchArgument(
+        'os_driver_name', default_value='os_driver')
 
     os_driver = LifecycleNode(
         package='ouster_ros',
@@ -72,20 +73,17 @@ def generate_launch_description():
         )
     )
 
-    # TODO: figure out why registering for on_shutdown event causes an exception
-    # and error handling
-    # shutdown_event = RegisterEventHandler(
-    #     OnShutdown(
-    #         on_shutdown=[
-    #             EmitEvent(event=ChangeState(
-    #               lifecycle_node_matcher=matches_node_name(node_name=F"/ouster/os_sensor"),
-    #               transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVE_SHUTDOWN,
-    #             )),
-    #             LogInfo(msg="os_sensor node exiting..."),
-    #         ],
-    #     )
-    # )
-
+    sensor_finalized_event = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=os_driver, goal_state='finalized',
+            entities=[
+                LogInfo(
+                    msg="Failed to communicate with the sensor in a timely manner."),
+                EmitEvent(event=launch.events.Shutdown(
+                    reason="Couldn't communicate with sensor"))
+            ],
+        )
+    )
 
     rviz_launch_file_path = \
         Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
@@ -103,5 +101,5 @@ def generate_launch_description():
         os_driver,
         sensor_configure_event,
         sensor_activate_event,
-        # shutdown_event
+        sensor_finalized_event
     ])
