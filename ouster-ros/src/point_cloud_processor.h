@@ -53,7 +53,8 @@ class PointCloudProcessor {
     }
 
    private:
-    void pcl_toROSMsg(const ouster_ros::Cloud& pcl_cloud,
+    template <typename T>
+    void pcl_toROSMsg(const ouster_ros::Cloud<T>& pcl_cloud,
                       sensor_msgs::msg::PointCloud2& cloud) {
         // TODO: remove the staging step in the future
         pcl::toPCLPointCloud2(pcl_cloud, staging_pcl_pc2);
@@ -100,7 +101,7 @@ class PointCloudProcessor {
     ouster::PointsF lut_offset;
     ouster::PointsF points;
     std::vector<int> pixel_shift_by_row;
-    ouster_ros::Cloud cloud;
+    ouster_ros::Cloud<PointXYZIR> cloud;
 
     OutputType pc_msgs;
 

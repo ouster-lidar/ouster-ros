@@ -70,7 +70,7 @@ class OusterImage : public OusterProcessingNodeBase {
     void create_cloud_object() {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
-        cloud = ouster_ros::Cloud{W, H};
+        cloud = ouster_ros::Cloud<Point>{W, H};
     }
 
     void create_publishers(int n_returns) {
@@ -209,7 +209,7 @@ class OusterImage : public OusterProcessingNodeBase {
     std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr>
         pc_subs;
 
-    ouster_ros::Cloud cloud;
+    ouster_ros::Cloud<Point> cloud;
     viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
     viz::BeamUniformityCorrector nearir_buc;
 };
