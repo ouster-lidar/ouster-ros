@@ -38,6 +38,7 @@ struct EIGEN_ALIGN16 PointXYZIR {
 }  // namespace ouster_ros
 
 // clang-format off
+
 POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point,
     (float, x, x)
     (float, y, y)

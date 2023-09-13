@@ -14,10 +14,12 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+#include "pcl_cloud_compose.h"
 #include "lidar_packet_handler.h"
 
 namespace ouster_ros {
 
+template <class PointT>
 class PointCloudProcessor {
    public:
     using OutputType =
@@ -101,10 +103,8 @@ class PointCloudProcessor {
     ouster::PointsF lut_offset;
     ouster::PointsF points;
     std::vector<int> pixel_shift_by_row;
-    ouster_ros::Cloud<PointXYZIR> cloud;
-
+    ouster_ros::Cloud<PointT> cloud;
     OutputType pc_msgs;
-
     PostProcessingFn post_processing_fn;
 };
 

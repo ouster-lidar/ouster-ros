@@ -37,19 +37,18 @@ OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
     : OusterSensor("os_sensor", options) {}
 
 void OusterSensor::declare_parameters() {
-    declare_parameter<std::string>("sensor_hostname", "");
-    declare_parameter<std::string>("lidar_ip", "");  // community driver param
-    declare_parameter<std::string>("metadata", "");
-    declare_parameter<std::string>("udp_dest", "");
-    declare_parameter<std::string>("computer_ip",
-                                   "");  // community driver param
-    declare_parameter<std::string>("mtp_dest", "");
-    declare_parameter<bool>("mtp_main", false);
-    declare_parameter<int>("lidar_port", 0);
-    declare_parameter<int>("imu_port", 0);
-    declare_parameter<std::string>("lidar_mode", "");
-    declare_parameter<std::string>("timestamp_mode", "");
-    declare_parameter<std::string>("udp_profile_lidar", "");
+    declare_parameter("sensor_hostname", "");
+    declare_parameter("lidar_ip", "");      // community driver param
+    declare_parameter("metadata", "");
+    declare_parameter("udp_dest", "");
+    declare_parameter("computer_ip", "");   // community driver param
+    declare_parameter("mtp_dest", "");
+    declare_parameter("mtp_main", false);
+    declare_parameter("lidar_port", 0);
+    declare_parameter("imu_port", 0);
+    declare_parameter("lidar_mode", "");
+    declare_parameter("timestamp_mode", "");
+    declare_parameter("udp_profile_lidar", "");
     declare_parameter("use_system_default_qos", false);
 }
 

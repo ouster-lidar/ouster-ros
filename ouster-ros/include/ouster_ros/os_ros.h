@@ -19,21 +19,16 @@
 #include <pcl/point_types.h>
 
 #include <sensor_msgs/msg/imu.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
 #include <chrono>
 #include <string>
 
 #include "ouster_msgs/msg/packet_msg.hpp"
-#include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
-
-template <class T>
-using Cloud = pcl::PointCloud<T>;
 
 /**
  * Checks sensor_info if it currently represents a legacy udp lidar profile
@@ -90,40 +85,6 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_msgs::msg::PacketMsg& pm,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
                                         const sensor::packet_format& pf);
-
-/**
- * Populate a destaggered PCL point cloud from a LidarScan
- * @param[out] cloud output pcl pointcloud to populate
- * @param[in, out] points The points parameters is used to store the results of
- * the cartesian product before it gets packed into the cloud object.
- * @param[in] lut_direction the direction of the xyz lut (with single precision)
- * @param[in] lut_offset the offset of the xyz lut (with single precision)
- * @param[in] scan_ts scan start used to caluclate relative timestamps for
- * points
- * @param[in] lidar_scan input lidar data
- * @param[in] pixel_shift_by_row pixel shifts by row
- * @param[in] return_index index of return desired starting at 0
- */
-template <typename T>
-void scan_to_cloud_f_destaggered(ouster_ros::Cloud<T>& cloud,
-                     ouster::PointsF& points,
-                     const ouster::PointsF& lut_direction,
-                     const ouster::PointsF& lut_offset, uint64_t scan_ts,
-                     const ouster::LidarScan& ls,
-                     const std::vector<int>& pixel_shift_by_row,
-                     int return_index);
-
-/**
- * Serialize a PCL point cloud to a ROS message
- * @param[in] cloud the PCL point cloud to convert
- * @param[in] timestamp the timestamp to apply to the resulting ROS message
- * @param[in] frame the frame to set in the resulting ROS message
- * @return a ROS message containing the point cloud
- */
-template <class T>
-sensor_msgs::msg::PointCloud2 cloud_to_cloud_msg(const Cloud<T>& cloud,
-                                                 const rclcpp::Time& timestamp,
-                                                 const std::string& frame);
 
 /**
  * Convert transformation matrix return by sensor to ROS transform
@@ -186,6 +147,13 @@ inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
  */
 inline uint64_t ts_safe_offset_add(uint64_t ts, int64_t offset) {
     return offset < 0 && ts < static_cast<uint64_t>(std::abs(offset)) ? 0 : ts + offset;
+}
+
+std::set<std::string> parse_tokens(const std::string& input, char delim);
+
+inline bool check_token(const std::set<std::string>& tokens,
+                        const std::string& token) {
+    return tokens.find(token) != tokens.end();
 }
 
 
