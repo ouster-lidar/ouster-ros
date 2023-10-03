@@ -67,3 +67,4 @@ ouster/os_driver:
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
+    retry_configuration: false
