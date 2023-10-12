@@ -10,15 +10,16 @@
 
 #include <pcl/point_types.h>
 
-#include <Eigen/Core>
-#include <chrono>
-
-#include <ouster/lidar_scan.h>
-
 namespace ouster_ros {
 
-// DEFAULT[LEGACY]
-struct EIGEN_ALIGN16 Point {
+// The default/original represntation of the point cloud since the driver
+// inception. This shouldn't be confused with Point_LEGACY which provides exact
+// mapping of the fields of Ouster LidarScan of the Legacy Profile, copying the 
+// the same order and using the same bit representation. For example, this Point
+// struct uses float data type to represent intensity (aka signal); however, the
+// sensor sends the signal channel either as UINT16 or UINT32 depending on the
+// active udp lidar profile.
+struct EIGEN_ALIGN16 _Point {
     PCL_ADD_POINT4D;
     float intensity;        // equivalent signal
     uint32_t t;
@@ -29,66 +30,49 @@ struct EIGEN_ALIGN16 Point {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-/*
- * The following are one-to-one mapping of pcl point representatios that could
- * fit the data sent by the sensor (excluding LEGACY):
- */
-// auto=RNG15_RFL8_NIR8 aka LOW_DATA profile
-struct EIGEN_ALIGN16 Point_RNG15_RFL8_NIR8 {
-    PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
-    uint32_t t;             // timestamp relative to frame
-    uint16_t ring;          // equivalent to channel
-    uint32_t range;         // decoded_size=uint32
-    uint16_t reflectivity;  // decoded_size=uint16
-    uint16_t near_ir;       // equivalent to ambient; decoded_size=uint16
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+struct Point : public _Point {
+
+    inline Point(const _Point& pt)
+    {
+      x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
+      intensity = pt.intensity;
+      t = pt.t;
+      reflectivity = pt.reflectivity; 
+      ring = pt.ring;
+      ambient = pt.ambient;
+      range = pt.range;
+    }
+
+    inline Point()
+    {
+      x = y = z = 0.0f; data[3] = 1.0f;
+      intensity = 0.0f;
+      t = 0;
+      reflectivity = 0;
+      ring = 0;
+      ambient = 0;
+      range = 0;
+    }
+
+    inline const auto as_tuple() const {
+        return std::tie(x, y, z, intensity, t, reflectivity, ring, ambient, range);
+    }
+
+    inline auto as_tuple() {
+        return std::tie(x, y, z, intensity, t, reflectivity, ring, ambient, range);
+    }
+
+    template<size_t I>
+    inline auto& get() {
+        return std::get<I>(as_tuple());
+    }
 };
 
-// auto=RNG19_RFL8_SIG16_NIR16
-struct EIGEN_ALIGN16 Point_RNG19_RFL8_SIG16_NIR16 {
-    PCL_ADD_POINT4D;
-    uint32_t t;             // timestamp relative to frame start time
-    uint16_t ring;          // equivalent channel
-    uint32_t range;         // decoded_size=uint32
-    uint16_t signal;        // equivalent to intensity
-    uint16_t reflectivity;  // decoded_size=uint16
-    uint16_t near_ir;       // equivalent to ambient; decoded_size=uint16
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-// auto=RNG19_RFL8_SIG16_NIR16_DUAL
-struct EIGEN_ALIGN16 Point_RNG19_RFL8_SIG16_NIR16_DUAL {
-    PCL_ADD_POINT4D;
-    uint32_t t;             // timestamp relative to frame start time
-    uint16_t ring;          // equivalent channel
-    uint32_t range;         // size(decoded(range))=uint32
-    uint16_t signal;        // equivalent to intensity
-    uint8_t reflectivity;   // size(decoded(reflectivity))=uint8 << only in DUAL
-    uint16_t near_ir;       // equivalent to ambient; decoded_size=uint16
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-/* The following are pcl point representations that are common/standard point
-   representation that we readily support.
- */
-
-/*
- * Same as Velodyne point cloud type
- * @remark XYZIR point type is not compatible with RNG15_RFL8_NIR8/LOW_DATA
- * udp lidar profile.
- */
-struct EIGEN_ALIGN16 PointXYZIR {
-    PCL_ADD_POINT4D;
-    float intensity;
-    uint16_t ring;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-}  // namespace ouster_ros
+}   // namespace ouster_ros
 
 // clang-format off
 
+// DEFAULT/ORIGINAL
 POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point,
     (float, x, x)
     (float, y, y)
@@ -99,51 +83,6 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point,
     (std::uint16_t, ring, ring)
     (std::uint16_t, ambient, ambient)
     (std::uint32_t, range, range)
-)
-
-// Default=RNG15_RFL8_NIR8 aka LOW_DATA profile
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG15_RFL8_NIR8,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (std::uint32_t, t, t)
-    (std::uint16_t, ring, ring)
-    (std::uint32_t, range, range)
-    (std::uint16_t, reflectivity, reflectivity)
-    (std::uint16_t, near_ir, near_ir)
-)
-
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG19_RFL8_SIG16_NIR16,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (std::uint32_t, t, t)
-    (std::uint16_t, ring, ring)
-    (std::uint32_t, range, range)
-    (std::uint16_t, signal, signal)
-    (std::uint16_t, reflectivity, reflectivity)
-    (std::uint16_t, near_ir, near_ir)
-)
-
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_DUAL,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (std::uint32_t, t, t)
-    (std::uint16_t, ring, ring)
-    (std::uint32_t, range, range)
-    (std::uint16_t, signal, signal)
-    (std::uint8_t, reflectivity, reflectivity)
-    (std::uint16_t, near_ir, near_ir)
-)
-
-/* common point types */
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIR,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (float, intensity, intensity)
-    (std::uint16_t, ring, ring)
 )
 
 // clang-format on

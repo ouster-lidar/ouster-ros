@@ -131,10 +131,7 @@ struct read_and_cast {
 template <typename T>
 inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
                                          const ouster::LidarScan& ls) {
-    if (!ls.field_type(field)) {
-        return ouster::img_t<T>::Zero(ls.h, ls.w);
-    }
-
+    if (!ls.field_type(field)) return ouster::img_t<T>::Zero(ls.h, ls.w);
     ouster::img_t<T> result{ls.h, ls.w};
     ouster::impl::visit_field(ls, field, read_and_cast(), result);
     return result;

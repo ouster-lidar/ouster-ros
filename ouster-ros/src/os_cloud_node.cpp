@@ -24,6 +24,7 @@
 #include "lidar_packet_handler.h"
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
+#include "point_cloud_processor_factory.h"
 
 namespace ouster_ros {
 
@@ -71,54 +72,6 @@ class OusterCloud : public OusterProcessingNodeBase {
         create_publishers_subscriptions(info);
     }
 
-    template <typename PointT>
-    LidarScanProcessor make_point_cloud_procssor(const sensor::sensor_info& info) {
-        return PointCloudProcessor<PointT>::create(
-            info, tf_bcast.point_cloud_frame_id(),
-            tf_bcast.apply_lidar_to_sensor_transform(),
-            [this](typename PointCloudProcessor<PointT>::OutputType msgs) {
-                for (size_t i = 0; i < msgs.size(); ++i)
-                    lidar_pubs[i]->publish(*msgs[i]);
-        });
-    }
-
-    LidarScanProcessor create_point_cloud_processor(const std::string& point_type,
-                                                    const sensor::sensor_info& info) {
-        if (point_type == "xyz") {
-            return make_point_cloud_procssor<pcl::PointXYZ>(info);
-        } else if (point_type == "xyzi") {
-            if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8)
-                RCLCPP_WARN_STREAM(get_logger(),
-                    "selected point type 'xyzi' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
-            return make_point_cloud_procssor<pcl::PointXYZ>(info);
-        } else if (point_type == "xyzir") {
-            if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8)
-                RCLCPP_WARN_STREAM(get_logger(),
-                    "selected point type 'xyzir' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
-            return make_point_cloud_procssor<ouster_ros::PointXYZIR>(info);
-        } else if (point_type == "auto") {
-            switch (info.format.udp_profile_lidar) {
-                case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL:
-                    return make_point_cloud_procssor<ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_DUAL>(info);
-                case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16:
-                    return make_point_cloud_procssor<ouster_ros::Point_RNG19_RFL8_SIG16_NIR16>(info);
-                case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
-                    return make_point_cloud_procssor<ouster_ros::Point_RNG15_RFL8_NIR8>(info);
-                // case PROFILE_LIDAR_LEGACY:   Should we define legacy?
-                default:
-                    RCLCPP_WARN_STREAM(get_logger(),
-                        "point_type is set to auto but current udp_profile_lidar is unsupported "
-                        "! falling back to the driver default/legacy pcl point format");
-            }
-        } else if (point_type != "legacy") {
-            RCLCPP_WARN_STREAM(get_logger(),
-                "Un-supported point type used: " << point_type <<
-                "! falling back to driver default/legacy pcl point format");
-        }
-
-        return make_point_cloud_procssor<ouster_ros::Point>(info);
-    }
-
     void create_publishers_subscriptions(const sensor::sensor_info& info) {
         auto timestamp_mode = get_parameter("timestamp_mode").as_string();
         auto ptp_utc_tai_offset =
@@ -159,7 +112,14 @@ class OusterCloud : public OusterProcessingNodeBase {
             }
 
             auto point_type = get_parameter("point_type").as_string();
-            processors.push_back(create_point_cloud_processor(point_type, info));
+            processors.push_back(
+                PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
+                    tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                    [this](PointCloudProcessor_OutputType msgs) {
+                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
+                    }
+                )
+            );
         }
 
         if (impl::check_token(tokens, "SCAN")) {

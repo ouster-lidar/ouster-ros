@@ -21,6 +21,7 @@
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
 #include "image_processor.h"
+#include "point_cloud_processor_factory.h"
 
 namespace ouster_ros {
 
@@ -78,28 +79,14 @@ class OusterDriver : public OusterSensor {
             }
 
             auto point_type = get_parameter("point_type").as_string();
-            if (point_type == "default") {
-                processors.push_back(
-                    PointCloudProcessor<ouster_ros::Point>::create(
-                    info, tf_bcast.point_cloud_frame_id(),
-                    tf_bcast.apply_lidar_to_sensor_transform(),
-                    [this](PointCloudProcessor<ouster_ros::Point>::OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i)
-                            lidar_pubs[i]->publish(*msgs[i]);
-                    }));
-            } else if (point_type == "xyzir") {
-                processors.push_back(
-                    PointCloudProcessor<ouster_ros::PointXYZIR>::create(
-                    info, tf_bcast.point_cloud_frame_id(),
-                    tf_bcast.apply_lidar_to_sensor_transform(),
-                    [this](PointCloudProcessor<ouster_ros::PointXYZIR>::OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i)
-                            lidar_pubs[i]->publish(*msgs[i]);
-                    }));
-            } else {
-                RCLCPP_WARN_STREAM(get_logger(),
-                    "Un-supported point type used: " << point_type);
-            }
+            processors.push_back(
+                PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
+                    tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                    [this](PointCloudProcessor_OutputType msgs) {
+                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
+                    }
+                )
+            );
         }
 
         if (impl::check_token(tokens, "SCAN")) {
