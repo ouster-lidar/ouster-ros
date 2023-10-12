@@ -21,7 +21,7 @@ class PointCloudProcessorFactory {
                             int return_index) {
                     unused_variable(return_index);
                     static Point_LEGACY staging_pt; // TODO: temporary, will remove
-                    scan_to_cloud_f_destaggered_tuple<Profile_LEGACY.size(), Profile_LEGACY>(
+                    scan_to_cloud_f_destaggered<Profile_LEGACY.size(), Profile_LEGACY>(
                         cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                 };
 
@@ -33,12 +33,12 @@ class PointCloudProcessorFactory {
                             int return_index) {
                     static Point_RNG19_RFL8_SIG16_NIR16_DUAL staging_pt; // TODO: temporary, will remove
                     if (return_index == 0) {
-                        scan_to_cloud_f_destaggered_tuple<
+                        scan_to_cloud_f_destaggered<
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size(), Profile_RNG19_RFL8_SIG16_NIR16_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                     }
                     else {
-                        scan_to_cloud_f_destaggered_tuple<
+                        scan_to_cloud_f_destaggered<
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN.size(), Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                     }
@@ -52,7 +52,7 @@ class PointCloudProcessorFactory {
                             int return_index) {
                     unused_variable(return_index);
                     static Point_RNG19_RFL8_SIG16_NIR16 staging_pt; // TODO: temporary, will remove
-                    scan_to_cloud_f_destaggered_tuple<
+                    scan_to_cloud_f_destaggered<
                         Profile_RNG19_RFL8_SIG16_NIR16.size(), Profile_RNG19_RFL8_SIG16_NIR16>(
                         cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                 };
@@ -65,12 +65,13 @@ class PointCloudProcessorFactory {
                             int return_index) {
                     unused_variable(return_index);
                     static Point_RNG15_RFL8_NIR8 staging_pt; // TODO: temporary, will remove
-                    scan_to_cloud_f_destaggered_tuple<
+                    scan_to_cloud_f_destaggered<
                         Profile_RNG15_RFL8_NIR8.size(), Profile_RNG15_RFL8_NIR8>(
                         cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                 };
 
             default:
+                // TODO: propagate error message
                 // RCLCPP_WARN_STREAM(get_logger(),
                 //     "point_type is set to auto but current udp_profile_lidar is unsupported "
                 //     "! falling back to the driver default/legacy pcl point format");
@@ -81,7 +82,7 @@ class PointCloudProcessorFactory {
                             int return_index) {
                     unused_variable(return_index);
                     static Point_LEGACY staging_pt; // TODO: temporary, will remove
-                    scan_to_cloud_f_destaggered_tuple<Profile_LEGACY.size(), Profile_LEGACY>(
+                    scan_to_cloud_f_destaggered<Profile_LEGACY.size(), Profile_LEGACY>(
                         cloud, staging_pt, points, scan_ts, ls, pixel_shift_by_row);
                 };
         }

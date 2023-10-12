@@ -64,7 +64,7 @@ template <class T>
 using Cloud = pcl::PointCloud<T>;
 
 template <std::size_t N, const ChanFieldTable<N>& PROFILE, typename PointT, typename PointS>
-void scan_to_cloud_f_destaggered_tuple(
+void scan_to_cloud_f_destaggered(
     ouster_ros::Cloud<PointT>& cloud,
     PointS& staging_point,
     const ouster::PointsF& points,
@@ -72,9 +72,7 @@ void scan_to_cloud_f_destaggered_tuple(
     const std::vector<int>& pixel_shift_by_row) {
 
     auto profile_tuple = compose_tuple_table<0, N, PROFILE>();
-
     map_scan_fields_to_tuple<0, N, PROFILE>(profile_tuple, ls);
-
     auto timestamp = ls.timestamp();
 
     for (auto u = 0; u < ls.h; u++) {
@@ -84,19 +82,17 @@ void scan_to_cloud_f_destaggered_tuple(
             const auto src_idx = u * ls.w + v_shift;
             const auto tgt_idx = u * ls.w + v;
             const auto xyz = points.row(src_idx);
-
             // if target point and staging point has matching type bind the target directly
             // and avoid performing transform_point at the end
             auto& pt = CondBinaryBind<std::is_same_v<PointT, PointS>>::run(
                 cloud.points[tgt_idx], staging_point);
-
+            // all native point types have x, y, z, t and ring values
             pt.x = static_cast<float>(xyz(0));
             pt.y = static_cast<float>(xyz(1));
             pt.z = static_cast<float>(xyz(2));
             pt.t = static_cast<uint32_t>(ts);
             pt.ring = static_cast<uint16_t>(u);
             tuple_copy_values<0, N, PROFILE>(pt, profile_tuple, src_idx);
-
             // only perform point transform operation when PointT, and PointS don't match
             CondBinaryOp<!std::is_same_v<PointT, PointS>>::run(cloud.points[tgt_idx],  staging_point,
                 [](auto& tgt_pt, const auto& src_pt) {
