@@ -14,7 +14,6 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include "point_cloud_compose_lambda.h"
 #include "point_cloud_compose.h"
 #include "lidar_packet_handler.h"
 

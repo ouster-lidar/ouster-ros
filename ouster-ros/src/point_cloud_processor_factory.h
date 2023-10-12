@@ -108,12 +108,14 @@ class PointCloudProcessorFactory {
                 info, frame, apply_lidar_to_sensor_transform, post_processing_fn);
         } else if (point_type == "xyzi") {
             if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8)
+                // TODO: propagate warning message
                 // RCLCPP_WARN_STREAM(get_logger(),
                 //     "selected point type 'xyzi' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
             return make_point_cloud_procssor<pcl::PointXYZI>(
                 info, frame, apply_lidar_to_sensor_transform, post_processing_fn);
         } else if (point_type == "xyzir") {
             if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8)
+                // TODO: propagate warning message
                 // RCLCPP_WARN_STREAM(get_logger(),
                 //     "selected point type 'xyzir' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
             return make_point_cloud_procssor<PointXYZIR>(
@@ -133,10 +135,12 @@ class PointCloudProcessorFactory {
                     return make_point_cloud_procssor<Point_RNG15_RFL8_NIR8>(
                         info, frame, apply_lidar_to_sensor_transform, post_processing_fn);
                 default:
-                    // TODO: revize fallback
+                    // TODO: propagate warning message
+                    // TODO: implement fallback
                     throw std::runtime_error("point_type is set to auto but current udp_profile_lidar is unknown");
             }
         } else if (point_type != "original") {
+            // TODO: propagate warning message
             // RCLCPP_WARN_STREAM(get_logger(),
             //     "Un-supported point type used: " << point_type <<
             //     "! falling back to driver original/legacy pcl point format");
