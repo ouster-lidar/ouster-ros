@@ -645,7 +645,7 @@ void OusterSensor::create_publishers() {
     rclcpp::PublisherOptions publisher_options;
     publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
     lidar_packet_pub =
-        create_publisher<PacketMsg>("lidar_packets", selected_qos, publisher_options);
+        create_publisher<PacketMsg>("lidar_packets", selected_qos.keep_last(100), publisher_options);
     imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos, publisher_options);
 }
 
