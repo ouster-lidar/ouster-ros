@@ -74,11 +74,14 @@ ouster/os_driver:
      #          equivalent point cloud representation with the additon of ring
      #          and timestamp fields.
      #  - xyz: the simplest point type, only has {x, y, z}
-     #  - xyzi: same as xyz point type but adds intensity(signal) field. this
+     #  - xyzi: same as xyz point type but adds intensity (signal) field. this
      #          type is not compatible with the low data profile.
-     #  - xyzi: same as xyzi type but adds ring(channel) field.
+     #  - xyzir: same as xyzi type but adds ring (channel) field.
      #          this type is same as Velodyne point cloud type
      #          this type is not compatible with the low data profile.
      # for more details about the fields of each point type and their data refer
-     # to ouster_ros/os_point.h header.
+     # to the following header files:
+     # - ouster_ros/os_point.h
+     # - ouster_ros/sensor_point_types.h
+     # - ouster_ros/common_point_types.h.
     point_type: original

@@ -10,9 +10,9 @@
  * 1. range
  * 2. signal
  * 3. refelctivity
- * 4. nea_ir
- * The only Point_RNG15_RFL8_NIR8 aks LOW_DATA which does not omits the signal
- * field
+ * 4. near_ir
+ * With the exception Point_RNG15_RFL8_NIR8 aka LOW_DATA which does not include
+ * the signal field
 **/
 
 #pragma once
