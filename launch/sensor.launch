@@ -25,10 +25,43 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  <arg name="ptp_utc_tai_offset" default="-37.0"
+    doc="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
+
   <arg name="metadata" default=" " doc="path to write metadata file when receiving sensor data"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
+
   <arg name="tf_prefix" default=" " doc="namespace for tf transforms"/>
+  <arg name="sensor_frame" default="os_sensor"
+    doc="sets name of choice for the sensor_frame tf frame, value can not be empty"/>
+  <arg name="lidar_frame" default="os_lidar"
+    doc="sets name of choice for the os_lidar tf frame, value can not be empty"/>
+  <arg name="imu_frame" default="os_imu"
+    doc="sets name of choice for the os_imu tf frame, value can not be empty"/>
+  <arg name="point_cloud_frame" default=" "
+    doc="which frame to be used when publishing PointCloud2 or LaserScan messages.
+    Choose between the value of sensor_frame or lidar_frame, leaving this value empty
+    would set lidar_frame to be the frame used when publishing these messages."/>
+
+  <arg name="no_bond" default="false"
+    doc="request no bond setup when nodelets are created"/>
+  <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
+  <arg unless="$(arg no_bond)" name="_no_bond" value=" "/>
+
+  <arg name="dynamic_transforms_broadcast" default="false"
+    doc="static or dynamic transforms broadcast"/>
+  <arg name="dynamic_transforms_broadcast_rate" default="1.0"
+    doc="set the rate (Hz) of broadcast when using dynamic broadcast; minimum value is 1 Hz"/>
+
+  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" doc="
+    The IMG flag here is not supported and does not affect anything,
+    to disable image topics you would need to omit the os_image node
+    from the launch file"/>
+
+  <arg name="scan_ring" default="0" doc="
+    use this parameter in conjunction with the SCAN flag
+    and choose a value the range [0, sensor_beams_count)"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
@@ -40,7 +73,7 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_node"
       output="screen" required="true"
-      args="load nodelets_os/OusterSensor os_nodelet_mgr">
+      args="load ouster_ros/OusterSensor os_nodelet_mgr $(arg _no_bond)">
       <param name="~/sensor_hostname" type="str" value="$(arg sensor_hostname)"/>
       <param name="~/udp_dest" type="str" value="$(arg udp_dest)"/>
       <param name="~/lidar_port" type="int" value="$(arg lidar_port)"/>
@@ -57,7 +90,19 @@
     <arg name="viz" value="$(arg viz)"/>
     <arg name="rviz_config" value="$(arg rviz_config)"/>
     <arg name="tf_prefix" value="$(arg tf_prefix)"/>
+    <arg name="sensor_frame" value="$(arg sensor_frame)"/>
+    <arg name="lidar_frame" value="$(arg lidar_frame)"/>
+    <arg name="imu_frame" value="$(arg imu_frame)"/>
+    <arg name="point_cloud_frame" value="$(arg point_cloud_frame)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
+    <arg name="ptp_utc_tai_offset" value="$(arg ptp_utc_tai_offset)"/>
+    <arg name="_no_bond" value="$(arg _no_bond)"/>
+    <arg name="dynamic_transforms_broadcast"
+      value="$(arg dynamic_transforms_broadcast)"/>
+    <arg name="dynamic_transforms_broadcast_rate"
+      value="$(arg dynamic_transforms_broadcast_rate)"/>
+    <arg name="proc_mask" value="$(arg proc_mask)"/>
+    <arg name="scan_ring" value="$(arg scan_ring)"/>
   </include>
 
 </launch>
