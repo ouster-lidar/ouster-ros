@@ -52,9 +52,8 @@ inline auto& point_element_get<2, pcl::PointXYZI>(pcl::PointXYZI& point) { retur
 template <>
 inline auto& point_element_get<3, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.intensity; }
 
-
 template <std::size_t Index, std::size_t N, typename PointT, typename UnaryOp>
-void iterate_point(PointT& point, UnaryOp unary_op) {
+constexpr void iterate_point(PointT& point, UnaryOp unary_op) {
     if constexpr (Index < N) {
         unary_op(point_element_get<Index>(point));
         iterate_point<Index + 1, N, PointT, UnaryOp>(point, unary_op);
@@ -64,7 +63,7 @@ void iterate_point(PointT& point, UnaryOp unary_op) {
 }
 
 template <std::size_t Index, std::size_t N, typename PointT, typename EnumOp>
-void enumerate_point(PointT& point, EnumOp enum_op) {
+constexpr void enumerate_point(PointT& point, EnumOp enum_op) {
     if constexpr (Index < N) {
         enum_op(Index, point_element_get<Index>(point));
         enumerate_point<Index + 1, N, PointT, EnumOp>(point, enum_op);

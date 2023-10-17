@@ -77,13 +77,16 @@ TEST_F(PointAccessorTest, ElementCount) {
     EXPECT_EQ(point_element_count(pt_os_point), 9U);
 }
 
+template <typename PointT>
+void expect_element_equals_index(PointT& pt) {
+    enumerate_point<0, point_element_count(pt)>(pt, [](auto index, auto value) {
+        EXPECT_EQ(value, static_cast<decltype(value)>(index));
+    });
+}
+
+
 TEST_F(PointAccessorTest, ExpectElementValueSameAsIndex) {
 
-    auto expect_element_equals_index = [](auto& pt) {
-        enumerate_point<0, point_element_count(pt)>(pt, [](auto index, auto value) {
-            EXPECT_EQ(value, static_cast<decltype(value)>(index));
-        });
-    };
 
     // pcl + velodyne point types
     expect_element_equals_index(pt_xyz);
@@ -98,19 +101,22 @@ TEST_F(PointAccessorTest, ExpectElementValueSameAsIndex) {
     expect_element_equals_index(pt_os_point);
 }
 
+template <typename PointT>
+void increment_by_value(PointT& pt, int increment) {
+    iterate_point<0, point_element_count(pt)>(pt, [increment](auto& value) {
+        value += increment;
+    });
+}
+
+template <typename PointT>
+void expect_value_increased_by_value(PointT& pt, int increment) {
+    enumerate_point<0, point_element_count(pt)>(pt, [increment](auto index, auto value) {
+        EXPECT_EQ(value, static_cast<decltype(value)>(index + increment));
+    });
+};
+
+
 TEST_F(PointAccessorTest, ExpectPointElementValueIncrementedByValue) {
-
-    auto increment_by_value = [](auto& pt, auto increment) {
-        iterate_point<0, point_element_count(pt)>(pt, [increment](auto& value) {
-            value += increment;
-        });
-    };
-
-    auto expect_value_increased_by_value = [](auto& pt, auto increment) {
-        enumerate_point<0, point_element_count(pt)>(pt, [increment](auto index, auto value) {
-            EXPECT_EQ(value, static_cast<decltype(value)>(index + increment));
-        });
-    };
 
     auto inc = 1;
 
