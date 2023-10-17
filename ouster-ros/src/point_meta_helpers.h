@@ -20,37 +20,37 @@
 template<typename T> inline void unused_variable(const T&) {}
 
 template <typename T>
-constexpr inline std::size_t point_element_count(const T& point) {
+inline constexpr std::size_t point_element_count(const T& point) {
   return std::tuple_size<decltype(point.as_tuple())>::value;
 }
 
 template <>
-constexpr inline std::size_t point_element_count<pcl::PointXYZ>(const pcl::PointXYZ&) { return 3U; }
+inline constexpr std::size_t point_element_count<pcl::PointXYZ>(const pcl::PointXYZ&) { return 3U; }
 
 template <>
-constexpr inline std::size_t point_element_count<pcl::PointXYZI>(const pcl::PointXYZI&) { return 4U; }
+inline constexpr std::size_t point_element_count<pcl::PointXYZI>(const pcl::PointXYZI&) { return 4U; }
 
 // generic accessor that avoid having to type template before get
 template <size_t I, typename T> 
-inline auto& point_element_get(T& point) { return point.template get<I>(); }
+inline constexpr auto& point_element_get(T& point) { return point.template get<I>(); }
 
 // pcl::PointXYZ compile time element accessors
 template <>
-inline auto& point_element_get<0, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.x; }
+inline constexpr auto& point_element_get<0, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.x; }
 template <>
-inline auto& point_element_get<1, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.y; }
+inline constexpr auto& point_element_get<1, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.y; }
 template <>
-inline auto& point_element_get<2, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.z; }
+inline constexpr auto& point_element_get<2, pcl::PointXYZ>(pcl::PointXYZ& point) { return point.z; }
 
 // pcl::PointXYZI  compile time element accessors
 template <>
-inline auto& point_element_get<0, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.x; }
+inline  constexpr auto& point_element_get<0, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.x; }
 template <>
-inline auto& point_element_get<1, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.y; }
+inline  constexpr auto& point_element_get<1, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.y; }
 template <>
-inline auto& point_element_get<2, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.z; }
+inline  constexpr auto& point_element_get<2, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.z; }
 template <>
-inline auto& point_element_get<3, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.intensity; }
+inline  constexpr auto& point_element_get<3, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.intensity; }
 
 template <std::size_t Index, std::size_t N, typename PointT, typename UnaryOp>
 constexpr void iterate_point(PointT& point, UnaryOp unary_op) {
