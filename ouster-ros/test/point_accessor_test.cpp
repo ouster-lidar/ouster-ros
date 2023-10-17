@@ -51,17 +51,30 @@ class PointAccessorTest : public ::testing::Test {
     }
 
     // pcl & velodyne point types
-    pcl::PointXYZ pt_xyz;
-    pcl::PointXYZI pt_xyzi;
-    PointXYZIR pt_xyzir;
+    static pcl::PointXYZ pt_xyz;
+    static pcl::PointXYZI pt_xyzi;
+    static PointXYZIR pt_xyzir;
     // native point types
-    Point_LEGACY pt_legacy;
-    Point_RNG19_RFL8_SIG16_NIR16_DUAL pt_rg19_rf8_sg16_nr16_dual;
-    Point_RNG19_RFL8_SIG16_NIR16 pt_rg19_rf8_sg16_nr16;
-    Point_RNG15_RFL8_NIR8 pt_rg15_rfl8_nr8;
+    static Point_LEGACY pt_legacy;
+    static Point_RNG19_RFL8_SIG16_NIR16_DUAL pt_rg19_rf8_sg16_nr16_dual;
+    static Point_RNG19_RFL8_SIG16_NIR16 pt_rg19_rf8_sg16_nr16;
+    static Point_RNG15_RFL8_NIR8 pt_rg15_rfl8_nr8;
     // ouster_ros original/legacy point (not to be confused with Point_LEGACY)
-    ouster_ros::Point pt_os_point;
+    static ouster_ros::Point pt_os_point;
 };
+
+// pcl & velodyne point types
+pcl::PointXYZ PointAccessorTest::pt_xyz;
+pcl::PointXYZI PointAccessorTest::pt_xyzi;
+PointXYZIR PointAccessorTest::pt_xyzir;
+// native point types
+Point_LEGACY PointAccessorTest::pt_legacy;
+Point_RNG19_RFL8_SIG16_NIR16_DUAL PointAccessorTest::pt_rg19_rf8_sg16_nr16_dual;
+Point_RNG19_RFL8_SIG16_NIR16 PointAccessorTest::pt_rg19_rf8_sg16_nr16;
+Point_RNG15_RFL8_NIR8 PointAccessorTest::pt_rg15_rfl8_nr8;
+// ouster_ros original/legacy point (not to be confused with Point_LEGACY)
+ouster_ros::Point PointAccessorTest::pt_os_point;
+
 
 TEST_F(PointAccessorTest, ElementCount) {
     // pcl & velodyne point types
@@ -77,16 +90,35 @@ TEST_F(PointAccessorTest, ElementCount) {
     EXPECT_EQ(point_element_count(pt_os_point), 9U);
 }
 
-template <typename PointT>
-void expect_element_equals_index(PointT& pt) {
-    enumerate_point<0, point_element_count(pt)>(pt, [](auto index, auto value) {
-        EXPECT_EQ(value, static_cast<decltype(value)>(index));
-    });
+TEST_F(PointAccessorTest, ElementCountIndirect) {
+
+    auto expect_point_element_count_match = [](auto pt, auto value) {
+        constexpr std::size_t s = point_element_count(pt);
+        EXPECT_EQ(s, value);
+    };
+
+    // pcl & velodyne point types
+    expect_point_element_count_match(pt_xyz, 3U);
+    expect_point_element_count_match(pt_xyzi, 4U);
+    expect_point_element_count_match(pt_xyzir, 5U);
+    // all native sensor point types has {x, y, z, t and ring} fields
+    expect_point_element_count_match(pt_legacy, 5 + Profile_LEGACY.size());
+    expect_point_element_count_match(pt_rg19_rf8_sg16_nr16_dual, 5 + Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size());
+    expect_point_element_count_match(pt_rg19_rf8_sg16_nr16, 5 + Profile_RNG19_RFL8_SIG16_NIR16.size());
+    expect_point_element_count_match(pt_rg15_rfl8_nr8, 5 + Profile_RNG15_RFL8_NIR8.size());
+    // ouster_ros original/legacy point type
+    expect_point_element_count_match(pt_os_point, 9U);
 }
 
 
 TEST_F(PointAccessorTest, ExpectElementValueSameAsIndex) {
 
+    auto expect_element_equals_index = [](auto pt) {
+        constexpr std::size_t s = point_element_count(pt);
+        enumerate_point<0, s>(pt, [](auto index, auto value) {
+            EXPECT_EQ(value, static_cast<decltype(value)>(index));
+        });
+    };
 
     // pcl + velodyne point types
     expect_element_equals_index(pt_xyz);
@@ -101,44 +133,32 @@ TEST_F(PointAccessorTest, ExpectElementValueSameAsIndex) {
     expect_element_equals_index(pt_os_point);
 }
 
-template <typename PointT>
-void increment_by_value(PointT& pt, int increment) {
-    iterate_point<0, point_element_count(pt)>(pt, [increment](auto& value) {
-        value += increment;
-    });
-}
-
-template <typename PointT>
-void expect_value_increased_by_value(PointT& pt, int increment) {
-    enumerate_point<0, point_element_count(pt)>(pt, [increment](auto index, auto value) {
-        EXPECT_EQ(value, static_cast<decltype(value)>(index + increment));
-    });
-};
-
 
 TEST_F(PointAccessorTest, ExpectPointElementValueIncrementedByValue) {
 
-    auto inc = 1;
+    auto increment = 1;
+    auto increment_by_value = [increment](auto& value) { value += increment; };
+    auto verify_increment = [increment](auto index, auto& value) {
+        EXPECT_EQ(value, static_cast<std::remove_reference_t<decltype(value)>>(index + increment));
+    };
 
     // pcl + velodyne point types
-    increment_by_value(pt_xyz, inc);
-    expect_value_increased_by_value(pt_xyz, inc);
-    increment_by_value(pt_xyzi, inc);
-    expect_value_increased_by_value(pt_xyzi, inc);
-    increment_by_value(pt_xyzir, inc);
-    expect_value_increased_by_value(pt_xyzir, inc);
-
-    // native sensor point types
-    increment_by_value(pt_legacy, inc);
-    expect_value_increased_by_value(pt_legacy, inc);
-    increment_by_value(pt_rg19_rf8_sg16_nr16_dual, inc);
-    expect_value_increased_by_value(pt_rg19_rf8_sg16_nr16_dual, inc);
-    increment_by_value(pt_rg19_rf8_sg16_nr16, inc);
-    expect_value_increased_by_value(pt_rg19_rf8_sg16_nr16, inc);
-    increment_by_value(pt_rg15_rfl8_nr8, inc);
-    expect_value_increased_by_value(pt_rg15_rfl8_nr8, inc);
-
-    // ouster_ros original/legacy point type
-    increment_by_value(pt_os_point, inc);
-    expect_value_increased_by_value(pt_os_point, inc);
+    iterate_point<0, point_element_count(pt_xyz)>(pt_xyz, increment_by_value);
+    enumerate_point<0, point_element_count(pt_xyz)>(pt_xyz, verify_increment);
+    iterate_point<0, point_element_count(pt_xyzi)>(pt_xyzi, increment_by_value);
+    enumerate_point<0, point_element_count(pt_xyzi)>(pt_xyzi, verify_increment);
+    iterate_point<0, point_element_count(pt_xyzir)>(pt_xyzir, increment_by_value);
+    enumerate_point<0, point_element_count(pt_xyzir)>(pt_xyzir, verify_increment);
+    // // native sensor point types
+    iterate_point<0, point_element_count(pt_legacy)>(pt_legacy, increment_by_value);
+    enumerate_point<0, point_element_count(pt_legacy)>(pt_legacy, verify_increment);
+    iterate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, increment_by_value);
+    enumerate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, verify_increment);
+    iterate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, increment_by_value);
+    enumerate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, verify_increment);
+    iterate_point<0, point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, increment_by_value);
+    enumerate_point<0, point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, verify_increment);
+    // // ouster_ros original/legacy point type
+    iterate_point<0, point_element_count(pt_os_point)>(pt_os_point, increment_by_value);
+    enumerate_point<0, point_element_count(pt_os_point)>(pt_os_point, verify_increment);
 }
