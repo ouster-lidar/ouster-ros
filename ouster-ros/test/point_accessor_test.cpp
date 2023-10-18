@@ -1,13 +1,17 @@
 #include <gtest/gtest.h>
 
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
+// header file needs to be the first include due to PCL_NO_PRECOMPILE flag
+// clang-format off
 #include "ouster_ros/os_ros.h"
+// clang-format on
 #include "ouster_ros/sensor_point_types.h"
 #include "ouster_ros/common_point_types.h"
 #include "ouster_ros/os_point.h"
 #include "../src/point_meta_helpers.h"
 
-using namespace ouster_ros;
 using namespace std;
+using namespace ouster_ros;
 
 class PointAccessorTest : public ::testing::Test {
   protected:
@@ -90,75 +94,62 @@ TEST_F(PointAccessorTest, ElementCount) {
     EXPECT_EQ(point_element_count(pt_os_point), 9U);
 }
 
-TEST_F(PointAccessorTest, ElementCountIndirect) {
-
-    auto expect_point_element_count_match = [](auto pt, auto value) {
-        constexpr std::size_t s = point_element_count(pt);
-        EXPECT_EQ(s, value);
-    };
-
-    // pcl & velodyne point types
-    expect_point_element_count_match(pt_xyz, 3U);
-    expect_point_element_count_match(pt_xyzi, 4U);
-    expect_point_element_count_match(pt_xyzir, 5U);
-    // all native sensor point types has {x, y, z, t and ring} fields
-    expect_point_element_count_match(pt_legacy, 5 + Profile_LEGACY.size());
-    expect_point_element_count_match(pt_rg19_rf8_sg16_nr16_dual, 5 + Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size());
-    expect_point_element_count_match(pt_rg19_rf8_sg16_nr16, 5 + Profile_RNG19_RFL8_SIG16_NIR16.size());
-    expect_point_element_count_match(pt_rg15_rfl8_nr8, 5 + Profile_RNG15_RFL8_NIR8.size());
-    // ouster_ros original/legacy point type
-    expect_point_element_count_match(pt_os_point, 9U);
+template <std::size_t N, typename PointT>
+void expect_element_equals_index(PointT& pt) {
+    enumerate_point<0, N>(pt, [](auto index, auto value) {
+        EXPECT_EQ(value, static_cast<decltype(value)>(index));
+    });
 }
-
 
 TEST_F(PointAccessorTest, ExpectElementValueSameAsIndex) {
-
-    auto expect_element_equals_index = [](auto pt) {
-        constexpr std::size_t s = point_element_count(pt);
-        enumerate_point<0, s>(pt, [](auto index, auto value) {
-            EXPECT_EQ(value, static_cast<decltype(value)>(index));
-        });
-    };
-
     // pcl + velodyne point types
-    expect_element_equals_index(pt_xyz);
-    expect_element_equals_index(pt_xyzi);
-    expect_element_equals_index(pt_xyzir);
+    expect_element_equals_index<point_element_count(pt_xyz)>(pt_xyz);
+    expect_element_equals_index<point_element_count(pt_xyzi)>(pt_xyzi);
+    expect_element_equals_index<point_element_count(pt_xyzir)>(pt_xyzir);
     // native sensor point types
-    expect_element_equals_index(pt_legacy);
-    expect_element_equals_index(pt_rg19_rf8_sg16_nr16_dual);
-    expect_element_equals_index(pt_rg19_rf8_sg16_nr16);
-    expect_element_equals_index(pt_rg15_rfl8_nr8);
+    expect_element_equals_index<point_element_count(pt_legacy)>(pt_legacy);
+    expect_element_equals_index<point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual);
+    expect_element_equals_index<point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16);
+    expect_element_equals_index<point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8);
     // ouster_ros original/legacy point type
-    expect_element_equals_index(pt_os_point);
+    expect_element_equals_index<point_element_count(pt_os_point)>(pt_os_point);
 }
 
+template <std::size_t N, typename PointT>
+void increment_by_value(PointT& pt, int increment) {
+    iterate_point<0, N>(pt, [increment](auto& value) {
+        value += increment;
+    });
+}
+
+template <std::size_t N, typename PointT>
+void expect_value_increased_by_value(PointT& pt, int increment) {
+    enumerate_point<0, N>(pt, [increment](auto index, auto value) {
+        EXPECT_EQ(value, static_cast<decltype(value)>(index + increment));
+    });
+};
 
 TEST_F(PointAccessorTest, ExpectPointElementValueIncrementedByValue) {
 
     auto increment = 1;
-    auto increment_by_value = [increment](auto& value) { value += increment; };
-    auto verify_increment = [increment](auto index, auto& value) {
-        EXPECT_EQ(value, static_cast<std::remove_reference_t<decltype(value)>>(index + increment));
-    };
 
     // pcl + velodyne point types
-    iterate_point<0, point_element_count(pt_xyz)>(pt_xyz, increment_by_value);
-    enumerate_point<0, point_element_count(pt_xyz)>(pt_xyz, verify_increment);
-    iterate_point<0, point_element_count(pt_xyzi)>(pt_xyzi, increment_by_value);
-    enumerate_point<0, point_element_count(pt_xyzi)>(pt_xyzi, verify_increment);
-    iterate_point<0, point_element_count(pt_xyzir)>(pt_xyzir, increment_by_value);
-    enumerate_point<0, point_element_count(pt_xyzir)>(pt_xyzir, verify_increment);
+    increment_by_value<point_element_count(pt_xyz)>(pt_xyz, increment);
+    expect_value_increased_by_value<point_element_count(pt_xyz)>(pt_xyz, increment);
+    increment_by_value<point_element_count(pt_xyzi)>(pt_xyzi, increment);
+    expect_value_increased_by_value<point_element_count(pt_xyzi)>(pt_xyzi, increment);
+    increment_by_value<point_element_count(pt_xyzir)>(pt_xyzir, increment);
+    expect_value_increased_by_value<point_element_count(pt_xyzir)>(pt_xyzir, increment);
     // // native sensor point types
-    iterate_point<0, point_element_count(pt_legacy)>(pt_legacy, increment_by_value);
-    enumerate_point<0, point_element_count(pt_legacy)>(pt_legacy, verify_increment);
-    iterate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, increment_by_value);
-    enumerate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, verify_increment);
-    iterate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, increment_by_value);
-    enumerate_point<0, point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, verify_increment);
-    iterate_point<0, point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, increment_by_value);
-    enumerate_point<0, point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, verify_increment);
+    increment_by_value<point_element_count(pt_legacy)>(pt_legacy, increment);
+    expect_value_increased_by_value<point_element_count(pt_legacy)>(pt_legacy, increment);
+    increment_by_value<point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, increment);
+    expect_value_increased_by_value<point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual, increment);
+    increment_by_value<point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, increment);
+    expect_value_increased_by_value<point_element_count(pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16, increment);
+    increment_by_value<point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, increment);
+    expect_value_increased_by_value<point_element_count(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8, increment);
     // // ouster_ros original/legacy point type
-    iterate_point<0, point_element_count(pt_os_point)>(pt_os_point, increment_by_value);
-    enumerate_point<0, point_element_count(pt_os_point)>(pt_os_point, verify_increment);
+    increment_by_value< point_element_count(pt_os_point)>(pt_os_point, increment);
+    expect_value_increased_by_value<point_element_count(pt_os_point)>(pt_os_point, increment);
 }

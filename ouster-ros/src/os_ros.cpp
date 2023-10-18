@@ -6,7 +6,7 @@
  * @brief A utilty file that contains helper methods
  */
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"

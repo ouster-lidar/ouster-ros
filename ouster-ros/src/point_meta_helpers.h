@@ -1,8 +1,19 @@
+/**
+ * Copyright (c) 2018-2023, Ouster, Inc.
+ * All rights reserved.
+ *
+ * @file point_meta_helpers.h
+ * @brief Provides a set of templated routines to enumerate or manipulate
+ * various pcl point representations at compile time.
+ */
+
 #pragma once
 
 #include <type_traits>
 #include <string>
 #include <pcl_conversions/pcl_conversions.h>
+
+namespace ouster_ros {
 
 #define DEFINE_MEMBER_CHECKER(member) \
     template<typename T, typename = void> \
@@ -52,6 +63,7 @@ inline  constexpr auto& point_element_get<2, pcl::PointXYZI>(pcl::PointXYZI& poi
 template <>
 inline  constexpr auto& point_element_get<3, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.intensity; }
 
+// Apply an lambda function to the elements of a point in sequence 
 template <std::size_t Index, std::size_t N, typename PointT, typename UnaryOp>
 constexpr void iterate_point(PointT& point, UnaryOp unary_op) {
     if constexpr (Index < N) {
@@ -62,6 +74,8 @@ constexpr void iterate_point(PointT& point, UnaryOp unary_op) {
     }
 }
 
+// Apply an lambda function to the elements of a point in sequence passing
+// in the index of the element as the first parameter along with each element 
 template <std::size_t Index, std::size_t N, typename PointT, typename EnumOp>
 constexpr void enumerate_point(PointT& point, EnumOp enum_op) {
     if constexpr (Index < N) {
@@ -97,3 +111,5 @@ struct CondBinaryBind {
         }
     }
 };
+
+}   // ouster_ros

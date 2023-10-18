@@ -1,6 +1,18 @@
+/**
+ * Copyright (c) 2018-2023, Ouster, Inc.
+ * All rights reserved.
+ *
+ * @file point_transform.h
+ * @brief Implements the main transform_point method used to convert point from
+ * a source pcl point format usually sensor native point representation to other
+ * pcl point formats such as Velodyne XYZIR or pcl::XYZ, pcl::XYZI, ... 
+ */
+
 #pragma once
 
 #include "point_meta_helpers.h"
+
+namespace ouster_ros {
 
 DEFINE_MEMBER_CHECKER(x);
 DEFINE_MEMBER_CHECKER(y);
@@ -109,3 +121,5 @@ void transform_point(PointTGT& tgt_pt, const PointSRC& src_pt) {
         }
     );
 }
+
+}   // ouster_ros
