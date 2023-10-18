@@ -173,6 +173,7 @@ if(BUILD_TESTING)
     src/os_ros.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
+    test/point_cloud_compose_test.cpp
   )
   ament_target_dependencies(${PROJECT_NAME}_test
     rclcpp
