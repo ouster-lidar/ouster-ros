@@ -13,6 +13,7 @@
 #include "point_meta_helpers.h"
 
 namespace ouster_ros {
+namespace point {
 
 DEFINE_MEMBER_CHECKER(x);
 DEFINE_MEMBER_CHECKER(y);
@@ -27,7 +28,7 @@ DEFINE_MEMBER_CHECKER(reflectivity);
 DEFINE_MEMBER_CHECKER(near_ir);
 
 template <typename PointTGT, typename PointSRC>
-void transform_point(PointTGT& tgt_pt, const PointSRC& src_pt) {
+void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
     // NOTE: for now we assume all points have xyz component
     tgt_pt.x = src_pt.x; tgt_pt.y = src_pt.y; tgt_pt.z = src_pt.z;
 
@@ -122,4 +123,5 @@ void transform_point(PointTGT& tgt_pt, const PointSRC& src_pt) {
     );
 }
 
+}   // point
 }   // ouster_ros

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <random>
 
 // prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
@@ -12,15 +13,15 @@
 #include "../src/point_cloud_compose.h"
 #include "../src/point_meta_helpers.h"
 
-using namespace std;
 using namespace ouster_ros;
+using namespace ouster_ros::point;
 
 class PointTransformTest : public ::testing::Test {
     template <std::size_t N, typename PointT>
     void initialize_point_elements_with_randoms(PointT& pt) {
         std::default_random_engine g;
         std::uniform_real_distribution<double> d(0.0, 128.0);
-        iterate_point<0, N>(pt, [&g, &d](auto& value) {
+        point::apply<0, N>(pt, [&g, &d](auto& value) {
             using value_type = std::remove_reference_t<decltype(value)>;
             value = static_cast<value_type>(d(g));
         });
@@ -29,24 +30,21 @@ class PointTransformTest : public ::testing::Test {
    protected:
     void SetUp() override {
         // pcl + velodyne point types
-        initialize_point_elements_with_randoms<point_element_count(pt_xyz)>(
-            pt_xyz);
-        initialize_point_elements_with_randoms<point_element_count(pt_xyzi)>(
-            pt_xyzi);
-        initialize_point_elements_with_randoms<point_element_count(pt_xyzir)>(
-            pt_xyzir);
+        initialize_point_elements_with_randoms<point::size(pt_xyz)>(pt_xyz);
+        initialize_point_elements_with_randoms<point::size(pt_xyzi)>(pt_xyzi);
+        initialize_point_elements_with_randoms<point::size(pt_xyzir)>(pt_xyzir);
         // native sensor point types
-        initialize_point_elements_with_randoms<point_element_count(pt_legacy)>(
+        initialize_point_elements_with_randoms<point::size(pt_legacy)>(
             pt_legacy);
-        initialize_point_elements_with_randoms<point_element_count(
+        initialize_point_elements_with_randoms<point::size(
             pt_rg19_rf8_sg16_nr16_dual)>(pt_rg19_rf8_sg16_nr16_dual);
-        initialize_point_elements_with_randoms<point_element_count(
+        initialize_point_elements_with_randoms<point::size(
             pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16);
-        initialize_point_elements_with_randoms<point_element_count(
-            pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8);
+        initialize_point_elements_with_randoms<point::size(pt_rg15_rfl8_nr8)>(
+            pt_rg15_rfl8_nr8);
         // ouster_ros original/legacy point type
-        initialize_point_elements_with_randoms<point_element_count(
-            pt_os_point)>(pt_os_point);
+        initialize_point_elements_with_randoms<point::size(pt_os_point)>(
+            pt_os_point);
     }
 
     void TearDown() override {}
@@ -181,115 +179,114 @@ void verify_point_transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
 template <std::size_t N, typename PointT>
 void expect_point_fields_zeros(PointT& pt) {
     // starting at 3 to skip xyz
-    iterate_point<3, N>(pt, [](auto value) {
+    point::apply<3, N>(pt, [](auto value) {
         EXPECT_EQ(value, static_cast<decltype(value)>(0));
     });
 };
 
 TEST_F(PointTransformTest, ExpectPointFieldZeroed) {
-    transform_point(pt_xyzi, pt_xyz);
+    point::transform(pt_xyzi, pt_xyz);
     expect_points_xyz_equal(pt_xyzi, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_xyzi)>(pt_xyzi);
+    expect_point_fields_zeros<point::size(pt_xyzi)>(pt_xyzi);
 
-    transform_point(pt_xyzir, pt_xyz);
+    point::transform(pt_xyzir, pt_xyz);
     expect_points_xyz_equal(pt_xyzir, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_xyzir)>(pt_xyzir);
+    expect_point_fields_zeros<point::size(pt_xyzir)>(pt_xyzir);
 
-    transform_point(pt_legacy, pt_xyz);
+    point::transform(pt_legacy, pt_xyz);
     expect_points_xyz_equal(pt_legacy, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_legacy)>(pt_legacy);
+    expect_point_fields_zeros<point::size(pt_legacy)>(pt_legacy);
 
-    transform_point(pt_rg19_rf8_sg16_nr16_dual, pt_xyz);
+    point::transform(pt_rg19_rf8_sg16_nr16_dual, pt_xyz);
     expect_points_xyz_equal(pt_rg19_rf8_sg16_nr16_dual, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_rg19_rf8_sg16_nr16_dual)>(
+    expect_point_fields_zeros<point::size(pt_rg19_rf8_sg16_nr16_dual)>(
         pt_rg19_rf8_sg16_nr16_dual);
 
-    transform_point(pt_rg19_rf8_sg16_nr16, pt_xyz);
+    point::transform(pt_rg19_rf8_sg16_nr16, pt_xyz);
     expect_points_xyz_equal(pt_rg19_rf8_sg16_nr16, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_rg19_rf8_sg16_nr16)>(
+    expect_point_fields_zeros<point::size(pt_rg19_rf8_sg16_nr16)>(
         pt_rg19_rf8_sg16_nr16);
 
-    transform_point(pt_rg15_rfl8_nr8, pt_xyz);
+    point::transform(pt_rg15_rfl8_nr8, pt_xyz);
     expect_points_xyz_equal(pt_rg15_rfl8_nr8, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_rg15_rfl8_nr8)>(
-        pt_rg15_rfl8_nr8);
+    expect_point_fields_zeros<point::size(pt_rg15_rfl8_nr8)>(pt_rg15_rfl8_nr8);
 
-    transform_point(pt_os_point, pt_xyz);
+    point::transform(pt_os_point, pt_xyz);
     expect_points_xyz_equal(pt_os_point, pt_xyz);
-    expect_point_fields_zeros<point_element_count(pt_os_point)>(pt_os_point);
+    expect_point_fields_zeros<point::size(pt_os_point)>(pt_os_point);
 }
 
 TEST_F(PointTransformTest, TestTransformReduce_LEGACY) {
-    transform_point(pt_xyz, pt_legacy);
+    point::transform(pt_xyz, pt_legacy);
     expect_points_xyz_equal(pt_xyz, pt_legacy);
     verify_point_transform(pt_xyz, pt_legacy);
 
-    transform_point(pt_xyzi, pt_legacy);
+    point::transform(pt_xyzi, pt_legacy);
     expect_points_xyz_equal(pt_xyzi, pt_legacy);
     verify_point_transform(pt_xyzi, pt_legacy);
 
-    transform_point(pt_xyzir, pt_legacy);
+    point::transform(pt_xyzir, pt_legacy);
     expect_points_xyz_equal(pt_xyzir, pt_legacy);
     verify_point_transform(pt_xyzir, pt_legacy);
 }
 
 TEST_F(PointTransformTest, TestTransformReduce_RNG19_RFL8_SIG16_NIR16_DUAL) {
-    transform_point(pt_xyz, pt_rg19_rf8_sg16_nr16_dual);
+    point::transform(pt_xyz, pt_rg19_rf8_sg16_nr16_dual);
     expect_points_xyz_equal(pt_xyz, pt_rg19_rf8_sg16_nr16_dual);
     verify_point_transform(pt_xyz, pt_rg19_rf8_sg16_nr16_dual);
 
-    transform_point(pt_xyzi, pt_rg19_rf8_sg16_nr16_dual);
+    point::transform(pt_xyzi, pt_rg19_rf8_sg16_nr16_dual);
     expect_points_xyz_equal(pt_xyzi, pt_rg19_rf8_sg16_nr16_dual);
     verify_point_transform(pt_xyzi, pt_rg19_rf8_sg16_nr16_dual);
 
-    transform_point(pt_xyzir, pt_rg19_rf8_sg16_nr16_dual);
+    point::transform(pt_xyzir, pt_rg19_rf8_sg16_nr16_dual);
     expect_points_xyz_equal(pt_xyzir, pt_rg19_rf8_sg16_nr16_dual);
     verify_point_transform(pt_xyzir, pt_rg19_rf8_sg16_nr16_dual);
 }
 
 TEST_F(PointTransformTest, TestTransformReduce_RNG19_RFL8_SIG16_NIR16) {
-    transform_point(pt_xyz, pt_rg19_rf8_sg16_nr16);
+    point::transform(pt_xyz, pt_rg19_rf8_sg16_nr16);
     expect_points_xyz_equal(pt_xyz, pt_rg19_rf8_sg16_nr16);
     verify_point_transform(pt_xyz, pt_rg19_rf8_sg16_nr16);
 
-    transform_point(pt_xyzi, pt_rg19_rf8_sg16_nr16);
+    point::transform(pt_xyzi, pt_rg19_rf8_sg16_nr16);
     expect_points_xyz_equal(pt_xyzi, pt_rg19_rf8_sg16_nr16);
     verify_point_transform(pt_xyzi, pt_rg19_rf8_sg16_nr16);
 
-    transform_point(pt_xyzir, pt_rg19_rf8_sg16_nr16);
+    point::transform(pt_xyzir, pt_rg19_rf8_sg16_nr16);
     expect_points_xyz_equal(pt_xyzir, pt_rg19_rf8_sg16_nr16);
     verify_point_transform(pt_xyzir, pt_rg19_rf8_sg16_nr16);
 }
 
 TEST_F(PointTransformTest, TestTransformReduce_RNG15_RFL8_NIR8) {
-    transform_point(pt_xyz, pt_rg15_rfl8_nr8);
+    point::transform(pt_xyz, pt_rg15_rfl8_nr8);
     expect_points_xyz_equal(pt_xyz, pt_rg15_rfl8_nr8);
     verify_point_transform(pt_xyz, pt_rg15_rfl8_nr8);
 
-    transform_point(pt_xyzi, pt_rg15_rfl8_nr8);
+    point::transform(pt_xyzi, pt_rg15_rfl8_nr8);
     expect_points_xyz_equal(pt_xyzi, pt_rg15_rfl8_nr8);
     verify_point_transform(pt_xyzi, pt_rg15_rfl8_nr8);
 
-    transform_point(pt_xyzir, pt_rg15_rfl8_nr8);
+    point::transform(pt_xyzir, pt_rg15_rfl8_nr8);
     expect_points_xyz_equal(pt_xyzir, pt_rg15_rfl8_nr8);
     verify_point_transform(pt_xyzir, pt_rg15_rfl8_nr8);
 }
 
 TEST_F(PointTransformTest,
        TestTransform_SensorNativePoints_2_ouster_ros_Point) {
-    transform_point(pt_os_point, pt_legacy);
+    point::transform(pt_os_point, pt_legacy);
     expect_points_xyz_equal(pt_os_point, pt_legacy);
     verify_point_transform(pt_os_point, pt_legacy);
 
-    transform_point(pt_os_point, pt_rg19_rf8_sg16_nr16_dual);
+    point::transform(pt_os_point, pt_rg19_rf8_sg16_nr16_dual);
     expect_points_xyz_equal(pt_os_point, pt_rg19_rf8_sg16_nr16_dual);
     verify_point_transform(pt_os_point, pt_rg19_rf8_sg16_nr16_dual);
 
-    transform_point(pt_os_point, pt_rg19_rf8_sg16_nr16);
+    point::transform(pt_os_point, pt_rg19_rf8_sg16_nr16);
     expect_points_xyz_equal(pt_os_point, pt_rg19_rf8_sg16_nr16);
     verify_point_transform(pt_os_point, pt_rg19_rf8_sg16_nr16);
 
-    transform_point(pt_os_point, pt_rg15_rfl8_nr8);
+    point::transform(pt_os_point, pt_rg15_rfl8_nr8);
     expect_points_xyz_equal(pt_os_point, pt_rg15_rfl8_nr8);
     verify_point_transform(pt_os_point, pt_rg15_rfl8_nr8);
 }
