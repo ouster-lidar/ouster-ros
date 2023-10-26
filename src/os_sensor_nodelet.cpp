@@ -29,6 +29,13 @@ using namespace std::string_literals;
 
 namespace ouster_ros {
 
+OusterSensor::~OusterSensor()
+{
+    imu_packets_skip = lidar_packets_skip = true;
+    stop_sensor_connection_thread();
+    stop_packet_processing_threads();
+}
+
 void OusterSensor::onInit() {
     sensor_hostname = get_sensor_hostname();
     sensor::sensor_config config = parse_config_from_ros_parameters();

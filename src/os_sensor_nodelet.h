@@ -29,6 +29,9 @@ namespace sensor = ouster::sensor;
 namespace ouster_ros {
 
 class OusterSensor : public OusterSensorNodeletBase {
+   public:
+    ~OusterSensor();
+   
    private:
     virtual void onInit() override;
 

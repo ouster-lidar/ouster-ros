@@ -32,6 +32,9 @@ namespace ouster_ros {
 class OusterDriver : public OusterSensor {
    public:
     OusterDriver() : tf_bcast(getName()) {}
+    ~OusterDriver() {
+        imu_pub_active = lidar_pubs_active = scan_pubs_active = image_pubs_active = false;
+    }
 
    private:
     // virtual void onInit() override {
@@ -78,6 +81,7 @@ class OusterDriver : public OusterSensor {
                 info, tf_bcast.point_cloud_frame_id(),
                 tf_bcast.apply_lidar_to_sensor_transform(),
                 [this](PointCloudProcessor::OutputType msgs) {
+                    if (!lidar_pubs_active) return;
                     for (size_t i = 0; i < msgs.size(); ++i) {
                         lidar_pubs[i].publish(*msgs[i]);
                     }
@@ -105,6 +109,7 @@ class OusterDriver : public OusterSensor {
             processors.push_back(LaserScanProcessor::create(
                 info, tf_bcast.lidar_frame_id(), scan_ring,
                 [this](LaserScanProcessor::OutputType msgs) {
+                    if (!scan_pubs_active) return;
                     for (size_t i = 0; i < msgs.size(); ++i) {
                         scan_pubs[i].publish(*msgs[i]);
                     }
@@ -139,6 +144,7 @@ class OusterDriver : public OusterSensor {
             processors.push_back(ImageProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(),
                 [this](ImageProcessor::OutputType msgs) {
+                    if (!image_pubs_active) return;
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);
                     }
@@ -157,14 +163,18 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
-        if (imu_packet_handler)
+        if (imu_packet_handler && imu_pub_active)
             imu_pub.publish(imu_packet_handler(raw_imu_packet));
     }
 
    private:
+    bool imu_pub_active = true;
     ros::Publisher imu_pub;
+    bool lidar_pubs_active = true;
     std::vector<ros::Publisher> lidar_pubs;
+    bool scan_pubs_active = true;
     std::vector<ros::Publisher> scan_pubs;
+    bool image_pubs_active = true;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
 
     OusterTransformsBroadcaster tf_bcast;
