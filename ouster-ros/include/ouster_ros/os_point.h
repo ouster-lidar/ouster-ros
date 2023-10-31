@@ -21,7 +21,7 @@ namespace ouster_ros {
 // active udp lidar profile.
 struct EIGEN_ALIGN16 _Point {
     PCL_ADD_POINT4D;
-    float intensity;        // equivalent signal
+    float intensity;        // equivalent to signal
     uint32_t t;
     uint16_t reflectivity;
     uint16_t ring;          // equivalent to channel

@@ -94,8 +94,8 @@ constexpr auto make_lidar_scan_tuple(const ouster::LidarScan& ls) {
 /**
  * @brief copies field values from LidarScan fields combined as a tuple into the
  * the corresponding elements of the input point pt.
- * @param[in,out] pt
- * @param[in] tp
+ * @param[out] pt point to copy values into.
+ * @param[in] tp tuple containing arrays to copy LidarScan field values from.
  * @param[in] idx index of the point to be copied.
  * @remark this method is to be used mainly with sensor native point types.
  */
