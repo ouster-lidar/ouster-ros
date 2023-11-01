@@ -2,6 +2,12 @@
 Changelog for package ouster_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* breaking: rename ouster_msgs to ouster_sensor_msgs
+* shutdown the driver when unable to connect to the sensor on startup
+
+
 0.10.4 (2023-08-31)
 -------------------
 * breaking: publish PCL point clouds destaggered.
