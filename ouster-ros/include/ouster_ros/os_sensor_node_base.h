@@ -13,7 +13,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <std_msgs/msg/string.hpp>
 
-#include "ouster_msgs/srv/get_metadata.hpp"
+#include "ouster_sensor_msgs/srv/get_metadata.hpp"
 
 namespace ouster_ros {
 
@@ -43,7 +43,7 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
 
    protected:
     ouster::sensor::sensor_info info;
-    rclcpp::Service<ouster_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
+    rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
     rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr
         metadata_pub;

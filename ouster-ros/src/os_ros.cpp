@@ -22,7 +22,7 @@
 #include <vector>
 
 namespace sensor = ouster::sensor;
-using ouster_msgs::msg::PacketMsg;
+using ouster_sensor_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
 
