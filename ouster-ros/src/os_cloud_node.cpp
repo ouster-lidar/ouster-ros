@@ -20,7 +20,7 @@
 #include <memory>
 #include <cassert>
 
-#include "ouster_msgs/msg/packet_msg.hpp"
+#include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_ros/os_processing_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
@@ -31,7 +31,7 @@
 #include "laser_scan_processor.h"
 
 namespace sensor = ouster::sensor;
-using ouster_msgs::msg::PacketMsg;
+using ouster_sensor_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
 
