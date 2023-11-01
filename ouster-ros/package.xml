@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ouster_ros</name>
-  <version>0.10.4</version>
+  <version>0.11.0</version>
   <description>Ouster ROS2 driver</description>
   <maintainer email="ussama.naal@ouster.io">Ussama Naal</maintainer>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
@@ -15,7 +15,7 @@
   <depend>rclcpp_components</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>std_msgs</depend>
-  <depend>ouster_msgs</depend>
+  <depend>ouster_sensor_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>

@@ -2,6 +2,10 @@
 Changelog for package ouster_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+[unreleased]
+------------
+breaking: renamed ouster_msgs to ouster_sensor_msgs 
+
 0.10.4 (2023-08-31)
 -------------------
 

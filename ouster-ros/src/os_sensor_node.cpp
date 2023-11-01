@@ -16,9 +16,9 @@
 
 #include "os_sensor_node.h"
 
-using ouster_msgs::msg::PacketMsg;
-using ouster_msgs::srv::GetConfig;
-using ouster_msgs::srv::SetConfig;
+using ouster_sensor_msgs::msg::PacketMsg;
+using ouster_sensor_msgs::srv::GetConfig;
+using ouster_sensor_msgs::srv::SetConfig;
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;

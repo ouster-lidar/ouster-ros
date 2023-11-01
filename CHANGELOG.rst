@@ -5,10 +5,12 @@ Changelog
 [unreleased]
 ============
 * breaking: publish PCL point clouds destaggered.
+* breaking: rename ouster_msgs to ouster_sensor_msgs
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
   is used.
 * fix: destagger columns timestamp when generating destaggered point clouds.
+* shutdown the driver when unable to connect to the sensor on startup
 
 
 ouster_ros v0.10.0
