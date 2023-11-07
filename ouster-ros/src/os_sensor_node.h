@@ -28,6 +28,8 @@
 
 #include "thread_safe_ring_buffer.h"
 
+#define THROTTLING_TIME 10000
+
 namespace sensor = ouster::sensor;
 using lifecycle_msgs::srv::ChangeState;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
@@ -96,17 +98,15 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void create_set_config_service();
 
-    std::shared_ptr<sensor::client> create_sensor_client(
-        const std::string& hostname, const sensor::sensor_config& config);
+    std::shared_ptr<sensor::client> create_sensor_client(const std::string& hostname);
 
     sensor::sensor_config parse_config_from_ros_parameters();
 
     sensor::sensor_config parse_config_from_staged_config_string();
 
-    uint8_t compose_config_flags(const sensor::sensor_config& config);
+    uint8_t compose_config_flags();
 
-    void configure_sensor(const std::string& hostname,
-                          sensor::sensor_config& config);
+    bool configure_sensor(const std::string& hostname, bool retry);
 
     std::string load_config_file(const std::string& config_file);
 
@@ -184,6 +184,11 @@ class OusterSensor : public OusterSensorNodeBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+
+    bool had_reconnection_success = false;
+    bool retry_configuration = false;
+    rclcpp::Time first_lidar_data_rx = rclcpp::Time(0, 0);
+    sensor::sensor_config config;
 };
 
 }  // namespace ouster_ros
