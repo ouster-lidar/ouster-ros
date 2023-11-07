@@ -8,6 +8,7 @@ ouster_ros v0.10.0
 ouster_ros(1)
 -------------
 * updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
+* breaking: with this release the ouster-ros driver is no longer compatible with ROS melodic
 * breaking: publish PCL point clouds destaggered.
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
