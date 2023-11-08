@@ -7,13 +7,14 @@ ouster_ros v0.10.0
 
 ouster_ros(1)
 -------------
-* updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
-* breaking: with this release the ouster-ros driver is no longer compatible with ROS melodic
-* breaking: publish PCL point clouds destaggered.
+* [BREAKING] updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
+* [BREAKING]: with this release the ouster-ros driver is no longer compatible with ROS melodic
+* [BREAKING]: publish PCL point clouds destaggered.
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
-  is used.
-* fix: destagger columns timestamp when generating destaggered point clouds.
+  is used. 
+* [BUGFIX]: destagger columns timestamp when generating destaggered point clouds.
+* [BUGFIX]: gracefully stop the driver when shutdown is requested.
 
 ouster_client
 -------------
@@ -54,9 +55,9 @@ ouster_ros v0.9.0
 
 ouster_ros(1)
 -------------
-* breaking change: update to ouster_client release 20230403
 * EOL notice: ouster-ros driver will drop support for ``ROS melodic`` by May 2023.
-* bugfix: Address an issue causing the driver to warn about missing non-legacy fields even they exist
+* [BREAKING]: update to ouster_client release 20230403
+* [BUGFIX]: Address an issue causing the driver to warn about missing non-legacy fields even they exist
   in the original metadata file.
 * added a new launch file ``sensor_mtp.launch`` for multicast use case (experimental).
 * added a technique to estimate the the value of the lidar scan timestamp when it is missing packets
@@ -81,8 +82,8 @@ ouster_ros(1)
   the sensor one which is in line with the current behavior.
 * added the ability to change the names of ``sensor_frame``, ``lidar_frame`` and ``imu_frame``
 * added a placeholder for the ``/ouster/reset`` (not implemented for ROS1).
-* breaking: switched back to using static transforms broadcast but with ability to select the frames
-  to be updated dynamically and at what rate through the two new launch file arguments
+* [BREAKING]: switched back to using static transforms broadcast but with ability to select the
+  frames to be updated dynamically and at what rate through the two new launch file arguments
   ``dynamic_transforms_broadcast`` and  ``dynamic_transforms_broadcast_rate``.
 * updated RVIZ color scheme for point clouds to match with the ROS2 version of the driver.
 
@@ -91,6 +92,6 @@ ouster_client
 * added a new method ``mtp_init_client`` to init the client with multicast support (experimental).
 * the class ``SensorHttp``  which provides easy access to REST APIs of the sensor has been made public
   under the ``ouster::sensor::util`` namespace.
-* breaking change: get_metadata defaults to outputting non-legacy metadata
+* [BREAKING]: get_metadata defaults to outputting non-legacy metadata
 * add debug five_word profile which will be removed later
-* breaking change: remove deprecations on LidarScan
+* [BREAKING]: remove deprecations on LidarScan
