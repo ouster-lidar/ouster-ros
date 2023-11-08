@@ -11,7 +11,7 @@ ouster_ros(1)
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
   is used.
 * fix: destagger columns timestamp when generating destaggered point clouds.
-* fix: stop publishers and threads on nodelet destory.
+* fix: peacefully stop the driver when shutodwn is requested.
 
 
 ouster_ros v0.10.0
