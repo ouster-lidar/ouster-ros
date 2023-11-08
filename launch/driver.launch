@@ -57,8 +57,7 @@
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
-      output="screen" required="true"
-      args="manager"/>
+      output="screen" required="true" args="manager"/>
   </group>
 
   <group ns="$(arg ouster_ns)">

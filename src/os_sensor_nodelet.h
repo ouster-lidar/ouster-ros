@@ -31,6 +31,8 @@ namespace ouster_ros {
 class OusterSensor : public OusterSensorNodeletBase {
    public:
     ~OusterSensor();
+
+    void halt();
    
    private:
     virtual void onInit() override;
@@ -132,11 +134,9 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::unique_ptr<std::thread> sensor_connection_thread;
 
     std::atomic<bool> imu_packets_processing_thread_active = {false};
-    std::atomic<bool> imu_packets_skip;
     std::unique_ptr<std::thread> imu_packets_processing_thread;
 
     std::atomic<bool> lidar_packets_processing_thread_active = {false};
-    std::atomic<bool> lidar_packets_skip;
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
 
     bool force_sensor_reinit = false;
