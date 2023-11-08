@@ -32,7 +32,7 @@ namespace ouster_ros {
 class OusterDriver : public OusterSensor {
    public:
     OusterDriver() : tf_bcast(getName()) {}
-    virtual ~OusterDriver() {
+    ~OusterDriver() override {
         NODELET_DEBUG("OusterDriver::~OusterDriver() called");
         halt();
     }

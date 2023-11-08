@@ -30,10 +30,8 @@ namespace ouster_ros {
 
 class OusterSensor : public OusterSensorNodeletBase {
    public:
-    ~OusterSensor();
+    ~OusterSensor() override;
 
-    void halt();
-   
    private:
     virtual void onInit() override;
 
@@ -47,6 +45,8 @@ class OusterSensor : public OusterSensorNodeletBase {
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
+
+    void halt();
 
    private:
     std::string get_sensor_hostname();
@@ -80,7 +80,6 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     std::string load_config_file(const std::string& config_file);
 
-   private:
     // fill in values that could not be parsed from metadata
     void populate_metadata_defaults(sensor::sensor_info& info,
                                     sensor::lidar_mode specified_lidar_mode);
