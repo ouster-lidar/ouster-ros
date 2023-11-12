@@ -26,6 +26,8 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  <arg name="ptp_utc_tai_offset" default="-37.0"
+    doc="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
   <arg name="metadata" default="" doc="path to write metadata file when receiving sensor data"/>
   <arg name="bag_file" default="" doc="file name to use for the recorded bag file"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
@@ -59,9 +61,7 @@
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
-      output="screen" required="true"
-      launch-prefix="bash -c 'sleep 2; $0 $@' "
-      args="manager"/>
+      output="screen" required="true" args="manager"/>
   </group>
 
   <group ns="$(arg ouster_ns)">
@@ -91,6 +91,7 @@
     <arg name="imu_frame" value="$(arg imu_frame)"/>
     <arg name="point_cloud_frame" value="$(arg point_cloud_frame)"/>
     <arg name="timestamp_mode" value="$(arg timestamp_mode)"/>
+    <arg name="ptp_utc_tai_offset" value="$(arg ptp_utc_tai_offset)"/>
     <arg name="dynamic_transforms_broadcast"
       value="$(arg dynamic_transforms_broadcast)"/>
     <arg name="dynamic_transforms_broadcast_rate"

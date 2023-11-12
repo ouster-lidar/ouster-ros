@@ -68,6 +68,7 @@ class OusterTransformsBroadcaster {
             sensor_frame = tf_prefix + sensor_frame;
             lidar_frame = tf_prefix + lidar_frame;
             imu_frame = tf_prefix + imu_frame;
+            point_cloud_frame = tf_prefix + point_cloud_frame;
         }
     }
 
@@ -88,6 +89,9 @@ class OusterTransformsBroadcaster {
     }
 
     const std::string& imu_frame_id() const { return imu_frame; }
+    const std::string& lidar_frame_id() const { return lidar_frame; }
+    const std::string& sensor_frame_id() const { return sensor_frame; }
+
     const std::string& point_cloud_frame_id() const {
         return point_cloud_frame;
     }
@@ -99,9 +103,9 @@ class OusterTransformsBroadcaster {
     std::string node_name;
     tf2_ros::StaticTransformBroadcaster static_tf_bcast;
     tf2_ros::TransformBroadcaster tf_bcast;  // non-static
-    std::string sensor_frame;
     std::string imu_frame;
     std::string lidar_frame;
+    std::string sensor_frame;
     std::string point_cloud_frame;
 };
 

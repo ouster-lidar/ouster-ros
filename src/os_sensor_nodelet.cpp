@@ -29,6 +29,16 @@ using namespace std::string_literals;
 
 namespace ouster_ros {
 
+OusterSensor::~OusterSensor() {
+    NODELET_DEBUG("OusterDriver::~OusterSensor() called");
+    halt();
+}
+
+void OusterSensor::halt() {
+    stop_packet_processing_threads();
+    stop_sensor_connection_thread();
+}
+
 void OusterSensor::onInit() {
     bool retry_configuration = false;
     sensor_hostname = get_sensor_hostname();
@@ -576,24 +586,21 @@ void OusterSensor::stop_sensor_connection_thread() {
 }
 
 void OusterSensor::start_packet_processing_threads() {
-    imu_packets_skip = false;
     imu_packets_processing_thread_active = true;
     imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
-        auto read_packet = [this](const uint8_t* buffer) {
-            if (!imu_packets_skip) on_imu_packet_msg(buffer);
-        };
         while (imu_packets_processing_thread_active) {
-            imu_packets->read(read_packet);
+            imu_packets->read([this](const uint8_t* buffer) {
+                on_imu_packet_msg(buffer);
+            });
         }
         NODELET_DEBUG("imu_packets_processing_thread done.");
     });
 
-    lidar_packets_skip = false;
     lidar_packets_processing_thread_active = true;
     lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (lidar_packets_processing_thread_active) {
             lidar_packets->read([this](const uint8_t* buffer) {
-                if (!lidar_packets_skip) on_lidar_packet_msg(buffer);
+                on_lidar_packet_msg(buffer);
             });
         }
 
