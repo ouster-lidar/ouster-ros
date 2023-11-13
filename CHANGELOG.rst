@@ -11,7 +11,7 @@ Changelog
 * fix: destagger columns timestamp when generating destaggered point clouds.
 * shutdown the driver when unable to connect to the sensor on startup
 * breaking: rename ouster_msgs to ouster_sensor_msgs
-
+* added support for velodyne point cloud type and other common pcl point types
 
 ouster_ros v0.10.0
 ==================
