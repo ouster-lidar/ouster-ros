@@ -24,7 +24,8 @@
 #include <chrono>
 #include <string>
 
-#include "ouster_msgs/msg/packet_msg.hpp"
+#include "ouster_sensor_msgs/msg/packet_msg.hpp"
+#include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
 
@@ -81,7 +82,7 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
  * @param[in] pf the packet format
  * @return ROS sensor message with fields populated from the packet
  */
-sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_msgs::msg::PacketMsg& pm,
+sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_sensor_msgs::msg::PacketMsg& pm,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
                                         const sensor::packet_format& pf);

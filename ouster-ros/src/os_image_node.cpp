@@ -26,7 +26,7 @@
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
-using ouster_msgs::msg::PacketMsg;
+using ouster_sensor_msgs::msg::PacketMsg;
 
 
 class OusterImage : public OusterProcessingNodeBase {

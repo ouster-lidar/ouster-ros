@@ -15,7 +15,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
-#include "ouster_msgs/msg/packet_msg.hpp"
+#include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_ros/os_processing_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
@@ -29,8 +29,7 @@
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
-using ouster_msgs::msg::PacketMsg;
-using sensor::UDPProfileLidar;
+using ouster_sensor_msgs::msg::PacketMsg;
 
 class OusterCloud : public OusterProcessingNodeBase {
    public:
