@@ -11,35 +11,23 @@
  * vision applications, use higher bit depth values in /os_cloud_node/points
  */
 
-// prevent clang-format from altering the location of "ouster_ros/ros.h", the
+// prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <pcl/conversions.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/image_encodings.hpp>
-
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-
-#include "ouster/image_processing.h"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_processing_node_base.h"
 
-namespace sensor = ouster::sensor;
-namespace viz = ouster::viz;
-
-using pixel_type = uint16_t;
-const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
+#include "lidar_packet_handler.h"
+#include "image_processor.h"
 
 namespace ouster_ros {
+
+namespace sensor = ouster::sensor;
+using ouster_sensor_msgs::msg::PacketMsg;
+
 
 class OusterImage : public OusterProcessingNodeBase {
    public:
@@ -51,6 +39,8 @@ class OusterImage : public OusterProcessingNodeBase {
 
    private:
     void on_init() {
+        declare_parameter("timestamp_mode", "");
+        declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("use_system_default_qos", false);
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
@@ -61,19 +51,17 @@ class OusterImage : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
-        create_cloud_object();
-        const int n_returns = get_n_returns(info);
-        create_publishers(n_returns);
-        create_subscriptions(n_returns);
+        create_publishers_subscribers(get_n_returns(info));
     }
 
-    void create_cloud_object() {
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-        cloud = ouster_ros::Cloud{W, H};
-    }
+    void create_publishers_subscribers(int n_returns) {
 
-    void create_publishers(int n_returns) {
+        // TODO: avoid having to replicate the parameters: 
+        // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
+        // another node.
+        auto timestamp_mode = get_parameter("timestamp_mode").as_string();
+        auto ptp_utc_tai_offset =
+            get_parameter("ptp_utc_tai_offset").as_double();
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
         rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
@@ -81,137 +69,58 @@ class OusterImage : public OusterProcessingNodeBase {
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
 
-        nearir_image_pub = create_publisher<sensor_msgs::msg::Image>(
-            "nearir_image", selected_qos);
+        const std::map<sensor::ChanField, std::string>
+            channel_field_topic_map_1 {
+                {sensor::ChanField::RANGE, "range_image"},
+                {sensor::ChanField::SIGNAL, "signal_image"},
+                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                {sensor::ChanField::NEAR_IR, "nearir_image"}};
 
-        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr a_pub;
-        for (int i = 0; i < n_returns; i++) {
-            a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("range_image", i), selected_qos);
-            range_image_pubs.push_back(a_pub);
+        const std::map<sensor::ChanField, std::string>
+            channel_field_topic_map_2 {
+                {sensor::ChanField::RANGE, "range_image"},
+                {sensor::ChanField::SIGNAL, "signal_image"},
+                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                {sensor::ChanField::NEAR_IR, "nearir_image"},
+                {sensor::ChanField::RANGE2, "range_image2"},
+                {sensor::ChanField::SIGNAL2, "signal_image2"},
+                {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
 
-            a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("signal_image", i), selected_qos);
-            signal_image_pubs.push_back(a_pub);
-
-            a_pub = create_publisher<sensor_msgs::msg::Image>(
-                topic_for_return("reflec_image", i), selected_qos);
-            reflec_image_pubs.push_back(a_pub);
+        auto which_map = n_returns == 1 ? &channel_field_topic_map_1
+                                        : &channel_field_topic_map_2;
+        for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+            image_pubs[it->first] =
+                create_publisher<sensor_msgs::msg::Image>(it->second,
+                                                            selected_qos);
         }
-    }
 
-    void create_subscriptions(int n_returns) {
-        pc_subs.resize(n_returns);
-        rclcpp::SensorDataQoS qos;
-        for (int i = 0; i < n_returns; ++i) {
-            pc_subs[i] = create_subscription<sensor_msgs::msg::PointCloud2>(
-                topic_for_return("points", i), qos,
-                [this, i](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                    point_cloud_handler(msg, i);
+        std::vector<LidarScanProcessor> processors {
+            ImageProcessor::create(
+                info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
+                [this](ImageProcessor::OutputType msgs) {
+                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                        image_pubs[it->first]->publish(*it->second);
+                    }
+                })
+        };
+
+        lidar_packet_handler = LidarPacketHandler::create_handler(
+            info, processors, timestamp_mode,
+            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        lidar_packet_sub = create_subscription<PacketMsg>(
+                "lidar_packets", selected_qos,
+                [this](const PacketMsg::ConstSharedPtr msg) {
+                    lidar_packet_handler(msg->buf.data());
                 });
-        }
-    }
-
-    void point_cloud_handler(const sensor_msgs::msg::PointCloud2::SharedPtr m,
-                             int return_index) {
-        pcl::fromROSMsg(*m, cloud);
-
-        const bool first = (return_index == 0);
-        uint32_t H = info.format.pixels_per_column;
-        uint32_t W = info.format.columns_per_frame;
-
-        auto range_image =
-            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto signal_image =
-            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto reflec_image =
-            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-        auto nearir_image =
-            make_image_msg(H, W, m->header.stamp, m->header.frame_id);
-
-        ouster::img_t<float> nearir_image_eigen(H, W);
-        ouster::img_t<float> signal_image_eigen(H, W);
-        ouster::img_t<float> reflec_image_eigen(H, W);
-
-        // views into message data
-        auto range_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)range_image->data.data(), H, W);
-        auto signal_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)signal_image->data.data(), H, W);
-        auto reflec_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)reflec_image->data.data(), H, W);
-
-        auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)nearir_image->data.data(), H, W);
-
-        // copy data out of Cloud message, with destaggering
-        for (size_t u = 0; u < H; u++) {
-            for (size_t v = 0; v < W; v++) {
-                const auto& pt = cloud[u * W + v];
-
-                // 16 bit img: use 4mm resolution and throw out returns >
-                // 260m
-                auto r = (pt.range + 0b10) >> 2;
-                range_image_map(u, v) = r > pixel_value_max ? 0 : r;
-
-                signal_image_eigen(u, v) = pt.intensity;
-                reflec_image_eigen(u, v) = pt.reflectivity;
-                nearir_image_eigen(u, v) = pt.ambient;
-            }
-        }
-
-        signal_ae(signal_image_eigen, first);
-        reflec_ae(reflec_image_eigen, first);
-        nearir_buc(nearir_image_eigen);
-        nearir_ae(nearir_image_eigen, first);
-        nearir_image_eigen = nearir_image_eigen.sqrt();
-        signal_image_eigen = signal_image_eigen.sqrt();
-
-        // copy data into image messages
-        signal_image_map =
-            (signal_image_eigen * pixel_value_max).cast<pixel_type>();
-        reflec_image_map =
-            (reflec_image_eigen * pixel_value_max).cast<pixel_type>();
-        if (first) {
-            nearir_image_map =
-                (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
-            nearir_image_pub->publish(std::move(nearir_image));
-        }
-
-        // publish at return index
-        range_image_pubs[return_index]->publish(std::move(range_image));
-        signal_image_pubs[return_index]->publish(std::move(signal_image));
-        reflec_image_pubs[return_index]->publish(std::move(reflec_image));
-    }
-
-    static sensor_msgs::msg::Image::UniquePtr make_image_msg(
-        size_t H, size_t W, const rclcpp::Time& stamp,
-        const std::string& frame) {
-        auto msg = std::make_unique<sensor_msgs::msg::Image>();
-        msg->width = W;
-        msg->height = H;
-        msg->step = W * sizeof(pixel_type);
-        msg->encoding = sensor_msgs::image_encodings::MONO16;
-        msg->data.resize(W * H * sizeof(pixel_type));
-        msg->header.stamp = stamp;
-        msg->header.frame_id = frame;
-        return msg;
     }
 
    private:
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr nearir_image_pub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
-        range_image_pubs;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
-        signal_image_pubs;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
-        reflec_image_pubs;
-    std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr>
-        pc_subs;
+    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
+    std::map<sensor::ChanField,
+             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        image_pubs;
 
-    ouster_ros::Cloud cloud;
-    viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
-    viz::BeamUniformityCorrector nearir_buc;
+    LidarPacketHandler::HandlerType lidar_packet_handler;
 };
 }  // namespace ouster_ros
 

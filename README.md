@@ -12,24 +12,26 @@
 | ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (galactic/foxy) | [![galactic/foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-  - [Linux](#linux)
-  - [Windows](#windows)
-  - [Mac](#mac)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-  - [Launching Nodes](#launching-nodes)
-    - [Sensor Mode](#sensor-mode)
-    - [Recording Mode](#recording-mode)
-    - [Replay Mode](#replay-mode)
-    - [Multicast Mode (experimental)](#multicast-mode-experimental)
-  - [Invoking Services](#invoking-services)
-    - [GetMetadata](#getmetadata)
-    - [GetConfig](#getconfig)
-    - [SetConfig](#setconfig)
-    - [Reset](#reset)
-- [License](#license)
+- [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
+  - [Overview](#overview)
+  - [Requirements](#requirements)
+    - [Linux](#linux)
+    - [Windows](#windows)
+    - [Mac](#mac)
+  - [Getting Started](#getting-started)
+  - [Usage](#usage)
+    - [Launching Nodes](#launching-nodes)
+      - [Sensor Mode](#sensor-mode)
+      - [Recording Mode](#recording-mode)
+      - [Replay Mode](#replay-mode)
+      - [Multicast Mode (experimental)](#multicast-mode-experimental)
+    - [Invoking Services](#invoking-services)
+      - [GetMetadata](#getmetadata)
+      - [GetConfig](#getconfig)
+      - [SetConfig](#setconfig)
+      - [Reset](#reset)
+    - [Driver Parameters](#driver-parameters)
+  - [License](#license)
 
 
 ## Overview
@@ -238,8 +240,32 @@ connection, reset the sensor and reconnect again.
 > **Note**
 > Changing settings is not yet fully support during a reset operation (more on this)
 
-TBD: For further detailed instructions refer to the [main guide](./docs/index.rst)
+### Driver Parameters
+The driver has several parameters that allow you to customize its behavior, all of
+these parameters are defined with the `driver_params.yaml` file found under `config`
+folder. The only required parameter is `sensor_hostname` which sets the sensor
+hostname or ip that you want to connect to through ouster-ros driver.
 
+Other notable parameters include:
+* **point_type**: This parameter allows to customize the point cloud that the
+  driver produces through its `/ouster/points` topics. Choose one of the following
+  values:
+  - `original`: This uses the original point representation `ouster_ros::Point`
+           of the ouster-ros driver.
+  - `native`: directly maps all fields as published by the sensor to an
+           equivalent point cloud representation with the additon of ring
+           and timestamp fields.
+  - `xyz`: the simplest point type, only has {x, y, z}
+  - `xyzi`: same as xyz point type but adds intensity (signal) field. this
+           type is not compatible with the low data profile.
+  - `xyzir`: same as xyzi type but adds ring (channel) field.
+          this type is same as Velodyne point cloud type
+          this type is not compatible with the low data profile.
+
+This is not a comprehenisve list of all the parameters that the driver supports
+for more detailed list please refer to the `config/driver_params.yaml` file.
+
+For further detailed instructions about the driver refer to the [main guide](./docs/index.rst)
 
 ## License
 [License File](./LICENSE)

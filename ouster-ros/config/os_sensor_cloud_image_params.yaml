@@ -27,5 +27,6 @@ ouster/os_cloud:
     use_system_default_qos: False # needs to match the value defined for os_sensor node
     scan_ring: 0  # Use this parameter in conjunction with the SCAN flag and choose a
                   # value the range [0, sensor_beams_count)
+    point_type: original # choose from: {original, native, xyz, xyzi, xyzir}
 ouster/os_image:
     use_system_default_qos: False # needs to match the value defined for os_sensor node
