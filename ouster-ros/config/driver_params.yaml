@@ -69,7 +69,8 @@ ouster/os_driver:
     use_system_default_qos: false
     # point_type[optional]: choose from: {original, native, xyz, xyzi, xyzir}
     # Here is a breif description of each option:
-    #  - original: ouster_ros::Point
+    #  - original: This uses the original point representation ouster_ros::Point
+    #          of the ouster-ros driver.
     #  - native: directly maps all fields as published by the sensor to an
     #          equivalent point cloud representation with the additon of ring
     #          and timestamp fields.

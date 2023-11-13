@@ -37,7 +37,7 @@ class OusterDriver : public OusterSensor {
         declare_parameter("proc_mask", "IMU|IMG|PCL|SCAN");
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
-        declare_parameter("point_type", "default");
+        declare_parameter("point_type", "original");
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
@@ -87,6 +87,13 @@ class OusterDriver : public OusterSensor {
                     }
                 )
             );
+
+            // warn about profile incompatibility
+            if (PointCloudProcessorFactory::point_type_requires_intensity(point_type) &&
+                info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8) {
+                RCLCPP_WARN_STREAM(get_logger(),
+                    "selected point type '" << point_type << "' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
+            }
         }
 
         if (impl::check_token(tokens, "SCAN")) {
