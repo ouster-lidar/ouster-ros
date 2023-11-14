@@ -19,7 +19,9 @@ ouster_ros(1)
 * [BREAKING]: publish PCL point clouds destaggered.
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
-  is used. 
+  is used.
+  * [BREAKING]: the default value of ``ptp_utc_tai_offset`` is set to ``-37.0``. To retain the same
+    offset for an existing system users need to set ``ptp_utc_tai_offset`` to ``0.0``.
 * [BUGFIX]: destagger columns timestamp when generating destaggered point clouds.
 * [BUGFIX]: gracefully stop the driver when shutdown is requested.
 
