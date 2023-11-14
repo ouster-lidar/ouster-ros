@@ -32,6 +32,16 @@
     use this parameter in conjunction with the SCAN flag
     and choose a value the range [0, sensor_beams_count)"/>
 
+  <arg name="point_type" doc="point type for the generated point cloud;
+   available options: {
+    original,
+    native,
+    xyz,
+    xyzi,
+    xyzir
+    }"/>
+
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
@@ -49,6 +59,7 @@
       <param name="~/proc_mask" value="$(arg proc_mask)"/>
       <param name="~/scan_ring" value="$(arg scan_ring)"/>
       <param name="~/ptp_utc_tai_offset" type="double" value="$(arg ptp_utc_tai_offset)"/>
+      <param name="~/point_type" value="$(arg point_type)"/>
     </node>
   </group>
 

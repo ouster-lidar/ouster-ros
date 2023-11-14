@@ -58,7 +58,6 @@ ouster_client
 * [bugfix] Fixed dropped columns issue with 4096x5 and 2048x10
 
 
-
 ouster_ros v0.9.0
 ==================
 
