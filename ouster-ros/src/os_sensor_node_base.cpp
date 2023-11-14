@@ -15,7 +15,7 @@
 #include <fstream>
 
 namespace sensor = ouster::sensor;
-using ouster_msgs::srv::GetMetadata;
+using ouster_sensor_msgs::srv::GetMetadata;
 using sensor::UDPProfileLidar;
 
 namespace ouster_ros {
