@@ -2,6 +2,13 @@
 Changelog
 =========
 
+[unreleased]
+============
+* added the ability to customize the published point clouds(s) to velodyne point cloud format and
+  other common pcl point types.
+* ouster_image_nodelet can operate separately from ouster_cloud_nodelet.
+
+
 ouster_ros v0.10.0
 ==================
 

@@ -89,7 +89,13 @@ add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
 # ==== Test ====
 if(CATKIN_ENABLE_TESTING)
-  catkin_add_gtest(${PROJECT_NAME}_test tests/ring_buffer_test.cpp)
+  catkin_add_gtest(${PROJECT_NAME}_test
+    tests/ring_buffer_test.cpp
+    src/os_ros.cpp
+    tests/point_accessor_test.cpp
+    tests/point_transform_test.cpp
+    tests/point_cloud_compose_test.cpp
+  )
   target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES})
 endif()
 
