@@ -112,8 +112,18 @@ install(
 )
 
 install(
-  DIRECTORY ${_ouster_ros_INCLUDE_DIRS}
+  DIRECTORY include/ouster_ros/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(
+  DIRECTORY ouster-sdk/ouster_client/include/ouster/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/../ouster
+)
+
+install(
+  DIRECTORY ouster-sdk/ouster_client/include/optional-lite/nonstd/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/../nonstd
 )
 
 install(
