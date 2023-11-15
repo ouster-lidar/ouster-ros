@@ -26,6 +26,7 @@ find_package(
              nodelet)
 
 # ==== Options ====
+add_compile_options(-std=c++17)
 add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
@@ -96,7 +97,8 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_transform_test.cpp
     tests/point_cloud_compose_test.cpp
   )
-  target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
+    ouster_build pcl_common -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
 endif()
 
 # ==== Install ====
