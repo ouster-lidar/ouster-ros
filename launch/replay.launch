@@ -7,7 +7,7 @@
     possible values: {
     TIME_FROM_ROS_TIME
     }"/>
-  <arg name="ptp_utc_tai_offset" default="-37.0"
+  <arg name="ptp_utc_tai_offset" default="0.0"
     doc="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
   <arg name="viz" default="true" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find ouster_ros)/config/viz.rviz" doc="optional rviz config file"/>
