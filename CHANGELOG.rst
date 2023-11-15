@@ -9,7 +9,7 @@ Changelog
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
   is used.
   * [BREAKING]: the default value of ``ptp_utc_tai_offset`` is set to ``-37.0``. To retain the same
-    time offset for an existing system users need to set ``ptp_utc_tai_offset`` to ``0.0``.
+    time offset for an existing system, users need to set ``ptp_utc_tai_offset`` to ``0.0``.
 * fix: destagger columns timestamp when generating destaggered point clouds.
 * shutdown the driver when unable to connect to the sensor on startup
 * [BREAKING]: rename ouster_msgs to ouster_sensor_msgs
