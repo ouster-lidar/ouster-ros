@@ -2,9 +2,9 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_driver_nodelet.cpp
- * @brief This node combines the capabilities of os_sensor, os_cloud and os_img
- * into a single ROS nodelet
+ * @file os_driver.cpp
+ * @brief This node combines the capabilities of os_sensor, os_cloud and
+ * os_image into a single ROS node/component
  */
 
 // prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
@@ -13,12 +13,9 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <pluginlib/class_list_macros.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
+#include "os_sensor_node.h"
 
-#include "os_sensor_nodelet.h"
-#include "os_transforms_broadcaster.h"
+#include "os_static_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
 #include "lidar_packet_handler.h"
 #include "point_cloud_processor.h"
@@ -26,42 +23,46 @@
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
 
-namespace sensor = ouster::sensor;
-
 namespace ouster_ros {
+
+namespace sensor = ouster::sensor;
 
 class OusterDriver : public OusterSensor {
    public:
-    OusterDriver() : tf_bcast(getName()) {}
-    ~OusterDriver() override {
-        NODELET_DEBUG("OusterDriver::~OusterDriver() called");
-        halt();
+    OUSTER_ROS_PUBLIC
+    explicit OusterDriver(const rclcpp::NodeOptions& options)
+        : OusterSensor("os_driver", options), tf_bcast(this) {
+        tf_bcast.declare_parameters();
+        tf_bcast.parse_parameters();
+        declare_parameter("proc_mask", "IMU|IMG|PCL|SCAN");
+        declare_parameter("scan_ring", 0);
+        declare_parameter("ptp_utc_tai_offset", -37.0);
+        declare_parameter("point_type", "original");
     }
-
-   private:
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
-
-        // for OusterDriver we are going to always assume static broadcast
-        // at least for now
-        tf_bcast.parse_parameters(getPrivateNodeHandle());
         tf_bcast.broadcast_transforms(info);
     }
 
     virtual void create_publishers() override {
-        auto& pnh = getPrivateNodeHandle();
-        auto proc_mask =
-            pnh.param("proc_mask", std::string{"IMU|IMG|PCL|SCAN"});
+        auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = impl::parse_tokens(proc_mask, '|');
 
-        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
-        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        bool use_system_default_qos =
+            get_parameter("use_system_default_qos").as_bool();
+        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
+        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
+        auto selected_qos =
+            use_system_default_qos ? system_default_qos : sensor_data_qos;
 
-        auto& nh = getNodeHandle();
+        auto timestamp_mode = get_parameter("timestamp_mode").as_string();
+        auto ptp_utc_tai_offset =
+            get_parameter("ptp_utc_tai_offset").as_double();
 
         if (impl::check_token(tokens, "IMU")) {
-            imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
+            imu_pub =
+                create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
@@ -73,16 +74,16 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
-                lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    topic_for_return("points", i), 10);
+                lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
+                    topic_for_return("points", i), selected_qos);
             }
 
-            auto point_type = pnh.param("point_type", std::string{"original"});
+            auto point_type = get_parameter("point_type").as_string();
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
                     tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i].publish(*msgs[i]);
+                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
                     }
                 )
             );
@@ -98,27 +99,29 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "SCAN")) {
             scan_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
-                scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    topic_for_return("scan", i), 10);
+                scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
+                    topic_for_return("scan", i), selected_qos);
             }
 
             // TODO: avoid duplication in os_cloud_node
             int beams_count = static_cast<int>(get_beams_count(info));
-            int scan_ring = pnh.param("scan_ring", 0);
+            int scan_ring = get_parameter("scan_ring").as_int();
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
-            if (scan_ring != pnh.param("scan_ring", 0)) {
+            if (scan_ring != get_parameter("scan_ring").as_int()) {
                 NODELET_WARN_STREAM(
                     "scan ring is set to a value that exceeds available range"
-                    "please choose a value between [0, " << beams_count <<
-                    "], ring value clamped to: " << scan_ring);
+                    "please choose a value between [0, "
+                        << beams_count
+                        << "], "
+                           "ring value clamped to: "
+                        << scan_ring);
             }
 
             processors.push_back(LaserScanProcessor::create(
                 info, tf_bcast.lidar_frame_id(), scan_ring,
                 [this](LaserScanProcessor::OutputType msgs) {
-                    for (size_t i = 0; i < msgs.size(); ++i) {
-                        scan_pubs[i].publish(*msgs[i]);
-                    }
+                    for (size_t i = 0; i < msgs.size(); ++i)
+                        scan_pubs[i]->publish(*msgs[i]);
                 }));
         }
 
@@ -144,14 +147,15 @@ class OusterDriver : public OusterSensor {
                                               : &channel_field_topic_map_2;
             for (auto it = which_map->begin(); it != which_map->end(); ++it) {
                 image_pubs[it->first] =
-                    nh.advertise<sensor_msgs::Image>(it->second, 10);
+                    create_publisher<sensor_msgs::msg::Image>(it->second,
+                                                              selected_qos);
             }
 
             processors.push_back(ImageProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(),
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
-                        image_pubs[it->first].publish(*it->second);
+                        image_pubs[it->first]->publish(*it->second);
                     }
                 }));
         }
@@ -169,21 +173,36 @@ class OusterDriver : public OusterSensor {
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
         if (imu_packet_handler)
-            imu_pub.publish(imu_packet_handler(raw_imu_packet));
+            imu_pub->publish(imu_packet_handler(raw_imu_packet));
+    }
+
+    virtual void cleanup() override {
+        imu_packet_handler = nullptr;
+        lidar_packet_handler = nullptr;
+        imu_pub.reset();
+        for (auto p : lidar_pubs) p.reset();
+        for (auto p : scan_pubs) p.reset();
+        for (auto p : image_pubs) p.second.reset();
+        OusterSensor::cleanup();
     }
 
    private:
-    ros::Publisher imu_pub;
-    std::vector<ros::Publisher> lidar_pubs;
-    std::vector<ros::Publisher> scan_pubs;
-    std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode> tf_bcast;
 
-    OusterTransformsBroadcaster tf_bcast;
-
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
+        lidar_pubs;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
+        scan_pubs;
+    std::map<sensor::ChanField,
+             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+        image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
 
 }  // namespace ouster_ros
 
-PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterDriver, nodelet::Nodelet)
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(ouster_ros::OusterDriver)

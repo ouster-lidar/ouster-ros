@@ -10,6 +10,7 @@
 
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <nodelet/nodelet.h>
 
 namespace ouster_ros {
 

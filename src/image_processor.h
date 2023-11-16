@@ -18,10 +18,11 @@
 
 #include "ouster/image_processing.h"
 
+namespace ouster_ros {
+
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
 
-namespace ouster_ros {
 class ImageProcessor {
    public:
     using OutputType =

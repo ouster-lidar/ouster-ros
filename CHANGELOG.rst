@@ -2,6 +2,14 @@
 Changelog
 =========
 
+[unreleased]
+============
+* [BREAKING] ROS1 driver code now requires C++17 (required for point cloud customization feature).
+* added the ability to customize the published point clouds(s) to velodyne point cloud format and
+  other common pcl point types.
+* ouster_image_nodelet can operate independently from ouster_cloud_nodelet.
+
+
 ouster_ros v0.10.0
 ==================
 
@@ -12,7 +20,9 @@ ouster_ros(1)
 * [BREAKING]: publish PCL point clouds destaggered.
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
-  is used. 
+  is used.
+  * [BREAKING]: the default value of ``ptp_utc_tai_offset`` is set to ``-37.0``. To retain the same
+    time offset for an existing system, users need to set ``ptp_utc_tai_offset`` to ``0.0``.
 * [BUGFIX]: destagger columns timestamp when generating destaggered point clouds.
 * [BUGFIX]: gracefully stop the driver when shutdown is requested.
 
@@ -47,7 +57,6 @@ ouster_client
 * [bugfix] Fixed an eigen 3.3-related linking issue
 * [bugfix] Fixed a zero beam angle calculation issue
 * [bugfix] Fixed dropped columns issue with 4096x5 and 2048x10
-
 
 
 ouster_ros v0.9.0

@@ -12,21 +12,22 @@
 | ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (galactic/foxy) | [![galactic/foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-  - [Launching Nodes](#launching-nodes)
-    - [Sensor Mode](#sensor-mode)
-    - [Recording Mode](#recording-mode)
-    - [Replay Mode](#replay-mode)
-    - [Multicast Mode (experimental)](#multicast-mode-experimental)
-  - [Launch Files Arguments](#launch-files-arguments)
-  - [Invoking Services](#invoking-services)
-    - [GetMetadata](#getmetadata)
-    - [GetConfig](#getconfig)
-    - [SetConfig (experimental)](#setconfig-experimental)
-- [License](#license)
+- [Official ROS1/ROS2 drivers for Ouster sensors](#official-ros1ros2-drivers-for-ouster-sensors)
+  - [Overview](#overview)
+  - [Requirements](#requirements)
+  - [Getting Started](#getting-started)
+  - [Usage](#usage)
+    - [Launching Nodes](#launching-nodes)
+      - [Sensor Mode](#sensor-mode)
+      - [Recording Mode](#recording-mode)
+      - [Replay Mode](#replay-mode)
+      - [Multicast Mode (experimental)](#multicast-mode-experimental)
+    - [Launch Files Arguments](#launch-files-arguments)
+    - [Invoking Services](#invoking-services)
+      - [GetMetadata](#getmetadata)
+      - [GetConfig](#getconfig)
+      - [SetConfig (experimental)](#setconfig-experimental)
+  - [License](#license)
 
 
 ## Overview
@@ -174,6 +175,22 @@ roslaunch ouster_ros driver.launch --ros-args
 ```
 The command should list all available arguments, whether they are optional or required and the
 description and posible values of each argument.
+
+New launch file parameter:
+**point_type**: This parameter allows to customize the point cloud that the
+  driver produces through its `/ouster/points` topics. Choose one of the following
+  values:
+  - `original`: This uses the original point representation `ouster_ros::Point`
+           of the ouster-ros driver.
+  - `native`: directly maps all fields as published by the sensor to an
+           equivalent point cloud representation with the additon of ring
+           and timestamp fields.
+  - `xyz`: the simplest point type, only has {x, y, z}
+  - `xyzi`: same as xyz point type but adds intensity (signal) field. this
+           type is not compatible with the low data profile.
+  - `xyzir`: same as xyzi type but adds ring (channel) field.
+          this type is same as Velodyne point cloud type
+          this type is not compatible with the low data profile.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal
