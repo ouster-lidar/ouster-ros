@@ -36,6 +36,16 @@ OusterSensor::OusterSensor(const std::string& name,
 OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
     : OusterSensor("os_sensor", options) {}
 
+OusterSensor::~OusterSensor() {
+    RCLCPP_INFO(get_logger(), "OusterDriver::~OusterSensor() called");
+    halt();
+}
+
+void OusterSensor::halt() {
+    stop_packet_processing_threads();
+    stop_sensor_connection_thread();
+}
+
 void OusterSensor::declare_parameters() {
     declare_parameter("sensor_hostname", "");
     declare_parameter("lidar_ip", "");      // community driver param
@@ -325,7 +335,6 @@ void OusterSensor::reactivate_sensor(bool init_id_reset) {
     reset_last_init_id = init_id_reset;
     active_config.clear();
     cached_metadata.clear();
-    imu_packets_skip = lidar_packets_skip = true;
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
         lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
@@ -789,24 +798,21 @@ void OusterSensor::stop_sensor_connection_thread() {
 }
 
 void OusterSensor::start_packet_processing_threads() {
-    imu_packets_skip = false;
     imu_packets_processing_thread_active = true;
     imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
-        auto read_packet = [this](const uint8_t* buffer) {
-            if (!imu_packets_skip) on_imu_packet_msg(buffer);
-        };
         while (imu_packets_processing_thread_active) {
-            imu_packets->read(read_packet);
+            imu_packets->read([this](const uint8_t* buffer) {
+                on_imu_packet_msg(buffer);
+            });
         }
         RCLCPP_DEBUG(get_logger(), "imu_packets_processing_thread done.");
     });
 
-    lidar_packets_skip = false;
     lidar_packets_processing_thread_active = true;
     lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (lidar_packets_processing_thread_active) {
             lidar_packets->read([this](const uint8_t* buffer) {
-                if (!lidar_packets_skip) on_lidar_packet_msg(buffer);
+                on_lidar_packet_msg(buffer);
             });
         }
         RCLCPP_DEBUG(get_logger(), "lidar_packets_processing_thread done.");

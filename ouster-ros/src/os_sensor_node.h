@@ -39,6 +39,7 @@ class OusterSensor : public OusterSensorNodeBase {
     OUSTER_ROS_PUBLIC
     OusterSensor(const std::string& name, const rclcpp::NodeOptions& options);
     explicit OusterSensor(const rclcpp::NodeOptions& options);
+    ~OusterSensor() override;
 
     LifecycleNodeInterface::CallbackReturn on_configure(
         const rclcpp_lifecycle::State& state);
@@ -65,6 +66,8 @@ class OusterSensor : public OusterSensorNodeBase {
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
 
     virtual void cleanup();
+
+    void halt();
 
    private:
     void declare_parameters();
@@ -164,11 +167,9 @@ class OusterSensor : public OusterSensorNodeBase {
     std::unique_ptr<std::thread> sensor_connection_thread;
 
     std::atomic<bool> imu_packets_processing_thread_active = {false};
-    std::atomic<bool> imu_packets_skip;
     std::unique_ptr<std::thread> imu_packets_processing_thread;
 
     std::atomic<bool> lidar_packets_processing_thread_active = {false};
-    std::atomic<bool> lidar_packets_skip;
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
 
     bool force_sensor_reinit = false;

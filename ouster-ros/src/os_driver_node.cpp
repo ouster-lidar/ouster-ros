@@ -40,6 +40,11 @@ class OusterDriver : public OusterSensor {
         declare_parameter("point_type", "original");
     }
 
+    ~OusterDriver() override {
+        RCLCPP_INFO(get_logger(), "OusterDriver::~OusterDriver() called");
+        halt();
+    }
+
     LifecycleNodeInterface::CallbackReturn on_activate(
         const rclcpp_lifecycle::State& state) {
         RCLCPP_DEBUG(get_logger(), "os_driver::on_activate() is called.");
