@@ -2,9 +2,10 @@
 Changelog
 =========
 
-[unreleased]
-============
-* breaking: publish PCL point clouds destaggered.
+ouster_ros v0.12.0
+==================
+* [BREAKING]: updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
+* [BREAKING]: publish PCL point clouds destaggered.
 * introduced a new launch file parameter ``ptp_utc_tai_offset`` which represent offset in seconds
   to be applied to all ROS messages the driver generates when ``TIME_FROM_PTP_1588`` timestamp mode
   is used.
@@ -16,6 +17,38 @@ Changelog
 * added the ability to customize the published point clouds(s) to velodyne point cloud format and
   other common pcl point types.
 * ouster_image_compoenent can operate separately from ouster_cloud_component.
+
+ouster_client
+-------------
+* [BREAKING] Updates to ``sensor_info`` include:
+    * new fields added: ``build_date``, ``image_rev``, ``prod_pn``, ``status``, ``cal`` (representing
+      the value stored in the ``calibration_status`` metadata JSON key), ``config`` (representing the
+      value of the ``sensor_config`` metadata JSON key)
+    * the original JSON string is accessible via the ``original_string()`` method
+    * The ``updated_metadata_string()`` now returns a JSON string reflecting any modifications to
+      ``sensor_info``
+    * ``to_string`` is now marked as deprecated
+* [BREAKING] The RANGE field defined in `parsing.cpp`, for the low data rate profile, is now 32 bits
+  wide (originally 16 bits).
+    * Please note this fixes a SDK bug. The underlying UDP format is unchanged.
+* [BREAKING] The NEAR_IR field defined in `parsing.cpp`, for the low data rate profile, is now 16
+  bits wide (originally 8 bits).
+    * Plase note this fixes a SDK bug. The underlying UDP format is unchanged.
+* [BREAKING] changed frame_id return size to 32 bits from 16 bits
+* An array of per-packet timestamps (called ``packet_timestamp``) is added to ``LidarScan``
+* The client now retries failed requests to an Ouster sensor's HTTP API
+* Increased the default timeout for HTTP requests to 40s
+* Added FuSA UDP profile to support Ouster FW 3.1+
+* Improved ``ScanBatcher`` performance by roughly 3x (depending on hardware)
+* Receive buffer size increased from 256KB to 1MB
+* [bugfix] Fixed an issue that caused incorrect Cartesian point computation in the ``viz.Cloud``
+  Python class
+* [bugfix] Fixed an issue that resulted in some ``packet_format`` methods returning an uninitialized
+  value
+* [bugfix] Fixed a libpcap-related linking issue
+* [bugfix] Fixed an eigen 3.3-related linking issue
+* [bugfix] Fixed a zero beam angle calculation issue
+* [bugfix] Fixed dropped columns issue with 4096x5 and 2048x10
 
 ouster_ros v0.10.0
 ==================
