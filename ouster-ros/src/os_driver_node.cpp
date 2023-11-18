@@ -40,6 +40,11 @@ class OusterDriver : public OusterSensor {
         declare_parameter("point_type", "original");
     }
 
+    ~OusterDriver() override {
+        RCLCPP_INFO(get_logger(), "OusterDriver::~OusterDriver() called");
+        halt();
+    }
+
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
         tf_bcast.broadcast_transforms(info);
