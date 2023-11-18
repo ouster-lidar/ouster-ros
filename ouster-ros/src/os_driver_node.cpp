@@ -41,7 +41,7 @@ class OusterDriver : public OusterSensor {
     }
 
     ~OusterDriver() override {
-        RCLCPP_INFO(get_logger(), "OusterDriver::~OusterDriver() called");
+        RCLCPP_DEBUG(get_logger(), "OusterDriver::~OusterDriver() called");
         halt();
     }
 
