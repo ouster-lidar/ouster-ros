@@ -17,6 +17,7 @@ ouster_ros v0.12.0
 * added the ability to customize the published point clouds(s) to velodyne point cloud format and
   other common pcl point types.
 * ouster_image_compoenent can operate separately from ouster_cloud_component.
+* fix: gracefully stop the driver when shutdown is requested.
 
 ouster_client
 -------------
