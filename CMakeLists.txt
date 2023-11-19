@@ -123,9 +123,8 @@ install(
 
 install(
   DIRECTORY ouster-sdk/ouster_client/include/optional-lite/nonstd/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/../nonstd
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/../ouster/nonstd/
 )
-
 install(
   FILES
     LICENSE
