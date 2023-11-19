@@ -8,7 +8,7 @@ Changelog
 * added the ability to customize the published point clouds(s) to velodyne point cloud format and
   other common pcl point types.
 * ouster_image_nodelet can operate independently from ouster_cloud_nodelet.
-
+* install ouster-ros and ouster_client include directories in separate folders.
 
 ouster_ros v0.10.0
 ==================
@@ -80,7 +80,7 @@ ouster_ros(1)
 * added a no-bond option to the ``sensor.launch`` file
 * reduce the publish rate of imu tf transforms
 * implemented a new node named ``os_driver`` which combines the functionality of ``os_sensor``,
-  ``os_cloud`` and ``os_image`` into a single node. The new node can be launch via the new 
+  ``os_cloud`` and ``os_image`` into a single node. The new node can be launch via the new
   ``driver.launch`` file.
 * introduced a new topic ``/ouster/scan`` which publishes ``sensor_msgs::LaserScan`` messages, the
   user can pick which beam to be used for the message through the ``scan_ring`` launch argument.
