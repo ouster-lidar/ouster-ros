@@ -47,6 +47,17 @@
     xyzir
     }"/>
 
+  <arg name="min_lidar_packets_per_cloud" default="0"
+  doc="Each cloud is built up of an expected amount of udp packets. With this set
+  to 0, the driver will publish all clouds regardless of how many packets it
+  received. If set to a positive integer, the driver will discard the entire
+  cloud if it does not consist of at least this many udp packets.
+  Number of expected packets is dependent on lidar_mode and udp_profile_lidar.
+  To calculate the number of expected packets, use the following formula:
+
+  num_expected_packets = info.format.columns_per_frame * info.format.columns_per_packet"
+  />
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true" args="manager"/>
@@ -81,6 +92,7 @@
     <arg name="proc_mask" value="$(arg proc_mask)"/>
     <arg name="scan_ring" value="$(arg scan_ring)"/>
     <arg name="point_type" value="$(arg point_type)"/>
+    <arg name="min_lidar_packets_per_cloud" value="$(arg min_lidar_packets_per_cloud)"/>
   </include>
 
   <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>
