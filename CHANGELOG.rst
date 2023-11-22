@@ -2,6 +2,10 @@
 Changelog
 =========
 
+[unreleased]
+============
+* fix: LaserScan is not properly aligned with generated point cloud
+
 ouster_ros v0.12.0
 ==================
 * [BREAKING]: updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
