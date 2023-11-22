@@ -180,9 +180,7 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     msg.intensities.resize(ls.w);
 
     for (auto v = 0; v < ls.w; ++v) {
-        auto idx = ls.w / 2 - 1 - v;
-        auto sign = v < ls.w / 2 ? +1 : -1;
-        auto v_shift = (idx - sign * pixel_shift_by_row[ring]) % ls.w;
+        auto v_shift = (ls.w / 2 - 1 - v - pixel_shift_by_row[ring]) % ls.w;
         auto src_idx = ring * ls.w + v_shift;
         msg.ranges[v] = rg[src_idx] * ouster::sensor::range_unit;
         msg.intensities[v] = static_cast<float>(sg[src_idx]);
