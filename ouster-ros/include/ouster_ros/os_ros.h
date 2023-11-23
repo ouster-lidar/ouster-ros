@@ -156,6 +156,7 @@ inline bool check_token(const std::set<std::string>& tokens,
     return tokens.find(token) != tokens.end();
 }
 
+ouster::util::version parse_version(const std::string& fw_rev);
 
 } // namespace impl
 

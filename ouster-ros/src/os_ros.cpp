@@ -19,11 +19,15 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <regex>
 
-namespace sensor = ouster::sensor;
-using ouster_sensor_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
+
+namespace sensor = ouster::sensor;
+using namespace ouster::util;
+using ouster_sensor_msgs::msg::PacketMsg;
+
 
 bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
     using sensor::UDPProfileLidar;
@@ -128,6 +132,22 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
     }
 
     return tokens;
+}
+
+version parse_version(const std::string& fw_rev) {
+    auto rgx = std::regex(R"(v(\d+).(\d+)\.(\d+))");
+    std::smatch matches;
+    std::regex_search(fw_rev, matches, rgx);
+
+    if (matches.size() < 4) return invalid_version;
+
+    try {
+        return version{static_cast<uint16_t>(stoul(matches[1])),
+                    static_cast<uint16_t>(stoul(matches[2])),
+                    static_cast<uint16_t>(stoul(matches[3]))};
+    } catch (const std::exception&) {
+        return invalid_version;
+    }
 }
 
 }  // namespace impl
