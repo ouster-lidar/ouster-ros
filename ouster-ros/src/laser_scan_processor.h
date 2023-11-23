@@ -30,14 +30,15 @@ class LaserScanProcessor {
           ld_mode(info.mode),
           ring_(ring),
           pixel_shift_by_row(info.format.pixel_shift_by_row),
-          scan_msgs(get_n_returns(info),
-                    std::make_shared<sensor_msgs::msg::LaserScan>()),
-          post_processing_fn(func) {}
+          scan_msgs(get_n_returns(info)), post_processing_fn(func) {
+            for (size_t i = 0; i < scan_msgs.size(); ++i)
+                scan_msgs[i] = std::make_shared<sensor_msgs::msg::LaserScan>();
+          }
 
    private:
     void process(const ouster::LidarScan& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
-        for (int i = 0; i < static_cast<int>(scan_msgs.size()); ++i) {
+        for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] = lidar_scan_to_laser_scan_msg(
                 lidar_scan, msg_ts, frame, ld_mode, ring_, pixel_shift_by_row, i);
         }
