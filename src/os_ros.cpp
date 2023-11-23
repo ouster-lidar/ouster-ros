@@ -19,10 +19,13 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <regex>
 
-namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
+
+namespace sensor = ouster::sensor;
+using namespace ouster::util;
 
 bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
     using sensor::UDPProfileLidar;
@@ -129,6 +132,23 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
     return tokens;
 }
 
+version parse_version(const std::string& fw_rev) {
+    auto rgx = std::regex(R"(v(\d+).(\d+)\.(\d+))");
+    std::smatch matches;
+    std::regex_search(fw_rev, matches, rgx);
+
+    if (matches.size() < 4) return invalid_version;
+
+    try {
+        return version{static_cast<uint16_t>(stoul(matches[1])),
+                    static_cast<uint16_t>(stoul(matches[2])),
+                    static_cast<uint16_t>(stoul(matches[3]))};
+    } catch (const std::exception&) {
+        return invalid_version;
+    }
+}
+
+
 }  // namespace impl
 
 geometry_msgs::TransformStamped transform_to_tf_msg(
@@ -166,13 +186,11 @@ sensor_msgs::LaserScan lidar_scan_to_laser_scan_msg(
     msg.time_increment = 1.0f / (scan_width * scan_frequency);
     msg.angle_increment = 2 * M_PI / scan_width;
 
-    auto which_range = return_index == 0 ? sensor::ChanField::RANGE
-                                         : sensor::ChanField::RANGE2;
-    ouster::img_t<uint32_t> range = ls.field<uint32_t>(which_range);
-    auto which_signal = return_index == 0 ? sensor::ChanField::SIGNAL
-                                          : sensor::ChanField::SIGNAL2;
-    ouster::img_t<uint32_t> signal =
-        impl::get_or_fill_zero<uint32_t>(which_signal, ls);
+    ouster::img_t<uint32_t> range = ls.field<uint32_t>(
+        static_cast<sensor::ChanField>(sensor::ChanField::RANGE + return_index));
+    ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
+        static_cast<sensor::ChanField>(sensor::ChanField::SIGNAL + return_index),
+        ls);
     const auto rg = range.data();
     const auto sg = signal.data();
     msg.ranges.resize(ls.w);
