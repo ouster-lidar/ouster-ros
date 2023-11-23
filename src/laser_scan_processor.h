@@ -46,7 +46,7 @@ class LaserScanProcessor {
    private:
     void process(const ouster::LidarScan& lidar_scan, uint64_t,
                  const ros::Time& msg_ts) {
-        for (int i = 0; i < static_cast<int>(scan_msgs.size()); ++i) {
+        for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] =
                 lidar_scan_to_laser_scan_msg(lidar_scan, msg_ts, frame, ld_mode,
                                              ring_, pixel_shift_by_row, i);

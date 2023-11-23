@@ -148,7 +148,6 @@ version parse_version(const std::string& fw_rev) {
     }
 }
 
-
 }  // namespace impl
 
 geometry_msgs::TransformStamped transform_to_tf_msg(
