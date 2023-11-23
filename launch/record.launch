@@ -67,16 +67,12 @@
     xyzir
     }"/>
 
-  <arg name="min_lidar_packets_per_cloud" default="0"
-  doc="Each cloud is built up of an expected amount of udp packets. With this set
-  to 0, the driver will publish all clouds regardless of how many packets it
-  received. If set to a positive integer, the driver will discard the entire
-  cloud if it does not consist of at least this many udp packets.
-  Number of expected packets is dependent on lidar_mode and udp_profile_lidar.
-  To calculate the number of expected packets, use the following formula:
-
-  num_expected_packets = info.format.columns_per_frame * info.format.columns_per_packet"
-  />
+  <arg name="num_columns_required" default="0" doc=" Each pointcloud is built from a number
+    of UDP data packets. If some packets are lost, the pointcloud will be incomplete.
+    If you set this to zero, all pointclouds will be published regardless of completeness.
+    If set to a positive integer, pointclouds with fewer than the specified number of columns
+    will not be published.
+    The number of columns is the same as the width of the pointcloud (512, 1024, etc)."/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
@@ -117,7 +113,7 @@
     <arg name="proc_mask" value="$(arg proc_mask)"/>
     <arg name="scan_ring" value="$(arg scan_ring)"/>
     <arg name="point_type" value="$(arg point_type)"/>
-    <arg name="min_lidar_packets_per_cloud" value="$(arg min_lidar_packets_per_cloud)"/>
+    <arg name="num_columns_required" value="$(arg num_columns_required)"/>
   </include>
 
   <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>

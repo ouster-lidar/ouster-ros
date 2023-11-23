@@ -92,6 +92,7 @@ class OusterCloud : public nodelet::Nodelet {
 
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        num_columns_required_ = pnh.param("num_columns_required", 0);
 
         auto& nh = getNodeHandle();
 
@@ -124,11 +125,18 @@ class OusterCloud : public nodelet::Nodelet {
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type,
                     info, tf_bcast.point_cloud_frame_id(),
                     tf_bcast.apply_lidar_to_sensor_transform(),
-                    [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) {
-                            if (msgs[i]->header.stamp > last_msg_ts)
-                                last_msg_ts = msgs[i]->header.stamp;
-                            lidar_pubs[i].publish(*msgs[i]);
+                    [this](PointCloudProcessor_OutputType data) {
+                        if (data.num_valid_columns < num_columns_required_) {
+                            ROS_WARN_STREAM(
+                                "Incomplete cloud, not publishing. Got "
+                                << data.num_valid_columns << " columns, expected "
+                                << num_columns_required_ << ".");
+                            return;
+                        }
+                        for (size_t i = 0; i < data.pc_msgs.size(); ++i) {
+                            if (data.pc_msgs[i]->header.stamp > last_msg_ts)
+                                last_msg_ts = data.pc_msgs[i]->header.stamp;
+                            lidar_pubs[i].publish(*data.pc_msgs[i]);
                         }
                     }
                 )
@@ -162,22 +170,19 @@ class OusterCloud : public nodelet::Nodelet {
 
             processors.push_back(LaserScanProcessor::create(
                 info, tf_bcast.lidar_frame_id(), scan_ring,
-                [this](LaserScanProcessor::OutputType msgs) {
-                    for (size_t i = 0; i < msgs.size(); ++i) {
-                        if (msgs[i]->header.stamp > last_msg_ts)
-                            last_msg_ts = msgs[i]->header.stamp;
-                        scan_pubs[i].publish(*msgs[i]);
+                [this](LaserScanProcessor::OutputType data) {
+                    for (size_t i = 0; i < data.scan_msgs.size(); ++i) {
+                        if (data.scan_msgs[i]->header.stamp > last_msg_ts)
+                            last_msg_ts = data.scan_msgs[i]->header.stamp;
+                        scan_pubs[i].publish(*data.scan_msgs[i]);
                     }
                 }));
         }
 
-        const int min_lidar_packets_per_cloud =
-            pnh.param("min_lidar_packets_per_cloud", 0);
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN")) {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-                min_lidar_packets_per_cloud);
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             lidar_packet_sub = nh.subscribe<PacketMsg>(
                 "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     lidar_packet_handler(msg->buf.data());
@@ -200,6 +205,7 @@ class OusterCloud : public nodelet::Nodelet {
 
     ros::Timer timer_;
     ros::Time last_msg_ts;
+    int num_columns_required_;
 };
 
 }  // namespace ouster_ros

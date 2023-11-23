@@ -56,6 +56,8 @@ class OusterImage : public nodelet::Nodelet {
         auto& pnh = getPrivateNodeHandle();
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        num_columns_required_ = pnh.param("num_columns_required", 0);
+
 
         const std::map<sensor::ChanField, std::string>
             channel_field_topic_map_1 {
@@ -87,19 +89,19 @@ class OusterImage : public nodelet::Nodelet {
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
-                [this](ImageProcessor::OutputType msgs) {
-                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                [this](ImageProcessor::OutputType data) {
+                    if (data.num_valid_columns < num_columns_required_)
+                        return;
+                    for (auto it = data.image_msgs.begin();
+                        it != data.image_msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);
                     }
                 })
         };
 
-        const int min_lidar_packets_per_cloud =
-            pnh.param("min_lidar_packets_per_cloud", 0);
         lidar_packet_handler = LidarPacketHandler::create_handler(
             info, processors, timestamp_mode,
-            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-            min_lidar_packets_per_cloud);
+            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         lidar_packet_sub = nh.subscribe<PacketMsg>(
                 "lidar_packets", 100,
                 [this](const PacketMsg::ConstPtr msg) {
@@ -110,6 +112,7 @@ class OusterImage : public nodelet::Nodelet {
    private:
     ros::Subscriber metadata_sub;
     sensor::sensor_info info;
+    int num_columns_required_;
 
     ros::Subscriber lidar_packet_sub;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;

@@ -57,6 +57,7 @@ class OusterDriver : public OusterSensor {
 
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        num_columns_required_ = pnh.param("num_columns_required", 0);
 
         auto& nh = getNodeHandle();
 
@@ -81,8 +82,16 @@ class OusterDriver : public OusterSensor {
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
                     tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
-                    [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i].publish(*msgs[i]);
+                    [this](PointCloudProcessor_OutputType data) {
+                        if (data.num_valid_columns < num_columns_required_) {
+                            ROS_WARN_STREAM(
+                                "Incomplete cloud, not publishing. Got "
+                                << data.num_valid_columns << " columns, expected "
+                                << num_columns_required_ << ".");
+                            return;
+                        }
+                        for (size_t i = 0; i < data.pc_msgs.size(); ++i)
+                            lidar_pubs[i].publish(*data.pc_msgs[i]);
                     }
                 )
             );
@@ -115,9 +124,11 @@ class OusterDriver : public OusterSensor {
 
             processors.push_back(LaserScanProcessor::create(
                 info, tf_bcast.lidar_frame_id(), scan_ring,
-                [this](LaserScanProcessor::OutputType msgs) {
-                    for (size_t i = 0; i < msgs.size(); ++i) {
-                        scan_pubs[i].publish(*msgs[i]);
+                [this](LaserScanProcessor::OutputType data) {
+                    if (data.num_valid_columns < num_columns_required_)
+                        return;
+                    for (size_t i = 0; i < data.scan_msgs.size(); ++i) {
+                        scan_pubs[i].publish(*data.scan_msgs[i]);
                     }
                 }));
         }
@@ -149,21 +160,21 @@ class OusterDriver : public OusterSensor {
 
             processors.push_back(ImageProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(),
-                [this](ImageProcessor::OutputType msgs) {
-                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                [this](ImageProcessor::OutputType data) {
+                    if (data.num_valid_columns < num_columns_required_)
+                        return;
+                    for (auto it = data.image_msgs.begin();
+                            it != data.image_msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);
                     }
                 }));
         }
 
-        const int min_lidar_packets_per_cloud =
-            pnh.param("min_lidar_packets_per_cloud", 0);
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
             impl::check_token(tokens, "IMG"))
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-                min_lidar_packets_per_cloud);
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
     }
 
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
@@ -180,6 +191,7 @@ class OusterDriver : public OusterSensor {
     std::vector<ros::Publisher> lidar_pubs;
     std::vector<ros::Publisher> scan_pubs;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    int num_columns_required_;
 
     OusterTransformsBroadcaster tf_bcast;
 

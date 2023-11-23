@@ -25,8 +25,12 @@ namespace viz = ouster::viz;
 
 class ImageProcessor {
    public:
-    using OutputType =
+    using ProcessedData =
         std::map<sensor::ChanField, std::shared_ptr<sensor_msgs::Image>>;
+    struct OutputType {
+        int num_valid_columns;
+        ProcessedData image_msgs;
+    };
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
@@ -76,12 +80,17 @@ class ImageProcessor {
    private:
     void process(const ouster::LidarScan& lidar_scan, uint64_t,
                  const ros::Time& msg_ts) {
+        OutputType out;
         process_return(lidar_scan, 0);
         if (get_n_returns(info_) == 2) process_return(lidar_scan, 1);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
-        if (post_processing_fn) post_processing_fn(image_msgs);
+        out.image_msgs = image_msgs;
+        out.num_valid_columns =
+            (lidar_scan.measurement_id().array() != 0).count() + 1;
+
+        if (post_processing_fn) post_processing_fn(out);
     }
 
     void process_return(const ouster::LidarScan& lidar_scan, int return_index) {
@@ -188,7 +197,7 @@ class ImageProcessor {
 
    private:
     std::string frame;
-    OutputType image_msgs;
+    ProcessedData image_msgs;
     PostProcessingFn post_processing_fn;
     sensor::sensor_info info_;
 

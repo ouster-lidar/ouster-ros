@@ -120,27 +120,11 @@ class LidarPacketHandler {
     static HandlerType create_handler(
         const ouster::sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
-        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset,
-        const int min_lidar_packets_per_cloud) {
+        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
         auto handler = std::make_shared<LidarPacketHandler>(
             info, handlers, timestamp_mode, ptp_utc_tai_offset);
-        return [handler, info,
-                min_lidar_packets_per_cloud](const uint8_t* lidar_buf) {
-            thread_local int num_packets_in_cloud = 0;
-            num_packets_in_cloud++;
-
+        return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
-                if (num_packets_in_cloud < min_lidar_packets_per_cloud) {
-                    ROS_WARN_STREAM_THROTTLE(
-                        0.1,
-                        "Incomplete cloud, dropping it. Got "
-                            << num_packets_in_cloud << ", expected "
-                            << min_lidar_packets_per_cloud << " lidar packets.");
-                    num_packets_in_cloud = 0;
-                    return;
-              }
-              num_packets_in_cloud = 0;
-
                 for (auto h : handler->lidar_scan_handlers) {
                     h(*handler->lidar_scan, handler->lidar_scan_estimated_ts,
                       handler->lidar_scan_estimated_msg_ts);
