@@ -4,7 +4,8 @@ Changelog
 
 [unreleased]
 ============
-* fix: LaserScan is not properly aligned with generated point cloud
+* [BUGFIX]: LaserScan is not properly aligned with generated point cloud
+* [BUGFIX]: LaserScan does not work when using dual mode
 
 ouster_ros v0.12.0
 ==================
