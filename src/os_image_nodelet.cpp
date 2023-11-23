@@ -50,7 +50,7 @@ class OusterImage : public nodelet::Nodelet {
     }
 
     void create_publishers_subscribers(int n_returns) {
-        // TODO: avoid having to replicate the parameters: 
+        // TODO: avoid having to replicate the parameters:
         // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
         // another node.
         auto& pnh = getPrivateNodeHandle();
@@ -94,9 +94,12 @@ class OusterImage : public nodelet::Nodelet {
                 })
         };
 
+        const int min_lidar_packets_per_cloud =
+            pnh.param("min_lidar_packets_per_cloud", 0);
         lidar_packet_handler = LidarPacketHandler::create_handler(
             info, processors, timestamp_mode,
-            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+            min_lidar_packets_per_cloud);
         lidar_packet_sub = nh.subscribe<PacketMsg>(
                 "lidar_packets", 100,
                 [this](const PacketMsg::ConstPtr msg) {

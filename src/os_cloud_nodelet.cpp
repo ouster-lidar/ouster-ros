@@ -171,10 +171,13 @@ class OusterCloud : public nodelet::Nodelet {
                 }));
         }
 
+        const int min_lidar_packets_per_cloud =
+            pnh.param("min_lidar_packets_per_cloud", 0);
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN")) {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+                min_lidar_packets_per_cloud);
             lidar_packet_sub = nh.subscribe<PacketMsg>(
                 "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                     lidar_packet_handler(msg->buf.data());

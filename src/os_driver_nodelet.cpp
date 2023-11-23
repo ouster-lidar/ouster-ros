@@ -156,11 +156,14 @@ class OusterDriver : public OusterSensor {
                 }));
         }
 
+        const int min_lidar_packets_per_cloud =
+            pnh.param("min_lidar_packets_per_cloud", 0);
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
             impl::check_token(tokens, "IMG"))
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+                min_lidar_packets_per_cloud);
     }
 
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
