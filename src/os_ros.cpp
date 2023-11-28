@@ -195,12 +195,13 @@ sensor_msgs::LaserScan lidar_scan_to_laser_scan_msg(
     msg.ranges.resize(ls.w);
     msg.intensities.resize(ls.w);
 
-    for (auto v = 0; v < ls.w; ++v) {
-        auto sign = v < ls.w / 2 ? -1 : +1;
-        auto v_shift = (ls.w / 2 - 1 - v + sign * pixel_shift_by_row[ring]) % ls.w;
-        auto src_idx = ring * ls.w + v_shift;
-        msg.ranges[v] = rg[src_idx] * ouster::sensor::range_unit;
-        msg.intensities[v] = static_cast<float>(sg[src_idx]);
+    uint16_t u = ring;
+    for (auto v =  0; v < ls.w; ++v) {
+        auto v_shift = (v + ls.w - pixel_shift_by_row[u] + ls.w / 2) % ls.w;
+        auto src_idx = u * ls.w + v_shift;
+        auto tgt_idx = ls.w - 1 - v;
+        msg.ranges[tgt_idx] = rg[src_idx] * ouster::sensor::range_unit;
+        msg.intensities[tgt_idx] = static_cast<float>(sg[src_idx]);
     }
 
     return msg;
