@@ -41,6 +41,12 @@
     xyzir
     }"/>
 
+  <arg name="num_columns_required" doc="
+    Each pointcloud is built from a number of UDP data packets. If some packets are
+    lost, the pointcloud will be incomplete. If you set this to zero, all pointclouds
+    will be published regardless of completeness. If set to a positive integer,
+    pointclouds with fewer than the specified number of columns will not be published.
+    The number of columns is the same as the width of the pointcloud (512, 1024, etc)."/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
@@ -60,6 +66,7 @@
       <param name="~/scan_ring" value="$(arg scan_ring)"/>
       <param name="~/ptp_utc_tai_offset" type="double" value="$(arg ptp_utc_tai_offset)"/>
       <param name="~/point_type" value="$(arg point_type)"/>
+      <param name="~/num_columns_required" value="$(arg num_columns_required)"/>
     </node>
   </group>
 
@@ -67,6 +74,7 @@
     <node pkg="nodelet" type="nodelet" name="img_node"
       output="screen" required="true"
       args="load ouster_ros/OusterImage os_nodelet_mgr $(arg _no_bond)">
+      <param name="~/num_columns_required" value="$(arg num_columns_required)"/>
     </node>
   </group>
 

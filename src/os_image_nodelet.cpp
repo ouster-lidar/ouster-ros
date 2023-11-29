@@ -50,12 +50,14 @@ class OusterImage : public nodelet::Nodelet {
     }
 
     void create_publishers_subscribers(int n_returns) {
-        // TODO: avoid having to replicate the parameters: 
+        // TODO: avoid having to replicate the parameters:
         // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
         // another node.
         auto& pnh = getPrivateNodeHandle();
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        num_columns_required_ = pnh.param("num_columns_required", 0);
+
 
         const std::map<sensor::ChanField, std::string>
             channel_field_topic_map_1 {
@@ -87,8 +89,11 @@ class OusterImage : public nodelet::Nodelet {
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
-                [this](ImageProcessor::OutputType msgs) {
-                    for (auto it = msgs.begin(); it != msgs.end(); ++it) {
+                [this](ImageProcessor::OutputType data) {
+                    if (data.num_valid_columns < num_columns_required_)
+                        return;
+                    for (auto it = data.image_msgs.begin();
+                        it != data.image_msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);
                     }
                 })
@@ -107,6 +112,7 @@ class OusterImage : public nodelet::Nodelet {
    private:
     ros::Subscriber metadata_sub;
     sensor::sensor_info info;
+    int num_columns_required_;
 
     ros::Subscriber lidar_packet_sub;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;

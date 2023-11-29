@@ -18,7 +18,11 @@ namespace ouster_ros {
 
 class LaserScanProcessor {
    public:
-    using OutputType = std::vector<std::shared_ptr<sensor_msgs::LaserScan>>;
+    using ProcessedData = std::vector<std::shared_ptr<sensor_msgs::LaserScan>>;
+   struct OutputType {
+        int num_valid_columns;
+        ProcessedData scan_msgs;
+    };
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
@@ -35,12 +39,16 @@ class LaserScanProcessor {
    private:
     void process(const ouster::LidarScan& lidar_scan, uint64_t,
                  const ros::Time& msg_ts) {
+        OutputType out;
         for (int i = 0; i < static_cast<int>(scan_msgs.size()); ++i) {
             *scan_msgs[i] = lidar_scan_to_laser_scan_msg(
                 lidar_scan, msg_ts, frame, ld_mode, ring_, i);
         }
+        out.scan_msgs = scan_msgs;
+        out.num_valid_columns =
+            (lidar_scan.measurement_id().array() != 0).count() + 1;
 
-        if (post_processing_fn) post_processing_fn(scan_msgs);
+        if (post_processing_fn) post_processing_fn(out);
     }
 
    public:
@@ -60,7 +68,7 @@ class LaserScanProcessor {
     std::string frame;
     sensor::lidar_mode ld_mode;
     uint16_t ring_;
-    OutputType scan_msgs;
+    ProcessedData scan_msgs;
     PostProcessingFn post_processing_fn;
 };
 

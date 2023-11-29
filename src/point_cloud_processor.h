@@ -20,8 +20,12 @@
 namespace ouster_ros {
 
 // Moved out of PointCloudProcessor to avoid type templatization
-using PointCloudProcessor_OutputType =
+using ProcessedData =
     std::vector<std::shared_ptr<sensor_msgs::PointCloud2>>;
+struct PointCloudProcessor_OutputType {
+    int num_valid_columns;
+    ProcessedData pc_msgs;
+};
 using PointCloudProcessor_PostProcessingFn = std::function<void(PointCloudProcessor_OutputType)>;
 
 
@@ -75,6 +79,7 @@ class PointCloudProcessor {
 
     void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                  const ros::Time& msg_ts) {
+        PointCloudProcessor_OutputType out;
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
             auto range = lidar_scan.field<uint32_t>(range_channel);
@@ -87,8 +92,11 @@ class PointCloudProcessor {
             pc_msgs[i]->header.stamp = msg_ts;
             pc_msgs[i]->header.frame_id = frame;
         }
+        out.pc_msgs = pc_msgs;
+        out.num_valid_columns =
+            (lidar_scan.measurement_id().array() != 0).count() + 1;
 
-        if (post_processing_fn) post_processing_fn(pc_msgs);
+        if (post_processing_fn) post_processing_fn(out);
     }
 
    public:
@@ -118,7 +126,7 @@ class PointCloudProcessor {
     ouster::PointsF points;
     std::vector<int> pixel_shift_by_row;
     ouster_ros::Cloud<PointT> cloud;
-    PointCloudProcessor_OutputType pc_msgs;
+    ProcessedData pc_msgs;
     ScanToCloudFn scan_to_cloud_fn;
     PointCloudProcessor_PostProcessingFn post_processing_fn;
 };
