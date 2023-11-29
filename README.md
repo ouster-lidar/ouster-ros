@@ -14,6 +14,7 @@
 
 - [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
   - [Overview](#overview)
+  - [Supported Devices](#supported-devices)
   - [Requirements](#requirements)
     - [Linux](#linux)
     - [Windows](#windows)
@@ -42,6 +43,17 @@ driver will handle incoming IMU and lidar packets, decode lidar frames and publi
 messages on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports
 dual return and it was configured to use this capability, then another topic will published under the
 name `/ouster/points2` which corresponds to the second point cloud.
+
+
+## Supported Devices
+The driver supports the following list of Ouster sensors:
+- [OS0](https://ouster.com/products/hardware/os0-lidar-sensor)
+- [OS1](https://ouster.com/products/hardware/os1-lidar-sensor)
+- [OS2](https://ouster.com/products/hardware/os2-lidar-sensor)
+- [OSDome](https://ouster.com/products/hardware/osdome-lidar-sensor)
+
+You can obtain detailed specs sheet about the sensors and obtain updated FW through the website
+[downloads](https://ouster.com/downloads) section.
 
 ## Requirements
 This branch is only intended for use with the **Foxy** ROS 2 distro. Please refer to ROS 2 online documentation on how to
