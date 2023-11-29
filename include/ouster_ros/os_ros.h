@@ -106,14 +106,14 @@ geometry_msgs::TransformStamped transform_to_tf_msg(
  * @param[in] frame the parent frame of the generated laser scan message
  * @param[in] lidar_mode lidar mode (width x frequency)
  * @param[in] ring selected ring to be published
+ * @param[in] pixel_shift_by_row pixel shifts by row
+ * @param[in] return_index index of return desired starting at 0
  * @return ROS message suitable for publishing as a LaserScan
  */
 sensor_msgs::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::LidarScan& ls,
-    const ros::Time& timestamp,
-    const std::string &frame,
-    const ouster::sensor::lidar_mode lidar_mode,
-    const uint16_t ring,
+    const ouster::LidarScan& ls, const ros::Time& timestamp,
+    const std::string& frame, const ouster::sensor::lidar_mode lidar_mode,
+    const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
     const int return_index);
 
 namespace impl {
@@ -157,6 +157,8 @@ inline bool check_token(const std::set<std::string>& tokens,
                         const std::string& token) {
     return tokens.find(token) != tokens.end();
 }
+
+ouster::util::version parse_version(const std::string& fw_rev);
 
 } // namespace impl
 

@@ -9,6 +9,10 @@ Changelog
   other common pcl point types.
 * ouster_image_nodelet can operate independently from ouster_cloud_nodelet.
 * install ouster-ros and ouster_client include directories in separate folders.
+* [BUGFIX]: LaserScan is not properly aligned with generated point cloud
+  * address an issue where LaserScan appeared different on FW prior to 2.4
+* [BUGFIX]: LaserScan does not work when using dual mode
+
 
 ouster_ros v0.10.0
 ==================
