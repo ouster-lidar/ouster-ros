@@ -40,7 +40,7 @@ Visualization Manager:
       Color: 160; 160; 164
       Enabled: false
       Line Style:
-        Line Width: 0.029999999329447746
+        Line Width: 0.01
         Value: Lines
       Name: Grid
       Normal Cell Count: 0
@@ -75,7 +75,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 2
-      Size (m): 0.029999999329447746
+      Size (m): 0.01
       Style: Flat Squares
       Topic: /ouster/points
       Unreliable: false
@@ -105,7 +105,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.029999999329447746
+      Size (m): 0.01
       Style: Flat Squares
       Topic: /ouster/points2
       Unreliable: false
