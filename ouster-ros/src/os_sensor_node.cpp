@@ -37,7 +37,7 @@ OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
     : OusterSensor("os_sensor", options) {}
 
 OusterSensor::~OusterSensor() {
-    RCLCPP_INFO(get_logger(), "OusterDriver::~OusterSensor() called");
+    RCLCPP_DEBUG(get_logger(), "OusterSensor::~OusterSensor() called");
     halt();
 }
 

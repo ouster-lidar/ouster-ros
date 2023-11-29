@@ -2,6 +2,13 @@
 Changelog
 =========
 
+[unreleased]
+============
+* [BUGFIX]: LaserScan is not properly aligned with generated point cloud
+  * address an issue where LaserScan appeared different on FW prior to 2.4
+* [BUGFIX]: LaserScan does not work when using dual mode
+
+
 ouster_ros v0.12.0
 ==================
 * [BREAKING]: updated ouster_client to the release of ``20231031`` [v0.10.0]; changes listed below.
