@@ -19,11 +19,15 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <regex>
 
-namespace sensor = ouster::sensor;
-using ouster_sensor_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
+
+namespace sensor = ouster::sensor;
+using namespace ouster::util;
+using ouster_sensor_msgs::msg::PacketMsg;
+
 
 bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
     using sensor::UDPProfileLidar;
@@ -130,6 +134,22 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
     return tokens;
 }
 
+version parse_version(const std::string& fw_rev) {
+    auto rgx = std::regex(R"(v(\d+).(\d+)\.(\d+))");
+    std::smatch matches;
+    std::regex_search(fw_rev, matches, rgx);
+
+    if (matches.size() < 4) return invalid_version;
+
+    try {
+        return version{static_cast<uint16_t>(stoul(matches[1])),
+                    static_cast<uint16_t>(stoul(matches[2])),
+                    static_cast<uint16_t>(stoul(matches[3]))};
+    } catch (const std::exception&) {
+        return invalid_version;
+    }
+}
+
 }  // namespace impl
 
 geometry_msgs::msg::TransformStamped transform_to_tf_msg(
@@ -151,7 +171,8 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const ouster::LidarScan& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const ouster::sensor::lidar_mode ld_mode,
-    const uint16_t ring, const int return_index) {
+    const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
+    const int return_index) {
     sensor_msgs::msg::LaserScan msg;
     msg.header.stamp = timestamp;
     msg.header.frame_id = frame;
@@ -177,10 +198,14 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const auto sg = signal.data();
     msg.ranges.resize(ls.w);
     msg.intensities.resize(ls.w);
-    int idx = ls.w * ring + ls.w;
-    for (int i = 0; idx-- > ls.w * ring; ++i) {
-        msg.ranges[i] = rg[idx] * ouster::sensor::range_unit;
-        msg.intensities[i] = static_cast<float>(sg[idx]);
+
+    uint16_t u = ring;
+    for (auto v =  0; v < ls.w; ++v) {
+        auto v_shift = (v + ls.w - pixel_shift_by_row[u] + ls.w / 2) % ls.w;
+        auto src_idx = u * ls.w + v_shift;
+        auto tgt_idx = ls.w - 1 - v;
+        msg.ranges[tgt_idx] = rg[src_idx] * ouster::sensor::range_unit;
+        msg.intensities[tgt_idx] = static_cast<float>(sg[src_idx]);
     }
 
     return msg;
