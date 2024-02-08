@@ -7,6 +7,7 @@ Changelog
 * [BUGFIX]: LaserScan is not properly aligned with generated point cloud
   * address an issue where LaserScan appeared different on FW prior to 2.4
 * [BUGFIX]: LaserScan does not work when using dual mode
+* [BUGFIX]: ROS2 crashes when standby mode is set and then set to normal
 
 
 ouster_ros v0.12.0

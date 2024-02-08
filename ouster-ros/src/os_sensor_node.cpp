@@ -799,9 +799,9 @@ void OusterSensor::start_packet_processing_threads() {
     imu_packets_processing_thread_active = true;
     imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (imu_packets_processing_thread_active) {
-            imu_packets->read([this](const uint8_t* buffer) {
-                on_imu_packet_msg(buffer);
-            });
+            imu_packets->read_timeout([this](const uint8_t* buffer) {
+                if (buffer != nullptr) on_imu_packet_msg(buffer);
+            }, 1s);
         }
         RCLCPP_DEBUG(get_logger(), "imu_packets_processing_thread done.");
     });
@@ -809,9 +809,9 @@ void OusterSensor::start_packet_processing_threads() {
     lidar_packets_processing_thread_active = true;
     lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (lidar_packets_processing_thread_active) {
-            lidar_packets->read([this](const uint8_t* buffer) {
-                on_lidar_packet_msg(buffer);
-            });
+            lidar_packets->read_timeout([this](const uint8_t* buffer) {
+                if (buffer != nullptr) on_lidar_packet_msg(buffer);
+            }, 1s);
         }
         RCLCPP_DEBUG(get_logger(), "lidar_packets_processing_thread done.");
     });
