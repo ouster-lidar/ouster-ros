@@ -50,7 +50,6 @@ def generate_launch_description():
         namespace=ouster_ns,
         parameters=[params_file],
         output='screen',
-        arguments=['--ros-args', '--log-level', 'debug']
     )
 
     sensor_configure_event = EmitEvent(
