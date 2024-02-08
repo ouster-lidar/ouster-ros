@@ -69,7 +69,8 @@
     native,
     xyz,
     xyzi,
-    xyzir
+    xyzir,
+    xyzit
     }"/>
 
   <group ns="$(arg ouster_ns)">
