@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ouster_sensor_msgs</name>
-  <version>0.12.0</version>
+  <version>0.12.2</version>
   <description>ouster_ros message and service definitions</description>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
   <license>BSD</license>
