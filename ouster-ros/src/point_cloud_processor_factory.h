@@ -84,7 +84,7 @@ class PointCloudProcessorFactory {
     }
 
     template <typename PointT>
-    static LidarScanProcessor make_point_cloud_procssor(
+    static LidarScanProcessor make_point_cloud_processor(
         const sensor::sensor_info& info, const std::string& frame,
         bool apply_lidar_to_sensor_transform,
         PointCloudProcessor_PostProcessingFn post_processing_fn) {
@@ -107,21 +107,21 @@ class PointCloudProcessorFactory {
         if (point_type == "native") {
             switch (info.format.udp_profile_lidar) {
                 case UDPProfileLidar::PROFILE_LIDAR_LEGACY:
-                    return make_point_cloud_procssor<Point_LEGACY>(
+                    return make_point_cloud_processor<Point_LEGACY>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
                 case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL:
-                    return make_point_cloud_procssor<
+                    return make_point_cloud_processor<
                         Point_RNG19_RFL8_SIG16_NIR16_DUAL>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
                 case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16:
-                    return make_point_cloud_procssor<
+                    return make_point_cloud_processor<
                         Point_RNG19_RFL8_SIG16_NIR16>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
                 case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
-                    return make_point_cloud_procssor<Point_RNG15_RFL8_NIR8>(
+                    return make_point_cloud_processor<Point_RNG15_RFL8_NIR8>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
                 default:
@@ -129,19 +129,19 @@ class PointCloudProcessorFactory {
                     throw std::runtime_error("unsupported udp_profile_lidar");
             }
         } else if (point_type == "xyz") {
-            return make_point_cloud_procssor<pcl::PointXYZ>(
+            return make_point_cloud_processor<pcl::PointXYZ>(
                 info, frame, apply_lidar_to_sensor_transform,
                 post_processing_fn);
         } else if (point_type == "xyzi") {
-            return make_point_cloud_procssor<pcl::PointXYZI>(
+            return make_point_cloud_processor<pcl::PointXYZI>(
                 info, frame, apply_lidar_to_sensor_transform,
                 post_processing_fn);
         } else if (point_type == "xyzir") {
-            return make_point_cloud_procssor<PointXYZIR>(
+            return make_point_cloud_processor<PointXYZIR>(
                 info, frame, apply_lidar_to_sensor_transform,
                 post_processing_fn);
         } else if (point_type == "original") {
-            return make_point_cloud_procssor<ouster_ros::Point>(
+            return make_point_cloud_processor<ouster_ros::Point>(
                 info, frame, apply_lidar_to_sensor_transform,
                 post_processing_fn);
         }
