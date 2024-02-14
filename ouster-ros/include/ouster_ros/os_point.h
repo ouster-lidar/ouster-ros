@@ -12,9 +12,9 @@
 
 namespace ouster_ros {
 
-// The default/original represntation of the point cloud since the driver
+// The default/original representation of the point cloud since the driver
 // inception. This shouldn't be confused with Point_LEGACY which provides exact
-// mapping of the fields of Ouster LidarScan of the Legacy Profile, copying the 
+// mapping of the fields of Ouster LidarScan of the Legacy Profile, copying
 // the same order and using the same bit representation. For example, this Point
 // struct uses float data type to represent intensity (aka signal); however, the
 // sensor sends the signal channel either as UINT16 or UINT32 depending on the

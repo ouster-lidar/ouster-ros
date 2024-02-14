@@ -41,7 +41,7 @@ struct TypeSelector<ChanFieldType::UINT64> {
 /**
  * @brief constructs a suitable tuple at compile time that can store a reference
  * to all the fields of a specific LidarScan object (without conversion)
- * according to the information specificed by the ChanFieldTable.
+ * according to the information specified by the ChanFieldTable.
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table>
 constexpr auto make_lidar_scan_tuple() {
@@ -79,7 +79,7 @@ void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::LidarScan& ls) {
 /**
  * @brief constructs a suitable tuple at compile time that can store a reference
  * to all the fields of a specific LidarScan object (without conversion)
- * according to the information specificed by the ChanFieldTable and directly
+ * according to the information specified by the ChanFieldTable and directly
  * maps the fields of the supplied LidarScan to the constructed tuple before
  * returning.
  * @param[in] ls LidarScan
@@ -141,7 +141,7 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud<PointT>& cloud,
             pt.y = static_cast<decltype(pt.y)>(xyz(1));
             pt.z = static_cast<decltype(pt.z)>(xyz(2));
             // TODO: in the future we could probably skip copying t and ring
-            // values if knowning before hand that the target point cloud does
+            // values if knowing before hand that the target point cloud does
             // not have a field to hold the timestamp or a ring for example the
             // case of pcl::PointXYZ or pcl::PointXYZI.
             pt.t = static_cast<uint32_t>(ts);
