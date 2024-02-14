@@ -128,7 +128,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_cleanup(
     } catch (const std::exception& ex) {
         RCLCPP_ERROR_STREAM(
             get_logger(),
-            "exception thrown durng cleanup, details: " << ex.what());
+            "exception thrown during cleanup, details: " << ex.what());
         return LifecycleNodeInterface::CallbackReturn::ERROR;
     }
 
@@ -155,7 +155,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_shutdown(
     } catch (const std::exception& ex) {
         RCLCPP_ERROR_STREAM(
             get_logger(),
-            "exception thrown durng cleanup, details: " << ex.what());
+            "exception thrown during cleanup, details: " << ex.what());
         return LifecycleNodeInterface::CallbackReturn::ERROR;
     }
 
@@ -407,7 +407,7 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
 
     std::shared_ptr<sensor::client> cli;
     if (sensor::in_multicast(udp_dest)) {
-        // use the mtp_init_client to recieve data via multicast
+        // use the mtp_init_client to receive data via multicast
         // if mtp_main is true when sensor will be configured
         cli = sensor::mtp_init_client(hostname, config, mtp_dest, mtp_main);
     } else if (lidar_port != 0 && imu_port != 0) {
@@ -709,7 +709,7 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
         if (success) {
             read_lidar_packet_errors = 0;
             if (!is_legacy_lidar_profile(info) && init_id_changed(pf, buffer)) {
-                // TODO: short circut reset if no breaking changes occured?
+                // TODO: short circuit reset if no breaking changes occured?
                 RCLCPP_WARN(get_logger(),
                             "sensor init_id has changed! reactivating..");
                 reactivate_sensor();
