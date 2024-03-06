@@ -61,9 +61,9 @@ class OusterSensor : public OusterSensorNodeBase {
 
     virtual void create_publishers();
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
+    virtual void process_lidar_packet();
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
+    virtual void process_imu_packet();
 
     virtual void cleanup();
 
@@ -141,6 +141,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void stop_packet_processing_threads();
 
+    void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
+
+    void on_imu_packet_msg(const uint8_t* raw_imu_packet);
+
+   protected:
+    ouster_sensor_msgs::msg::PacketMsg lidar_packet;
+    ouster_sensor_msgs::msg::PacketMsg imu_packet;
+
    private:
     std::string sensor_hostname;
     std::string staged_config;
@@ -148,8 +156,6 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
-    ouster_sensor_msgs::msg::PacketMsg lidar_packet;
-    ouster_sensor_msgs::msg::PacketMsg imu_packet;
     rclcpp_lifecycle::LifecyclePublisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr
         lidar_packet_pub;
     rclcpp_lifecycle::LifecyclePublisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr

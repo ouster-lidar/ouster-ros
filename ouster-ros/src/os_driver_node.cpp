@@ -186,13 +186,13 @@ class OusterDriver : public OusterSensor {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
     }
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
-        if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
+    void process_lidar_packet() override {
+        if (lidar_packet_handler) lidar_packet_handler(lidar_packet.buf.data());
     }
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
+    void process_imu_packet() override {
         if (imu_packet_handler)
-            imu_pub->publish(imu_packet_handler(raw_imu_packet));
+            imu_pub->publish(imu_packet_handler(imu_packet.buf.data()));
     }
 
     virtual void cleanup() override {
