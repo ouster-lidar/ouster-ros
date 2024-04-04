@@ -58,7 +58,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("proc_mask", "IMU|PCL|SCAN");
         declare_parameter("use_system_default_qos", false);
-        declare_parameter("scan_ring", 0);
+        declare_parameter("scan_ring", -1);
         declare_parameter("point_type", "original");
     }
 
@@ -134,15 +134,34 @@ class OusterCloud : public OusterProcessingNodeBase {
                 scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
                     topic_for_return("scan", i), selected_qos);
             }
+
             // TODO: avoid this duplication in os_cloud_node
-            int beams_count = static_cast<int>(get_beams_count(info));
+            const auto max_ring = static_cast<int>(get_beams_count(info) - 1);
             int scan_ring = get_parameter("scan_ring").as_int();
-            scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
-            if (scan_ring != get_parameter("scan_ring").as_int()) {
-                RCLCPP_WARN_STREAM(get_logger(),
-                    "scan ring is set to a value that exceeds available range"
-                    "please choose a value between [0, " << beams_count << "], "
-                    "ring value clamped to: " << scan_ring);
+            if (scan_ring == -1) {
+                double zero_angle = 9999.0;
+                scan_ring = 0;
+                for (int i = 0; i <= max_ring; ++i) {
+                    const double beam_angle = fabs(info.beam_altitude_angles[i]);
+                    if (beam_angle < zero_angle) {
+                        scan_ring = i;
+                        zero_angle = beam_angle;
+                    }
+                }
+                RCLCPP_INFO_STREAM(
+                    get_logger(),
+                    "Scan ring was not specified. Automatically selected the ring"
+                    " that is closest to a zero altitude angle: "
+                        << scan_ring << ".");
+            } else {
+                scan_ring = std::min(std::max(scan_ring, 0), max_ring);
+                if (scan_ring != get_parameter("scan_ring").as_int()) {
+                    RCLCPP_WARN_STREAM(
+                        get_logger(),
+                        "Scan ring is set to a value that exceeds available range,"
+                        " please choose a value between 0 and " << max_ring
+                            << ". Ring value clamped to: " << scan_ring << ".");
+                }
             }
 
             processors.push_back(LaserScanProcessor::create(

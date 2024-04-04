@@ -36,14 +36,14 @@ ouster/os_driver:
     # - RNG15_RFL8_NIR8
     udp_profile_lidar: ''
     # metadata[optional]: path to save metadata file to, if left empty a file
-    # with the sensor hostname or ip will be crearted in ~/.ros folder.
+    # with the sensor hostname or ip will be created in ~/.ros folder.
     metadata: ''
     # lidar_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     lidar_port: 0
     # imu_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     imu_port: 0
     # sensor_frame[optional]: name to use when referring to the sensor frame.
@@ -61,8 +61,10 @@ ouster/os_driver:
     proc_mask: IMG|PCL|IMU|SCAN
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
-    # message. Choose a value the range [0, sensor_beams_count).
-    scan_ring: 0
+    # message. Choose a value within the range [0, sensor_beams_count). If you
+    # use -1 as the ring value, then the ring that is closest to a zero altitude
+    # angle (middle ring) will be automatically chosen.
+    scan_ring: -1
     # use_system_default_qos[optional]: if false, data are published with sensor
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
@@ -72,7 +74,7 @@ ouster/os_driver:
     #  - original: This uses the original point representation ouster_ros::Point
     #          of the ouster-ros driver.
     #  - native: directly maps all fields as published by the sensor to an
-    #          equivalent point cloud representation with the additon of ring
+    #          equivalent point cloud representation with the addition of ring
     #          and timestamp fields.
     #  - xyz: the simplest point type, only has {x, y, z}
     #  - xyzi: same as xyz point type but adds intensity (signal) field. this

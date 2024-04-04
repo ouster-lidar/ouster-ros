@@ -25,8 +25,9 @@ ouster/os_cloud:
     ptp_utc_tai_offset: -37.0 # UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588
     proc_mask: IMU|PCL|SCAN # pick IMU, PCL, SCAN or any combination of the three options
     use_system_default_qos: False # needs to match the value defined for os_sensor node
-    scan_ring: 0  # Use this parameter in conjunction with the SCAN flag and choose a
-                  # value the range [0, sensor_beams_count)
+    scan_ring: -1  # Use this parameter in conjunction with the SCAN flag and choose a
+                  # value within the range [0, sensor_beams_count), use value -1 to
+                  # automatically select the ring that is closest to a zero altitude angle (middle ring).
     point_type: original # choose from: {original, native, xyz, xyzi, xyzir}
 ouster/os_image:
     use_system_default_qos: False # needs to match the value defined for os_sensor node
