@@ -28,11 +28,6 @@ Panels:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
-  - Class: rviz_common/Time
-    Experimental: false
-    Name: Time
-    SyncMode: 0
-    SyncSource: PointCloud2
 Visualization Manager:
   Class: ""
   Displays:
