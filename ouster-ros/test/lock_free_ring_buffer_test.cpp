@@ -8,7 +8,7 @@ using namespace std::chrono_literals;
 
 class LockFreeRingBufferTest : public ::testing::Test {
   protected:
-    static constexpr int ITEM_COUNT = 3;  // number of item the buffer could hold
+    static constexpr size_t ITEM_COUNT = 3;  // number of item the buffer could hold
 
     void SetUp() override {
         buffer = std::make_unique<LockFreeRingBuffer>(ITEM_COUNT);
@@ -31,7 +31,7 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferFullEmpty) {
     EXPECT_TRUE(buffer->empty());
     EXPECT_FALSE(buffer->full());
 
-    for (int i = 0; i < ITEM_COUNT - 1; ++i) {
+    for (size_t i = 0; i < ITEM_COUNT - 1; ++i) {
       buffer->write();
     }
 
@@ -44,7 +44,7 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferFullEmpty) {
     EXPECT_FALSE(buffer->empty());
     EXPECT_FALSE(buffer->full());
 
-    for (int i = 1; i < ITEM_COUNT - 1; ++i) {
+    for (size_t i = 1; i < ITEM_COUNT - 1; ++i) {
       buffer->read();
     }
 
@@ -58,7 +58,7 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferCheckReturn) {
 
     EXPECT_TRUE(buffer->empty());
 
-    for (int i = 0; i < ITEM_COUNT - 1; ++i) {
+    for (size_t i = 0; i < ITEM_COUNT - 1; ++i) {
       EXPECT_TRUE(buffer->write());
     }
 
@@ -69,7 +69,7 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferCheckReturn) {
     EXPECT_TRUE(buffer->read());
     EXPECT_TRUE(buffer->write());
 
-    for (int i = 0; i < ITEM_COUNT - 1; ++i) {
+    for (size_t i = 0; i < ITEM_COUNT - 1; ++i) {
       EXPECT_TRUE(buffer->read());
     }
 
@@ -85,60 +85,60 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferSizeAvailable) {
     EXPECT_TRUE(buffer->empty());
     EXPECT_FALSE(buffer->full());
 
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 0);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 0U);
 
     EXPECT_TRUE(buffer->write());
-    EXPECT_EQ(buffer->size(), 1);
-    EXPECT_EQ(buffer->available(), 1);
-    EXPECT_EQ(buffer->write_head(), 1);
-    EXPECT_EQ(buffer->read_head(), 0);
+    EXPECT_EQ(buffer->size(), 1U);
+    EXPECT_EQ(buffer->available(), 1U);
+    EXPECT_EQ(buffer->write_head(), 1U);
+    EXPECT_EQ(buffer->read_head(), 0U);
 
     EXPECT_TRUE(buffer->write());
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
-    EXPECT_EQ(buffer->write_head(), 2);
-    EXPECT_EQ(buffer->read_head(), 0);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
+    EXPECT_EQ(buffer->write_head(), 2U);
+    EXPECT_EQ(buffer->read_head(), 0U);
 
     EXPECT_TRUE(buffer->read());
-    EXPECT_EQ(buffer->size(), 1);
-    EXPECT_EQ(buffer->available(), 1);
-    EXPECT_EQ(buffer->write_head(), 2);
-    EXPECT_EQ(buffer->read_head(), 1);
+    EXPECT_EQ(buffer->size(), 1U);
+    EXPECT_EQ(buffer->available(), 1U);
+    EXPECT_EQ(buffer->write_head(), 2U);
+    EXPECT_EQ(buffer->read_head(), 1U);
 
     EXPECT_TRUE(buffer->write());
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 1);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 1U);
 
     // Next write should fail, so size shouldn't change
     EXPECT_FALSE(buffer->write());
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 1);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 1U);
 
     EXPECT_TRUE(buffer->read());
-    EXPECT_EQ(buffer->size(), 1);
-    EXPECT_EQ(buffer->available(), 1);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 2);
+    EXPECT_EQ(buffer->size(), 1U);
+    EXPECT_EQ(buffer->available(), 1U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 2U);
 
     EXPECT_TRUE(buffer->read());
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 0);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 0U);
 
     // Next read should fail, so size shouldn't change
     EXPECT_FALSE(buffer->read());
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
-    EXPECT_EQ(buffer->write_head(), 0);
-    EXPECT_EQ(buffer->read_head(), 0);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
+    EXPECT_EQ(buffer->write_head(), 0U);
+    EXPECT_EQ(buffer->read_head(), 0U);
 }
 
 TEST_F(LockFreeRingBufferTest, ReadWriteToBufferAdvanceMultiple) {
@@ -148,46 +148,46 @@ TEST_F(LockFreeRingBufferTest, ReadWriteToBufferAdvanceMultiple) {
     EXPECT_TRUE(buffer->empty());
     EXPECT_FALSE(buffer->full());
 
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
 
     EXPECT_TRUE(buffer->write(2));
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
 
     // This write should fail since we advance beyond capacity, so size shouldn't change
     EXPECT_FALSE(buffer->write(2));
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
 
     EXPECT_TRUE(buffer->read());
-    EXPECT_EQ(buffer->size(), 1);
-    EXPECT_EQ(buffer->available(), 1);
+    EXPECT_EQ(buffer->size(), 1U);
+    EXPECT_EQ(buffer->available(), 1U);
 
     EXPECT_TRUE(buffer->read());
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
 
     EXPECT_TRUE(buffer->write(2));
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
 
     // Any additional write will also fail, size shouldn't change
     EXPECT_FALSE(buffer->write());
-    EXPECT_EQ(buffer->size(), 2);
-    EXPECT_EQ(buffer->available(), 0);
+    EXPECT_EQ(buffer->size(), 2U);
+    EXPECT_EQ(buffer->available(), 0U);
 
     EXPECT_TRUE(buffer->read(2));
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
 
     // This read should fail since we advance beyond available, so size shouldn't change
     EXPECT_FALSE(buffer->read(2));
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
 
     // Any subsequent read will also fail, size shouldn't change
     EXPECT_FALSE(buffer->read());
-    EXPECT_EQ(buffer->size(), 0);
-    EXPECT_EQ(buffer->available(), 2);
+    EXPECT_EQ(buffer->size(), 0U);
+    EXPECT_EQ(buffer->available(), 2U);
 }
