@@ -73,7 +73,7 @@ class PointCloudProcessor {
         pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud);
     }
 
-    void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+    void process(ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                  const rclcpp::Time& msg_ts) {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
@@ -100,7 +100,7 @@ class PointCloudProcessor {
         auto handler = std::make_shared<PointCloudProcessor>(
             info, frame, apply_lidar_to_sensor_transform, scan_to_cloud_fn_, post_processing_fn);
 
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };

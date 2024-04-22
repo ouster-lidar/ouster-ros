@@ -74,7 +74,7 @@ class ImageProcessor {
     }
 
    private:
-    void process(const ouster::LidarScan& lidar_scan, uint64_t,
+    void process(ouster::LidarScan& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         process_return(lidar_scan, 0);
         if (get_n_returns(info_) == 2) process_return(lidar_scan, 1);
@@ -84,7 +84,7 @@ class ImageProcessor {
         if (post_processing_fn) post_processing_fn(image_msgs);
     }
 
-    void process_return(const ouster::LidarScan& lidar_scan, int return_index) {
+    void process_return(ouster::LidarScan& lidar_scan, int return_index) {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
@@ -180,7 +180,7 @@ class ImageProcessor {
                                      const std::string& frame,
                                      PostProcessingFn func) {
         auto handler = std::make_shared<ImageProcessor>(info, frame, func);
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };

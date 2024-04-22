@@ -57,7 +57,7 @@ namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
 
-using LidarScanProcessor = std::function<void(const ouster::LidarScan&,
+using LidarScanProcessor = std::function<void(ouster::LidarScan&,
                                               uint64_t, const rclcpp::Time&)>;
 
 class LidarPacketHandler {
