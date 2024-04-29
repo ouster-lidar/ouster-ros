@@ -17,83 +17,91 @@
 namespace ouster_ros {
 
 class SparseNeighbourCullingFilter {
+   private:
+    const double neighbor_distance = 50;
+    const uint32_t min_neighbors = 3;
+    const uint32_t max_range = 2000;
+
    public:
-    SparseNeighbourCullingFilter(const ouster::sensor::sensor_info& info)
+    SparseNeighbourCullingFilter(const ouster::sensor::sensor_info& info_)
+    : info(info_)
     {
     }
 
    private:
-    void sparse_neighbor_culling(Eigen::Ref<ouster::img_t<uint32_t>> range_mat)
-    {
-        long int n = range_mat.cols(); /* azimuth pixels per frame ( sensor firmware dependant) */
-        long int m = range_mat.rows(); /* # of sensor beams per frame */
+    template <typename T>
+    ouster::img_t<T> rotate_x(const ouster::img_t<T>& in, int x) {
 
-        ouster::img_t<uint32_t> neighbors_count_mat = ouster::img_t<uint32_t>::Zero(m, n);
+        auto m =  in.rows();
+        auto n = in.cols();
 
-        for (int x = -1; x < 2; x++)
-        {
-            for (int y = -1; y < 2; y++)
-            {
-                /* shift all of our range data up, down, left, and right to search for neighbors */
-                ouster::img_t<uint32_t> shifted_mat = ouster::img_t<uint32_t>::Zero(m, n);
-                if(x == -1)
-                {
-                    /* shift data left. End wraps around */
-                    shifted_mat.block(0, 0, m, n-1) = range_mat.block(0, 1, m, n-1);
-                    shifted_mat.block(0, n-1, m, 1) = range_mat.block(0, 0, m, 1);
-                }
-                else if(x == 1)
-                {
-                    /* shift data right. End wraps around */
-                    shifted_mat.block(0, 1, m, n-1) = range_mat.block(0, 0, m, n-1);
-                    shifted_mat.block(0, 0, m, 1) = range_mat.block(0, n-1, m, 1);
-                }
-                if(y == -1)
-                {
-                    /* shift data down. Top row should be zeros */
-                    shifted_mat.block(1, 0, m-1, n) = range_mat.block(0, 0, m-1, n);
-                    shifted_mat.block(0, 0, 1, n) = ouster::img_t<uint32_t>::Zero(1, n);
-                }
-                else if(y == 1)
-                {
-                    /* shift data up. Bottom row should be zeros */
-                    shifted_mat.block(0, 0, m-1, n) = range_mat.block(1, 0, m-1, n);
-                    shifted_mat.block(m-1, 0, 1, n) = ouster::img_t<uint32_t>::Zero(1, n);
-                }
-                
-                /* iterate through each point */
-                const double neighbor_distance = 0.05;
-                for(int i = 0; i < m; i++)
-                {
-                    for(int j = 0; j < n; j++)
-                    {
-                        /* If the range value is nonzero, and the shifted matrix is nonzero, and the difference between the two is less than a threshold distance, they are neighbors */
-                        neighbors_count_mat(i,j) +=
-                            ((range_mat(i,j) != 0) && (shifted_mat(i,j) != 0) && (std::abs<long>(shifted_mat(i,j) - range_mat(i,j)) < neighbor_distance)) ? 1 : 0;
-                    }
-                }
-            }
+        // rotate left
+        if (x == -1) {
+            ouster::img_t<T> shifted(m, n);
+            shifted.block(0, 0, m, n-1) = in.block(0, 1, m, n-1);
+            shifted.block(0, n-1, m, 1) = in.block(0, 0, m, 1);
+            return shifted;
         }
 
-        const uint32_t min_neighbors = 3;
-        const uint32_t max_range = 2000;
-
-        for(int i = 0; i < m; i++)
-        {
-            for(int j = 0; j < n; j++)
-            {
-                if(!((neighbors_count_mat(i, j) <= min_neighbors) && (std::abs<long>(range_mat(i,j)) < max_range)))
-                {
-                    range_mat(i,j) = 0;
-                }
-            }
+        // rotate right
+        if (x == +1) {
+            ouster::img_t<T> shifted(m, n);
+            shifted.block(0, 1, m, n-1) = in.block(0, 0, m, n-1);
+            shifted.block(0, 0, m, 1) = in.block(0, n-1, m, 1);
+            return shifted;
         }
+
+        return in;
+    }
+
+    template <typename T>
+    ouster::img_t<T> rotate_y(const ouster::img_t<T>& in, int y) {
+
+        auto m =  in.rows();
+        auto n = in.cols();
+
+        // rotate up
+        if (y == -1) {
+            ouster::img_t<T> shifted(m, n);
+            shifted.block(0, 0, m-1, n) = in.block(1, 0, m-1, n);
+            shifted.row(shifted.rows() - 1).setZero();
+            return shifted;
+        }
+
+        // rotate down
+        if (y == +1) {
+            ouster::img_t<T> shifted(m, n);
+            shifted.block(1, 0, m-1, n) = in.block(0, 0, m-1, n);
+            shifted.row(0).setZero();
+            return shifted;
+        }
+
+        return in;
     }
 
     void process(ouster::LidarScan& lidar_scan, uint64_t,
                  const rclcpp::Time&) {
-        auto input = lidar_scan.field(sensor::ChanField::RANGE);
-        sparse_neighbor_culling(input);
+        auto range = lidar_scan.field(sensor::ChanField::RANGE);
+        long int n = range.cols(); /* azimuth pixels per frame ( sensor firmware dependant) */
+        long int m = range.rows(); /* # of sensor beams per frame */
+
+        ouster::img_t<int32_t> neighbors = ouster::img_t<int32_t>::Zero(m, n);
+        ouster::img_t<int32_t> des_range =
+            ouster::destagger<uint32_t>(range, info.format.pixel_shift_by_row)
+                                            .cast<int32_t>();
+
+        /* shift all of our range data up, down, left, and right to search for neighbors */
+        for (int x = -1; x <= +1; x++) {
+            for (int y = -1; y <= +1; y++) {
+                ouster::img_t<int32_t> shifted_x = rotate_x(des_range, x);
+                ouster::img_t<int32_t> shifted_xy = rotate_y(shifted_x, y);
+                ouster::img_t<int32_t> abs_diff = (shifted_xy - des_range).cwiseAbs();
+                neighbors = (shifted_xy != 0 && des_range != 0 && abs_diff < neighbor_distance)
+                    .select(neighbors + 1, neighbors);
+            }
+        }
+
+        range = (neighbors < min_neighbors && range < max_range).select(range, 0);
     }
 
    public:
@@ -108,6 +116,7 @@ class SparseNeighbourCullingFilter {
     }
 
    private:
+     ouster::sensor::sensor_info info;
 };
 
 }  // namespace ouster_ros
