@@ -106,7 +106,9 @@ class OusterCloud : public OusterProcessingNodeBase {
 
         std::vector<LidarScanProcessor> processors;
 
-        const bool APPLY_SPARSE_NEIGHBOR_CULLING_FILTER = true;  // TODO
+        // The sparse node filter should be applied as the first processor
+        // such that the filter is applied to generated point cloud
+        const bool APPLY_SPARSE_NEIGHBOR_CULLING_FILTER = true;  // TODO: add param
         if (APPLY_SPARSE_NEIGHBOR_CULLING_FILTER) {
             processors.push_back(SparseNeighbourCullingFilter::create(info));
         }

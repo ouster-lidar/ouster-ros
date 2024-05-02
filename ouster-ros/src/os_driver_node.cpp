@@ -23,6 +23,8 @@
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
 
+#include "sparse_neighbor_culling_filter.h"
+
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
@@ -76,6 +78,14 @@ class OusterDriver : public OusterSensor {
         int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
+
+        // The sparse node filter should be applied as the first processor
+        // such that the filter is applied to generated point cloud
+        const bool APPLY_SPARSE_NEIGHBOR_CULLING_FILTER = true;  // TODO: add param
+        if (APPLY_SPARSE_NEIGHBOR_CULLING_FILTER) {
+            processors.push_back(SparseNeighbourCullingFilter::create(info));
+        }
+
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {

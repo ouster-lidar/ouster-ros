@@ -101,7 +101,7 @@ class SparseNeighbourCullingFilter {
             }
         }
 
-        range = (neighbors < min_neighbors && range < max_range).select(range, 0);
+        range = (neighbors < min_neighbors && range < max_range).select(0, range);
     }
 
    public:
