@@ -1,3 +1,5 @@
+[IMPORTANT: PLEASE CONSIDER POSTING YOUR QUESTION TO THE ROS TOPIC ON https://forum.ouster.com]: #
+
 ---
 name: Question
 about: Do you have a specific question
