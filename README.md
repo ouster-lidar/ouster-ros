@@ -104,7 +104,7 @@ Specifying `Release` as the build type is important to have a reasonable perform
 
 ## Usage
 ### Launching Nodes
-The package supports three modes of interaction, you can connect to a _live senosr_, _replay_ a
+The package supports three modes of interaction, you can connect to a _live sensor_, _replay_ a
 recorded bag or _record_ a new bag file using the corresponding launch files. Recently, we have
 added a new mode that supports multicast. The commands are listed below:
 
