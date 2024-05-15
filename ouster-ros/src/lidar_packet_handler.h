@@ -87,14 +87,15 @@ class LidarPacketHandler {
             lidar_scans[i] = std::make_unique<ouster::LidarScan>(
                 info.format.columns_per_frame, info.format.pixels_per_column,
                 info.format.udp_profile_lidar);
-            mutexes[i] = std::make_shared<std::mutex>();   // make_unique?
+            mutexes[i] = std::make_unique<std::mutex>();
         }
 
         lidar_scans_processing_thread = std::make_unique<std::thread>([this]() {
             while (lidar_scans_processing_active) {
                 process_scans();
             }
-            // TODO: NODELET_DEBUG("lidar_scans_processing_thread done.");
+            RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                         "lidar_scans_processing_thread done.");
         });
 
         // initalize time handlers
@@ -165,9 +166,12 @@ class LidarPacketHandler {
                 lidar_scan_estimated_msg_ts);
         }
 
+        // why we hit percent amount of the ring_buffer capacity throlle
         size_t read_step = 1;
-        if (ring_buffer.size() > 7) {
-            // TODO: NODELET_WARN("lidar_scans full, THROTTLING");
+        if (ring_buffer.size() > THROTTLE_PERCENT * ring_buffer.capacity()) {
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                               "lidar_scans %d%% full, THROTTLING",
+                               static_cast<int>(100* THROTTLE_PERCENT));
             read_step = 2;
         }
         ring_buffer.read(read_step);
@@ -263,7 +267,8 @@ class LidarPacketHandler {
                                    const uint8_t* lidar_buf) {
 
         if (ring_buffer.full()) {
-            // TODO: NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                        "lidar_scans full, DROPPING PACKET");
             return false;
         }
 
@@ -283,7 +288,8 @@ class LidarPacketHandler {
                                        int64_t ptp_utc_tai_offset) {
 
         if (ring_buffer.full()) {
-            // TODO: NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                        "lidar_scans full, DROPPING PACKET");
             return false;
         }
 
@@ -313,7 +319,8 @@ class LidarPacketHandler {
         }
 
         if (ring_buffer.full()) {
-            // TODO: NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                        "lidar_scans full, DROPPING PACKET");
             return false;
         }
 
@@ -342,10 +349,11 @@ class LidarPacketHandler {
    private:
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
     const int LIDAR_SCAN_COUNT = 10;
+    const double THROTTLE_PERCENT = 0.7;
     LockFreeRingBuffer ring_buffer;
     std::mutex ring_buffer_mutex;
     std::vector<std::unique_ptr<ouster::LidarScan>> lidar_scans;
-    std::vector<std::shared_ptr<std::mutex>> mutexes;
+    std::vector<std::unique_ptr<std::mutex>> mutexes;
 
     uint64_t lidar_scan_estimated_ts;
     rclcpp::Time lidar_scan_estimated_msg_ts;
