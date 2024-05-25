@@ -67,7 +67,9 @@ class OusterCloud : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = sensor::parse_metadata(metadata_msg->data);
-        tf_bcast.broadcast_transforms(info);
+        if (tf_bcast.publish_static_tf()) {
+            tf_bcast.broadcast_transforms(info);
+        }
         create_publishers_subscriptions(info);
     }
 
