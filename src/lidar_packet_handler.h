@@ -16,6 +16,9 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
+#include "lock_free_ring_buffer.h"
+#include <thread>
+
 namespace {
 
 template <typename T, typename UnaryPredicate>
@@ -73,12 +76,26 @@ class LidarPacketHandler {
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
                        int64_t ptp_utc_tai_offset)
-        : lidar_scan_handlers{handlers} {
+        : ring_buffer(LIDAR_SCAN_COUNT), lidar_scan_handlers{handlers} {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
-        lidar_scan = std::make_unique<ouster::LidarScan>(
-            info.format.columns_per_frame, info.format.pixels_per_column,
-            info.format.udp_profile_lidar);
+
+        lidar_scans.resize(LIDAR_SCAN_COUNT);
+        mutexes.resize(LIDAR_SCAN_COUNT);
+
+        for (size_t i = 0; i < lidar_scans.size(); ++i) {
+            lidar_scans[i] = std::make_unique<ouster::LidarScan>(
+                info.format.columns_per_frame, info.format.pixels_per_column,
+                info.format.udp_profile_lidar);
+            mutexes[i] = std::make_unique<std::mutex>();
+        }
+
+        lidar_scans_processing_thread = std::make_unique<std::thread>([this]() {
+            while (lidar_scans_processing_active) {
+                process_scans();
+            }
+            NODELET_DEBUG("lidar_scans_processing_thread done.");
+        });
 
         // initalize time handlers
         scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.mode);
@@ -125,12 +142,37 @@ class LidarPacketHandler {
             info, handlers, timestamp_mode, ptp_utc_tai_offset);
         return [handler](const uint8_t* lidar_buf) {
             if (handler->lidar_packet_accumlator(lidar_buf)) {
-                for (auto h : handler->lidar_scan_handlers) {
-                    h(*handler->lidar_scan, handler->lidar_scan_estimated_ts,
-                      handler->lidar_scan_estimated_msg_ts);
-                }
+                handler->ring_buffer_has_elements.notify_one();
             }
         };
+    }
+
+    const std::string getName() const { return "lidar_packet_hander"; }
+
+    void process_scans() {
+
+        {
+            std::unique_lock<std::mutex> index_lock(ring_buffer_mutex);
+            ring_buffer_has_elements.wait(index_lock, [this] {
+                return !ring_buffer.empty();
+            });
+        }
+
+        std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);
+
+        for (auto h : lidar_scan_handlers) {
+            h(*lidar_scans[ring_buffer.read_head()], lidar_scan_estimated_ts,
+                lidar_scan_estimated_msg_ts);
+        }
+
+        // why we hit percent amount of the ring_buffer capacity throttle
+        size_t read_step = 1;
+        if (ring_buffer.size() > THROTTLE_PERCENT * ring_buffer.capacity()) {
+            NODELET_WARN("lidar_scans %d%% full, THROTTLING",
+                         static_cast<int>(100* THROTTLE_PERCENT));
+            read_step = 2;
+        }
+        ring_buffer.read(read_step);
     }
 
     // time interpolation methods
@@ -221,23 +263,45 @@ class LidarPacketHandler {
 
     bool lidar_handler_sensor_time(const sensor::packet_format&,
                                    const uint8_t* lidar_buf) {
-        if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
-        lidar_scan_estimated_msg_ts =
-            impl::ts_to_ros_time(lidar_scan_estimated_ts);
+
+        if (ring_buffer.full()) {
+            NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            return false;
+        }
+
+        std::unique_lock<std::mutex> lock(*(mutexes[ring_buffer.write_head()]));
+
+        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
+        lidar_scan_estimated_msg_ts = impl::ts_to_ros_time(lidar_scan_estimated_ts);
+
+        ring_buffer.write();
+
         return true;
     }
 
     bool lidar_handler_sensor_time_ptp(const sensor::packet_format&,
                                        const uint8_t* lidar_buf,
                                        int64_t ptp_utc_tai_offset) {
-        if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        auto ts_v = lidar_scan->timestamp();
+
+        if (ring_buffer.full()) {
+            NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            return false;
+        }
+
+        std::unique_lock<std::mutex> lock(
+            *(mutexes[ring_buffer.write_head()]));
+
+        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        auto ts_v = lidar_scans[ring_buffer.write_head()]->timestamp();
         for (int i = 0; i < ts_v.rows(); ++i)
             ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset);
         lidar_scan_estimated_ts = compute_scan_ts(ts_v);
         lidar_scan_estimated_msg_ts =
             impl::ts_to_ros_time(lidar_scan_estimated_ts);
+
+        ring_buffer.write();
+
         return true;
     }
 
@@ -249,12 +313,24 @@ class LidarPacketHandler {
                 pf, lidar_buf, packet_receive_time);  // first point cloud time
             lidar_handler_ros_time_frame_ts_initialized = true;
         }
-        if (!(*scan_batcher)(lidar_buf, *lidar_scan)) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan->timestamp());
+
+        if (ring_buffer.full()) {
+            NODELET_WARN("lidar_scans full, DROPPING PACKET");
+            return false;
+        }
+
+        std::unique_lock<std::mutex> lock(
+            *(mutexes[ring_buffer.write_head()]));
+
+        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
         lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts;
         // set time for next point cloud msg
         lidar_handler_ros_time_frame_ts =
             extrapolate_frame_ts(pf, lidar_buf, packet_receive_time);
+
+        ring_buffer.write();
+
         return true;
     }
 
@@ -267,7 +343,13 @@ class LidarPacketHandler {
 
    private:
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
-    std::unique_ptr<ouster::LidarScan> lidar_scan;
+    const int LIDAR_SCAN_COUNT = 10;
+    const double THROTTLE_PERCENT = 0.7;
+    LockFreeRingBuffer ring_buffer;
+    std::mutex ring_buffer_mutex;
+    std::vector<std::unique_ptr<ouster::LidarScan>> lidar_scans;
+    std::vector<std::unique_ptr<std::mutex>> mutexes;
+
     uint64_t lidar_scan_estimated_ts;
     ros::Time lidar_scan_estimated_msg_ts;
 
@@ -286,6 +368,10 @@ class LidarPacketHandler {
     std::vector<LidarScanProcessor> lidar_scan_handlers;
 
     LidarPacketAccumlator lidar_packet_accumlator;
+
+    bool lidar_scans_processing_active = true;
+    std::unique_ptr<std::thread> lidar_scans_processing_thread;
+    std::condition_variable ring_buffer_has_elements;
 };
 
 }  // namespace ouster_ros
