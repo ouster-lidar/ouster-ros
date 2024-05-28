@@ -153,6 +153,11 @@ class PointCloudProcessorFactory {
                     return make_point_cloud_procssor<Point_RNG15_RFL8_NIR8>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
+                case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
+                    return make_point_cloud_procssor<
+                        Point_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        post_processing_fn);
                 default:
                     // TODO: implement fallback?
                     throw std::runtime_error("unsupported udp_profile_lidar");
