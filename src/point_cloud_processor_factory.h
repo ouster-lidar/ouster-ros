@@ -123,6 +123,12 @@ class PointCloudProcessorFactory {
                point_type == "original";
     }
 
+    static bool profile_has_intensity(UDPProfileLidar profile) {
+        return profile == UDPProfileLidar::PROFILE_LIDAR_LEGACY ||
+               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL ||
+               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16;
+    }
+
     static LidarScanProcessor create_point_cloud_processor(
         const std::string& point_type, const sensor::sensor_info& info,
         const std::string& frame, bool apply_lidar_to_sensor_transform,
