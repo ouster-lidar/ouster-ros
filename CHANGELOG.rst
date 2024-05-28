@@ -8,6 +8,7 @@ Changelog
   * address an issue where LaserScan appeared different on FW prior to 2.4
 * [BUGFIX]: LaserScan does not work when using dual mode
 * [BUGFIX]: ROS2 crashes when standby mode is set and then set to normal
+* [BUGFIX]: Implement lock free ring buffer with throttling to reduce partial frames
 
 
 ouster_ros v0.12.0
