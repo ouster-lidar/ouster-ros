@@ -13,7 +13,8 @@ Changelog
   * address an issue where LaserScan appeared different on FW prior to 2.4
 * [BUGFIX]: LaserScan does not work when using dual mode
 * [BUGFIX]: Implement lock free ring buffer with throttling to avoid generating partial frames
-* add support for FUSA udp profile ``Point_FUSA_RNG15_RFL8_NIR8_DUAL``
+* add support for FUSA udp profile ``Point_FUSA_RNG15_RFL8_NIR8_DUAL``.
+* Set xyz values of individual points in the PointCloud to NaNs when range is zero.
 
 
 ouster_ros v0.10.0
