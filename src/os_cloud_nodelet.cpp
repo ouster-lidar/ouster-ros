@@ -136,9 +136,11 @@ class OusterCloud : public nodelet::Nodelet {
 
             // warn about profile incompatibility
             if (PointCloudProcessorFactory::point_type_requires_intensity(point_type) &&
-                info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8) {
+                !PointCloudProcessorFactory::profile_has_intensity(info.format.udp_profile_lidar)) {
                 NODELET_WARN_STREAM(
-                    "selected point type '" << point_type << "' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
+                    "selected point type '" << point_type
+                    << "' is not compatible with the udp profile: "
+                    << to_string(info.format.udp_profile_lidar));
             }
         }
 
