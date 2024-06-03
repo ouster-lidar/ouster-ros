@@ -108,9 +108,12 @@ class OusterDriver : public OusterSensor {
 
             // warn about profile incompatibility
             if (PointCloudProcessorFactory::point_type_requires_intensity(point_type) &&
-                info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8) {
-                RCLCPP_WARN_STREAM(get_logger(),
-                    "selected point type '" << point_type << "' is not compatible with the current udp profile: RNG15_RFL8_NIR8");
+                !PointCloudProcessorFactory::profile_has_intensity(info.format.udp_profile_lidar)) {
+                RCLCPP_WARN_STREAM(
+                    get_logger(),
+                    "selected point type '" << point_type
+                    << "' is not compatible with the udp profile: "
+                    << to_string(info.format.udp_profile_lidar));
             }
         }
 
