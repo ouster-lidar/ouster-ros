@@ -16,6 +16,7 @@
 
 #include "point_cloud_compose.h"
 #include "lidar_packet_handler.h"
+#include "impl/cartesian.h"
 
 namespace ouster_ros {
 
@@ -78,7 +79,8 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
             auto range = lidar_scan.field<uint32_t>(range_channel);
-            ouster::cartesianT(points, range, lut_direction, lut_offset);
+            ouster::cartesianT(points, range, lut_direction, lut_offset,
+                               std::numeric_limits<float>::quiet_NaN());
 
             scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
                                         pixel_shift_by_row, i);
