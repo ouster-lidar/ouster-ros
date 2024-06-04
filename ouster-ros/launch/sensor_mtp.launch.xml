@@ -68,9 +68,11 @@
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN"
     description="Use any combination of the 4 flags to enable or disable specific processors"/>
 
-  <arg name="scan_ring" default="0" description="
-    use this parameter in conjunction with the SCAN flag
-    and choose a value the range [0, sensor_beams_count)"/>
+  <arg name="scan_ring" default="-1" description="
+    Use this parameter in conjunction with the SCAN flag
+    and choose a value within the range [0, sensor_beams_count),
+    use value -1 to automatically select the ring that is closest
+    to a zero altitude angle (middle ring)."/>
 
   <arg name="point_type" default="original" description="point type for the generated point cloud;
    available options: {
