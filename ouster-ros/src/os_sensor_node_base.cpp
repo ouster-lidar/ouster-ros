@@ -34,8 +34,10 @@ void OusterSensorNodeBase::create_metadata_publisher() {
     auto latching_qos = rclcpp::QoS(rclcpp::KeepLast(1));
     latching_qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+    rclcpp::PublisherOptions publisher_options;
+    publisher_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
     metadata_pub =
-        create_publisher<std_msgs::msg::String>("metadata", latching_qos);
+        create_publisher<std_msgs::msg::String>("metadata", latching_qos, publisher_options);
 }
 
 void OusterSensorNodeBase::publish_metadata() {
