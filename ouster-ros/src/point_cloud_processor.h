@@ -18,6 +18,8 @@
 #include "lidar_packet_handler.h"
 #include "impl/cartesian.h"
 
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+
 namespace ouster_ros {
 
 // Moved out of PointCloudProcessor to avoid type templatization
@@ -75,6 +77,46 @@ class PointCloudProcessor {
         // TODO: remove the staging step in the future
         pcl::toPCLPointCloud2(pcl_cloud, staging_pcl_pc2);
         pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud);
+    }
+
+    // specialization to avoid padding
+    void pcl_toROSMsg(const ouster_ros::Cloud<pcl::PointXYZI>& pcl_cloud,
+                      sensor_msgs::msg::PointCloud2& cloud_msg) {
+
+        sensor_msgs::PointCloud2Modifier modifier(cloud_msg);
+
+        cloud_msg.header.frame_id = pcl_cloud.header.frame_id;
+        cloud_msg.header.stamp = rclcpp::Time(pcl_cloud.header.stamp * 1000ull); // Convert from us to ns
+        cloud_msg.height = pcl_cloud.height;
+        cloud_msg.width  = pcl_cloud.width;
+        cloud_msg.is_dense   = pcl_cloud.is_dense;
+        cloud_msg.is_bigendian = false;
+
+        modifier.setPointCloud2Fields( 4,
+            "x", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "y", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "z", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "intensity", 1, sensor_msgs::msg::PointField::FLOAT32);
+
+        modifier.resize(pcl_cloud.size());
+
+        sensor_msgs::PointCloud2Iterator<float> iter_x(cloud_msg, "x");
+        sensor_msgs::PointCloud2Iterator<float> iter_y(cloud_msg, "y");
+        sensor_msgs::PointCloud2Iterator<float> iter_z(cloud_msg, "z");
+        sensor_msgs::PointCloud2Iterator<float> iter_intensity(cloud_msg, "intensity");
+
+        for (const auto& point : pcl_cloud.points)
+        {
+            *iter_x = point.x;
+            *iter_y = point.y;
+            *iter_z = point.z;
+            *iter_intensity= point.intensity;
+
+            ++iter_x;
+            ++iter_y;
+            ++iter_z;
+            ++iter_intensity;
+        }
     }
 
     void process(const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
