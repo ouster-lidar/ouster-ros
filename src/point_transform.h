@@ -19,6 +19,7 @@ DEFINE_MEMBER_CHECKER(x);
 DEFINE_MEMBER_CHECKER(y);
 DEFINE_MEMBER_CHECKER(z);
 DEFINE_MEMBER_CHECKER(t);
+DEFINE_MEMBER_CHECKER(timestamp);
 DEFINE_MEMBER_CHECKER(ring);
 DEFINE_MEMBER_CHECKER(intensity);
 DEFINE_MEMBER_CHECKER(ambient);
@@ -39,6 +40,15 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
 
     CondBinaryOp<has_t_v<PointTGT> && !has_t_v<PointSRC>>::run(
         tgt_pt, src_pt, [](auto& tgt_pt, const auto&) { tgt_pt.t = 0U; }
+    );
+
+    // t: timestamp
+    CondBinaryOp<has_timestamp_v<PointTGT> && has_t_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { tgt_pt.timestamp = src_pt.t; }
+    );
+
+    CondBinaryOp<has_timestamp_v<PointTGT> && !has_t_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto&) { tgt_pt.timestamp = 0U; }
     );
 
     // ring
