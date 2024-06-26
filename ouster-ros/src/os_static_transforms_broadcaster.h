@@ -23,6 +23,7 @@ class OusterStaticTransformsBroadcaster {
         node->declare_parameter("lidar_frame", "os_lidar");
         node->declare_parameter("imu_frame", "os_imu");
         node->declare_parameter("point_cloud_frame", "");
+        node->declare_parameter("laser_scan_frame", "");
     }
 
     void parse_parameters() {
@@ -31,8 +32,10 @@ class OusterStaticTransformsBroadcaster {
         imu_frame = node->get_parameter("imu_frame").as_string();
         point_cloud_frame =
             node->get_parameter("point_cloud_frame").as_string();
+        laser_scan_frame =
+            node->get_parameter("laser_scan_frame").as_string();
 
-        // validate point_cloud_frame
+        // validate point_cloud_frame and laser_scan_frame
         if (point_cloud_frame.empty()) {
             point_cloud_frame =
                 lidar_frame;  // for ROS1 we'd still use sensor_frame
@@ -44,6 +47,18 @@ class OusterStaticTransformsBroadcaster {
                         "value was supplied, using lidar_frame's value as the "
                         "value for point_cloud_frame");
             point_cloud_frame = lidar_frame;
+        }
+        if (laser_scan_frame.empty()) {
+            laser_scan_frame =
+                lidar_frame;  // for ROS1 we'd still use sensor_frame
+        } else if (laser_scan_frame != sensor_frame &&
+                   laser_scan_frame != lidar_frame) {
+            RCLCPP_WARN(node->get_logger(),
+                        "laser_scan_frame value needs to match the value of "
+                        "either sensor_frame or lidar_frame but a different "
+                        "value was supplied, using lidar_frame's value as the "
+                        "value for point_cloud_frame");
+            laser_scan_frame = lidar_frame;
         }
     }
 
@@ -62,6 +77,9 @@ class OusterStaticTransformsBroadcaster {
     const std::string& point_cloud_frame_id() const {
         return point_cloud_frame;
     }
+    const std::string& laser_scan_frame_id() const {
+        return laser_scan_frame;
+    }
     bool apply_lidar_to_sensor_transform() const {
         return point_cloud_frame == sensor_frame;
     }
@@ -73,6 +91,7 @@ class OusterStaticTransformsBroadcaster {
     std::string lidar_frame;
     std::string sensor_frame;
     std::string point_cloud_frame;
+    std::string laser_scan_frame;
 };
 
 }  // namespace ouster_ros
