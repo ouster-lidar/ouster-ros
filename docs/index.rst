@@ -52,9 +52,9 @@ new terminal by running::
 Running ROS Nodes with a Sensor
 ================================
 
-Make sure the sensor is connected to the network. See "Connecting to the Sensor" in the `Software
-User Manual <https://www.ouster.com/downloads>`_ for instructions and different options for network
-configuration.
+Make sure the sensor is connected to the network. See "Connecting to the Sensor" in the `Software User Manual
+<https://static.ouster.dev/sensor-docs/image_route1/image_route2/connecting/connecting-to-sensors.html>`_
+for instructions and different options for network configuration.
 
 To connect to a sensor and publish its data as ROS topics, execute the command::
 
@@ -75,9 +75,9 @@ Additionally, the launch file has following list of arguments that you can use:
   ``2048x10``
 - ``timestamp_mode`` choose any value of the following timestamp modes: ``TIME_FROM_INTERNAL_OSC``,
   ``TIME_FROM_SYNC_PULSE_IN``, ``TIME_FROM_PTP_1588``, or ``TIME_FROM_ROS_TIME``. You can read about
-  the first three modes in `Ouster Sensor Guide <https://static.ouster.dev/sensor-docs/>`_. The last
-  mode ``TIME_FROM_ROS_TIME`` is specific to the ouster_ros driver; when this mode is set, the
-  driver uses ROS time as the timestamp for published IMU and Lidar messages.
+  the first three modes in `Multi-Sensor Synchronization <https://static.ouster.dev/sensor-docs/image_route1/image_route3/time_sync/time-sync.html>`_.
+  The last mode ``TIME_FROM_ROS_TIME`` is specific to the ouster_ros driver; when this mode is set,
+  the driver uses ROS time as the timestamp for published IMU and Lidar messages.
 - ``viz:=true/false`` to visualize the sensor output, if you have the rviz ROS package installed
 
 
