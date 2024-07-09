@@ -36,7 +36,10 @@ add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;ouster-sdk/ouster_client/include;ouster-sdk/ouster_client/include/optional-lite")
+  "include;"
+  "ouster-sdk/ouster_client/include;"
+  "ouster-sdk/ouster_client/include/optional-lite;"
+  "ouster-sdk/ouster_pcap/include")
 
 catkin_package(
   INCLUDE_DIRS
@@ -61,7 +64,7 @@ set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Enabled for Python build" OFF)
-option(BUILD_PCAP "Enabled for Python build" OFF)
+option(BUILD_PCAP "Enabled for Python build" ON)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -74,7 +77,7 @@ add_definitions(-DEIGEN_MPL2_ONLY)
 
 add_library(ouster_ros src/os_ros.cpp)
 target_link_libraries(ouster_ros PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common PRIVATE
-  -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
+  -Wl,--whole-archive ouster_client ouster_pcap -Wl,--no-whole-archive)
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
@@ -82,6 +85,7 @@ add_library(${PROJECT_NAME}_nodelets
   src/os_sensor_nodelet_base.cpp
   src/os_sensor_nodelet.cpp
   src/os_replay_nodelet.cpp
+  src/os_pcap_nodelet.cpp
   src/os_cloud_nodelet.cpp
   src/os_image_nodelet.cpp
   src/os_driver_nodelet.cpp)
@@ -100,7 +104,7 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_cloud_compose_test.cpp
   )
   target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
-    ouster_build pcl_common -Wl,--whole-archive ouster_client -Wl,--no-whole-archive)
+    ouster_build pcl_common -Wl,--whole-archive ouster_client ouster_pcap -Wl,--no-whole-archive)
 endif()
 
 # ==== Install ====

@@ -9,6 +9,11 @@
       A nodelet that can load up existing Ouster recordings and replay them.
     </description>
   </class>
+  <class name="ouster_ros/OusterPcap" type="ouster_ros::OusterPcap" base_class_type="nodelet::Nodelet">
+    <description>
+      A nodelet that can directly load ouster sensor data from a pcap file.
+    </description>
+  </class>
   <class name="ouster_ros/OusterCloud" type="ouster_ros::OusterCloud" base_class_type="nodelet::Nodelet">
     <description>
       A nodelet that process incoming Ouster lidar packets and publishes a corresponding point cloud.
