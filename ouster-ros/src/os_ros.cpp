@@ -37,10 +37,11 @@ bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
 
 int get_n_returns(const sensor::sensor_info& info) {
     using sensor::UDPProfileLidar;
-    return info.format.udp_profile_lidar ==
-                   UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL
-               ? 2
-               : 1;
+    if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL ||
+        info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL)
+        return 2;
+
+    return 1;
 }
 
 size_t get_beams_count(const sensor::sensor_info& info) {

@@ -78,6 +78,29 @@ class PointCloudProcessorFactory {
                         pixel_shift_by_row);
                 };
 
+            case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
+                return [](ouster_ros::Cloud<PointT>& cloud,
+                          const ouster::PointsF& points, uint64_t scan_ts,
+                          const ouster::LidarScan& ls,
+                          const std::vector<int>& pixel_shift_by_row,
+                          int return_index) {
+                    Point_FUSA_RNG15_RFL8_NIR8_DUAL staging_pt;
+                    if (return_index == 0) {
+                        scan_to_cloud_f_destaggered<
+                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL.size(),
+                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                            cloud, staging_pt, points, scan_ts, ls,
+                            pixel_shift_by_row);
+                    } else {
+                        scan_to_cloud_f_destaggered<
+                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN
+                                .size(),
+                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
+                            cloud, staging_pt, points, scan_ts, ls,
+                            pixel_shift_by_row);
+                    }
+                };
+
             default:
                 throw std::runtime_error("unsupported udp_profile_lidar");
         }
@@ -98,6 +121,12 @@ class PointCloudProcessorFactory {
     static bool point_type_requires_intensity(const std::string& point_type) {
         return point_type == "xyzi" || point_type == "xyzir" ||
                point_type == "original";
+    }
+
+    static bool profile_has_intensity(UDPProfileLidar profile) {
+        return profile == UDPProfileLidar::PROFILE_LIDAR_LEGACY ||
+               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL ||
+               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16;
     }
 
     static LidarScanProcessor create_point_cloud_processor(
@@ -122,6 +151,11 @@ class PointCloudProcessorFactory {
                         post_processing_fn);
                 case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
                     return make_point_cloud_processor<Point_RNG15_RFL8_NIR8>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        post_processing_fn);
+                case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
+                    return make_point_cloud_processor<
+                        Point_FUSA_RNG15_RFL8_NIR8_DUAL>(
                         info, frame, apply_lidar_to_sensor_transform,
                         post_processing_fn);
                 default:

@@ -8,8 +8,8 @@ using namespace std::chrono_literals;
 
 class ThreadSafeRingBufferTest : public ::testing::Test {
   protected:
-    static const int ITEM_SIZE = 4;   // predefined size for all items used in
-    static const int ITEM_COUNT = 3;  // number of item the buffer could hold
+    static constexpr int ITEM_SIZE = 4;   // predefined size for all items used in
+    static constexpr int ITEM_COUNT = 3;  // number of item the buffer could hold
 
     void SetUp() override {
         buffer = std::make_unique<ThreadSafeRingBuffer>(ITEM_SIZE, ITEM_COUNT);
@@ -172,10 +172,4 @@ TEST_F(ThreadSafeRingBufferTest, ReadWriteToBufferWithOverwrite) {
         std::cout << "source " << source[i] << ", target " << target[i] << std::endl;
         EXPECT_EQ(target[i], "0000"); 
     }
-}
-
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

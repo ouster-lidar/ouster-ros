@@ -169,8 +169,10 @@ rclcpp_components_register_node(os_driver_component
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
-    test/ring_buffer_test.cpp
     src/os_ros.cpp
+    test/test_main.cpp
+    test/ring_buffer_test.cpp
+    test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
