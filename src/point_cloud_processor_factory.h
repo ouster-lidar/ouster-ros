@@ -120,7 +120,7 @@ class PointCloudProcessorFactory {
    public:
     static bool point_type_requires_intensity(const std::string& point_type) {
         return point_type == "xyzi" || point_type == "xyzir" ||
-               point_type == "original";
+               point_type == "xyzit" || point_type == "original";
     }
 
     static bool profile_has_intensity(UDPProfileLidar profile) {
@@ -172,6 +172,10 @@ class PointCloudProcessorFactory {
                 post_processing_fn);
         } else if (point_type == "xyzir") {
             return make_point_cloud_processor<PointXYZIR>(
+                info, frame, apply_lidar_to_sensor_transform,
+                post_processing_fn);
+        } else if (point_type == "xyzit") {
+            return make_point_cloud_procssor<PointXYZIT>(
                 info, frame, apply_lidar_to_sensor_transform,
                 post_processing_fn);
         } else if (point_type == "original") {
