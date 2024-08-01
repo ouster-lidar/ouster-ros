@@ -24,6 +24,7 @@
 #include <ouster/os_pcap.h>
 
 namespace sensor = ouster::sensor;
+using ouster::sensor_utils::PcapReader;
 
 namespace ouster_ros {
 
@@ -97,8 +98,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     }
 
     void open_pcap(const std::string& pcap_file) {
-        pcap_handle = ouster::sensor_utils::replay_initialize(pcap_file);
-        ouster::sensor_utils::replay_reset(*pcap_handle);    // not sure if this is needed
+        pcap.reset(new PcapReader(pcap_file));
     }
 
     void start_packet_read_thread() {
@@ -106,7 +106,7 @@ class OusterPcap : public OusterSensorNodeletBase {
         packet_read_thread = std::make_unique<std::thread>([this]() {
             auto& pf = sensor::get_format(info);
             while (packet_read_active) {
-                read_packets(*pcap_handle, pf);
+                read_packets(*pcap, pf);
             }
             NODELET_DEBUG("packet_read_thread done.");
         });
@@ -132,15 +132,16 @@ class OusterPcap : public OusterSensorNodeletBase {
         });
 
         lidar_packets_processing_thread_active = true;
-        lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
-            while (lidar_packets_processing_thread_active) {
-                lidar_packets->read([this](const uint8_t* buffer) {
-                    on_lidar_packet_msg(buffer);
-                });
-            }
+        lidar_packets_processing_thread =
+            std::make_unique<std::thread>([this]() {
+                while (lidar_packets_processing_thread_active) {
+                    lidar_packets->read([this](const uint8_t* buffer) {
+                        on_lidar_packet_msg(buffer);
+                    });
+                }
 
-            NODELET_DEBUG("lidar_packets_processing_thread done.");
-        });
+                NODELET_DEBUG("lidar_packets_processing_thread done.");
+            });
     }
 
     void stop_packet_processing_threads() {
@@ -172,67 +173,43 @@ class OusterPcap : public OusterSensorNodeletBase {
         // this can be avoided by constructing an abstraction where
         // OusterSensor has its own RingBuffer of PacketMsg but for
         // now we are focusing on optimizing the code for OusterDriver
-        std::memcpy(imu_packet.buf.data(), raw_imu_packet, imu_packet.buf.size());
+        std::memcpy(imu_packet.buf.data(), raw_imu_packet,
+                    imu_packet.buf.size());
         imu_packet_pub.publish(imu_packet);
     }
 
-    void read_packets(ouster::sensor_utils::playback_handle& handle,
-                     const sensor::packet_format& pf) {
-
-        // Buffer to store raw packet data
-        ouster::sensor::LidarPacket packet(pf.lidar_packet_size);
-        ouster::sensor_utils::packet_info packet_info;
-        auto fps = ouster::sensor::frequency_of_lidar_mode(info.mode);
-        auto n_cols = ouster::sensor::n_cols_of_lidar_mode(info.mode);
-        auto n_packets = n_cols / pf.columns_per_packet;
-        auto ts_spacing = std::chrono::nanoseconds(static_cast<int64_t>(1e9 / (fps * n_packets)));
-
-
-        // TODO: restructure code to permit peeking into next packet before attempting to read
-        // without having to rely on sensor hz
-        while (ouster::sensor_utils::next_packet_info(handle, packet_info)) {
-
+    void read_packets(PcapReader& pcap, const sensor::packet_format& pf) {
+        size_t payload_size = pcap.next_packet();
+        auto packet_info = pcap.current_info();
+        while (payload_size) {
+            auto start = std::chrono::high_resolution_clock::now();
             if (packet_info.dst_port == info.config.udp_port_imu) {
-
-                    imu_packets->write_overwrite(
-                    [this, &handle, &pf, &packet_info](uint8_t* buffer) {
-
-                    auto packet_size = ouster::sensor_utils::read_packet(
-                        handle, buffer, pf.imu_packet_size);
-
-                    if (packet_size == pf.imu_packet_size &&
-                        packet_info.dst_port == info.config.udp_port_imu) {
-                    } else {
-                        ROS_ERROR_STREAM("Inconsistent packet_size=" << packet_size
-                            << " vs expected=" << pf.imu_packet_size);
-                    }
-                });
+                imu_packets->write_overwrite(
+                    [this, &pcap, &pf, &packet_info](uint8_t* buffer) {
+                        std::memcpy(buffer, pcap.current_data(),
+                                    pf.imu_packet_size);
+                    });
             } else if (packet_info.dst_port == info.config.udp_port_lidar) {
                 lidar_packets->write_overwrite(
-                    [this, &handle, &pf, &packet_info](uint8_t* buffer) {
-
-                    auto packet_size = ouster::sensor_utils::read_packet(
-                        handle, buffer, pf.lidar_packet_size);
-
-                    // make sure packet is valid
-                    if (packet_size == pf.lidar_packet_size &&
-                        packet_info.dst_port == info.config.udp_port_lidar) {
-                    } else {
-                        ROS_ERROR_STREAM("Inconsistent packet_size=" << packet_size
-                            << " vs expected=" << pf.lidar_packet_size);
-                    }
-
-                });
-
-                // only pace lidar packets (this approximates)
-                std::this_thread::sleep_for(ts_spacing);
-
+                    [this, &pcap, &pf, &packet_info](uint8_t* buffer) {
+                        std::memcpy(buffer, pcap.current_data(),
+                                    pf.lidar_packet_size);
+                    });
+            } else {
+                std::cout << "unknown packet" << std::endl;
             }
+            auto prev_packet_ts = packet_info.timestamp;
+            payload_size = pcap.next_packet();
+            packet_info = pcap.current_info();
+            auto curr_packet_ts = packet_info.timestamp;
+            auto end = std::chrono::high_resolution_clock::now();
+            auto dt = (curr_packet_ts - prev_packet_ts) - (end - start);
+            std::this_thread::sleep_for(dt);  // pace packet generation
         }
     }
 
    private:
-    std::shared_ptr<ouster::sensor_utils::playback_handle> pcap_handle;
+    std::shared_ptr<PcapReader> pcap;
     PacketMsg lidar_packet;
     PacketMsg imu_packet;
     ros::Publisher lidar_packet_pub;
@@ -267,6 +244,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
 
+    bool pause = false;
 };
 
 }  // namespace ouster_ros
