@@ -110,7 +110,7 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_cloud_compose_test.cpp
   )
   target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
-    ouster_build pcl_common -Wl,--whole-archive ouster_client ouster_pcap -Wl,--no-whole-archive)
+    ouster_build pcl_common -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
 endif()
 
 # ==== Install ====
