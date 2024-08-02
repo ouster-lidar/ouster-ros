@@ -64,7 +64,7 @@ set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Enabled for Python build" OFF)
-option(BUILD_PCAP "Enabled for Python build" ON)
+option(BUILD_PCAP "Enabled for Python build" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -75,9 +75,15 @@ include_directories(${_ouster_ros_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
 
+set(OUSTER_TARGET_LINKS ouster_client)
+if (BUILD_PCAP)
+  list(APPEND OUSTER_TARGET_LINKS ouster_pcap)
+endif()
+
 add_library(ouster_ros src/os_ros.cpp)
-target_link_libraries(ouster_ros PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common PRIVATE
-  -Wl,--whole-archive ouster_client ouster_pcap -Wl,--no-whole-archive)
+target_link_libraries(ouster_ros
+  PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common
+  PRIVATE -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
