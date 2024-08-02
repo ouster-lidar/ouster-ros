@@ -1,6 +1,6 @@
 <launch>
 
-  <param name="use_sim_time" value="false" doc="NOTE: pcap node doesn't not implemented a clock"/>
+  <param name="use_sim_time" value="false" doc="NOTE: pcap replay node does not implement clock"/>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="metadata" default ="" doc="path to read metadata file when replaying sensor data"/>

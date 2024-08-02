@@ -49,8 +49,8 @@ class OusterPcap : public OusterSensorNodeletBase {
         auto meta_file =
             getPrivateNodeHandle().param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
-            NODELET_ERROR("Must specify metadata file in replay mode");
-            throw std::runtime_error("metadata no specificed");
+            NODELET_FATAL("Must specify metadata file in replay mode");
+            throw std::runtime_error("metadata param not set");
         }
         return meta_file;
     }
@@ -59,8 +59,8 @@ class OusterPcap : public OusterSensorNodeletBase {
         auto pcap_file =
             getPrivateNodeHandle().param("pcap_file", std::string{});
         if (!is_arg_set(pcap_file)) {
-            NODELET_ERROR("Must specify pcap file in pcap replay mode");
-            throw std::runtime_error("metadata no specificed");
+            NODELET_FATAL("Must specify pcap file in pcap replay mode");
+            throw std::runtime_error("pcap_file param not set");
         }
         return pcap_file;
     }
@@ -73,7 +73,7 @@ class OusterPcap : public OusterSensorNodeletBase {
         } catch (const std::runtime_error& e) {
             cached_metadata.clear();
             NODELET_ERROR_STREAM(
-                "Error when running in replay mode: " << e.what());
+                "Error loading metadata: " << e.what());
         }
     }
 
