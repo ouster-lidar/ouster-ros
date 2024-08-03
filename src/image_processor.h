@@ -59,7 +59,9 @@ class ImageProcessor {
     }
 
    private:
-    using pixel_type = uint16_t;
+   // TODO: we only need 32-bit for range image, use the approptie pixel_size
+   // per image type
+    using pixel_type = int32_t;
     const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
 
     static void init_image_msg(sensor_msgs::Image& msg, size_t H, size_t W,
@@ -68,7 +70,7 @@ class ImageProcessor {
         msg.height = H;
         msg.step = W * sizeof(pixel_type);
         // TODO: allow choosing higher image encoding representation
-        msg.encoding = sensor_msgs::image_encodings::MONO16;
+        msg.encoding = sensor_msgs::image_encodings::TYPE_32SC1;
         msg.data.resize(W * H * sizeof(pixel_type));
         msg.header.frame_id = frame;
     }
@@ -149,10 +151,7 @@ class ImageProcessor {
             for (size_t v = 0; v < W; v++) {
                 const size_t vv = (v + W - px_offset[u]) % W;
                 const size_t idx = u * W + vv;
-                // TODO: re-examine this truncation later
-                // 16 bit img: use 4mm resolution and throw out returns > 260m
-                auto r = (rg[idx] + 0b10) >> 2;
-                range_image_map(u, v) = r > pixel_value_max ? 0 : r;
+                range_image_map(u, v) = rg[idx];
                 signal_image_eigen(u, v) = sg[idx];
                 reflec_image_eigen(u, v) = rf[idx];
                 nearir_image_eigen(u, v) = nr[idx];
