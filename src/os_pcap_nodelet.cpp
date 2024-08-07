@@ -214,7 +214,6 @@ class OusterPcap : public OusterSensorNodeletBase {
     PacketMsg imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
-    ros::ServiceServer reset_srv;
 
     std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
     std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
@@ -227,22 +226,6 @@ class OusterPcap : public OusterSensorNodeletBase {
 
     std::atomic<bool> lidar_packets_processing_thread_active = {false};
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
-
-    bool force_sensor_reinit = false;
-    bool reset_last_init_id = true;
-
-    bool last_init_id_initialized = false;
-    uint32_t last_init_id;
-
-    // TODO: add as a ros parameter
-    const int max_poll_client_error_count = 10;
-    int poll_client_error_count = 0;
-    // TODO: add as a ros parameter
-    const int max_read_lidar_packet_errors = 60;
-    int read_lidar_packet_errors = 0;
-    // TODO: add as a ros parameter
-    const int max_read_imu_packet_errors = 60;
-    int read_imu_packet_errors = 0;
 
     bool pause = false;
 };

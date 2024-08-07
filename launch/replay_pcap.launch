@@ -1,10 +1,11 @@
 <launch>
 
-  <param name="use_sim_time" value="false" doc="NOTE: pcap replay node does not implement clock"/>
+  <!-- NOTE: pcap replay node does not implement clock-->
+  <param name="use_sim_time" value="false"/>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="metadata" default ="" doc="path to read metadata file when replaying sensor data"/>
-  <arg name="pcap_file" default="" doc="file name to use for the recorded pcap file"/>
+  <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
+  <arg name="pcap_file" doc="file name to use for the recorded pcap file"/>
   <arg name="timestamp_mode" default="TIME_FROM_INTERNAL_OSC" doc="A parameter that allows you to override the timestamp measurements;
     possible values: {
     TIME_FROM_INTERNAL_OSC,
@@ -57,10 +58,8 @@
       output="screen" required="true" args="manager"/>
   </group>
 
-  <arg name="_use_metadata_file" value="$(eval not (metadata == ''))"/>
-
   <group ns="$(arg ouster_ns)">
-    <node if="$(arg _use_metadata_file)" pkg="nodelet" type="nodelet"
+    <node pkg="nodelet" type="nodelet"
       name="os_node" output="screen" required="true"
       launch-prefix="bash -c 'sleep 3; $0 $@' "
       args="load ouster_ros/OusterPcap os_nodelet_mgr">
