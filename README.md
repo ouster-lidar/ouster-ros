@@ -25,6 +25,7 @@
       - [Sensor Mode](#sensor-mode)
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
+        - [PCAP Replay Mode](#pcap-replay-mode)
       - [Multicast Mode (experimental)](#multicast-mode-experimental)
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
@@ -100,7 +101,8 @@ sudo apt install -y         \
 > You may choose a different _ssl_ backend for the _curl_ library such as `libcurl4-gnutls-dev` or
 > `libcurl4-nss-dev`
 
-
+> **Note**  
+> To use the PCAP replay mode you need to have `libpcap-dev` installed
 
 ### Windows
 TBD
@@ -188,6 +190,15 @@ ros2 launch ouster_ros record.launch.xml    \
 ros2 launch ouster_ros replay.launch.xml    \
     bag_file:=<path to rosbag file>         \
     metadata:=<json file name>              # optional if bag file has /metadata topic
+```
+
+##### PCAP Replay Mode
+> Note
+> To use this feature you need to compile the driver with `BUILD_PCAP` option enabled
+```bash
+ros2 launch ouster_ros replay_pcap.launch.xml   \
+    pcap_file:=<path to ouster pcap file>       \
+    metadata:=<json file name>              # required
 ```
 
 #### Multicast Mode (experimental)
