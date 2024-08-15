@@ -11,6 +11,8 @@ Changelog
 * [BUGFIX]: Implement lock free ring buffer with throttling to reduce partial frames
 * add support for FUSA udp profile ``FUSA_RNG15_RFL8_NIR8_DUAL``.
 * [BREAKING]: Set xyz values of individual points in the PointCloud to NaNs when range is zero.
+* Added support to replay pcap format direclty from ouster-ros. The feature needs to be enabled
+  explicitly by turning on the ``BUILD_PCAP`` cmake option and having ``libpcap-dev`` installed.
 
 
 ouster_ros v0.12.0
