@@ -46,6 +46,15 @@
     use this parameter in conjunction with the SCAN flag
     and choose a value the range [0, sensor_beams_count)"/>
 
+  <arg name="point_type" default="xyz" description="point type for the generated point cloud;
+   available options: {
+    original,
+    native,
+    xyz,
+    xyzi,
+    xyzir
+    }"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_pcap" name="os_pcap" output="screen">
@@ -63,6 +72,7 @@
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
       <param name="proc_mask" value="$(var proc_mask)"/>
       <param name="scan_ring" value="$(var scan_ring)"/>
+      <param name="point_type" value="$(var point_type)"/>
     </node>
     <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen">
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
