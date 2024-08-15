@@ -1,11 +1,11 @@
 <launch>
 
-  <set_parameter name="use_sim_time" value="true" />
+  <!-- NOTE: pcap replay node does not implement clock-->
+  <set_parameter name="use_sim_time" value="false" />
 
   <arg name="ouster_ns" default="ouster"
     description="Override the default namespace of all ouster nodes"/>
-  <!-- TODO: revisit the proper behaviour of allowing users override the default timestamp_mode during replay -->
-  <arg name="timestamp_mode" default=""
+  <arg name="timestamp_mode" default="TIME_FROM_INTERNAL_OSC"
     description="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,
     TIME_FROM_SYNC_PULSE_IN,
@@ -14,10 +14,8 @@
     }"/>
    <arg name="ptp_utc_tai_offset" default="-37.0"
     description="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
-  <arg name="metadata" default=""
-    description="path to write metadata file when receiving sensor data"/>
-  <arg name="bag_file"
-    description="file name to use for the recorded bag file"/>
+  <arg name="metadata" description="path to write metadata file when receiving sensor data"/>
+  <arg name="pcap_file" description="file name to use for the recorded bag file"/>
   <arg name="viz" default="true"
     description="whether to run a rviz"/>
   <arg name="rviz_config" default="$(find-pkg-share ouster_ros)/config/viz-reliable.rviz"
@@ -48,7 +46,7 @@
     use this parameter in conjunction with the SCAN flag
     and choose a value the range [0, sensor_beams_count)"/>
 
-  <arg name="point_type" default="original" description="point type for the generated point cloud;
+  <arg name="point_type" default="xyz" description="point type for the generated point cloud;
    available options: {
     original,
     native,
@@ -59,8 +57,10 @@
 
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
-    <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
+    <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_pcap" name="os_pcap" output="screen">
       <param name="metadata" value="$(var metadata)"/>
+      <param name="pcap_file" value="$(var pcap_file)"/>
+      <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -82,23 +82,15 @@
   <!-- HACK: configure and activate the replay node via a process execute since state
     transition is currently not availabe through launch.xml format -->
   <executable if="$(var _use_metadata_file)"
-    cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay configure"
+    cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_pcap configure"
     launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
   <executable if="$(var _use_metadata_file)"
-    cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_replay activate"
+    cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_pcap activate"
     launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
 
   <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
   </include>
-
-  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
-
-  <executable if="$(var _use_bag_file_name)" output="screen"
-    launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file)
-      --qos-profile-overrides-path 
-      $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 
 </launch>
