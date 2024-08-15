@@ -31,7 +31,6 @@ endif()
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;ouster-sdk/ouster_client/include;ouster-sdk/ouster_client/include/optional-lite"
   "include;"
   "ouster-sdk/ouster_client/include;"
   "ouster-sdk/ouster_client/include/optional-lite;"
