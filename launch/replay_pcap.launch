@@ -1,10 +1,11 @@
 <launch>
 
-  <param name="use_sim_time" value="true"/>
+  <!-- NOTE: pcap replay node does not implement clock-->
+  <param name="use_sim_time" value="false"/>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
-  <arg name="metadata" default="" doc="path to read metadata file when replaying sensor data"/>
-  <arg name="bag_file" doc="file name to use for the recorded bag file"/>
+  <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
+  <arg name="pcap_file" doc="file name to use for the recorded pcap file"/>
   <arg name="timestamp_mode" default="TIME_FROM_INTERNAL_OSC" doc="A parameter that allows you to override the timestamp measurements;
     possible values: {
     TIME_FROM_INTERNAL_OSC,
@@ -57,14 +58,13 @@
       output="screen" required="true" args="manager"/>
   </group>
 
-  <arg name="_use_metadata_file" value="$(eval not (metadata == ''))"/>
-
   <group ns="$(arg ouster_ns)">
-    <node if="$(arg _use_metadata_file)" pkg="nodelet" type="nodelet"
+    <node pkg="nodelet" type="nodelet"
       name="os_node" output="screen" required="true"
       launch-prefix="bash -c 'sleep 3; $0 $@' "
-      args="load ouster_ros/OusterReplay os_nodelet_mgr">
+      args="load ouster_ros/OusterPcap os_nodelet_mgr">
       <param name="~/metadata" value="$(arg metadata)"/>
+      <param name="~/pcap_file" value="$(arg pcap_file)"/>
     </node>
   </group>
 
@@ -88,11 +88,5 @@
     <arg name="point_type" value="$(arg point_type)"/>
   </include>
 
-  <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>
-
-  <node if="$(arg _use_bag_file_name)" pkg="rosbag" type="play" name="rosbag_play_recording"
-    launch-prefix="bash -c 'sleep 3; $0 $@' "
-    output="screen" required="true"
-    args="--clock $(arg bag_file)"/>
 
 </launch>

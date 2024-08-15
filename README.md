@@ -22,6 +22,7 @@
       - [Sensor Mode](#sensor-mode)
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
+        - [PCAP Replay Mode](#pcap-replay-mode)
       - [Multicast Mode (experimental)](#multicast-mode-experimental)
     - [Launch Files Arguments](#launch-files-arguments)
     - [Invoking Services](#invoking-services)
@@ -80,6 +81,9 @@ sudo apt install -y         \
 > **Note**  
 > You may choose a different ssl backend for the curl library such as `libcurl4-gnutls-dev` or `libcurl4-nss-dev`
 
+> **Note**  
+> To use the PCAP replay mode you need to have `libpcap-dev` installed
+
 ## Getting Started
 To build the driver using ROS you need to clone the project into the `src` folder of a catkin workspace
 as shown below:
@@ -131,7 +135,7 @@ over `sensor.launch`. `sensor.launch` is mainly provided for backward compatibil
 ```bash
 roslaunch ouster_ros record.launch      \
     sensor_hostname:=<sensor host name> \
-    bag_file:=<optional bag file name>
+    bag_file:=<optional bag file name>  \
     metadata:=<json file name>          # optional
 ```
 #### Replay Mode
@@ -144,6 +148,17 @@ roslaunch ouster_ros replay.launch      \
     bag_file:=<path to rosbag file>     \
     metadata:=<json file name>          # optional if bag file has /metadata topic
 ```
+
+##### PCAP Replay Mode
+> Note
+> To use this feature you need to compile the driver with `BUILD_PCAP` option enabled
+
+```bash
+roslaunch ouster_ros replay_pcap.launch     \
+    pcap_file:=<path to ouster pcap file>   \
+    metadata:=<json file name>              # required
+```
+
 
 #### Multicast Mode (experimental)
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
