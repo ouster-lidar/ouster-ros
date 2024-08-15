@@ -17,6 +17,8 @@
 
 #include <string>
 #include <thread>
+#include <chrono>
+#include <iomanip>
 
 #include "ouster_ros/os_sensor_nodelet_base.h"
 #include "ouster_ros/PacketMsg.h"
@@ -202,7 +204,9 @@ class OusterPcap : public OusterSensorNodeletBase {
                                     pf.lidar_packet_size);
                     });
             } else {
-                std::cout << "unknown packet" << std::endl;
+                NODELET_WARN_STREAM_THROTTLE(1,
+                    "unknown packet /w port: "
+                    << packet_info.dst_port);
             }
             auto prev_packet_ts = packet_info.timestamp;
             payload_size = pcap.next_packet();
