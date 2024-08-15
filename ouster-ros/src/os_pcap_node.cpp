@@ -299,7 +299,8 @@ class OusterPcap : public OusterSensorNodeBase {
                                     pf.lidar_packet_size);
                     });
             } else {
-                std::cout << "unknown packet" << std::endl;
+                RCLCPP_WARN_STREAM_THROTTLE(get_logger(), *get_clock(), 1,
+                    "unknown packet /w port:" << packet_info.dst_port);
             }
             auto prev_packet_ts = packet_info.timestamp;
             payload_size = pcap.next_packet();
