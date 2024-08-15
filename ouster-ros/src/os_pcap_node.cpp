@@ -13,6 +13,11 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+#include <string>
+#include <thread>
+#include <chrono>
+#include <iomanip>
+
 #include "ouster_sensor_msgs/msg/packet_msg.h"
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
@@ -22,6 +27,7 @@
 
 namespace sensor = ouster::sensor;
 using ouster::sensor_utils::PcapReader;
+using namespace std::chrono;
 
 using ouster_sensor_msgs::msg::PacketMsg;
 
@@ -273,8 +279,13 @@ class OusterPcap : public OusterSensorNodeBase {
     void read_packets(PcapReader& pcap, const sensor::packet_format& pf) {
         size_t payload_size = pcap.next_packet();
         auto packet_info = pcap.current_info();
+        auto file_start = packet_info.timestamp;
+        auto last_update = file_start;
+        using namespace std::chrono_literals;
+        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s);
+
         while (payload_size) {
-            auto start = std::chrono::high_resolution_clock::now();
+            auto start = high_resolution_clock::now();
             if (packet_info.dst_port == info.config.udp_port_imu) {
                 imu_packets->write_overwrite(
                     [this, &pcap, &pf, &packet_info](uint8_t* buffer) {
@@ -294,9 +305,18 @@ class OusterPcap : public OusterSensorNodeBase {
             payload_size = pcap.next_packet();
             packet_info = pcap.current_info();
             auto curr_packet_ts = packet_info.timestamp;
-            auto end = std::chrono::high_resolution_clock::now();
+            auto end = high_resolution_clock::now();
             auto dt = (curr_packet_ts - prev_packet_ts) - (end - start);
             std::this_thread::sleep_for(dt);  // pace packet generation
+
+            if (curr_packet_ts - last_update > UPDATE_PERIOD) {
+                last_update = curr_packet_ts;
+                std::cout << "\rtime passed: "
+                    << std::fixed << std::setprecision(3)
+                    << (curr_packet_ts - file_start).count() / 1e6f
+                    << " s" << std::flush
+                    << std::endl;   // This seem to be required for ROS2
+            }
         }
     }
 
