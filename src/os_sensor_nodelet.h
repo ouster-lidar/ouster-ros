@@ -141,8 +141,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
 
-    bool last_init_id_initialized = false;
-    uint32_t last_init_id;
+    nonstd::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
