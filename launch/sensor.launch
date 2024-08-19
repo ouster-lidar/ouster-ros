@@ -74,9 +74,9 @@
     }"/>
 
   <arg name="azimuth_window_start" default="0" doc="azimuth window start;
-    values range [0, 360000] millideggrees"/>
+    values range [0, 360000] millidegrees"/>
   <arg name="azimuth_window_end" default="360000" doc="azimuth window end;
-    values range [0, 360000] millideggrees"/>
+    values range [0, 360000] millidegrees"/>
 
   <arg name="persist_config" default="false"
     doc="request the sensor to persist settings"/>
