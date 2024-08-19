@@ -17,6 +17,9 @@ Changelog
 * [BREAKING] Set xyz values of individual points in the PointCloud to NaNs when range is zero.
 * Added support to replay pcap format direclty from ouster-ros. The feature needs to be enabled
   explicitly by turning on the ``BUILD_PCAP`` cmake option and having ``libpcap-dev`` installed.
+* Added new launch files args ``azimuth_window_start`` and ``azimuth_window_end`` to allow users
+ to set LIDAR FOV on startup
+* Add a new launch ``persist_config`` option to request the sensor persist the current config
 
 
 ouster_ros v0.10.0
