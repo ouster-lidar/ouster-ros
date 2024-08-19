@@ -317,6 +317,13 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         config.udp_port_imu = imu_port;
     }
 
+    persist_config = nh.param("persist_config", false);
+    if (persist_config && (lidar_port == 0 || imu_port == 0)) {
+        NODELET_WARN("When using persist_config it is recommended to not "
+        "use 0 for port value");
+    }
+
+
     config.udp_profile_lidar = udp_profile_lidar;
     config.operating_mode = sensor::OPERATING_NORMAL;
     if (lidar_mode) config.ld_mode = lidar_mode;
@@ -374,6 +381,11 @@ uint8_t OusterSensor::compose_config_flags(
         force_sensor_reinit = false;
         NODELET_INFO("Forcing sensor to reinitialize");
         config_flags |= ouster::sensor::CONFIG_FORCE_REINIT;
+    }
+
+    if (persist_config) {
+        NODELET_INFO("Configuration will be persisted");
+        config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
 
     return config_flags;
