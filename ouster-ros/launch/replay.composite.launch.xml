@@ -2,6 +2,13 @@
 
   <set_parameter name="use_sim_time" value="true" />
 
+  <arg name="loop" default="false" doc="request loop playback"/>
+  <arg if="$(arg loop)" name="_loop" value="--loop"/>
+  <arg unless="$(arg loop)" name="_loop" value=" "/>
+
+  <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
+  <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
+
   <arg name="ouster_ns" default="ouster"
     description="Override the default namespace of all ouster nodes"/>
   <!-- TODO: revisit the proper behaviour of allowing users override the default timestamp_mode during replay -->
@@ -100,7 +107,7 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file) --clock
+    cmd="ros2 bag play $(var bag_file) --clock $(arg _loop)
       --qos-profile-overrides-path
       $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 

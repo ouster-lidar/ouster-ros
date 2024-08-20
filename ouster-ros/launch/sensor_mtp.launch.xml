@@ -81,6 +81,14 @@
     xyzir
     }"/>
 
+  <arg name="azimuth_window_start" default="0" doc="azimuth window start;
+    values range [0, 360000] millidegrees"/>
+  <arg name="azimuth_window_end" default="360000" doc="azimuth window end;
+    values range [0, 360000] millidegrees"/>
+
+  <arg name="persist_config" default="false"
+    doc="request the sensor to persist settings"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_driver" name="os_driver" output="screen">
@@ -103,6 +111,9 @@
       <param name="proc_mask" value="$(var proc_mask)"/>
       <param name="scan_ring" value="$(var scan_ring)"/>
       <param name="point_type" value="$(var point_type)"/>
+      <param name="~/azimuth_window_start" value="$(var azimuth_window_start)"/>
+      <param name="~/azimuth_window_end" value="$(var azimuth_window_end)"/>
+      <param name="~/persist_config" value="$(var persist_config)"/>
     </node>
   </group>
 
