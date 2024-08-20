@@ -320,7 +320,8 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     persist_config = nh.param("persist_config", false);
     if (persist_config && (lidar_port == 0 || imu_port == 0)) {
         NODELET_WARN("When using persist_config it is recommended to not "
-        "use 0 for port value");
+        "use 0 for port values as this currently will trigger sensor reinit "
+        "event each time");
     }
 
 
