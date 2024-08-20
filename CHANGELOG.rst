@@ -20,7 +20,8 @@ Changelog
 * [BREAKING] Added new launch files args ``azimuth_window_start`` and ``azimuth_window_end`` to
   allow users to set LIDAR FOV on startup. The new options will reset the current azimuth window
   to the default
-* Add a new launch ``persist_config`` option to request the sensor persist the current config
+* Added a new launch ``persist_config`` option to request the sensor persist the current config
+* Added a new ``loop`` option to the ``replay.launch`` file.
 
 
 ouster_ros v0.10.0

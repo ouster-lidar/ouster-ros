@@ -2,6 +2,10 @@
 
   <param name="use_sim_time" value="true"/>
 
+  <arg name="loop" default="false" doc="request loop playback"/>    
+  <arg if="$(arg loop)" name="_loop" value="--loop"/>
+  <arg unless="$(arg loop)" name="_loop" value=" "/>
+
   <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
   <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
 
@@ -96,6 +100,6 @@
   <node if="$(arg _use_bag_file_name)" pkg="rosbag" type="play" name="rosbag_play_recording"
     launch-prefix="bash -c 'sleep 3; $0 $@' "
     output="screen" required="true"
-    args="--clock $(arg bag_file) -l"/>
+    args="--clock $(arg bag_file) $(arg _loop)"/>
 
 </launch>
