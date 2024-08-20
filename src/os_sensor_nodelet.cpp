@@ -25,6 +25,7 @@ using nonstd::optional;
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+using std::to_string;
 
 namespace ouster_ros {
 
@@ -232,6 +233,9 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
     auto timestamp_mode_arg = nh.param("timestamp_mode", std::string{});
     auto udp_profile_lidar_arg = nh.param("udp_profile_lidar", std::string{});
+    const int MIN_AZW = 0, MAX_AZW = 360000;
+    auto azimuth_window_start = nh.param("azimuth_window_start", MIN_AZW);
+    auto azimuth_window_end = nh.param("azimuth_window_end", MAX_AZW);
 
     if (lidar_port < 0 || lidar_port > 65535) {
         auto error_msg =
@@ -313,6 +317,14 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         config.udp_port_imu = imu_port;
     }
 
+    persist_config = nh.param("persist_config", false);
+    if (persist_config && (lidar_port == 0 || imu_port == 0)) {
+        NODELET_WARN("When using persist_config it is recommended to not "
+        "use 0 for port values as this currently will trigger sensor reinit "
+        "event each time");
+    }
+
+
     config.udp_profile_lidar = udp_profile_lidar;
     config.operating_mode = sensor::OPERATING_NORMAL;
     if (lidar_mode) config.ld_mode = lidar_mode;
@@ -324,6 +336,16 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
             mtp_main = mtp_main_arg;
         }
     }
+
+    if (azimuth_window_start < MIN_AZW || azimuth_window_start > MAX_AZW ||
+        azimuth_window_end < MIN_AZW || azimuth_window_end > MAX_AZW) {
+        auto error_msg = "azimuth window values must be between " +
+                    to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
+        NODELET_ERROR_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+
+    config.azimuth_window = {azimuth_window_start, azimuth_window_end};
 
     return config;
 }
@@ -360,6 +382,11 @@ uint8_t OusterSensor::compose_config_flags(
         force_sensor_reinit = false;
         NODELET_INFO("Forcing sensor to reinitialize");
         config_flags |= ouster::sensor::CONFIG_FORCE_REINIT;
+    }
+
+    if (persist_config) {
+        NODELET_INFO("Configuration will be persisted");
+        config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
 
     return config_flags;
@@ -450,9 +477,8 @@ void OusterSensor::allocate_buffers() {
 bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
                                    const uint8_t* lidar_buf) {
     uint32_t current_init_id = pf.init_id(lidar_buf);
-    if (!last_init_id_initialized) {
+    if (!last_init_id) {
         last_init_id = current_init_id + 1;
-        last_init_id_initialized = true;
     }
     if (reset_last_init_id && last_init_id != current_init_id) {
         last_init_id = current_init_id;
