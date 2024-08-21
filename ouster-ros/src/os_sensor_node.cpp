@@ -22,6 +22,7 @@ using ouster_sensor_msgs::srv::SetConfig;
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+using std::to_string;
 
 namespace ouster_ros {
 
@@ -532,9 +533,9 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
 
     persist_config = get_parameter("persist_config").as_bool();
     if (persist_config && (lidar_port == 0 || imu_port == 0)) {
-        RCLCPP_WARN("When using persist_config it is recommended to not "
-        "use 0 for port values as this currently will trigger sensor reinit "
-        "event each time");
+        RCLCPP_WARN(get_logger(), "When using persist_config it is recommended "
+        " to not use 0 for port values as this currently will trigger sensor "
+        " reinit event each time");
     }
 
     config.udp_profile_lidar = udp_profile_lidar;
@@ -553,7 +554,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         azimuth_window_end < MIN_AZW || azimuth_window_end > MAX_AZW) {
         auto error_msg = "azimuth window values must be between " +
                     to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
-        RCLCPP_ERROR_STREAM(error_msg);
+        RCLCPP_ERROR_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -599,7 +600,7 @@ uint8_t OusterSensor::compose_config_flags(
     }
 
     if (persist_config) {
-        RCLCPP_INFO("Configuration will be persisted");
+        RCLCPP_INFO(get_logger(), "Configuration will be persisted");
         config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
 
