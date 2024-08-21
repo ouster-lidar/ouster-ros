@@ -15,6 +15,9 @@ ouster/os_sensor:
     lidar_port: 0
     imu_port: 0
     use_system_default_qos: False
+    azimuth_window_start: 0
+    azimuth_window_end: 360000
+    persist_config: false
 ouster/os_cloud:
   ros__parameters:
     sensor_frame: os_sensor
