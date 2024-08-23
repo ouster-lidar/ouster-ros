@@ -27,6 +27,7 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 using std::to_string;
 
+
 namespace ouster_ros {
 
 OusterSensor::~OusterSensor() {
@@ -39,26 +40,71 @@ void OusterSensor::halt() {
     stop_sensor_connection_thread();
 }
 
-void OusterSensor::onInit() {
+bool OusterSensor::start() {
     sensor_hostname = get_sensor_hostname();
     sensor::sensor_config config = parse_config_from_ros_parameters();
-    configure_sensor(sensor_hostname, config);
+
+    if (!configure_sensor(sensor_hostname, config))
+        return false;
+
     sensor_client = create_sensor_client(sensor_hostname, config);
     if (!sensor_client) {
-        auto error_msg = "Failed to initialize client";
-        NODELET_ERROR_STREAM(error_msg);
-        throw std::runtime_error(error_msg);
+        NODELET_ERROR_STREAM("Failed to initialize client");
+        return false;
     }
 
-    create_metadata_publisher();
+    if (!services_publishers_created)
+        create_metadata_publisher();
     update_config_and_metadata(*sensor_client);
-    create_services();
+    if (!services_publishers_created)
+        create_services();
 
     // activate
-    create_publishers();
+    if (!services_publishers_created)
+        create_publishers();
+    services_publishers_created = true;
     allocate_buffers();
     start_packet_processing_threads();
     start_sensor_connection_thread();
+    return true;
+}
+
+void OusterSensor::stop() {
+    // deactivate
+    halt();
+    // remove services?
+    sensor_client.reset();
+    // metadata_pub.shutdown();
+    // lidar_packet_pub.shutdown();
+    // imu_packet_pub.shutdown();
+    // get_config_srv.shutdown();
+    // set_config_srv.shutdown();
+    // get_metadata_srv.shutdown();
+    // reset_srv.shutdown();
+}
+
+void OusterSensor::attempt_start() {
+    if (!start()) {
+        timer_ = getNodeHandle().createTimer(
+        ros::Duration(1.0), [this](const ros::TimerEvent&) {
+            timer_.stop();
+            attempt_start();
+        });
+    }
+}
+
+void OusterSensor::schedule_stop() {
+    sensor_connection_active = false;
+    timer_ = getNodeHandle().createTimer(
+        ros::Duration(0.0), [this](const ros::TimerEvent&) {
+            timer_.stop();
+            stop();
+            attempt_start();
+        });
+}
+
+void OusterSensor::onInit() {
+    attempt_start();
 }
 
 std::string OusterSensor::get_sensor_hostname() {
@@ -103,9 +149,11 @@ void OusterSensor::update_config_and_metadata(sensor::client& cli) {
     // TODO: revist when *min_version* is changed
     populate_metadata_defaults(info, sensor::MODE_UNSPEC);
 
-    publish_metadata();
-    save_metadata();
-    on_metadata_updated(info);
+    if (!services_publishers_created) {
+        publish_metadata();
+        save_metadata();
+        on_metadata_updated(info);
+    }
 }
 
 void OusterSensor::save_metadata() {
@@ -138,7 +186,7 @@ void OusterSensor::create_reset_service() {
                         "reset", [this](std_srvs::Empty::Request&,
                                         std_srvs::Empty::Response&) {
                             NODELET_INFO("reset service invoked");
-                            // reset_sensor(true);
+                            reset_sensor(true);
                             return true;
                         });
 
@@ -392,27 +440,32 @@ uint8_t OusterSensor::compose_config_flags(
     return config_flags;
 }
 
-void OusterSensor::configure_sensor(const std::string& hostname,
+bool OusterSensor::configure_sensor(const std::string& hostname,
                                     sensor::sensor_config& config) {
     if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) &&
         !mtp_main) {
         if (!get_config(hostname, config, true)) {
             NODELET_ERROR("Error getting active config");
+            return false;
         } else {
             NODELET_INFO("Retrived active config of sensor");
+            return true;
         }
-        return;
     }
 
     uint8_t config_flags = compose_config_flags(config);
-    if (!set_config(hostname, config, config_flags)) {
-        auto error_msg = "Error connecting to sensor " + hostname;
-        NODELET_ERROR_STREAM(error_msg);
-        throw std::runtime_error(error_msg);
+    NODELET_INFO_STREAM("Contacting sensor " << hostname << " ...");
+    try {
+        set_config(hostname, config, config_flags);
+    } catch (const std::exception& ex) {
+        NODELET_ERROR_STREAM("Error connecting to sensor " << hostname <<
+        ", details: " << ex.what());
+        return false;
     }
 
     NODELET_INFO_STREAM("Sensor " << hostname
                                   << " was configured successfully");
+    return true;
 }
 
 void OusterSensor::populate_metadata_defaults(
@@ -491,7 +544,7 @@ bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
 }
 
 void OusterSensor::handle_poll_client_error() {
-    NODELET_WARN_THROTTLE(1, "sensor::poll_client()) returned error");
+    NODELET_WARN_THROTTLE(1, "sensor::poll_client()) returned an error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
     if (++poll_client_error_count > max_poll_client_error_count) {
@@ -549,7 +602,7 @@ void OusterSensor::connection_loop(sensor::client& cli,
         NODELET_INFO("poll_client: caught signal, exiting!");
         return;
     }
-    if (state & sensor::CLIENT_ERROR) {
+    if (state & sensor::CLIENT_ERROR || state == sensor::TIMEOUT) {
         handle_poll_client_error();
         return;
     }
@@ -585,9 +638,9 @@ void OusterSensor::start_packet_processing_threads() {
     imu_packets_processing_thread_active = true;
     imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (imu_packets_processing_thread_active) {
-            imu_packets->read([this](const uint8_t* buffer) {
-                on_imu_packet_msg(buffer);
-            });
+            imu_packets->read_timeout([this](const uint8_t* buffer) {
+                if (buffer) on_imu_packet_msg(buffer);
+            }, 1s);
         }
         NODELET_DEBUG("imu_packets_processing_thread done.");
     });
@@ -595,9 +648,9 @@ void OusterSensor::start_packet_processing_threads() {
     lidar_packets_processing_thread_active = true;
     lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
         while (lidar_packets_processing_thread_active) {
-            lidar_packets->read([this](const uint8_t* buffer) {
-                on_lidar_packet_msg(buffer);
-            });
+            lidar_packets->read_timeout([this](const uint8_t* buffer) {
+                if (buffer) on_lidar_packet_msg(buffer);
+            }, 1s);
         }
 
         NODELET_DEBUG("lidar_packets_processing_thread done.");
@@ -639,7 +692,7 @@ void OusterSensor::on_imu_packet_msg(const uint8_t* raw_imu_packet) {
 
 // param init_id_reset is overriden to true when force_reinit is true
 void OusterSensor::reset_sensor(bool /*force_reinit*/, bool /*init_id_reset*/) {
-    NODELET_WARN("sensor reset is invoked but sensor it is not implemented");
+    schedule_stop();
 }
 
 void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {

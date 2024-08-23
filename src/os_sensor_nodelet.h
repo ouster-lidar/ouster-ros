@@ -46,6 +46,14 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
 
+    bool start();
+
+    void stop();
+
+    void attempt_start();
+
+    void schedule_stop();
+
     void halt();
 
    private:
@@ -75,7 +83,7 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     uint8_t compose_config_flags(const sensor::sensor_config& config);
 
-    void configure_sensor(const std::string& hostname,
+    bool configure_sensor(const std::string& hostname,
                           sensor::sensor_config& config);
 
     std::string load_config_file(const std::string& config_file);
@@ -153,6 +161,9 @@ class OusterSensor : public OusterSensorNodeletBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+
+    ros::Timer timer_;
+    bool services_publishers_created = false;
 };
 
 }  // namespace ouster_ros
