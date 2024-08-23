@@ -78,6 +78,10 @@ add_definitions(-DEIGEN_MPL2_ONLY)
 set(OUSTER_TARGET_LINKS ouster_client)
 if (BUILD_PCAP)
   list(APPEND OUSTER_TARGET_LINKS ouster_pcap)
+  # Include os_pcap_nodelet.cpp only if BUILD_PCAP is defined
+  set(PCAP_NODELET_SRC src/os_pcap_nodelet.cpp)
+else()
+  set(PCAP_NODELET_SRC "")
 endif()
 
 add_library(ouster_ros src/os_ros.cpp)
@@ -91,7 +95,7 @@ add_library(${PROJECT_NAME}_nodelets
   src/os_sensor_nodelet_base.cpp
   src/os_sensor_nodelet.cpp
   src/os_replay_nodelet.cpp
-  src/os_pcap_nodelet.cpp
+  ${PCAP_NODELET_SRC} # Include os_pcap_nodelet.cpp only if BUILD_PCAP is defined
   src/os_cloud_nodelet.cpp
   src/os_image_nodelet.cpp
   src/os_driver_nodelet.cpp)
