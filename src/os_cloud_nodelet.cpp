@@ -39,6 +39,10 @@ class OusterCloud : public nodelet::Nodelet {
 
    private:
     virtual void onInit() override {
+        create_imu_pub_sub();
+        create_point_cloud_pubs();
+        create_laser_scan_pubs();
+        create_lidar_packets_sub();
         create_metadata_subscriber();
         NODELET_INFO("OusterCloud: nodelet created!");
     }
@@ -80,10 +84,48 @@ class OusterCloud : public nodelet::Nodelet {
                 });
         }
 
-        create_publishers_subscribers(info);
+        create_handlers(info);
     }
 
-    void create_publishers_subscribers(const sensor::sensor_info& info) {
+    void create_imu_pub_sub() {
+        imu_pub = getNodeHandle().advertise<sensor_msgs::Imu>("imu", 100);
+        imu_packet_sub = getNodeHandle().subscribe<PacketMsg>(
+            "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+                if (imu_packet_handler) {
+                    auto imu_msg = imu_packet_handler(msg->buf.data());
+                    if (imu_msg.header.stamp > last_msg_ts)
+                        last_msg_ts = imu_msg.header.stamp;
+                    imu_pub.publish(imu_msg);
+                }
+            });
+    }
+
+    void create_point_cloud_pubs() {
+        // NOTE: always create the 2nd topic
+        lidar_pubs.resize(2);
+        for (int i = 0; i < 2; ++i) {
+            lidar_pubs[i] = getNodeHandle().advertise<sensor_msgs::PointCloud2>(
+                topic_for_return("points", i), 10);
+        }
+    }
+
+    void create_laser_scan_pubs() {
+        // NOTE: always create the 2nd topic
+        scan_pubs.resize(2);
+        for (int i = 0; i < 2; ++i) {
+            scan_pubs[i] = getNodeHandle().advertise<sensor_msgs::LaserScan>(
+                topic_for_return("scan", i), 10);
+        }
+    }
+
+    void create_lidar_packets_sub() {
+        lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
+        "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+            if (lidar_packet_handler) lidar_packet_handler(msg->buf.data());
+        });
+    }
+
+    void create_handlers(const sensor::sensor_info& info) {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
@@ -91,42 +133,14 @@ class OusterCloud : public nodelet::Nodelet {
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
-        auto& nh = getNodeHandle();
-
         if (impl::check_token(tokens, "IMU")) {
-            if (!services_publishers_created) {
-                imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
-            }
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-
-            if (!services_publishers_created) {
-                imu_packet_sub = nh.subscribe<PacketMsg>(
-                    "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                        auto imu_msg = imu_packet_handler(msg->buf.data());
-                        if (imu_msg.header.stamp > last_msg_ts)
-                            last_msg_ts = imu_msg.header.stamp;
-                        imu_pub.publish(imu_msg);
-                    });
-            }
         }
-
-        int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
-
-            if (!services_publishers_created) {
-                // TODO: do we need to resize the number of publishers if the
-                // number of returns changed per profile? (revist)
-                lidar_pubs.resize(num_returns);
-                for (int i = 0; i < num_returns; ++i) {
-                    lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                        topic_for_return("points", i), 10);
-                }
-            }
-
             auto point_type = pnh.param("point_type", std::string{"original"});
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type,
@@ -153,15 +167,6 @@ class OusterCloud : public nodelet::Nodelet {
         }
 
         if (impl::check_token(tokens, "SCAN")) {
-
-            if (!services_publishers_created) {
-                scan_pubs.resize(num_returns);
-                for (int i = 0; i < num_returns; ++i) {
-                    scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                        topic_for_return("scan", i), 10);
-                }
-            }
-
             // TODO: avoid this duplication in os_cloud_node
             int beams_count = static_cast<int>(get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
@@ -188,13 +193,8 @@ class OusterCloud : public nodelet::Nodelet {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-            lidar_packet_sub = nh.subscribe<PacketMsg>(
-                "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
-                });
         }
 
-        services_publishers_created = true;
     }
 
    private:
@@ -212,8 +212,6 @@ class OusterCloud : public nodelet::Nodelet {
 
     ros::Timer timer_;
     ros::Time last_msg_ts;
-
-    bool services_publishers_created = false;
 };
 
 }  // namespace ouster_ros

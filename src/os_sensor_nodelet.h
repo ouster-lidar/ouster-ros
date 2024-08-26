@@ -32,10 +32,9 @@ class OusterSensor : public OusterSensorNodeletBase {
    public:
     ~OusterSensor() override;
 
-   private:
+   protected:
     virtual void onInit() override;
 
-   protected:
     virtual void on_metadata_updated(const sensor::sensor_info& info);
 
     virtual void create_services();
@@ -164,9 +163,6 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     bool attempt_reconnect;
     ros::Timer reconnect_timer;
-
-protected:
-    bool services_publishers_created = false;
 };
 
 }  // namespace ouster_ros

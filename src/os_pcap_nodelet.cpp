@@ -36,7 +36,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     virtual void onInit() override {
         auto meta_file = get_meta_file();
         auto pcap_file = get_pcap_file();
-        create_metadata_publisher();
+        create_metadata_pub();
         load_metadata_from_file(meta_file);
         allocate_buffers();
         create_publishers();

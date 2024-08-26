@@ -55,16 +55,7 @@ bool OusterSensor::start() {
         return false;
     }
 
-    if (!services_publishers_created)
-        create_metadata_publisher();
     update_config_and_metadata(*sensor_client);
-    if (!services_publishers_created)
-        create_services();
-
-    // activate
-    if (!services_publishers_created)
-        create_publishers();
-    services_publishers_created = true;
     allocate_buffers();
     start_packet_processing_threads();
     start_sensor_connection_thread();
@@ -100,6 +91,9 @@ void OusterSensor::schedule_stop() {
 }
 
 void OusterSensor::onInit() {
+    create_metadata_pub();
+    create_services();
+    create_publishers();
     attempt_start();
 }
 

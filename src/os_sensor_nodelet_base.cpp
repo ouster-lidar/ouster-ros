@@ -32,7 +32,7 @@ void OusterSensorNodeletBase::create_get_metadata_service() {
     NODELET_INFO("get_metadata service created");
 }
 
-void OusterSensorNodeletBase::create_metadata_publisher() {
+void OusterSensorNodeletBase::create_metadata_pub() {
     auto& nh = getNodeHandle();
     metadata_pub = nh.advertise<std_msgs::String>("metadata", 1, true);
 }

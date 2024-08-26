@@ -19,7 +19,7 @@ class OusterReplay : public OusterSensorNodeletBase {
    private:
     virtual void onInit() override {
         auto meta_file = get_meta_file();
-        create_metadata_publisher();
+        create_metadata_pub();
         load_metadata_from_file(meta_file);
         publish_metadata();
         create_get_metadata_service();
