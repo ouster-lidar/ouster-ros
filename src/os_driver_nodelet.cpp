@@ -150,10 +150,11 @@ class OusterDriver : public OusterSensor {
 
             auto which_map = num_returns == 1 ? &channel_field_topic_map_1
                                               : &channel_field_topic_map_2;
-            if (!services_publishers_created) {
-                for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+            for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+                if (!services_publishers_created ||
+                image_pubs.find(it->first) == image_pubs.end()) {
                     image_pubs[it->first] =
-                        nh.advertise<sensor_msgs::Image>(it->second, 10);
+                        nh.advertise<sensor_msgs::Image>(it->second, 100);
                 }
             }
 
