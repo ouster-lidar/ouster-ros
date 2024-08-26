@@ -74,15 +74,7 @@ bool OusterSensor::start() {
 void OusterSensor::stop() {
     // deactivate
     halt();
-    // remove services?
     sensor_client.reset();
-    // metadata_pub.shutdown();
-    // lidar_packet_pub.shutdown();
-    // imu_packet_pub.shutdown();
-    // get_config_srv.shutdown();
-    // set_config_srv.shutdown();
-    // get_metadata_srv.shutdown();
-    // reset_srv.shutdown();
 }
 
 void OusterSensor::attempt_start() {

@@ -52,9 +52,9 @@ class OusterCloud : public nodelet::Nodelet {
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
         auto info = sensor::parse_metadata(metadata_msg->data);
 
-        tf_bcast.parse_parameters(getPrivateNodeHandle());
-        auto dynamic_transforms =
-        getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
+        auto pnh = getPrivateNodeHandle();
+        tf_bcast.parse_parameters(pnh);
+        auto dynamic_transforms = pnh.param("dynamic_transforms_broadcast", false);
         auto dynamic_transforms_rate = getPrivateNodeHandle().param(
             "dynamic_transforms_broadcast_rate", 1.0);
         if (dynamic_transforms && dynamic_transforms_rate < 1.0) {
@@ -69,7 +69,7 @@ class OusterCloud : public nodelet::Nodelet {
             tf_bcast.broadcast_transforms(info);
         } else {
             NODELET_INFO_STREAM(
-                "OusterCloud: dynamic transforms broadcast enabled wit "
+                "OusterCloud: dynamic transforms broadcast enabled with "
                 "broadcast rate of: "
                 << dynamic_transforms_rate << " Hz");
             timer_.stop();
@@ -193,6 +193,8 @@ class OusterCloud : public nodelet::Nodelet {
                     lidar_packet_handler(msg->buf.data());
                 });
         }
+
+        services_publishers_created = true;
     }
 
    private:

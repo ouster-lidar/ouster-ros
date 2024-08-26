@@ -80,8 +80,11 @@ class OusterImage : public nodelet::Nodelet {
         auto& nh = getNodeHandle();
 
         for (auto it = which_map->begin(); it != which_map->end(); ++it) {
-            image_pubs[it->first] =
-                nh.advertise<sensor_msgs::Image>(it->second, 100);
+            if (!services_publishers_created ||
+                image_pubs.find(it->first) == image_pubs.end()) {
+                    image_pubs[it->first] =
+                        nh.advertise<sensor_msgs::Image>(it->second, 100);
+            }
         }
 
         std::vector<LidarScanProcessor> processors {
@@ -97,11 +100,15 @@ class OusterImage : public nodelet::Nodelet {
         lidar_packet_handler = LidarPacketHandler::create_handler(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-        lidar_packet_sub = nh.subscribe<PacketMsg>(
-                "lidar_packets", 100,
-                [this](const PacketMsg::ConstPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
-                });
+        if (!services_publishers_created) {
+            lidar_packet_sub = nh.subscribe<PacketMsg>(
+                    "lidar_packets", 100,
+                    [this](const PacketMsg::ConstPtr msg) {
+                        lidar_packet_handler(msg->buf.data());
+                    });
+        }
+
+        services_publishers_created = true;
     }
 
    private:
@@ -112,7 +119,10 @@ class OusterImage : public nodelet::Nodelet {
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
 
     LidarPacketHandler::HandlerType lidar_packet_handler;
+
+    bool services_publishers_created = false;
 };
+
 }  // namespace ouster_ros
 
 PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterImage, nodelet::Nodelet)
