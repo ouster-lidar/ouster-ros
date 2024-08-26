@@ -150,7 +150,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     bool force_sensor_reinit = false;
     bool reset_last_init_id = true;
 
-    nonstd::optional<uint32_t> last_init_id;
+    std::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
@@ -162,7 +162,10 @@ class OusterSensor : public OusterSensorNodeletBase {
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
 
-    ros::Timer timer_;
+    bool attempt_reconnect;
+    ros::Timer reconnect_timer;
+
+protected:
     bool services_publishers_created = false;
 };
 

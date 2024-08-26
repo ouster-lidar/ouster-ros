@@ -42,7 +42,9 @@ void OusterSensor::halt() {
 
 bool OusterSensor::start() {
     sensor_hostname = get_sensor_hostname();
-    sensor::sensor_config config = parse_config_from_ros_parameters();
+    auto config = staged_config.empty() ?
+        parse_config_from_ros_parameters() :
+        parse_config_from_staged_config_string();
 
     if (!configure_sensor(sensor_hostname, config))
         return false;
@@ -85,19 +87,21 @@ void OusterSensor::stop() {
 
 void OusterSensor::attempt_start() {
     if (!start()) {
-        timer_ = getNodeHandle().createTimer(
-        ros::Duration(1.0), [this](const ros::TimerEvent&) {
-            timer_.stop();
-            attempt_start();
-        });
+        if (attempt_reconnect) {
+            reconnect_timer = getNodeHandle().createTimer(
+            ros::Duration(1.0), [this](const ros::TimerEvent&) {
+                reconnect_timer.stop();
+                attempt_start();
+            });
+        }
     }
 }
 
 void OusterSensor::schedule_stop() {
     sensor_connection_active = false;
-    timer_ = getNodeHandle().createTimer(
+    reconnect_timer = getNodeHandle().createTimer(
         ros::Duration(0.0), [this](const ros::TimerEvent&) {
-            timer_.stop();
+            reconnect_timer.stop();
             stop();
             attempt_start();
         });
@@ -149,11 +153,9 @@ void OusterSensor::update_config_and_metadata(sensor::client& cli) {
     // TODO: revist when *min_version* is changed
     populate_metadata_defaults(info, sensor::MODE_UNSPEC);
 
-    if (!services_publishers_created) {
-        publish_metadata();
-        save_metadata();
-        on_metadata_updated(info);
-    }
+    publish_metadata();
+    save_metadata();
+    on_metadata_updated(info);
 }
 
 void OusterSensor::save_metadata() {
@@ -284,6 +286,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     const int MIN_AZW = 0, MAX_AZW = 360000;
     auto azimuth_window_start = nh.param("azimuth_window_start", MIN_AZW);
     auto azimuth_window_end = nh.param("azimuth_window_end", MAX_AZW);
+    attempt_reconnect = nh.param("attempt_reconnect", false);
 
     if (lidar_port < 0 || lidar_port > 65535) {
         auto error_msg =
@@ -371,7 +374,6 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         "use 0 for port values as this currently will trigger sensor reinit "
         "event each time");
     }
-
 
     config.udp_profile_lidar = udp_profile_lidar;
     config.operating_mode = sensor::OPERATING_NORMAL;

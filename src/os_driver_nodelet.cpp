@@ -61,7 +61,8 @@ class OusterDriver : public OusterSensor {
         auto& nh = getNodeHandle();
 
         if (impl::check_token(tokens, "IMU")) {
-            imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
+            if (!services_publishers_created)
+                imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
@@ -71,10 +72,13 @@ class OusterDriver : public OusterSensor {
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
-            lidar_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    topic_for_return("points", i), 10);
+
+            if (!services_publishers_created) {
+                lidar_pubs.resize(num_returns);
+                for (int i = 0; i < num_returns; ++i) {
+                    lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
+                        topic_for_return("points", i), 10);
+                }
             }
 
             auto point_type = pnh.param("point_type", std::string{"original"});
@@ -98,10 +102,12 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "SCAN")) {
-            scan_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    topic_for_return("scan", i), 10);
+            if (!services_publishers_created) {
+                scan_pubs.resize(num_returns);
+                for (int i = 0; i < num_returns; ++i) {
+                    scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
+                        topic_for_return("scan", i), 10);
+                }
             }
 
             // TODO: avoid duplication in os_cloud_node
@@ -144,9 +150,11 @@ class OusterDriver : public OusterSensor {
 
             auto which_map = num_returns == 1 ? &channel_field_topic_map_1
                                               : &channel_field_topic_map_2;
-            for (auto it = which_map->begin(); it != which_map->end(); ++it) {
-                image_pubs[it->first] =
-                    nh.advertise<sensor_msgs::Image>(it->second, 10);
+            if (!services_publishers_created) {
+                for (auto it = which_map->begin(); it != which_map->end(); ++it) {
+                    image_pubs[it->first] =
+                        nh.advertise<sensor_msgs::Image>(it->second, 10);
+                }
             }
 
             processors.push_back(ImageProcessor::create(

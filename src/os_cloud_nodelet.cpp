@@ -49,15 +49,12 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
-        // TODO: handle sensor reconfigurtion
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
-
         auto info = sensor::parse_metadata(metadata_msg->data);
 
         tf_bcast.parse_parameters(getPrivateNodeHandle());
-
         auto dynamic_transforms =
-            getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
+        getPrivateNodeHandle().param("dynamic_transforms_broadcast", false);
         auto dynamic_transforms_rate = getPrivateNodeHandle().param(
             "dynamic_transforms_broadcast_rate", 1.0);
         if (dynamic_transforms && dynamic_transforms_rate < 1.0) {
@@ -75,6 +72,7 @@ class OusterCloud : public nodelet::Nodelet {
                 "OusterCloud: dynamic transforms broadcast enabled wit "
                 "broadcast rate of: "
                 << dynamic_transforms_rate << " Hz");
+            timer_.stop();
             timer_ = getNodeHandle().createTimer(
                 ros::Duration(1.0 / dynamic_transforms_rate),
                 [this, info](const ros::TimerEvent&) {
@@ -96,27 +94,37 @@ class OusterCloud : public nodelet::Nodelet {
         auto& nh = getNodeHandle();
 
         if (impl::check_token(tokens, "IMU")) {
-            imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
+            if (!services_publishers_created) {
+                imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
+            }
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-            imu_packet_sub = nh.subscribe<PacketMsg>(
-                "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                    auto imu_msg = imu_packet_handler(msg->buf.data());
-                    if (imu_msg.header.stamp > last_msg_ts)
-                        last_msg_ts = imu_msg.header.stamp;
-                    imu_pub.publish(imu_msg);
-                });
+
+            if (!services_publishers_created) {
+                imu_packet_sub = nh.subscribe<PacketMsg>(
+                    "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+                        auto imu_msg = imu_packet_handler(msg->buf.data());
+                        if (imu_msg.header.stamp > last_msg_ts)
+                            last_msg_ts = imu_msg.header.stamp;
+                        imu_pub.publish(imu_msg);
+                    });
+            }
         }
 
         int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
-            lidar_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    topic_for_return("points", i), 10);
+
+            if (!services_publishers_created) {
+                // TODO: do we need to resize the number of publishers if the
+                // number of returns changed per profile? (revist)
+                lidar_pubs.resize(num_returns);
+                for (int i = 0; i < num_returns; ++i) {
+                    lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
+                        topic_for_return("points", i), 10);
+                }
             }
 
             auto point_type = pnh.param("point_type", std::string{"original"});
@@ -145,10 +153,13 @@ class OusterCloud : public nodelet::Nodelet {
         }
 
         if (impl::check_token(tokens, "SCAN")) {
-            scan_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    topic_for_return("scan", i), 10);
+
+            if (!services_publishers_created) {
+                scan_pubs.resize(num_returns);
+                for (int i = 0; i < num_returns; ++i) {
+                    scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
+                        topic_for_return("scan", i), 10);
+                }
             }
 
             // TODO: avoid this duplication in os_cloud_node
@@ -199,6 +210,8 @@ class OusterCloud : public nodelet::Nodelet {
 
     ros::Timer timer_;
     ros::Time last_msg_ts;
+
+    bool services_publishers_created = false;
 };
 
 }  // namespace ouster_ros
