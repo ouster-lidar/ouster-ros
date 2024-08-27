@@ -33,8 +33,13 @@ using ouster_ros::PacketMsg;
 class OusterImage : public nodelet::Nodelet {
    private:
     virtual void onInit() override {
-        create_lidar_packets_subscriber();
-        create_image_publishers();
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMG")) {
+            create_lidar_packets_subscriber();
+            create_image_publishers();
+        }
         create_metadata_subscriber();
         NODELET_INFO("OusterImage: node initialized!");
     }
@@ -71,7 +76,12 @@ class OusterImage : public nodelet::Nodelet {
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
         NODELET_INFO("OusterImage: retrieved new sensor metadata!");
         auto info = sensor::parse_metadata(metadata_msg->data);
-        create_handlers(info);
+
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMG"))
+            create_handlers(info);
     }
 
     void create_handlers(const sensor::sensor_info& info) {

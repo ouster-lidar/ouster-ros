@@ -40,15 +40,21 @@ class OusterDriver : public OusterSensor {
 
    protected:
     virtual void onInit() override {
-        create_imu_pub();
-        create_point_cloud_pubs();
-        create_laser_scan_pubs();
-        create_image_pubs();
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMU"))
+            create_imu_pub();
+        if (impl::check_token(tokens, "PCL"))
+            create_point_cloud_pubs();
+        if (impl::check_token(tokens, "SCAN"))
+            create_laser_scan_pubs();
+        if (impl::check_token(tokens, "IMG"))
+            create_image_pubs();
         OusterSensor::onInit();
     }
 
    private:
-
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
         // for OusterDriver we are going to always assume static broadcast

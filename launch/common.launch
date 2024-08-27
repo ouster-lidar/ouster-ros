@@ -67,6 +67,7 @@
     <node pkg="nodelet" type="nodelet" name="img_node"
       output="screen" required="true"
       args="load ouster_ros/OusterImage os_nodelet_mgr $(arg _no_bond)">
+      <param name="~/proc_mask" value="$(arg proc_mask)"/>
     </node>
   </group>
 
