@@ -58,7 +58,7 @@ class OusterSensor : public OusterSensorNodeletBase {
    private:
     std::string get_sensor_hostname();
 
-    void update_config_and_metadata(sensor::client& client);
+    void update_metadata(sensor::client& client);
 
     void save_metadata();
 
@@ -117,10 +117,12 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void stop_packet_processing_threads();
 
+    bool get_active_config_no_throw(const std::string& sensor_hostname,
+                             sensor::sensor_config& config);
+
    private:
     std::string sensor_hostname;
-    std::string staged_config;
-    std::string active_config;
+    std::optional<sensor::sensor_config> staged_config;
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;

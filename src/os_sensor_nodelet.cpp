@@ -42,20 +42,35 @@ void OusterSensor::halt() {
 
 bool OusterSensor::start() {
     sensor_hostname = get_sensor_hostname();
-    auto config = staged_config.empty() ?
-        parse_config_from_ros_parameters() :
-        parse_config_from_staged_config_string();
 
-    if (!configure_sensor(sensor_hostname, config))
-        return false;
+    sensor::sensor_config config;
+    if (staged_config) {
+        if (!configure_sensor(sensor_hostname, staged_config.value()))
+            return false;
+        config = staged_config.value();
+        staged_config.reset();
+    }
+    else {
+        if (!get_active_config_no_throw(sensor_hostname, config))
+            return false;
 
+        // Unfortunately it seems we need to invoke this to force the auto
+        // TODO[UN]: find a shortcut
+        config.udp_dest.reset();
+        if (!configure_sensor(sensor_hostname, config))
+            return false;
+
+        NODELET_INFO("Retrived sensor active config");
+    }
+
+    reset_last_init_id = true;
     sensor_client = create_sensor_client(sensor_hostname, config);
     if (!sensor_client) {
         NODELET_ERROR_STREAM("Failed to initialize client");
         return false;
     }
 
-    update_config_and_metadata(*sensor_client);
+    update_metadata(*sensor_client);
     allocate_buffers();
     start_packet_processing_threads();
     start_sensor_connection_thread();
@@ -72,10 +87,10 @@ void OusterSensor::attempt_start() {
     if (!start()) {
         if (attempt_reconnect) {
             reconnect_timer = getNodeHandle().createTimer(
-            ros::Duration(1.0), [this](const ros::TimerEvent&) {
-                reconnect_timer.stop();
-                attempt_start();
-            });
+                ros::Duration(3.0), [this](const ros::TimerEvent&) {
+                    reconnect_timer.stop();
+                    attempt_start();
+                });
         }
     }
 }
@@ -86,14 +101,16 @@ void OusterSensor::schedule_stop() {
         ros::Duration(0.0), [this](const ros::TimerEvent&) {
             reconnect_timer.stop();
             stop();
-            attempt_start();
+            if (attempt_reconnect) attempt_start();
         });
 }
 
 void OusterSensor::onInit() {
+    staged_config = parse_config_from_ros_parameters();
     create_metadata_pub();
     create_services();
     create_publishers();
+    attempt_reconnect = getPrivateNodeHandle().param("attempt_reconnect", false);
     attempt_start();
 }
 
@@ -109,19 +126,7 @@ std::string OusterSensor::get_sensor_hostname() {
     return hostname;
 }
 
-void OusterSensor::update_config_and_metadata(sensor::client& cli) {
-    sensor::sensor_config config;
-    auto success = get_config(sensor_hostname, config);
-    if (!success) {
-        active_config.clear();
-        cached_metadata.clear();
-        auto error_msg = std::string{"Failed to collect sensor config"};
-        NODELET_ERROR_STREAM(error_msg);
-        throw std::runtime_error(error_msg);
-    }
-
-    active_config = sensor::to_string(config);
-
+void OusterSensor::update_metadata(sensor::client& cli) {
     try {
         cached_metadata = sensor::get_metadata(cli, 60, false);
     } catch (const std::exception& e) {
@@ -168,18 +173,36 @@ void OusterSensor::save_metadata() {
 }
 
 void OusterSensor::create_reset_service() {
-    reset_srv = getNodeHandle()
-                    .advertiseService<std_srvs::Empty::Request,
-                                      std_srvs::Empty::Response>(
-                        "reset", [this](std_srvs::Empty::Request&,
-                                        std_srvs::Empty::Response&) {
-                            NODELET_INFO("reset service invoked");
-                            reset_sensor(true);
-                            return true;
-                        });
+    reset_srv = 
+        getNodeHandle()
+            .advertiseService<std_srvs::Empty::Request,
+                                std_srvs::Empty::Response>(
+                "reset", [this](std_srvs::Empty::Request&,
+                                std_srvs::Empty::Response&) {
+                    NODELET_INFO("reset service invoked");
+                    reset_sensor(true);
+                    return true;
+                });
 
     NODELET_INFO("reset service created");
 }
+
+bool OusterSensor::get_active_config_no_throw(
+    const std::string& sensor_hostname, sensor::sensor_config& config) {
+    try {
+        if (get_config(sensor_hostname, config, true))
+            return true;
+    } catch(const std::exception&) {
+        NODELET_ERROR_STREAM(
+            "Couldn't get active config for: " << sensor_hostname);
+        return false;
+    }
+
+    NODELET_ERROR_STREAM(
+        "Couldn't get active config for: " << sensor_hostname);
+    return false;
+}
+
 
 void OusterSensor::create_get_config_service() {
     get_config_srv =
@@ -187,6 +210,10 @@ void OusterSensor::create_get_config_service() {
             .advertiseService<GetConfig::Request, GetConfig::Response>(
                 "get_config",
                 [this](GetConfig::Request&, GetConfig::Response& response) {
+                    std::string active_config;
+                    sensor::sensor_config config;
+                    if (get_active_config_no_throw(sensor_hostname, config))
+                        active_config = to_string(config);
                     response.config = active_config;
                     return active_config.size() > 0;
                 });
@@ -202,9 +229,10 @@ void OusterSensor::create_set_config_service() {
                                      SetConfig::Response& response) {
                     response.config = "";
 
+                    std::string config_str;
                     try {
-                        staged_config = read_text_file(request.config_file);
-                        if (staged_config.empty()) {
+                        config_str = read_text_file(request.config_file);
+                        if (config_str.empty()) {
                             NODELET_ERROR_STREAM(
                                 "provided config file: "
                                 << request.config_file
@@ -219,12 +247,13 @@ void OusterSensor::create_set_config_service() {
                         return false;
                     }
 
-                    response.config = staged_config;
+                    staged_config = sensor::parse_config(config_str);
                     // TODO: this is currently set to force_reinit but it
                     // doesn't need to be the case if it was possible to know
                     // that the new config would result in a reinit when a
                     // reinit is not forced
                     reset_sensor(true);
+                    response.config = config_str;
                     return true;
                 });
 
@@ -233,11 +262,13 @@ void OusterSensor::create_set_config_service() {
 
 std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     const std::string& hostname, const sensor::sensor_config& config) {
-    NODELET_INFO_STREAM("Starting sensor " << hostname << " initialization...");
 
     int lidar_port = config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
     int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
     auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
+
+    NODELET_INFO_STREAM("Starting sensor " << hostname << " initialization..."
+    " Using ports: " << lidar_port << "/" << imu_port);
 
     std::shared_ptr<sensor::client> cli;
     if (sensor::in_multicast(udp_dest)) {
@@ -251,9 +282,8 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli =
-            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
-                                sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
+        cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+                                  sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 
     return cli;
@@ -272,7 +302,6 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     const int MIN_AZW = 0, MAX_AZW = 360000;
     auto azimuth_window_start = nh.param("azimuth_window_start", MIN_AZW);
     auto azimuth_window_end = nh.param("azimuth_window_end", MAX_AZW);
-    attempt_reconnect = nh.param("attempt_reconnect", false);
 
     if (lidar_port < 0 || lidar_port > 65535) {
         auto error_msg =
@@ -386,12 +415,6 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     return config;
 }
 
-sensor::sensor_config OusterSensor::parse_config_from_staged_config_string() {
-    sensor::sensor_config config = sensor::parse_config(staged_config);
-    staged_config.clear();
-    return config;
-}
-
 uint8_t OusterSensor::compose_config_flags(
     const sensor::sensor_config& config) {
     uint8_t config_flags = 0;
@@ -430,6 +453,7 @@ uint8_t OusterSensor::compose_config_flags(
 
 bool OusterSensor::configure_sensor(const std::string& hostname,
                                     sensor::sensor_config& config) {
+    // TODO[UN]: in future always get_config
     if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) &&
         !mtp_main) {
         if (!get_config(hostname, config, true)) {
@@ -553,7 +577,7 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
             if (!is_legacy_lidar_profile(info) && init_id_changed(pf, buffer)) {
                 // TODO: short circut reset if no breaking changes occured?
                 NODELET_WARN("sensor init_id has changed! reactivating..");
-                reactivate_sensor();
+                reset_sensor(false);
             }
         } else {
             if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
@@ -606,6 +630,7 @@ void OusterSensor::connection_loop(sensor::client& cli,
 void OusterSensor::start_sensor_connection_thread() {
     sensor_connection_active = true;
     sensor_connection_thread = std::make_unique<std::thread>([this]() {
+        NODELET_DEBUG("sensor_connection_thread active.");
         auto& pf = sensor::get_format(info);
         while (sensor_connection_active) {
             connection_loop(*sensor_client, pf);
