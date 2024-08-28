@@ -22,7 +22,8 @@ Changelog
   to the default [0, 360] azimuth if not configured.
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch`` file.
-* Added support for automatic sensor reconnection. Check ``attempt_reconnect`` launch file arg.
+* Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
+  documentation and the associated params to enable.
 
 
 ouster_ros v0.10.0
