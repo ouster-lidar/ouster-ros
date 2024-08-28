@@ -16,7 +16,7 @@ ouster/os_driver:
     # lidar_mode[optional]: resolution and rate; possible values: { 512x10,
     # 512x20, 1024x10, 1024x20, 2048x10, 4096x5 }. Leave empty to remain on
     # current the lidar mode.
-    lidar_mode: ''
+    lidar_mode: '2048x10'
     # timestamp_mode[optional]: method used to timestamp measurements; possible
     # values:
     # - TIME_FROM_INTERNAL_OSC
