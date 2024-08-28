@@ -56,10 +56,10 @@ ouster/os_driver:
     # point_cloud_frame[optional]: which frame of reference to use when
     # generating PointCloud2 or LaserScan messages, select between the values of
     # lidar_frame and sensor_frame.
-    point_cloud_frame: os_lidar 
+    point_cloud_frame: os_sensor 
     # proc_mask[optional]: use any combination of the 4 flags IMG, PCL, IMU and
     # SCAN to enable or disable their respective messages.
-    proc_mask: IMG|PCL|IMU|SCAN
+    proc_mask: PCL
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
@@ -86,7 +86,7 @@ ouster/os_driver:
     # - ouster_ros/os_point.h
     # - ouster_ros/sensor_point_types.h
     # - ouster_ros/common_point_types.h.
-    point_type: original
+    point_type: xyz
     # azimuth window start[optional]: values range [0, 360000] millidegrees
     azimuth_window_start: 0
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
