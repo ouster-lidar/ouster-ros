@@ -149,6 +149,7 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     bool persist_config = false;
     bool force_sensor_reinit = false;
+    bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
 
     std::optional<uint32_t> last_init_id;

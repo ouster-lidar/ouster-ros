@@ -56,7 +56,8 @@ bool OusterSensor::start() {
 
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
-        config.udp_dest.reset();
+        // Only reset udp_dest if auto_udp was allowed on startup
+        if (auto_udp_allowed) config.udp_dest.reset();
         if (!configure_sensor(sensor_hostname, config))
             return false;
 
@@ -88,9 +89,8 @@ void OusterSensor::attempt_start() {
         if (attempt_reconnect) {
             reconnect_timer = getNodeHandle().createTimer(
                 ros::Duration(3.0), [this](const ros::TimerEvent&) {
-                    reconnect_timer.stop();
                     attempt_start();
-                });
+                }, true);
         }
     }
 }
@@ -99,10 +99,9 @@ void OusterSensor::schedule_stop() {
     sensor_connection_active = false;
     reconnect_timer = getNodeHandle().createTimer(
         ros::Duration(0.0), [this](const ros::TimerEvent&) {
-            reconnect_timer.stop();
             stop();
             if (attempt_reconnect) attempt_start();
-        });
+        }, true);
 }
 
 void OusterSensor::onInit() {
@@ -400,6 +399,8 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
             mtp_dest = is_arg_set(mtp_dest_arg) ? mtp_dest_arg : std::string{};
             mtp_main = mtp_main_arg;
         }
+    } else {
+        auto_udp_allowed = true;
     }
 
     if (azimuth_window_start < MIN_AZW || azimuth_window_start > MAX_AZW ||
@@ -444,6 +445,7 @@ uint8_t OusterSensor::compose_config_flags(
     }
 
     if (persist_config) {
+        persist_config = false; // avoid persisting configs implicitly on restarts
         NODELET_INFO("Configuration will be persisted");
         config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
