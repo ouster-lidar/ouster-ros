@@ -165,6 +165,8 @@ class OusterSensor : public OusterSensorNodeletBase {
     int read_imu_packet_errors = 0;
 
     bool attempt_reconnect;
+    double dormant_period_between_reconnects;
+    int reconnect_attempts_available;
     ros::Timer reconnect_timer;
 };
 

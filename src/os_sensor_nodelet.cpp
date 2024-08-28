@@ -86,12 +86,19 @@ void OusterSensor::stop() {
 
 void OusterSensor::attempt_start() {
     if (!start()) {
-        if (attempt_reconnect) {
+        if (attempt_reconnect && reconnect_attempts_available-- > 0) {
             reconnect_timer = getNodeHandle().createTimer(
-                ros::Duration(3.0), [this](const ros::TimerEvent&) {
+                ros::Duration(dormant_period_between_reconnects),
+                [this](const ros::TimerEvent&) {
+                    NODELET_INFO_STREAM("Attempting to communicate with the sensor, "
+                                        "remaining attempts: " << reconnect_attempts_available);
                     attempt_start();
                 }, true);
         }
+    } else {
+        // reset counter
+        reconnect_attempts_available = 
+            getPrivateNodeHandle().param("max_failed_reconnect_attempts", INT_MAX);
     }
 }
 
@@ -100,7 +107,11 @@ void OusterSensor::schedule_stop() {
     reconnect_timer = getNodeHandle().createTimer(
         ros::Duration(0.0), [this](const ros::TimerEvent&) {
             stop();
-            if (attempt_reconnect) attempt_start();
+            if (attempt_reconnect && reconnect_attempts_available-- > 0) {
+                NODELET_INFO_STREAM("Attempting to communicate with the sensor, "
+                                    "remaining attempts: " << reconnect_attempts_available);
+                attempt_start();
+            }
         }, true);
 }
 
@@ -110,6 +121,10 @@ void OusterSensor::onInit() {
     create_services();
     create_publishers();
     attempt_reconnect = getPrivateNodeHandle().param("attempt_reconnect", false);
+    dormant_period_between_reconnects = 
+        getPrivateNodeHandle().param("dormant_period_between_reconnects", 1.0);
+    reconnect_attempts_available = 
+        getPrivateNodeHandle().param("max_failed_reconnect_attempts", INT_MAX);
     attempt_start();
 }
 
