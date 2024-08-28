@@ -81,6 +81,15 @@
   <arg name="persist_config" default="false"
     doc="request the sensor to persist settings"/>
 
+  <arg name="attempt_reconnect" default="false"
+    doc="attempting to reconnect to the sensor after connection loss or
+    sensor powered down"/>
+  <arg name="dormant_period_between_reconnects" default="1.0"
+    doc="wait time in seconds between reconnection attempts"/>
+  <arg name="max_failed_reconnect_attempts" default="2147483647"
+    doc="maximum number of attempts trying to communicate with the sensor.
+         Counter resets upon successful connection"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true" args="manager"/>
@@ -101,6 +110,11 @@
       <param name="~/azimuth_window_start" value="$(arg azimuth_window_start)"/>
       <param name="~/azimuth_window_end" value="$(arg azimuth_window_end)"/>
       <param name="~/persist_config" value="$(arg persist_config)"/>
+      <param name="~/attempt_reconnect" value="$(arg attempt_reconnect)"/>
+      <param name="~/dormant_period_between_reconnects"
+             value="$(arg dormant_period_between_reconnects)"/>
+      <param name="~/max_failed_reconnect_attempts"
+             value="$(arg max_failed_reconnect_attempts)"/>
     </node>
   </group>
 

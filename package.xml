@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>ouster_ros</name>
-  <version>0.12.5</version>
+  <version>0.12.6</version>
   <description>Ouster ROS driver</description>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
   <license file="LICENSE">BSD</license>

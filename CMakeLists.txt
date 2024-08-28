@@ -75,13 +75,20 @@ include_directories(${_ouster_ros_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
 
+set(NODELET_SRC
+  src/os_sensor_nodelet_base.cpp
+  src/os_sensor_nodelet.cpp
+  src/os_replay_nodelet.cpp
+  src/os_cloud_nodelet.cpp
+  src/os_image_nodelet.cpp
+  src/os_driver_nodelet.cpp
+)
+
 set(OUSTER_TARGET_LINKS ouster_client)
+
 if (BUILD_PCAP)
   list(APPEND OUSTER_TARGET_LINKS ouster_pcap)
-  # Include os_pcap_nodelet.cpp only if BUILD_PCAP is defined
-  set(PCAP_NODELET_SRC src/os_pcap_nodelet.cpp)
-else()
-  set(PCAP_NODELET_SRC "")
+  list(APPEND NODELET_SRC src/os_pcap_nodelet.cpp)
 endif()
 
 add_library(ouster_ros src/os_ros.cpp)
@@ -91,14 +98,7 @@ target_link_libraries(ouster_ros
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
-add_library(${PROJECT_NAME}_nodelets
-  src/os_sensor_nodelet_base.cpp
-  src/os_sensor_nodelet.cpp
-  src/os_replay_nodelet.cpp
-  ${PCAP_NODELET_SRC} # Include os_pcap_nodelet.cpp only if BUILD_PCAP is defined
-  src/os_cloud_nodelet.cpp
-  src/os_image_nodelet.cpp
-  src/os_driver_nodelet.cpp)
+add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
 target_link_libraries(${PROJECT_NAME}_nodelets ouster_ros ${catkin_LIBRARIES})
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 

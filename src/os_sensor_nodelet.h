@@ -32,10 +32,9 @@ class OusterSensor : public OusterSensorNodeletBase {
    public:
     ~OusterSensor() override;
 
-   private:
+   protected:
     virtual void onInit() override;
 
-   protected:
     virtual void on_metadata_updated(const sensor::sensor_info& info);
 
     virtual void create_services();
@@ -46,12 +45,20 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
 
+    bool start();
+
+    void stop();
+
+    void attempt_start();
+
+    void schedule_stop();
+
     void halt();
 
    private:
     std::string get_sensor_hostname();
 
-    void update_config_and_metadata(sensor::client& client);
+    void update_metadata(sensor::client& client);
 
     void save_metadata();
 
@@ -75,7 +82,7 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     uint8_t compose_config_flags(const sensor::sensor_config& config);
 
-    void configure_sensor(const std::string& hostname,
+    bool configure_sensor(const std::string& hostname,
                           sensor::sensor_config& config);
 
     std::string load_config_file(const std::string& config_file);
@@ -110,10 +117,12 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void stop_packet_processing_threads();
 
+    bool get_active_config_no_throw(const std::string& sensor_hostname,
+                             sensor::sensor_config& config);
+
    private:
     std::string sensor_hostname;
-    std::string staged_config;
-    std::string active_config;
+    std::optional<sensor::sensor_config> staged_config;
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
@@ -140,9 +149,10 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     bool persist_config = false;
     bool force_sensor_reinit = false;
+    bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
 
-    nonstd::optional<uint32_t> last_init_id;
+    std::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
@@ -153,6 +163,11 @@ class OusterSensor : public OusterSensorNodeletBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+
+    bool attempt_reconnect;
+    double dormant_period_between_reconnects;
+    int reconnect_attempts_available;
+    ros::Timer reconnect_timer;
 };
 
 }  // namespace ouster_ros

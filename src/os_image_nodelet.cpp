@@ -33,39 +33,33 @@ using ouster_ros::PacketMsg;
 class OusterImage : public nodelet::Nodelet {
    private:
     virtual void onInit() override {
-        create_metadata_subscriber(getNodeHandle());
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMG")) {
+            create_lidar_packets_subscriber();
+            create_image_publishers();
+        }
+        create_metadata_subscriber();
         NODELET_INFO("OusterImage: node initialized!");
     }
 
-    void create_metadata_subscriber(ros::NodeHandle& nh) {
-        metadata_sub = nh.subscribe<std_msgs::String>(
+    void create_metadata_subscriber() {
+        metadata_sub = getNodeHandle().subscribe<std_msgs::String>(
             "metadata", 1, &OusterImage::metadata_handler, this);
     }
 
-   private:
-    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
-        NODELET_INFO("OusterImage: retrieved new sensor metadata!");
-        info = sensor::parse_metadata(metadata_msg->data);
-        create_publishers_subscribers(get_n_returns(info));
+    void create_lidar_packets_subscriber() {
+        lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
+            "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+                if (lidar_packet_handler) lidar_packet_handler(msg->buf.data());
+        });
     }
 
-    void create_publishers_subscribers(int n_returns) {
-        // TODO: avoid having to replicate the parameters: 
-        // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
-        // another node.
-        auto& pnh = getPrivateNodeHandle();
-        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
-        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
-
+    void create_image_publishers() {
+        // NOTE: always create the 2nd topics
         const std::map<sensor::ChanField, std::string>
-            channel_field_topic_map_1 {
-                {sensor::ChanField::RANGE, "range_image"},
-                {sensor::ChanField::SIGNAL, "signal_image"},
-                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                {sensor::ChanField::NEAR_IR, "nearir_image"}};
-
-        const std::map<sensor::ChanField, std::string>
-            channel_field_topic_map_2 {
+            channel_field_topic_map {
                 {sensor::ChanField::RANGE, "range_image"},
                 {sensor::ChanField::SIGNAL, "signal_image"},
                 {sensor::ChanField::REFLECTIVITY, "reflec_image"},
@@ -74,15 +68,29 @@ class OusterImage : public nodelet::Nodelet {
                 {sensor::ChanField::SIGNAL2, "signal_image2"},
                 {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
 
-        auto which_map = n_returns == 1 ? &channel_field_topic_map_1
-                                        : &channel_field_topic_map_2;
-
-        auto& nh = getNodeHandle();
-
-        for (auto it = which_map->begin(); it != which_map->end(); ++it) {
-            image_pubs[it->first] =
-                nh.advertise<sensor_msgs::Image>(it->second, 100);
+        for (auto it : channel_field_topic_map) {
+            image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
         }
+    }
+
+    void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
+        NODELET_INFO("OusterImage: retrieved new sensor metadata!");
+        auto info = sensor::parse_metadata(metadata_msg->data);
+
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMG"))
+            create_handlers(info);
+    }
+
+    void create_handlers(const sensor::sensor_info& info) {
+        // TODO: avoid having to replicate the parameters: 
+        // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
+        // another node.
+        auto& pnh = getPrivateNodeHandle();
+        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
+        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
@@ -97,22 +105,16 @@ class OusterImage : public nodelet::Nodelet {
         lidar_packet_handler = LidarPacketHandler::create_handler(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-        lidar_packet_sub = nh.subscribe<PacketMsg>(
-                "lidar_packets", 100,
-                [this](const PacketMsg::ConstPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
-                });
     }
 
    private:
     ros::Subscriber metadata_sub;
-    sensor::sensor_info info;
-
     ros::Subscriber lidar_packet_sub;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
 
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
+
 }  // namespace ouster_ros
 
 PLUGINLIB_EXPORT_CLASS(ouster_ros::OusterImage, nodelet::Nodelet)

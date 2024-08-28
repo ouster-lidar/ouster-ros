@@ -22,7 +22,7 @@ class OusterSensorNodeletBase : public nodelet::Nodelet {
 
     void create_get_metadata_service();
 
-    void create_metadata_publisher();
+    void create_metadata_pub();
 
     void publish_metadata();
 

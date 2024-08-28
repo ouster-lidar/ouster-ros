@@ -38,18 +38,72 @@ class OusterDriver : public OusterSensor {
         halt();
     }
 
-   private:
+   protected:
+    virtual void onInit() override {
+        auto& pnh = getPrivateNodeHandle();
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
+        auto tokens = impl::parse_tokens(proc_mask, '|');
+        if (impl::check_token(tokens, "IMU"))
+            create_imu_pub();
+        if (impl::check_token(tokens, "PCL"))
+            create_point_cloud_pubs();
+        if (impl::check_token(tokens, "SCAN"))
+            create_laser_scan_pubs();
+        if (impl::check_token(tokens, "IMG"))
+            create_image_pubs();
+        OusterSensor::onInit();
+    }
 
+   private:
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
-
         // for OusterDriver we are going to always assume static broadcast
         // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
         tf_bcast.broadcast_transforms(info);
+        create_handlers();
     }
 
-    virtual void create_publishers() override {
+    void create_imu_pub() {
+        imu_pub = getNodeHandle().advertise<sensor_msgs::Imu>("imu", 100);
+    }
+
+    void create_point_cloud_pubs() {
+        // NOTE: always create the 2nd topic
+        lidar_pubs.resize(2);
+        for (int i = 0; i < 2; ++i) {
+            lidar_pubs[i] = getNodeHandle().advertise<sensor_msgs::PointCloud2>(
+                topic_for_return("points", i), 10);
+        }
+    }
+
+    void create_laser_scan_pubs() {
+        // NOTE: always create the 2nd topic
+        scan_pubs.resize(2);
+        for (int i = 0; i < 2; ++i) {
+            scan_pubs[i] = getNodeHandle().advertise<sensor_msgs::LaserScan>(
+                topic_for_return("scan", i), 10);
+        }
+    }
+    
+    void create_image_pubs() {
+        // NOTE: always create the 2nd topics
+        const std::map<sensor::ChanField, std::string>
+            channel_field_topic_map {
+                {sensor::ChanField::RANGE, "range_image"},
+                {sensor::ChanField::SIGNAL, "signal_image"},
+                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+                {sensor::ChanField::NEAR_IR, "nearir_image"},
+                {sensor::ChanField::RANGE2, "range_image2"},
+                {sensor::ChanField::SIGNAL2, "signal_image2"},
+                {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+
+        for (auto it : channel_field_topic_map) {
+            image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
+        }
+    }
+
+    virtual void create_handlers() {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask =
             pnh.param("proc_mask", std::string{"IMU|IMG|PCL|SCAN"});
@@ -58,25 +112,14 @@ class OusterDriver : public OusterSensor {
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
-        auto& nh = getNodeHandle();
-
         if (impl::check_token(tokens, "IMU")) {
-            imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 100);
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
 
-        int num_returns = get_n_returns(info);
-
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
-            lidar_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                lidar_pubs[i] = nh.advertise<sensor_msgs::PointCloud2>(
-                    topic_for_return("points", i), 10);
-            }
-
             auto point_type = pnh.param("point_type", std::string{"original"});
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
@@ -98,12 +141,6 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "SCAN")) {
-            scan_pubs.resize(num_returns);
-            for (int i = 0; i < num_returns; ++i) {
-                scan_pubs[i] = nh.advertise<sensor_msgs::LaserScan>(
-                    topic_for_return("scan", i), 10);
-            }
-
             // TODO: avoid duplication in os_cloud_node
             int beams_count = static_cast<int>(get_beams_count(info));
             int scan_ring = pnh.param("scan_ring", 0);
@@ -125,30 +162,6 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "IMG")) {
-            const std::map<sensor::ChanField, std::string>
-                channel_field_topic_map_1{
-                    {sensor::ChanField::RANGE, "range_image"},
-                    {sensor::ChanField::SIGNAL, "signal_image"},
-                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                    {sensor::ChanField::NEAR_IR, "nearir_image"}};
-
-            const std::map<sensor::ChanField, std::string>
-                channel_field_topic_map_2{
-                    {sensor::ChanField::RANGE, "range_image"},
-                    {sensor::ChanField::SIGNAL, "signal_image"},
-                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                    {sensor::ChanField::NEAR_IR, "nearir_image"},
-                    {sensor::ChanField::RANGE2, "range_image2"},
-                    {sensor::ChanField::SIGNAL2, "signal_image2"},
-                    {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
-
-            auto which_map = num_returns == 1 ? &channel_field_topic_map_1
-                                              : &channel_field_topic_map_2;
-            for (auto it = which_map->begin(); it != which_map->end(); ++it) {
-                image_pubs[it->first] =
-                    nh.advertise<sensor_msgs::Image>(it->second, 10);
-            }
-
             processors.push_back(ImageProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(),
                 [this](ImageProcessor::OutputType msgs) {
@@ -171,7 +184,10 @@ class OusterDriver : public OusterSensor {
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
         if (imu_packet_handler)
-            imu_pub.publish(imu_packet_handler(raw_imu_packet));
+        if (imu_packet_handler) {
+            auto imu_msg = imu_packet_handler(raw_imu_packet);
+            imu_pub.publish(imu_msg);
+        }
     }
 
    private:
