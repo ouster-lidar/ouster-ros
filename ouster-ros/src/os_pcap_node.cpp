@@ -48,7 +48,7 @@ class OusterPcap : public OusterSensorNodeBase {
         try {
             auto meta_file = get_meta_file();
             auto pcap_file = get_pcap_file();
-            create_metadata_publisher();
+            create_metadata_pub();
             load_metadata_from_file(meta_file);
             open_pcap(pcap_file);
             publish_metadata();

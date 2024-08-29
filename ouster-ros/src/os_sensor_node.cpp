@@ -79,7 +79,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
         sensor_client = create_sensor_client(sensor_hostname, config);
         if (!sensor_client)
             return LifecycleNodeInterface::CallbackReturn::FAILURE;
-        create_metadata_publisher();
+        create_metadata_pub();
         update_config_and_metadata(*sensor_client);
         create_services();
     } catch (const std::exception& ex) {

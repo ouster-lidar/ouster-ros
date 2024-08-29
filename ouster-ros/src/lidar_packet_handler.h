@@ -126,8 +126,14 @@ class LidarPacketHandler {
 
     LidarPacketHandler(const LidarPacketHandler&) = delete;
     LidarPacketHandler& operator=(const LidarPacketHandler&) = delete;
-    ~LidarPacketHandler() = default;
-
+    ~LidarPacketHandler() {
+        RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                     "LidarPacketHandler::~LidarPacketHandler()");
+        if (lidar_scans_processing_thread->joinable()) {
+            lidar_scans_processing_active = false;
+            lidar_scans_processing_thread->join();
+        }
+    }
     void register_lidar_scan_handler(LidarScanProcessor handler) {
         lidar_scan_handlers.push_back(handler);
     }
@@ -153,10 +159,13 @@ class LidarPacketHandler {
     void process_scans() {
 
         {
+            using namespace std::chrono;
             std::unique_lock<std::mutex> index_lock(ring_buffer_mutex);
-            ring_buffer_has_elements.wait(index_lock, [this] {
+            ring_buffer_has_elements.wait_for(index_lock, 1s, [this] {
                 return !ring_buffer.empty();
             });
+
+            if (ring_buffer.empty()) return;
         }
 
         std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);

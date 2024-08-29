@@ -60,9 +60,7 @@
     description="Use the default system QoS settings"/>
 
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
-    The IMG flag here is not supported and does not affect anything,
-    to disable image topics you would need to omit the os_image node
-    from the launch file"/>
+    use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" description="
     use this parameter in conjunction with the SCAN flag
@@ -85,6 +83,15 @@
   <arg name="persist_config" default="false"
     description="request the sensor to persist settings"/>
 
+  <arg name="attempt_reconnect" default="false"
+    description="attempting to reconnect to the sensor after connection loss or
+    sensor powered down"/>
+  <arg name="dormant_period_between_reconnects" default="1.0"
+    description="wait time in seconds between reconnection attempts"/>
+  <arg name="max_failed_reconnect_attempts" default="2147483647"
+    description="maximum number of attempts trying to communicate with the sensor.
+         Counter resets upon successful connection"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
@@ -103,6 +110,11 @@
         <param name="azimuth_window_start" value="$(var azimuth_window_start)"/>
         <param name="azimuth_window_end" value="$(var azimuth_window_end)"/>
         <param name="persist_config" value="$(var persist_config)"/>
+        <param name="~/attempt_reconnect" value="$(var attempt_reconnect)"/>
+        <param name="~/dormant_period_between_reconnects"
+              value="$(var dormant_period_between_reconnects)"/>
+        <param name="~/max_failed_reconnect_attempts"
+              value="$(var max_failed_reconnect_attempts)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
         <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -118,6 +130,7 @@
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+        <param name="proc_mask" value="$(var proc_mask)"/>
       </composable_node>
     </node_container>
   </group>

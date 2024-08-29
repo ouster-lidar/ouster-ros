@@ -30,7 +30,7 @@ void OusterSensorNodeBase::create_get_metadata_service() {
     RCLCPP_INFO(get_logger(), "get_metadata service created");
 }
 
-void OusterSensorNodeBase::create_metadata_publisher() {
+void OusterSensorNodeBase::create_metadata_pub() {
     auto latching_qos = rclcpp::QoS(rclcpp::KeepLast(1));
     latching_qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
     latching_qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);

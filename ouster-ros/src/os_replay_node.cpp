@@ -28,7 +28,7 @@ class OusterReplay : public OusterSensorNodeBase {
 
         try {
             auto meta_file = parse_parameters();
-            create_metadata_publisher();
+            create_metadata_pub();
             load_metadata_from_file(meta_file);
             publish_metadata();
             create_get_metadata_service();

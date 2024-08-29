@@ -93,3 +93,12 @@ ouster/os_driver:
     azimuth_window_end: 360000
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
+    # attempt_config[optional]: attempting to reconnect to the sensor after
+    # connection loss or sensor powered down
+    attempt_reconnect: false
+    # dormant_period_between_reconnects[optional]: wait time in seconds between
+    # reconnection attempts
+    dormant_period_between_reconnects: 1.0
+    # max_failed_reconnect_attempts[optional]: maximum number of attempts trying
+    # to communicate with the sensor. Counter resets upon successful connection.
+    max_failed_reconnect_attempts: 2147483647

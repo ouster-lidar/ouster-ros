@@ -58,9 +58,7 @@
     description="Use the default system QoS settings"/>
 
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
-    The IMG flag here is not supported and does not affect anything,
-    to disable image topics you would need to omit the os_image node
-    from the launch file"/>
+    use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" description="
     use this parameter in conjunction with the SCAN flag
@@ -83,6 +81,14 @@
   <arg name="persist_config" default="false"
     description="request the sensor to persist settings"/>
 
+  <arg name="attempt_reconnect" default="false"
+    description="attempting to reconnect to the sensor after connection loss or
+    sensor powered down"/>
+  <arg name="dormant_period_between_reconnects" default="1.0"
+    description="wait time in seconds between reconnection attempts"/>
+  <arg name="max_failed_reconnect_attempts" default="2147483647"
+    description="maximum number of attempts trying to communicate with the sensor.
+         Counter resets upon successful connection"/>
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_sensor" name="os_sensor" output="screen">
@@ -100,6 +106,11 @@
       <param name="azimuth_window_start" value="$(var azimuth_window_start)"/>
       <param name="azimuth_window_end" value="$(var azimuth_window_end)"/>
       <param name="persist_config" value="$(var persist_config)"/>
+      <param name="~/attempt_reconnect" value="$(var attempt_reconnect)"/>
+      <param name="~/dormant_period_between_reconnects"
+             value="$(var dormant_period_between_reconnects)"/>
+      <param name="~/max_failed_reconnect_attempts"
+             value="$(var max_failed_reconnect_attempts)"/>
     </node>
     <node pkg="ouster_ros" exec="os_cloud" name="os_cloud" output="screen">
       <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -115,6 +126,7 @@
     </node>
     <node pkg="ouster_ros" exec="os_image" name="os_image" output="screen">
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      <param name="proc_mask" value="$(var proc_mask)"/>
     </node>
   </group>
 
