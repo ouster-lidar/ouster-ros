@@ -32,6 +32,11 @@ OusterSensor::OusterSensor(const std::string& name,
       change_state_client{
           create_client<ChangeState>(get_name() + "/change_state"s)} {
     declare_parameters();
+    attempt_reconnect = get_parameter("attempt_reconnect").as_bool();
+    dormant_period_between_reconnects = 
+        get_parameter("dormant_period_between_reconnects").as_double();
+    reconnect_attempts_available =
+        get_parameter("max_failed_reconnect_attempts").as_int();
 }
 
 OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
@@ -64,6 +69,42 @@ void OusterSensor::declare_parameters() {
     declare_parameter("azimuth_window_start", MIN_AZW);
     declare_parameter("azimuth_window_end", MAX_AZW);
     declare_parameter("persist_config", false);
+    declare_parameter("attempt_reconnect", false);
+    declare_parameter("dormant_period_between_reconnects", 1.0);
+    declare_parameter("max_failed_reconnect_attempts", INT_MAX);
+}
+
+bool OusterSensor::start() {
+    sensor_hostname = get_sensor_hostname();
+    sensor::sensor_config config;
+    if (staged_config) {
+        if (!configure_sensor(sensor_hostname, staged_config.value()))
+            return false;
+        config = staged_config.value();
+        staged_config.reset();
+    } else {
+        if (!get_active_config_no_throw(sensor_hostname, config))
+            return false;
+
+        RCLCPP_INFO(get_logger(), "Retrived sensor active config");
+        // Unfortunately it seems we need to invoke this to force the auto
+        // TODO[UN]: find a shortcut
+        // Only reset udp_dest if auto_udp was allowed on startup
+        if (auto_udp_allowed) config.udp_dest.reset();
+        if (!configure_sensor(sensor_hostname, config))
+            return false;
+    }
+
+    reset_last_init_id = true;
+    sensor_client = create_sensor_client(sensor_hostname, config);
+    if (!sensor_client)
+        return false;
+
+    create_metadata_pub();
+    update_metadata(*sensor_client);
+    create_services();
+
+    return true;
 }
 
 LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
@@ -71,17 +112,22 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
     RCLCPP_DEBUG(get_logger(), "on_configure() is called.");
 
     try {
-        sensor_hostname = get_sensor_hostname();
-        auto config = staged_config.empty()
-                          ? parse_config_from_ros_parameters()
-                          : parse_config_from_staged_config_string();
-        configure_sensor(sensor_hostname, config);
-        sensor_client = create_sensor_client(sensor_hostname, config);
-        if (!sensor_client)
+        if (!start()) {
+            auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
+            reconnect_timer = this->create_wall_timer(sleep_duration, [this]() {
+                reconnect_timer->cancel();
+                if (attempt_reconnect && reconnect_attempts_available-- > 0) {
+                    RCLCPP_INFO_STREAM(get_logger(), "Attempting to communicate with the sensor, "
+                                        "remaining attempts: " << reconnect_attempts_available);
+
+                    auto request_transitions = std::vector<uint8_t>{
+                        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+                    execute_transitions_sequence(request_transitions, 0);
+                }
+            });
             return LifecycleNodeInterface::CallbackReturn::FAILURE;
-        create_metadata_pub();
-        update_config_and_metadata(*sensor_client);
-        create_services();
+        }
     } catch (const std::exception& ex) {
         RCLCPP_ERROR_STREAM(
             get_logger(),
@@ -98,8 +144,8 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
     const rclcpp_lifecycle::State& state) {
     RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
     LifecycleNode::on_activate(state);
-    if (active_config.empty() || cached_metadata.empty())
-        update_config_and_metadata(*sensor_client);
+    if (cached_metadata.empty())
+        update_metadata(*sensor_client);
     create_publishers();
     allocate_buffers();
     start_packet_processing_threads();
@@ -118,8 +164,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_deactivate(
     const rclcpp_lifecycle::State& state) {
     RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
     LifecycleNode::on_deactivate(state);
-    stop_packet_processing_threads();
-    stop_sensor_connection_thread();
+    halt();
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -181,19 +226,7 @@ std::string OusterSensor::get_sensor_hostname() {
     return hostname;
 }
 
-void OusterSensor::update_config_and_metadata(sensor::client& cli) {
-    sensor::sensor_config config;
-    auto success = get_config(sensor_hostname, config);
-    if (!success) {
-        active_config.clear();
-        cached_metadata.clear();
-        auto error_msg = "Failed to collect sensor config";
-        RCLCPP_ERROR_STREAM(get_logger(), error_msg);
-        throw std::runtime_error(error_msg);
-    }
-
-    active_config = sensor::to_string(config);
-
+void OusterSensor::update_metadata(sensor::client& cli) {
     try {
         cached_metadata = sensor::get_metadata(cli, 60, false);
     } catch (const std::exception& e) {
@@ -277,9 +310,9 @@ bool OusterSensor::change_state(std::uint8_t transition_id, CallbackT callback,
     request->transition.id = transition_id;
     // send an async request to perform the transition
     change_state_client->async_send_request(
-        request, [callback,
-                  callback_args...](rclcpp::Client<ChangeState>::SharedFuture) {
-            callback(callback_args...);
+        request, [this, callback,
+                  callback_args...](rclcpp::Client<ChangeState>::SharedFuture ff) {
+            callback(callback_args..., ff.get()->success);
         });
     return true;
 }
@@ -292,15 +325,22 @@ void OusterSensor::execute_transitions_sequence(
     RCLCPP_DEBUG_STREAM(
         get_logger(), "transition: [" << transition_id_to_string(transition_id)
                                       << "] started");
-    change_state(transition_id, [this, transitions_sequence, at]() {
-        RCLCPP_DEBUG_STREAM(
-            get_logger(),
-            "transition: [" << transition_id_to_string(transitions_sequence[at])
-                            << "] completed");
-        if (at < transitions_sequence.size() - 1) {
-            execute_transitions_sequence(transitions_sequence, at + 1);
+    change_state(transition_id, [this, transitions_sequence, at](bool success) {
+        if (success) {
+            RCLCPP_DEBUG_STREAM(
+                get_logger(),
+                "transition: [" << transition_id_to_string(transitions_sequence[at])
+                                << "] completed");
+            if (at < transitions_sequence.size() - 1) {
+                execute_transitions_sequence(transitions_sequence, at + 1);
+            } else {
+                RCLCPP_WARN_STREAM(get_logger(), "transitions sequence completed");
+            }
         } else {
-            RCLCPP_DEBUG_STREAM(get_logger(), "transitions sequence completed");
+            RCLCPP_DEBUG_STREAM(
+                get_logger(),
+                "transition: [" << transition_id_to_string(transitions_sequence[at])
+                                << "] failed");
         }
     });
 }
@@ -335,7 +375,6 @@ void OusterSensor::reactivate_sensor(bool init_id_reset) {
     }
 
     reset_last_init_id = init_id_reset;
-    active_config.clear();
     cached_metadata.clear();
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
@@ -354,10 +393,32 @@ void OusterSensor::create_reset_service() {
     RCLCPP_INFO(get_logger(), "reset service created");
 }
 
+bool OusterSensor::get_active_config_no_throw(
+    const std::string& sensor_hostname, sensor::sensor_config& config) {
+    try {
+        if (get_config(sensor_hostname, config, true))
+            return true;
+    } catch(const std::exception&) {
+        RCLCPP_ERROR_STREAM(
+            get_logger(),
+            "Couldn't get active config for: " << sensor_hostname);
+        return false;
+    }
+
+    RCLCPP_ERROR_STREAM(
+        get_logger(),
+        "Couldn't get active config for: " << sensor_hostname);
+    return false;
+}
+
 void OusterSensor::create_get_config_service() {
     get_config_srv = create_service<GetConfig>(
         "get_config", [this](const std::shared_ptr<GetConfig::Request>,
                              std::shared_ptr<GetConfig::Response> response) {
+            std::string active_config;
+            sensor::sensor_config config;
+            if (get_active_config_no_throw(sensor_hostname, config))
+                active_config = to_string(config);
             response->config = active_config;
             return active_config.size() > 0;
         });
@@ -370,10 +431,10 @@ void OusterSensor::create_set_config_service() {
         "set_config", [this](const std::shared_ptr<SetConfig::Request> request,
                              std::shared_ptr<SetConfig::Response> response) {
             response->config = "";
-
+            std::string config_str;
             try {
-                staged_config = read_text_file(request->config_file);
-                if (staged_config.empty()) {
+                config_str = read_text_file(request->config_file);
+                if (config_str.empty()) {
                     RCLCPP_ERROR_STREAM(
                         get_logger(),
                         "provided config file: "
@@ -389,7 +450,8 @@ void OusterSensor::create_set_config_service() {
                 return false;
             }
 
-            response->config = staged_config;
+            staged_config = sensor::parse_config(config_str);
+            response->config = config_str;
             // TODO: this is currently set to force_reinit but it doesn't
             // need to be the case if it was possible to know that the new
             // config would result in a reinit when a reinit is not forced
@@ -402,12 +464,14 @@ void OusterSensor::create_set_config_service() {
 
 std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     const std::string& hostname, const sensor::sensor_config& config) {
-    RCLCPP_INFO_STREAM(get_logger(),
-                       "Starting sensor " << hostname << " initialization...");
 
     int lidar_port = config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
     int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
     auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
+
+    RCLCPP_INFO_STREAM(get_logger(),
+                       "Starting sensor " << hostname << " initialization..."
+                       " Using ports: " << lidar_port << "/" << imu_port);
 
     std::shared_ptr<sensor::client> cli;
     if (sensor::in_multicast(udp_dest)) {
@@ -421,9 +485,8 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli =
-            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
-                                sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
+        cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+                                  sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 
     if (!cli) {
@@ -548,6 +611,8 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
             mtp_dest = is_arg_set(mtp_dest_arg) ? mtp_dest_arg : std::string{};
             mtp_main = mtp_main_arg;
         }
+    } else {
+        auto_udp_allowed = true;
     }
 
     if (azimuth_window_start < MIN_AZW || azimuth_window_start > MAX_AZW ||
@@ -560,12 +625,6 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
 
     config.azimuth_window = {azimuth_window_start, azimuth_window_end};
 
-    return config;
-}
-
-sensor::sensor_config OusterSensor::parse_config_from_staged_config_string() {
-    sensor::sensor_config config = sensor::parse_config(staged_config);
-    staged_config.clear();
     return config;
 }
 
@@ -600,6 +659,7 @@ uint8_t OusterSensor::compose_config_flags(
     }
 
     if (persist_config) {
+        persist_config = false; // avoid persisting configs implicitly on restarts
         RCLCPP_INFO(get_logger(), "Configuration will be persisted");
         config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
@@ -607,25 +667,32 @@ uint8_t OusterSensor::compose_config_flags(
     return config_flags;
 }
 
-void OusterSensor::configure_sensor(const std::string& hostname,
+bool OusterSensor::configure_sensor(const std::string& hostname,
                                     sensor::sensor_config& config) {
     if (config.udp_dest && sensor::in_multicast(config.udp_dest.value()) &&
         !mtp_main) {
         if (!get_config(hostname, config, true)) {
             RCLCPP_ERROR(get_logger(), "Error getting active config");
-        } else {
-            RCLCPP_INFO(get_logger(), "Retrived active config of sensor");
+            return false;
         }
-        return;
+
+        RCLCPP_INFO(get_logger(), "Retrived active config of sensor");
+        return true;
     }
 
     uint8_t config_flags = compose_config_flags(config);
-    if (!set_config(hostname, config, config_flags)) {
-        throw std::runtime_error("Error connecting to sensor " + hostname);
+    RCLCPP_INFO_STREAM(get_logger(), "Contacting sensor " << hostname << " ...");
+    try {
+        set_config(hostname, config, config_flags);
+    } catch (const std::exception& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(), "Error connecting to sensor " << hostname <<
+        ", details: " << ex.what());
+        return false;
     }
 
     RCLCPP_INFO_STREAM(get_logger(),
                        "Sensor " << hostname << " configured successfully");
+    return true;
 }
 
 // fill in values that could not be parsed from metadata
@@ -716,7 +783,7 @@ bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
 
 void OusterSensor::handle_poll_client_error() {
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 100,
-                         "sensor::poll_client()) returned error");
+                         "sensor::poll_client()) returned error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
     if (++poll_client_error_count > max_poll_client_error_count) {
@@ -790,7 +857,7 @@ void OusterSensor::connection_loop(sensor::client& cli,
         RCLCPP_INFO(get_logger(), "poll_client: caught signal, exiting!");
         return;
     }
-    if (state & sensor::CLIENT_ERROR) {
+    if (state & sensor::CLIENT_ERROR || state == sensor::TIMEOUT) {
         handle_poll_client_error();
         return;
     }
@@ -806,6 +873,7 @@ void OusterSensor::connection_loop(sensor::client& cli,
 void OusterSensor::start_sensor_connection_thread() {
     sensor_connection_active = true;
     sensor_connection_thread = std::make_unique<std::thread>([this]() {
+        RCLCPP_DEBUG(get_logger(), "sensor_connection_thread active.");
         auto& pf = sensor::get_format(info);
         while (sensor_connection_active) {
             connection_loop(*sensor_client, pf);
