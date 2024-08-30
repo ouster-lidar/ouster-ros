@@ -127,6 +127,10 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
                 }
             });
             return LifecycleNodeInterface::CallbackReturn::FAILURE;
+        } else {
+            // reset counter
+            reconnect_attempts_available =
+                get_parameter("max_failed_reconnect_attempts").as_int();
         }
     } catch (const std::exception& ex) {
         RCLCPP_ERROR_STREAM(
