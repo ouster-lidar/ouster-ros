@@ -21,6 +21,8 @@ Changelog
 * Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
   documentation and the associated params to enable. Known Issues:
   - Doesn't handle detect and handle invalid configurations
+* Added an automatic start mode to make it easier to start the node without using time actions.
+  - To disable set ``auto_start`` to ``false`` during launch
 
 
 ouster_ros v0.12.0
