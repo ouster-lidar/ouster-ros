@@ -18,6 +18,9 @@ ouster/os_sensor:
     azimuth_window_start: 0
     azimuth_window_end: 360000
     persist_config: false
+    attempt_reconnect: false
+    dormant_period_between_reconnects: 1.0
+    max_failed_reconnect_attempts: 2147483647
 ouster/os_cloud:
   ros__parameters:
     sensor_frame: os_sensor
