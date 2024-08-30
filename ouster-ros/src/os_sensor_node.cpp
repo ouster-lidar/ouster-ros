@@ -334,7 +334,7 @@ void OusterSensor::execute_transitions_sequence(
             if (at < transitions_sequence.size() - 1) {
                 execute_transitions_sequence(transitions_sequence, at + 1);
             } else {
-                RCLCPP_WARN_STREAM(get_logger(), "transitions sequence completed");
+                RCLCPP_DEBUG_STREAM(get_logger(), "transitions sequence completed");
             }
         } else {
             RCLCPP_DEBUG_STREAM(
