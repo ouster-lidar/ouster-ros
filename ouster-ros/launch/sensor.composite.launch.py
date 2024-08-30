@@ -36,12 +36,16 @@ def generate_launch_description():
     rviz_enable = LaunchConfiguration('viz')
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
 
+    auto_start = LaunchConfiguration('auto_start')
+    auto_start_arg = DeclareLaunchArgument('auto_start', default_value='True')
+
     os_sensor = ComposableNode(
         package='ouster_ros',
         plugin='ouster_ros::OusterSensor',
         name='os_sensor',
         namespace=ouster_ns,
-        parameters=[params_file]
+        parameters=[params_file,
+        {'auto_start': auto_start}]
     )
 
     os_cloud = ComposableNode(
@@ -80,25 +84,11 @@ def generate_launch_description():
         condition=IfCondition(rviz_enable)
     )
 
-    # HACK: to configure and activate the the sensor since state transition
-    # API doesn't seem to support composable nodes yet.
-
-    def invoke_lifecycle_cmd(node_name, verb):
-        ros2_exec = FindExecutable(name='ros2')
-        return ExecuteProcess(
-            cmd=[[ros2_exec, ' lifecycle set ',
-                  ouster_ns, '/', node_name, ' ', verb]],
-            shell=True)
-
-    sensor_configure_cmd = invoke_lifecycle_cmd('os_sensor', 'configure')
-    sensor_activate_cmd = invoke_lifecycle_cmd('os_sensor', 'activate')
-
     return launch.LaunchDescription([
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
+        auto_start_arg,
         rviz_launch,
-        os_container,
-        sensor_configure_cmd,
-        TimerAction(period=1.0, actions=[sensor_activate_cmd])
+        os_container
     ])

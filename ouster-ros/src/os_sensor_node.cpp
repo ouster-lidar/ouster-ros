@@ -37,6 +37,20 @@ OusterSensor::OusterSensor(const std::string& name,
         get_parameter("dormant_period_between_reconnects").as_double();
     reconnect_attempts_available =
         get_parameter("max_failed_reconnect_attempts").as_int();
+
+    bool auto_start = get_parameter("auto_start").as_bool();
+
+    if (auto_start) {
+        RCLCPP_INFO(get_logger(), "auto start requested");
+        reconnect_timer = create_wall_timer(1s, [this]() {
+            reconnect_timer->cancel();
+            auto request_transitions = std::vector<uint8_t>{
+                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+            execute_transitions_sequence(request_transitions, 0);
+            RCLCPP_INFO(get_logger(), "auto start initiated");
+        });
+    }
 }
 
 OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
@@ -72,6 +86,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("attempt_reconnect", false);
     declare_parameter("dormant_period_between_reconnects", 1.0);
     declare_parameter("max_failed_reconnect_attempts", INT_MAX);
+    declare_parameter("auto_start", false);
 }
 
 bool OusterSensor::start() {
@@ -114,7 +129,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
     try {
         if (!start()) {
             auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
-            reconnect_timer = this->create_wall_timer(sleep_duration, [this]() {
+            reconnect_timer = create_wall_timer(sleep_duration, [this]() {
                 reconnect_timer->cancel();
                 if (attempt_reconnect && reconnect_attempts_available-- > 0) {
                     RCLCPP_INFO_STREAM(get_logger(), "Attempting to communicate with the sensor, "

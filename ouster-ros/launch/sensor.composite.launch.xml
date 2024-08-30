@@ -90,6 +90,9 @@
     description="maximum number of attempts trying to communicate with the sensor.
          Counter resets upon successful connection"/>
 
+  <arg name="auto_start" default="true"
+    description="automatically configure and activate the node"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_driver" name="os_driver" output="screen">
@@ -115,20 +118,14 @@
       <param name="azimuth_window_start" value="$(var azimuth_window_start)"/>
       <param name="azimuth_window_end" value="$(var azimuth_window_end)"/>
       <param name="persist_config" value="$(var persist_config)"/>
-      <param name="~/attempt_reconnect" value="$(var attempt_reconnect)"/>
-      <param name="~/dormant_period_between_reconnects"
+      <param name="attempt_reconnect" value="$(var attempt_reconnect)"/>
+      <param name="dormant_period_between_reconnects"
              value="$(var dormant_period_between_reconnects)"/>
-      <param name="~/max_failed_reconnect_attempts"
+      <param name="max_failed_reconnect_attempts"
              value="$(var max_failed_reconnect_attempts)"/>
+      <param name="auto_start" value="$(var auto_start)"/>
     </node>
   </group>
-
-  <!-- HACK: configure and activate the sensor node via a process execute since state
-    transition is currently not availabe through launch.xml format -->
-  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_driver configure"
-    launch-prefix="bash -c 'sleep 0; $0 $@'" output="screen"/>
-  <executable cmd="$(find-exec ros2) lifecycle set /$(var ouster_ns)/os_driver activate"
-    launch-prefix="bash -c 'sleep 1; $0 $@'" output="screen"/>
 
   <include if="$(var viz)" file="$(find-pkg-share ouster_ros)/launch/rviz.launch.xml">
     <arg name="ouster_ns" value="$(var ouster_ns)"/>
