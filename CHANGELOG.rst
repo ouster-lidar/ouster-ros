@@ -19,7 +19,9 @@ Changelog
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch.xml`` file.
 * Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
-  documentation and the associated params to enable.
+  documentation and the associated params to enable. Known Issues:
+  - Doesn't handle detect and handle invalid configurations
+
 
 ouster_ros v0.12.0
 ==================
