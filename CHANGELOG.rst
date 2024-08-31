@@ -15,9 +15,15 @@ Changelog
   explicitly by turning on the ``BUILD_PCAP`` cmake option and having ``libpcap-dev`` installed.
 * [BREAKING] Added new launch files args ``azimuth_window_start`` and ``azimuth_window_end`` to
   allow users to set LIDAR FOV on startup. The new options will reset the current azimuth window
-  to the default
+  to the default [0, 360] azimuth if not configured.
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch.xml`` file.
+* Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
+  documentation and the associated params to enable. Known Issues:
+  - Doesn't handle detect and handle invalid configurations
+* Added an automatic start mode to make it easier to start the node without using time actions.
+  - To disable set ``auto_start`` to ``false`` during launch
+
 
 ouster_ros v0.12.0
 ==================

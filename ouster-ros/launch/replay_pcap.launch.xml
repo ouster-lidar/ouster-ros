@@ -38,9 +38,7 @@
     description="Use the default system QoS settings"/>
 
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
-    The IMG flag here is not supported and does not affect anything,
-    to disable image topics you would need to omit the os_image node
-    from the launch file"/>
+    use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" description="
     use this parameter in conjunction with the SCAN flag
@@ -77,6 +75,7 @@
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
+      <param name="proc_mask" value="$(var proc_mask)"/>
       </composable_node>
     </node_container>
   </group>

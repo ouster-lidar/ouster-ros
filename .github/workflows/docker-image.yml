@@ -18,8 +18,9 @@ jobs:
           - rolling
           - humble
           - iron
+          - jazzy
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Build the Docker image
