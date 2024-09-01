@@ -25,7 +25,7 @@ template <typename T>
 void cartesianT(PointsT<T>& points,
                 const Eigen::Ref<const img_t<uint32_t>>& range,
                 const PointsT<T>& direction, const PointsT<T>& offset,
-                T invalid) {
+                uint32_t min_r, uint32_t max_r, T invalid) {
     assert(points.rows() == direction.rows() &&
            "points & direction row count mismatch");
     assert(points.rows() == offset.rows() &&
@@ -51,7 +51,7 @@ void cartesianT(PointsT<T>& points,
         const auto idx_x = col_x + i;
         const auto idx_y = col_y + i;
         const auto idx_z = col_z + i;
-        if (r == 0) {
+        if (r <= min_r || r >= max_r) {
             pts[idx_x] = pts[idx_y] = pts[idx_z] = invalid;
         } else {
             pts[idx_x] = r * dir[idx_x] + ofs[idx_x];

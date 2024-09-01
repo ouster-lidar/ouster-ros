@@ -78,8 +78,6 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     sensor::sensor_config parse_config_from_ros_parameters();
 
-    sensor::sensor_config parse_config_from_staged_config_string();
-
     uint8_t compose_config_flags(const sensor::sensor_config& config);
 
     bool configure_sensor(const std::string& hostname,
@@ -151,7 +149,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     bool force_sensor_reinit = false;
     bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
-
     std::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter

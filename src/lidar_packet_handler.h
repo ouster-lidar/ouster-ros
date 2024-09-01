@@ -158,17 +158,15 @@ class LidarPacketHandler {
 
     void process_scans() {
 
-        using namespace std::chrono;
 
         {
+            using namespace std::chrono;
             std::unique_lock<std::mutex> index_lock(ring_buffer_mutex);
             ring_buffer_has_elements.wait_for(index_lock, 1s, [this] {
                 return !ring_buffer.empty();
             });
 
-            if (ring_buffer.empty()) {
-                return;
-            }
+            if (ring_buffer.empty()) return;
         }
 
         std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);

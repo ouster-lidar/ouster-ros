@@ -1,7 +1,7 @@
 # Official ROS1/ROS2 drivers for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble/iron)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/iron/jazzy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (galactic/foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,7 +9,7 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble/iron) | [![rolling/humble/iron](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/iron/jazzy) | [![rolling/humble/iron/jazzy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (galactic/foxy) | [![galactic/foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
 - [Official ROS1/ROS2 drivers for Ouster sensors](#official-ros1ros2-drivers-for-ouster-sensors)
@@ -28,7 +28,7 @@
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
       - [GetConfig](#getconfig)
-      - [SetConfig (experimental)](#setconfig-experimental)
+      - [SetConfig](#setconfig)
   - [License](#license)
 
 
@@ -235,7 +235,7 @@ To get the current config of a live sensor, invoke the command:
 rosservice call /ouster/get_config
 ```
 
-#### SetConfig (experimental)
+#### SetConfig
 To change config via a file while connected to a live sensor, invoke the command:
 ```bash
 rosservice call /ouster/set_config "config_file: '<path to sensor config>'"

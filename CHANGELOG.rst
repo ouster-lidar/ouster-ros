@@ -23,7 +23,10 @@ Changelog
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch`` file.
 * Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
-  documentation and the associated params to enable.
+  documentation and the associated params to enable. Known Issues:
+  - RVIZ can't handle image resize
+  - Can't handle points cloud resize properly (erroneous or corrupt PointCloud)
+  - Doesn't detect and handle invalid configurations
 
 
 ouster_ros v0.10.0

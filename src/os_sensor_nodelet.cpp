@@ -54,14 +54,14 @@ bool OusterSensor::start() {
         if (!get_active_config_no_throw(sensor_hostname, config))
             return false;
 
+        NODELET_INFO("Retrived sensor active config");
+
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
         // Only reset udp_dest if auto_udp was allowed on startup
         if (auto_udp_allowed) config.udp_dest.reset();
         if (!configure_sensor(sensor_hostname, config))
             return false;
-
-        NODELET_INFO("Retrived sensor active config");
     }
 
     reset_last_init_id = true;
@@ -476,10 +476,10 @@ bool OusterSensor::configure_sensor(const std::string& hostname,
         if (!get_config(hostname, config, true)) {
             NODELET_ERROR("Error getting active config");
             return false;
-        } else {
-            NODELET_INFO("Retrived active config of sensor");
-            return true;
         }
+
+        NODELET_INFO("Retrived active config of sensor");
+        return true;
     }
 
     uint8_t config_flags = compose_config_flags(config);
