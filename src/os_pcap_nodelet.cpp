@@ -22,7 +22,6 @@
 
 #include "ouster_ros/os_sensor_nodelet_base.h"
 #include "ouster_ros/PacketMsg.h"
-#include "thread_safe_ring_buffer.h"
 #include <ouster/os_pcap.h>
 
 namespace sensor = ouster::sensor;
@@ -43,10 +42,15 @@ class OusterPcap : public OusterSensorNodeletBase {
         open_pcap(pcap_file);
         publish_metadata();
         create_get_metadata_service();
-        start_packet_processing_threads();
         start_packet_read_thread();
         NODELET_INFO("Running in replay mode");
     }
+
+    ~OusterPcap() override {
+        NODELET_DEBUG("OusterPcap::~OusterPcap() called");
+        stop_packet_read_thread();
+    }
+
 
     std::string get_meta_file() const {
         auto meta_file =
@@ -82,16 +86,8 @@ class OusterPcap : public OusterSensorNodeletBase {
 
     void allocate_buffers() {
         auto& pf = sensor::get_format(info);
-
         lidar_packet.buf.resize(pf.lidar_packet_size);
-        // TODO: gauge necessary queue size for lidar packets
-        lidar_packets =
-            std::make_unique<ThreadSafeRingBuffer>(pf.lidar_packet_size, 1024);
-
         imu_packet.buf.resize(pf.imu_packet_size);
-        // TODO: gauge necessary queue size for lidar packets
-        imu_packets =
-            std::make_unique<ThreadSafeRingBuffer>(pf.imu_packet_size, 1024);
     }
 
     void create_publishers() {
@@ -123,64 +119,6 @@ class OusterPcap : public OusterSensorNodeletBase {
         }
     }
 
-    void start_packet_processing_threads() {
-        imu_packets_processing_thread_active = true;
-        imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
-            while (imu_packets_processing_thread_active) {
-                imu_packets->read([this](const uint8_t* buffer) {
-                    on_imu_packet_msg(buffer);
-                });
-            }
-            NODELET_DEBUG("imu_packets_processing_thread done.");
-        });
-
-        lidar_packets_processing_thread_active = true;
-        lidar_packets_processing_thread =
-            std::make_unique<std::thread>([this]() {
-                while (lidar_packets_processing_thread_active) {
-                    lidar_packets->read([this](const uint8_t* buffer) {
-                        on_lidar_packet_msg(buffer);
-                    });
-                }
-
-                NODELET_DEBUG("lidar_packets_processing_thread done.");
-            });
-    }
-
-    void stop_packet_processing_threads() {
-        NODELET_DEBUG("stopping packet processing threads.");
-
-        if (imu_packets_processing_thread->joinable()) {
-            imu_packets_processing_thread_active = false;
-            imu_packets_processing_thread->join();
-        }
-
-        if (lidar_packets_processing_thread->joinable()) {
-            lidar_packets_processing_thread_active = false;
-            lidar_packets_processing_thread->join();
-        }
-    }
-
-    void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) {
-        // copying the data from queue buffer into the message buffer
-        // this can be avoided by constructing an abstraction where
-        // OusterSensor has its own RingBuffer of PacketMsg but for
-        // now we are focusing on optimizing the code for OusterDriver
-        std::memcpy(lidar_packet.buf.data(), raw_lidar_packet,
-                    lidar_packet.buf.size());
-        lidar_packet_pub.publish(lidar_packet);
-    }
-
-    void on_imu_packet_msg(const uint8_t* raw_imu_packet) {
-        // copying the data from queue buffer into the message buffer
-        // this can be avoided by constructing an abstraction where
-        // OusterSensor has its own RingBuffer of PacketMsg but for
-        // now we are focusing on optimizing the code for OusterDriver
-        std::memcpy(imu_packet.buf.data(), raw_imu_packet,
-                    imu_packet.buf.size());
-        imu_packet_pub.publish(imu_packet);
-    }
-
     void read_packets(PcapReader& pcap, const sensor::packet_format& pf) {
         size_t payload_size = pcap.next_packet();
         auto packet_info = pcap.current_info();
@@ -189,20 +127,17 @@ class OusterPcap : public OusterSensorNodeletBase {
         using namespace std::chrono_literals;
         const auto UPDATE_PERIOD = duration_cast<microseconds>(1s / 3);
 
-        while (payload_size) {
+        while (ros::ok() && payload_size) {
             auto start = high_resolution_clock::now();
             if (packet_info.dst_port == info.config.udp_port_imu) {
-                imu_packets->write_overwrite(
-                    [this, &pcap, &pf, &packet_info](uint8_t* buffer) {
-                        std::memcpy(buffer, pcap.current_data(),
-                                    pf.imu_packet_size);
-                    });
+                std::memcpy(imu_packet.buf.data(), pcap.current_data(),
+                            pf.imu_packet_size);
+                imu_packet_pub.publish(imu_packet);
             } else if (packet_info.dst_port == info.config.udp_port_lidar) {
-                lidar_packets->write_overwrite(
-                    [this, &pcap, &pf, &packet_info](uint8_t* buffer) {
-                        std::memcpy(buffer, pcap.current_data(),
-                                    pf.lidar_packet_size);
-                    });
+                std::memcpy(lidar_packet.buf.data(),
+                            pcap.current_data(),
+                            pf.lidar_packet_size);
+                lidar_packet_pub.publish(lidar_packet);
             } else {
                 NODELET_WARN_STREAM_THROTTLE(1,
                     "unknown packet /w port: "
@@ -233,17 +168,8 @@ class OusterPcap : public OusterSensorNodeletBase {
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
 
-    std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
-    std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
-
     std::atomic<bool> packet_read_active = {false};
     std::unique_ptr<std::thread> packet_read_thread;
-
-    std::atomic<bool> imu_packets_processing_thread_active = {false};
-    std::unique_ptr<std::thread> imu_packets_processing_thread;
-
-    std::atomic<bool> lidar_packets_processing_thread_active = {false};
-    std::unique_ptr<std::thread> lidar_packets_processing_thread;
 };
 
 }  // namespace ouster_ros

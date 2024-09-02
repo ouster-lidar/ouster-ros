@@ -35,7 +35,6 @@ class OusterDriver : public OusterSensor {
     OusterDriver() : tf_bcast(getName()) {}
     ~OusterDriver() override {
         NODELET_DEBUG("OusterDriver::~OusterDriver() called");
-        halt();
     }
 
    protected:
@@ -179,11 +178,12 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
+        OusterSensor::on_lidar_packet_msg(raw_lidar_packet);
         if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
     }
 
     virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
-        if (imu_packet_handler)
+        OusterSensor::on_imu_packet_msg(raw_imu_packet);
         if (imu_packet_handler) {
             auto imu_msg = imu_packet_handler(raw_imu_packet);
             imu_pub.publish(imu_msg);

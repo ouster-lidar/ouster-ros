@@ -22,8 +22,6 @@
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
-#include "thread_safe_ring_buffer.h"
-
 namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
@@ -53,7 +51,9 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void schedule_stop();
 
-    void halt();
+    void start_sensor_connection_thread();
+
+    void stop_sensor_connection_thread();
 
    private:
     std::string get_sensor_hostname();
@@ -107,14 +107,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     void connection_loop(sensor::client& client,
                          const sensor::packet_format& pf);
 
-    void start_sensor_connection_thread();
-
-    void stop_sensor_connection_thread();
-
-    void start_packet_processing_threads();
-
-    void stop_packet_processing_threads();
-
     bool get_active_config_no_throw(const std::string& sensor_hostname,
                              sensor::sensor_config& config);
 
@@ -131,10 +123,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     ros::ServiceServer reset_srv;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
-
-    // TODO: implement & utilize a lock-free ring buffer in future
-    std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
-    std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
 
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
