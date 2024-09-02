@@ -39,9 +39,9 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     virtual void create_publishers();
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
+    virtual void on_lidar_packet_msg(const sensor::LidarPacket& lidar_packet);
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
+    virtual void on_imu_packet_msg(const sensor::ImuPacket& imu_packet);
 
     bool start();
 
@@ -92,7 +92,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     void allocate_buffers();
 
     bool init_id_changed(const sensor::packet_format& pf,
-                         const uint8_t* lidar_buf);
+                         const sensor::LidarPacket& lidar_packet);
 
     void handle_poll_client_error();
 
@@ -116,8 +116,10 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
-    PacketMsg lidar_packet;
-    PacketMsg imu_packet;
+    ouster::sensor::LidarPacket lidar_packet;
+    ouster::sensor::ImuPacket imu_packet;
+    PacketMsg lidar_packet_msg;
+    PacketMsg imu_packet_msg;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
     ros::ServiceServer reset_srv;

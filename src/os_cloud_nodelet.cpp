@@ -100,7 +100,12 @@ class OusterCloud : public nodelet::Nodelet {
         imu_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                 if (imu_packet_handler) {
-                    auto imu_msg = imu_packet_handler(msg->buf.data());
+                    // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                    // Need to redefine the Packet object and allow use of array_views
+                    sensor::ImuPacket imu_packet(msg->buf.size());
+                    memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                    imu_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                    auto imu_msg = imu_packet_handler(imu_packet);
                     if (imu_msg.header.stamp > last_msg_ts)
                         last_msg_ts = imu_msg.header.stamp;
                     imu_pub.publish(imu_msg);
@@ -129,7 +134,14 @@ class OusterCloud : public nodelet::Nodelet {
     void create_lidar_packets_sub() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
         "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-            if (lidar_packet_handler) lidar_packet_handler(msg->buf.data());
+            if (lidar_packet_handler) {
+                // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                // Need to redefine the Packet object and allow use of array_views
+                sensor::LidarPacket lidar_packet(msg->buf.size());
+                memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                lidar_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                lidar_packet_handler(lidar_packet);
+            }
         });
     }
 

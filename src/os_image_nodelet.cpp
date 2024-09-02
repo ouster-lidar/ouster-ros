@@ -52,7 +52,14 @@ class OusterImage : public nodelet::Nodelet {
     void create_lidar_packets_subscriber() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                if (lidar_packet_handler) lidar_packet_handler(msg->buf.data());
+                if (lidar_packet_handler) {
+                    // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                    // Need to redefine the Packet object and allow use of array_views
+                    sensor::LidarPacket lidar_packet(msg->buf.size());
+                    memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                    lidar_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                    lidar_packet_handler(lidar_packet);
+                }
         });
     }
 

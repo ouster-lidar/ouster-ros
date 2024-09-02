@@ -27,6 +27,8 @@
 #include "point_cloud_processor_factory.h"
 
 namespace sensor = ouster::sensor;
+using ouster::sensor::LidarPacket;
+using ouster::sensor::ImuPacket;
 
 namespace ouster_ros {
 
@@ -177,17 +179,19 @@ class OusterDriver : public OusterSensor {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
     }
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
-        OusterSensor::on_lidar_packet_msg(raw_lidar_packet);
-        if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
+    virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (lidar_packet_handler) {
+            lidar_packet_handler(lidar_packet);
+        }
+        OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
-        OusterSensor::on_imu_packet_msg(raw_imu_packet);
+    virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
         if (imu_packet_handler) {
-            auto imu_msg = imu_packet_handler(raw_imu_packet);
+            auto imu_msg = imu_packet_handler(imu_packet);
             imu_pub.publish(imu_msg);
         }
+        OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
    private:
