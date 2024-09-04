@@ -138,14 +138,18 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud,
             const auto xyz = points.row(src_idx);
             const auto tgt_idx = organized ? (u / rows_step) * ls.w + v : cloud.size();
 
-            if (organized) {
-                cloud.is_dense &= xyz.isFinite().any();
-            }
-            else {
-                if (xyz.isNaN().any())
-                    continue;   // no need to bother with
-                else
-                    cloud.points.push_back(PointT());
+            if (xyz.isNaN().any()) {
+                if (organized) {
+                    cloud.is_dense = false;
+                    auto& pt = cloud.points[tgt_idx];
+                    pt.x = static_cast<decltype(pt.x)>(xyz(0));
+                    pt.y = static_cast<decltype(pt.y)>(xyz(1));
+                    pt.z = static_cast<decltype(pt.z)>(xyz(2));
+                }
+                continue;
+            } else {
+                if (!organized)
+                    cloud.points.emplace_back();
             }
 
             auto ts = timestamp[v_shift];
