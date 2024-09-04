@@ -132,8 +132,6 @@ class PointCloudProcessor {
     PointCloudProcessor_OutputType pc_msgs;
     ScanToCloudFn scan_to_cloud_fn;
     PointCloudProcessor_PostProcessingFn post_processing_fn;
-    uint32_t min_range;
-    uint32_t max_range;
 };
 
 }  // namespace ouster_ros
