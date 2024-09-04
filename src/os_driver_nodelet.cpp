@@ -122,11 +122,18 @@ class OusterDriver : public OusterSensor {
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
+            auto organized = pnh.param("organized", true);
+            auto destagger = pnh.param("destagger", true);
+            uint32_t min_range = pnh.param("min_range", 0);
+            uint32_t max_range = pnh.param("max_range", 1000000);   // 1000m
+            auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
                     tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i].publish(*msgs[i]);
+                        for (size_t i = 0; i < msgs.size(); ++i)
+                        lidar_pubs[i].publish(*msgs[i]);
                     }
                 )
             );
