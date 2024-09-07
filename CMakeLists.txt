@@ -65,6 +65,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Enabled for Python build" OFF)
 option(BUILD_PCAP "Enabled for Python build" OFF)
+option(BUILD_OSF "Build OSF library." OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})

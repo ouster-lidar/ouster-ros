@@ -28,6 +28,9 @@ Changelog
   - Can't handle points cloud resize properly (erroneous or corrupt PointCloud)
   - Doesn't detect and handle invalid configurations
 
+ouster_client
+-------------
+
 
 ouster_ros v0.10.0
 ==================
