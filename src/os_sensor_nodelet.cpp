@@ -497,7 +497,7 @@ void OusterSensor::populate_metadata_defaults(
     if (!info.name.size()) info.name = "UNKNOWN";
     if (!info.sn.size()) info.sn = "UNKNOWN";
 
-    ouster::util::version v = ouster::util::version_of_string(info.fw_rev);
+    ouster::util::version v = ouster::util::version_from_string(info.fw_rev);
     if (v == ouster::util::invalid_version)
         NODELET_WARN(
             "Unknown sensor firmware version; output may not be reliable");
@@ -576,7 +576,7 @@ void OusterSensor::handle_poll_client_error() {
 
 void OusterSensor::handle_lidar_packet(sensor::client& cli,
                                        const sensor::packet_format& pf) {
-    if (sensor::read_lidar_packet(cli, lidar_packet, pf)) {
+    if (sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
         if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
             // TODO: short circut reset if no breaking changes occured?
@@ -596,8 +596,8 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
 }
 
 void OusterSensor::handle_imu_packet(sensor::client& cli,
-                                     const sensor::packet_format& pf) {
-    if (sensor::read_imu_packet(cli, imu_packet, pf)) {
+                                     const sensor::packet_format&) {
+    if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
     } else {
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
