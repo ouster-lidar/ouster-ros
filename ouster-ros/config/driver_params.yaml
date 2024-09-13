@@ -88,8 +88,8 @@ ouster/os_driver:
     # - ouster_ros/common_point_types.h.
     point_type: xyz
     # azimuth window start[optional]: values range [0, 360000] millidegrees
-    azimuth_window_start: 0
+    azimuth_window_start: 100000
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
-    azimuth_window_end: 360000
+    azimuth_window_end: 260000
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
