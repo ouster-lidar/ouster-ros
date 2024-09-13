@@ -27,9 +27,19 @@ Changelog
   - RVIZ can't handle image resize
   - Can't handle points cloud resize properly (erroneous or corrupt PointCloud)
   - Doesn't detect and handle invalid configurations
+* updated ouster_client to the release of ``20240425`` [v0.11.1]; changes listed below.
 
 ouster_client
 -------------
+* Added a new buffered UDP source implementation BufferedUDPSource.
+* The method version_of_string is marked as deprecated, use version_from_string
+instead.
+* Added a new method firmware_version_from_metadata which works across firmwares.
+* Added support for return order configuration parameter.
+* Added support for gyro and accelerometer FSR configuration parameters.
+* [BUGFIX] mtp_init_client throws a bad optional access.
+* [BUGFIX] properly handle 32-bit frame IDs from the
+* FUSA_RNG15_RFL8_NIR8_DUAL sensor UDP profile.
 
 
 ouster_ros v0.10.0
