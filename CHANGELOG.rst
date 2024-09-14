@@ -27,7 +27,10 @@ Changelog
   - RVIZ can't handle image resize
   - Can't handle points cloud resize properly (erroneous or corrupt PointCloud)
   - Doesn't detect and handle invalid configurations
-* updated ouster_client to the release of ``20240425`` [v0.11.1]; changes listed below.
+* Added a new parameter ``organized`` to request publishing unorganized point cloud
+* Added a new parameter ``destagger`` to request publishing staggered point cloud
+* Added two parameters ``min_range``, ``max_range`` to limit the lidar effective range
+* Updated ouster_client to the release of ``20240425`` [v0.11.1]; changes listed below.
 
 ouster_client
 -------------

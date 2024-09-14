@@ -41,6 +41,11 @@
     xyzir
     }"/>
 
+  <arg name="organized" doc="generate an organzied point cloud"/>
+  <arg name="destagger" doc="enable or disable point cloud destaggering"/>
+
+  <arg name="min_range" doc="minimum lidar range to consider (meters)"/>
+  <arg name="max_range" doc="maximum lidar range to consider (meters)"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
@@ -60,6 +65,10 @@
       <param name="~/scan_ring" value="$(arg scan_ring)"/>
       <param name="~/ptp_utc_tai_offset" type="double" value="$(arg ptp_utc_tai_offset)"/>
       <param name="~/point_type" value="$(arg point_type)"/>
+      <param name="~/organized" value="$(arg organized)"/>
+      <param name="~/destagger" value="$(arg destagger)"/>
+      <param name="~/min_range" value="$(arg min_range)"/>
+      <param name="~/max_range" value="$(arg max_range)"/>
     </node>
   </group>
 

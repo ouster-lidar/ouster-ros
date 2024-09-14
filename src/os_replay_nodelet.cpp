@@ -30,7 +30,7 @@ class OusterReplay : public OusterSensorNodeletBase {
         auto meta_file =
             getPrivateNodeHandle().param("metadata", std::string{});
         if (!is_arg_set(meta_file)) {
-            NODELET_ERROR("Must specify metadata file in replay mode");
+            NODELET_FATAL("Must specify metadata file in replay mode");
             throw std::runtime_error("metadata no specificed");
         }
         return meta_file;

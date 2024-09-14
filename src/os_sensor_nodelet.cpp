@@ -128,7 +128,7 @@ std::string OusterSensor::get_sensor_hostname() {
     auto hostname = nh.param("sensor_hostname", std::string{});
     if (!is_arg_set(hostname)) {
         auto error_msg = "Must specify a sensor hostname";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -316,7 +316,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         auto error_msg =
             "Invalid lidar port number! port value should be in the range "
             "[0, 65535].";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -324,7 +324,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         auto error_msg =
             "Invalid imu port number! port value should be in the range "
             "[0, 65535].";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -336,7 +336,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         if (!udp_profile_lidar) {
             auto error_msg =
                 "Invalid udp profile lidar: " + udp_profile_lidar_arg;
-            NODELET_ERROR_STREAM(error_msg);
+            NODELET_FATAL_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
     }
@@ -347,7 +347,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         lidar_mode = sensor::lidar_mode_of_string(lidar_mode_arg);
         if (!lidar_mode) {
             auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
-            NODELET_ERROR_STREAM(error_msg);
+            NODELET_FATAL_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
     }
@@ -367,7 +367,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
             if (!timestamp_mode) {
                 auto error_msg =
                     "Invalid timestamp mode: " + timestamp_mode_arg;
-                NODELET_ERROR_STREAM(error_msg);
+                NODELET_FATAL_STREAM(error_msg);
                 throw std::runtime_error(error_msg);
             }
         }
@@ -417,7 +417,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         azimuth_window_end < MIN_AZW || azimuth_window_end > MAX_AZW) {
         auto error_msg = "azimuth window values must be between " +
                     to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
