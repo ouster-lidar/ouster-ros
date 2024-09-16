@@ -125,8 +125,19 @@ class OusterDriver : public OusterSensor {
             auto point_type = pnh.param("point_type", std::string{"original"});
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);
-            uint32_t min_range = pnh.param("min_range", 0);
-            uint32_t max_range = pnh.param("max_range", 1000000);   // 1000m
+            auto min_range_m = pnh.param("min_range", 0.0);
+            auto max_range_m = pnh.param("max_range", 1000.0);   // 1000m
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                NODELET_FATAL("min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                NODELET_FATAL("min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint64_t min_range = impl::ulround(min_range_m * 1000);
+            uint64_t max_range = impl::ulround(max_range_m * 1000);
             auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
