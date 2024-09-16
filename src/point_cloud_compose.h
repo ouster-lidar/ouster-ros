@@ -164,7 +164,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud,
             pt.y = static_cast<decltype(pt.y)>(xyz(1));
             pt.z = static_cast<decltype(pt.z)>(xyz(2));
             // TODO: in the future we could probably skip copying t and ring
-            // values if knowning before hand that the target point cloud does
+            // values if known before hand that the target point cloud does
             // not have a field to hold the timestamp or a ring for example the
             // case of pcl::PointXYZ or pcl::PointXYZI.
             pt.t = static_cast<uint32_t>(ts);
