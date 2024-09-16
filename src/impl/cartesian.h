@@ -16,7 +16,10 @@ namespace ouster {
  * LidarScan.
  * @param[in] direction the direction of an xyz lut.
  * @param[in] offset the offset of an xyz lut.
- * @param[in] invalid the value to assign of an xyz lut.
+ * @param[in] min_range minimum lidar range to consider (millimeters).
+ * @param[in] max_range maximum lidar range to consider (millimeters).
+ * @param[in] invalid the value to assign of an xyz lut when range values are
+ * equal to or exceed the min_range and max_range values.
  *
  * @return Cartesian points where ith row is a 3D point which corresponds
  *         to ith pixel in LidarScan where i = row * w + col.
