@@ -16,6 +16,7 @@ jobs:
       matrix:
         ros_distro:
           - noetic
+          - melodic
     steps:
       - uses: actions/checkout@v4
         with:
