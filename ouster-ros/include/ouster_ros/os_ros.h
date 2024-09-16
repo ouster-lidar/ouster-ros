@@ -158,6 +158,14 @@ inline bool check_token(const std::set<std::string>& tokens,
 
 ouster::util::version parse_version(const std::string& fw_rev);
 
+template <typename T>
+uint64_t ulround(T value) {
+    T rounded_value = std::round(value);
+    if (rounded_value < 0) return 0ULL;
+    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
+    return static_cast<uint64_t>(rounded_value);
+}
+
 } // namespace impl
 
 }  // namespace ouster_ros

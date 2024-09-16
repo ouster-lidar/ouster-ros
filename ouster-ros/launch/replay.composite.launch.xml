@@ -62,6 +62,16 @@
     xyzir
     }"/>
 
+  <arg name="organized" default="true"
+    description="generate an organzied point cloud"/>
+  <arg name="destagger" default="true"
+    description="enable or disable point cloud destaggering"/>
+
+  <arg name="min_range" default="0.0"
+    description="minimum lidar range to consider (meters)"/>
+  <arg name="max_range" default="1000.0"
+    description="minimum lidar range to consider (meters)"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
@@ -80,6 +90,10 @@
         <param name="proc_mask" value="$(var proc_mask)"/>
         <param name="scan_ring" value="$(var scan_ring)"/>
         <param name="point_type" value="$(var point_type)"/>
+        <param name="organized" value="$(var organized)"/>
+        <param name="destagger" value="$(var destagger)"/>
+        <param name="min_range" value="$(var min_range)"/>
+        <param name="max_range" value="$(var max_range)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>

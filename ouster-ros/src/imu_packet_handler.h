@@ -19,36 +19,39 @@ namespace ouster_ros {
 class ImuPacketHandler {
    public:
     using HandlerOutput = sensor_msgs::msg::Imu;
-    using HandlerType = std::function<HandlerOutput(const uint8_t*)>;
+    using HandlerType = std::function<HandlerOutput(const sensor::ImuPacket&)>;
 
    public:
-    static HandlerType create_handler(const ouster::sensor::sensor_info& info,
+    static HandlerType create_handler(const sensor::sensor_info& info,
                                       const std::string& frame,
                                       const std::string& timestamp_mode,
                                       int64_t ptp_utc_tai_offset) {
-        const auto& pf = ouster::sensor::get_format(info);
-        using Timestamper = std::function<rclcpp::Time(const uint8_t*)>;
+        const auto& pf = sensor::get_format(info);
+        using Timestamper = std::function<rclcpp::Time(const sensor::ImuPacket&)>;
         Timestamper timestamper;
-
         if (timestamp_mode == "TIME_FROM_ROS_TIME") {
-            timestamper = Timestamper{[](const uint8_t* /*imu_buf*/) {
-                return rclcpp::Clock(RCL_ROS_TIME).now();
-            }};
+            timestamper = Timestamper{
+                [](const sensor::ImuPacket& imu_packet) {
+                    return rclcpp::Time(imu_packet.host_timestamp);
+                }};
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
-            timestamper =
-                Timestamper{[pf, ptp_utc_tai_offset](const uint8_t* imu_buf) {
-                    uint64_t ts = pf.imu_gyro_ts(imu_buf);
+            timestamper = Timestamper{
+                [pf, ptp_utc_tai_offset](const sensor::ImuPacket& imu_packet) {
+                    auto ts = pf.imu_gyro_ts(imu_packet.buf.data());
                     ts = impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
                     return rclcpp::Time(ts);
                 }};
         } else {
-            timestamper = Timestamper{[pf](const uint8_t* imu_buf) {
-                return rclcpp::Time(pf.imu_gyro_ts(imu_buf));
-            }};
+            timestamper = Timestamper{
+                [pf](const sensor::ImuPacket& imu_packet) {
+                    auto ts = pf.imu_gyro_ts(imu_packet.buf.data());
+                    return rclcpp::Time(ts);
+                }};
         }
 
-        return [&pf, &frame, timestamper](const uint8_t* imu_buf) {
-            return packet_to_imu_msg(pf, timestamper(imu_buf), frame, imu_buf);
+        return [&pf, &frame, timestamper](const sensor::ImuPacket& imu_packet) {
+            return packet_to_imu_msg(pf, timestamper(imu_packet), frame,
+                                     imu_packet.buf.data());
         };
     }
 };
