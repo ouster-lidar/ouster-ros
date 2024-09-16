@@ -46,7 +46,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Turn off building VIZ" OFF)
 option(BUILD_PCAP "Turn off building PCAP" OFF)
-option(BUILD_OSF "Turn off building OSF" ON)
+option(BUILD_OSF "Turn off building OSF" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
