@@ -175,8 +175,8 @@ class OusterCloud : public nodelet::Nodelet {
                 throw std::runtime_error("min_range equal to or exceeds max_range!");
             }
             // convert to millimeters
-            uint64_t min_range = impl::ulround(min_range_m * 1000);
-            uint64_t max_range = impl::ulround(max_range_m * 1000);
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
             auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(
