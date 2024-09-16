@@ -42,7 +42,7 @@ class OusterDriver : public OusterSensor {
    protected:
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
-        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN|IMG|RAW"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
         if (impl::check_token(tokens, "IMU"))
             create_imu_pub();
@@ -52,6 +52,7 @@ class OusterDriver : public OusterSensor {
             create_laser_scan_pubs();
         if (impl::check_token(tokens, "IMG"))
             create_image_pubs();
+        publish_raw = impl::check_token(tokens, "RAW");
         OusterSensor::onInit();
     }
 
@@ -190,7 +191,9 @@ class OusterDriver : public OusterSensor {
         if (lidar_packet_handler) {
             lidar_packet_handler(lidar_packet);
         }
-        OusterSensor::on_lidar_packet_msg(lidar_packet);
+
+        if (publish_raw)
+            OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
@@ -198,7 +201,9 @@ class OusterDriver : public OusterSensor {
             auto imu_msg = imu_packet_handler(imu_packet);
             imu_pub.publish(imu_msg);
         }
-        OusterSensor::on_imu_packet_msg(imu_packet);
+
+        if (publish_raw)
+            OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
    private:
@@ -211,6 +216,9 @@ class OusterDriver : public OusterSensor {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+
+    bool publish_raw = false;
+
 };
 
 }  // namespace ouster_ros
