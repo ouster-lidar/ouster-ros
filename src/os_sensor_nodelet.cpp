@@ -20,10 +20,10 @@
 #include "ouster_ros/PacketMsg.h"
 #include "os_sensor_nodelet.h"
 
-using nonstd::optional;
 using std::to_string;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
 namespace sensor = ouster::sensor;
 using sensor::LidarPacket;
 using sensor::ImuPacket;

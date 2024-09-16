@@ -116,10 +116,10 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
-    ouster::sensor::LidarPacket lidar_packet;
-    ouster::sensor::ImuPacket imu_packet;
     PacketMsg lidar_packet_msg;
     PacketMsg imu_packet_msg;
+    ouster::sensor::LidarPacket lidar_packet;
+    ouster::sensor::ImuPacket imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
     ros::ServiceServer reset_srv;
