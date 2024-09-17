@@ -3,8 +3,8 @@
   <set_parameter name="use_sim_time" value="true" />
 
   <arg name="loop" default="false" description="request loop playback"/>
-  <arg if="$(var loop)" name="_loop" value="--loop"/>
-  <arg unless="$(var loop)" name="_loop" value=" "/>
+  <let if="$(var loop)" name="_loop" value="--loop"/>
+  <let unless="$(var loop)" name="_loop" value=" "/>
 
   <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
   <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
