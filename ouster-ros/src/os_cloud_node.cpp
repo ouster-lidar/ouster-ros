@@ -159,11 +159,14 @@ class OusterCloud : public OusterProcessingNodeBase {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+            rclcpp::SubscriptionOptions subscription_options;
+            subscription_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
             lidar_packet_sub = create_subscription<PacketMsg>(
-                "lidar_packets", selected_qos,
+                "lidar_packets", selected_qos.keep_last(100),
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     lidar_packet_handler(msg->buf.data());
-                });
+                },
+                subscription_options);
         }
     }
 
