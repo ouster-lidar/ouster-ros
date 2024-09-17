@@ -3,11 +3,8 @@
   <set_parameter name="use_sim_time" value="true" />
 
   <arg name="loop" default="false" description="request loop playback"/>
-  <arg if="$(arg loop)" name="_loop" value="--loop"/>
-  <arg unless="$(arg loop)" name="_loop" value=" "/>
-
-  <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
-  <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
+  <let if="$(var loop)" name="_loop" value="--loop"/>
+  <let unless="$(var loop)" name="_loop" value=" "/>
 
   <arg name="ouster_ns" default="ouster"
     description="Override the default namespace of all ouster nodes"/>
@@ -70,6 +67,8 @@
     </node>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
+        <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
+        <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
         <param name="sensor_frame" value="$(var sensor_frame)"/>
         <param name="lidar_frame" value="$(var lidar_frame)"/>
         <param name="imu_frame" value="$(var imu_frame)"/>
@@ -82,6 +81,7 @@
         <param name="point_type" value="$(var point_type)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
+        <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
         <param name="proc_mask" value="$(var proc_mask)"/>
       </composable_node>
@@ -106,7 +106,7 @@
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep 3; $0 $@'"
-    cmd="ros2 bag play $(var bag_file) --clock $(arg _loop)
+    cmd="ros2 bag play $(var bag_file) --clock $(var _loop)
       --qos-profile-overrides-path
       $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 
