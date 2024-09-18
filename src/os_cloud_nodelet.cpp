@@ -165,7 +165,7 @@ class OusterCloud : public nodelet::Nodelet {
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);
             auto min_range_m = pnh.param("min_range", 0.0);
-            auto max_range_m = pnh.param("max_range", 1000.0);   // 1000m
+            auto max_range_m = pnh.param("max_range", 10000.0);
             if (min_range_m < 0.0 || max_range_m < 0.0) {
                 NODELET_FATAL("min_range and max_range need to be positive");
                 throw std::runtime_error("negative range limits!");

@@ -566,7 +566,7 @@ void OusterSensor::handle_poll_client_error() {
     // in case error continues for a while attempt to recover by
     // performing sensor reset
     if (++poll_client_error_count > max_poll_client_error_count) {
-        NODELET_ERROR_STREAM(
+        NODELET_ERROR(
             "maximum number of allowed errors from "
             "sensor::poll_client() reached, performing self reset...");
         poll_client_error_count = 0;
@@ -601,7 +601,7 @@ void OusterSensor::handle_imu_packet(sensor::client& cli,
         on_imu_packet_msg(imu_packet);
     } else {
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
-            NODELET_ERROR_STREAM(
+            NODELET_ERROR(
                 "maximum number of allowed errors from "
                 "sensor::read_imu_packet() reached, reactivating...");
             read_imu_packet_errors = 0;
