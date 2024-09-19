@@ -2,8 +2,11 @@
 Changelog
 =========
 
-[unreleased]
-============
+[ouster_ros v0.13.0]
+====================
+
+ouster_ros(1)
+-------------
 * [BREAKING] ROS1 driver code now requires C++17 (required for point cloud customization feature).
 * added the ability to customize the published point clouds(s) to velodyne point cloud format and
   other common pcl point types.
