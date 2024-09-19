@@ -5,14 +5,16 @@
   <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send data packets"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>
-  <arg name="udp_profile_lidar" default=" " doc="lidar packet profile; possible values: {
+  <arg name="udp_profile_lidar" default=" "
+    doc="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8
     RNG19_RFL8_SIG16_NIR16_DUAL,
     FUSA_RNG15_RFL8_NIR8_DUAL
     }"/>
-  <arg name="lidar_mode" default=" " doc="resolution and rate; possible values: {
+  <arg name="lidar_mode" default=" "
+    doc="resolution and rate; possible values: {
     512x10,
     512x20,
     1024x10,
@@ -20,7 +22,8 @@
     2048x10,
     4096x5
     }"/>
-  <arg name="timestamp_mode" default=" " doc="method used to timestamp measurements; possible values: {
+  <arg name="timestamp_mode" default=" "
+    doc="method used to timestamp measurements; possible values: {
     TIME_FROM_INTERNAL_OSC,
     TIME_FROM_SYNC_PULSE_IN,
     TIME_FROM_PTP_1588,
@@ -49,15 +52,15 @@
   <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
   <arg unless="$(arg no_bond)" name="_no_bond" value=" "/>
 
-  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" doc="
+  <arg name="proc_mask" default="IMU|PCL|SCAN|IMG|RAW" doc="
     use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" doc="
     use this parameter in conjunction with the SCAN flag
     and choose a value the range [0, sensor_beams_count)"/>
 
-  <arg name="point_type" default="original" doc="point type for the generated point cloud;
-   available options: {
+  <arg name="point_type" default="original"
+    doc="point type for the generated point cloud; available options: {
     original,
     native,
     xyz,
@@ -81,6 +84,16 @@
   <arg name="max_failed_reconnect_attempts" default="2147483647"
     doc="maximum number of attempts trying to communicate with the sensor.
          Counter resets upon successful connection"/>
+
+  <arg name="organized" default="true"
+    doc="generate an organzied point cloud"/>
+  <arg name="destagger" default="true"
+    doc="enable or disable point cloud destaggering"/>
+
+  <arg name="min_range" default="0.0"
+    doc="minimum lidar range to consider (meters)"/>
+  <arg name="max_range" default="10000.0"
+    doc="maximum lidar range to consider (meters)"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
@@ -117,6 +130,10 @@
              value="$(arg dormant_period_between_reconnects)"/>
       <param name="~/max_failed_reconnect_attempts"
              value="$(arg max_failed_reconnect_attempts)"/>
+      <param name="~/organized" value="$(arg organized)"/>
+      <param name="~/destagger" value="$(arg destagger)"/>
+      <param name="~/min_range" value="$(arg min_range)"/>
+      <param name="~/max_range" value="$(arg max_range)"/>
     </node>
   </group>
 

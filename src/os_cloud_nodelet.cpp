@@ -100,7 +100,12 @@ class OusterCloud : public nodelet::Nodelet {
         imu_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                 if (imu_packet_handler) {
-                    auto imu_msg = imu_packet_handler(msg->buf.data());
+                    // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                    // Need to redefine the Packet object and allow use of array_views
+                    sensor::ImuPacket imu_packet(msg->buf.size());
+                    memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                    imu_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                    auto imu_msg = imu_packet_handler(imu_packet);
                     if (imu_msg.header.stamp > last_msg_ts)
                         last_msg_ts = imu_msg.header.stamp;
                     imu_pub.publish(imu_msg);
@@ -129,7 +134,14 @@ class OusterCloud : public nodelet::Nodelet {
     void create_lidar_packets_sub() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
         "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-            if (lidar_packet_handler) lidar_packet_handler(msg->buf.data());
+            if (lidar_packet_handler) {
+                // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                // Need to redefine the Packet object and allow use of array_views
+                sensor::LidarPacket lidar_packet(msg->buf.size());
+                memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                lidar_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                lidar_packet_handler(lidar_packet);
+            }
         });
     }
 
@@ -150,10 +162,27 @@ class OusterCloud : public nodelet::Nodelet {
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
+            auto organized = pnh.param("organized", true);
+            auto destagger = pnh.param("destagger", true);
+            auto min_range_m = pnh.param("min_range", 0.0);
+            auto max_range_m = pnh.param("max_range", 10000.0);
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                NODELET_FATAL("min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                NODELET_FATAL("min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
+            auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
-                PointCloudProcessorFactory::create_point_cloud_processor(point_type,
-                    info, tf_bcast.point_cloud_frame_id(),
+                PointCloudProcessorFactory::create_point_cloud_processor(
+                    point_type, info, tf_bcast.point_cloud_frame_id(),
                     tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i) {
                             if (msgs[i]->header.stamp > last_msg_ts)

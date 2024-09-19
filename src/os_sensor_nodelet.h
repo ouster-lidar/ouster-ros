@@ -22,8 +22,6 @@
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
-#include "thread_safe_ring_buffer.h"
-
 namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
@@ -41,9 +39,9 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     virtual void create_publishers();
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet);
+    virtual void on_lidar_packet_msg(const sensor::LidarPacket& lidar_packet);
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet);
+    virtual void on_imu_packet_msg(const sensor::ImuPacket& imu_packet);
 
     bool start();
 
@@ -53,7 +51,9 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void schedule_stop();
 
-    void halt();
+    void start_sensor_connection_thread();
+
+    void stop_sensor_connection_thread();
 
    private:
     std::string get_sensor_hostname();
@@ -78,8 +78,6 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     sensor::sensor_config parse_config_from_ros_parameters();
 
-    sensor::sensor_config parse_config_from_staged_config_string();
-
     uint8_t compose_config_flags(const sensor::sensor_config& config);
 
     bool configure_sensor(const std::string& hostname,
@@ -94,7 +92,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     void allocate_buffers();
 
     bool init_id_changed(const sensor::packet_format& pf,
-                         const uint8_t* lidar_buf);
+                         const sensor::LidarPacket& lidar_packet);
 
     void handle_poll_client_error();
 
@@ -109,14 +107,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     void connection_loop(sensor::client& client,
                          const sensor::packet_format& pf);
 
-    void start_sensor_connection_thread();
-
-    void stop_sensor_connection_thread();
-
-    void start_packet_processing_threads();
-
-    void stop_packet_processing_threads();
-
     bool get_active_config_no_throw(const std::string& sensor_hostname,
                              sensor::sensor_config& config);
 
@@ -126,17 +116,15 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::string mtp_dest;
     bool mtp_main;
     std::shared_ptr<sensor::client> sensor_client;
-    PacketMsg lidar_packet;
-    PacketMsg imu_packet;
+    PacketMsg lidar_packet_msg;
+    PacketMsg imu_packet_msg;
+    ouster::sensor::LidarPacket lidar_packet;
+    ouster::sensor::ImuPacket imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
     ros::ServiceServer reset_srv;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
-
-    // TODO: implement & utilize a lock-free ring buffer in future
-    std::unique_ptr<ThreadSafeRingBuffer> lidar_packets;
-    std::unique_ptr<ThreadSafeRingBuffer> imu_packets;
 
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
@@ -151,7 +139,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     bool force_sensor_reinit = false;
     bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
-
     std::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter

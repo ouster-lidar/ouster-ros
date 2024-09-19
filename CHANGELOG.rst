@@ -23,7 +23,26 @@ Changelog
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch`` file.
 * Added support for automatic sensor reconnection. Consult ``attempt_reconnect`` launch file arg
-  documentation and the associated params to enable.
+  documentation and the associated params to enable. Known Issues:
+  - RVIZ can't handle image resize
+  - Can't handle points cloud resize properly (erroneous or corrupt PointCloud)
+  - Doesn't detect and handle invalid configurations
+* Added a new parameter ``organized`` to request publishing unorganized point cloud
+* Added a new parameter ``destagger`` to request publishing staggered point cloud
+* Added two parameters ``min_range``, ``max_range`` to limit the lidar effective range
+* Updated ouster_client to the release of ``20240425`` [v0.11.1]; changes listed below.
+
+ouster_client
+-------------
+* Added a new buffered UDP source implementation BufferedUDPSource.
+* The method version_of_string is marked as deprecated, use version_from_string
+instead.
+* Added a new method firmware_version_from_metadata which works across firmwares.
+* Added support for return order configuration parameter.
+* Added support for gyro and accelerometer FSR configuration parameters.
+* [BUGFIX] mtp_init_client throws a bad optional access.
+* [BUGFIX] properly handle 32-bit frame IDs from the
+* FUSA_RNG15_RFL8_NIR8_DUAL sensor UDP profile.
 
 
 ouster_ros v0.10.0

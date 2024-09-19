@@ -27,6 +27,8 @@
 #include "point_cloud_processor_factory.h"
 
 namespace sensor = ouster::sensor;
+using ouster::sensor::LidarPacket;
+using ouster::sensor::ImuPacket;
 
 namespace ouster_ros {
 
@@ -35,13 +37,12 @@ class OusterDriver : public OusterSensor {
     OusterDriver() : tf_bcast(getName()) {}
     ~OusterDriver() override {
         NODELET_DEBUG("OusterDriver::~OusterDriver() called");
-        halt();
     }
 
    protected:
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
-        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
+        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN|IMG|RAW"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
         if (impl::check_token(tokens, "IMU"))
             create_imu_pub();
@@ -51,6 +52,7 @@ class OusterDriver : public OusterSensor {
             create_laser_scan_pubs();
         if (impl::check_token(tokens, "IMG"))
             create_image_pubs();
+        publish_raw = impl::check_token(tokens, "RAW");
         OusterSensor::onInit();
     }
 
@@ -121,11 +123,29 @@ class OusterDriver : public OusterSensor {
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
+            auto organized = pnh.param("organized", true);
+            auto destagger = pnh.param("destagger", true);
+            auto min_range_m = pnh.param("min_range", 0.0);
+            auto max_range_m = pnh.param("max_range", 10000.0);
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                NODELET_FATAL("min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                NODELET_FATAL("min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
+            auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
                     tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i].publish(*msgs[i]);
+                        for (size_t i = 0; i < msgs.size(); ++i)
+                            lidar_pubs[i].publish(*msgs[i]);
                     }
                 )
             );
@@ -178,16 +198,23 @@ class OusterDriver : public OusterSensor {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
     }
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
-        if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
+    virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (lidar_packet_handler) {
+            lidar_packet_handler(lidar_packet);
+        }
+
+        if (publish_raw)
+            OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
-        if (imu_packet_handler)
+    virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
         if (imu_packet_handler) {
-            auto imu_msg = imu_packet_handler(raw_imu_packet);
+            auto imu_msg = imu_packet_handler(imu_packet);
             imu_pub.publish(imu_msg);
         }
+
+        if (publish_raw)
+            OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
    private:
@@ -200,6 +227,9 @@ class OusterDriver : public OusterSensor {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+
+    bool publish_raw = false;
+
 };
 
 }  // namespace ouster_ros

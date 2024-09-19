@@ -50,7 +50,7 @@ FROM build-env
 
 SHELL ["/bin/bash", "-c"]
 
-ENV CXXFLAGS="-Werror -Wno-deprecated-declarations"
+ENV CXXFLAGS="-Wno-deprecated-declarations"
 RUN /opt/ros/$ROS_DISTRO/env.sh catkin_make     \
 -DCMAKE_BUILD_TYPE=Release                      \
 && /opt/ros/$ROS_DISTRO/env.sh catkin_make install

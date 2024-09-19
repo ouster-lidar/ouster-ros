@@ -20,23 +20,19 @@
 #include "ouster_ros/PacketMsg.h"
 #include "os_sensor_nodelet.h"
 
-namespace sensor = ouster::sensor;
-using nonstd::optional;
-
+using std::to_string;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
-using std::to_string;
+
+namespace sensor = ouster::sensor;
+using sensor::LidarPacket;
+using sensor::ImuPacket;
 
 
 namespace ouster_ros {
 
 OusterSensor::~OusterSensor() {
     NODELET_DEBUG("OusterDriver::~OusterSensor() called");
-    halt();
-}
-
-void OusterSensor::halt() {
-    stop_packet_processing_threads();
     stop_sensor_connection_thread();
 }
 
@@ -54,14 +50,14 @@ bool OusterSensor::start() {
         if (!get_active_config_no_throw(sensor_hostname, config))
             return false;
 
+        NODELET_INFO("Retrived sensor active config");
+
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
         // Only reset udp_dest if auto_udp was allowed on startup
         if (auto_udp_allowed) config.udp_dest.reset();
         if (!configure_sensor(sensor_hostname, config))
             return false;
-
-        NODELET_INFO("Retrived sensor active config");
     }
 
     reset_last_init_id = true;
@@ -73,14 +69,13 @@ bool OusterSensor::start() {
 
     update_metadata(*sensor_client);
     allocate_buffers();
-    start_packet_processing_threads();
     start_sensor_connection_thread();
     return true;
 }
 
 void OusterSensor::stop() {
     // deactivate
-    halt();
+    stop_sensor_connection_thread();
     sensor_client.reset();
 }
 
@@ -133,7 +128,7 @@ std::string OusterSensor::get_sensor_hostname() {
     auto hostname = nh.param("sensor_hostname", std::string{});
     if (!is_arg_set(hostname)) {
         auto error_msg = "Must specify a sensor hostname";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -321,7 +316,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         auto error_msg =
             "Invalid lidar port number! port value should be in the range "
             "[0, 65535].";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -329,7 +324,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         auto error_msg =
             "Invalid imu port number! port value should be in the range "
             "[0, 65535].";
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -341,7 +336,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         if (!udp_profile_lidar) {
             auto error_msg =
                 "Invalid udp profile lidar: " + udp_profile_lidar_arg;
-            NODELET_ERROR_STREAM(error_msg);
+            NODELET_FATAL_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
     }
@@ -352,7 +347,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         lidar_mode = sensor::lidar_mode_of_string(lidar_mode_arg);
         if (!lidar_mode) {
             auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
-            NODELET_ERROR_STREAM(error_msg);
+            NODELET_FATAL_STREAM(error_msg);
             throw std::runtime_error(error_msg);
         }
     }
@@ -372,7 +367,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
             if (!timestamp_mode) {
                 auto error_msg =
                     "Invalid timestamp mode: " + timestamp_mode_arg;
-                NODELET_ERROR_STREAM(error_msg);
+                NODELET_FATAL_STREAM(error_msg);
                 throw std::runtime_error(error_msg);
             }
         }
@@ -422,7 +417,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
         azimuth_window_end < MIN_AZW || azimuth_window_end > MAX_AZW) {
         auto error_msg = "azimuth window values must be between " +
                     to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
-        NODELET_ERROR_STREAM(error_msg);
+        NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -476,10 +471,10 @@ bool OusterSensor::configure_sensor(const std::string& hostname,
         if (!get_config(hostname, config, true)) {
             NODELET_ERROR("Error getting active config");
             return false;
-        } else {
-            NODELET_INFO("Retrived active config of sensor");
-            return true;
         }
+
+        NODELET_INFO("Retrived active config of sensor");
+        return true;
     }
 
     uint8_t config_flags = compose_config_flags(config);
@@ -502,7 +497,7 @@ void OusterSensor::populate_metadata_defaults(
     if (!info.name.size()) info.name = "UNKNOWN";
     if (!info.sn.size()) info.sn = "UNKNOWN";
 
-    ouster::util::version v = ouster::util::version_of_string(info.fw_rev);
+    ouster::util::version v = ouster::util::version_from_string(info.fw_rev);
     if (v == ouster::util::invalid_version)
         NODELET_WARN(
             "Unknown sensor firmware version; output may not be reliable");
@@ -544,21 +539,15 @@ void OusterSensor::create_publishers() {
 
 void OusterSensor::allocate_buffers() {
     auto& pf = sensor::get_format(info);
-
     lidar_packet.buf.resize(pf.lidar_packet_size);
-    // TODO: gauge necessary queue size for lidar packets
-    lidar_packets =
-        std::make_unique<ThreadSafeRingBuffer>(pf.lidar_packet_size, 1024);
-
+    lidar_packet_msg.buf.resize(pf.lidar_packet_size);
     imu_packet.buf.resize(pf.imu_packet_size);
-    // TODO: gauge necessary queue size for lidar packets
-    imu_packets =
-        std::make_unique<ThreadSafeRingBuffer>(pf.imu_packet_size, 1024);
+    imu_packet_msg.buf.resize(pf.imu_packet_size);
 }
 
 bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
-                                   const uint8_t* lidar_buf) {
-    uint32_t current_init_id = pf.init_id(lidar_buf);
+                                   const LidarPacket& lidar_packet) {
+    uint32_t current_init_id = pf.init_id(lidar_packet.buf.data());
     if (!last_init_id) {
         last_init_id = current_init_id + 1;
     }
@@ -577,7 +566,7 @@ void OusterSensor::handle_poll_client_error() {
     // in case error continues for a while attempt to recover by
     // performing sensor reset
     if (++poll_client_error_count > max_poll_client_error_count) {
-        NODELET_ERROR_STREAM(
+        NODELET_ERROR(
             "maximum number of allowed errors from "
             "sensor::poll_client() reached, performing self reset...");
         poll_client_error_count = 0;
@@ -587,41 +576,38 @@ void OusterSensor::handle_poll_client_error() {
 
 void OusterSensor::handle_lidar_packet(sensor::client& cli,
                                        const sensor::packet_format& pf) {
-    lidar_packets->write_overwrite([this, &cli, pf](uint8_t* buffer) {
-        bool success = sensor::read_lidar_packet(cli, buffer, pf);
-        if (success) {
-            read_lidar_packet_errors = 0;
-            if (!is_legacy_lidar_profile(info) && init_id_changed(pf, buffer)) {
-                // TODO: short circut reset if no breaking changes occured?
-                NODELET_WARN("sensor init_id has changed! reactivating..");
-                reset_sensor(false);
-            }
-        } else {
-            if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
-                NODELET_ERROR(
-                    "maximum number of allowed errors from "
-                    "sensor::read_lidar_packet() reached, reactivating...");
-                read_lidar_packet_errors = 0;
-                reactivate_sensor(true);
-            }
+    if (sensor::read_lidar_packet(cli, lidar_packet)) {
+        read_lidar_packet_errors = 0;
+        if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
+            // TODO: short circut reset if no breaking changes occured?
+            NODELET_WARN("sensor init_id has changed! reactivating..");
+            reset_sensor(false);
         }
-    });
+        on_lidar_packet_msg(lidar_packet);
+    } else {
+        if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
+            NODELET_ERROR(
+                "maximum number of allowed errors from "
+                "sensor::read_lidar_packet() reached, reactivating...");
+            read_lidar_packet_errors = 0;
+            reset_sensor(true);
+        }
+    }
 }
 
 void OusterSensor::handle_imu_packet(sensor::client& cli,
-                                     const sensor::packet_format& pf) {
-    imu_packets->write_overwrite([this, &cli, pf](uint8_t* buffer) {
-        bool success = sensor::read_imu_packet(cli, buffer, pf);
-        if (!success) {
-            if (++read_imu_packet_errors > max_read_imu_packet_errors) {
-                NODELET_ERROR_STREAM(
-                    "maximum number of allowed errors from "
-                    "sensor::read_imu_packet() reached, reactivating...");
-                read_imu_packet_errors = 0;
-                reactivate_sensor(true);
-            }
+                                     const sensor::packet_format&) {
+    if (sensor::read_imu_packet(cli, imu_packet)) {
+        on_imu_packet_msg(imu_packet);
+    } else {
+        if (++read_imu_packet_errors > max_read_imu_packet_errors) {
+            NODELET_ERROR(
+                "maximum number of allowed errors from "
+                "sensor::read_imu_packet() reached, reactivating...");
+            read_imu_packet_errors = 0;
+            reactivate_sensor(true);
         }
-    });
+    }
 }
 
 void OusterSensor::connection_loop(sensor::client& cli,
@@ -649,7 +635,7 @@ void OusterSensor::start_sensor_connection_thread() {
     sensor_connection_thread = std::make_unique<std::thread>([this]() {
         NODELET_DEBUG("sensor_connection_thread active.");
         auto& pf = sensor::get_format(info);
-        while (sensor_connection_active) {
+        while (ros::ok() && sensor_connection_active) {
             connection_loop(*sensor_client, pf);
         }
         NODELET_DEBUG("sensor_connection_thread done.");
@@ -664,60 +650,14 @@ void OusterSensor::stop_sensor_connection_thread() {
     }
 }
 
-void OusterSensor::start_packet_processing_threads() {
-    imu_packets_processing_thread_active = true;
-    imu_packets_processing_thread = std::make_unique<std::thread>([this]() {
-        while (imu_packets_processing_thread_active) {
-            imu_packets->read_timeout([this](const uint8_t* buffer) {
-                if (buffer) on_imu_packet_msg(buffer);
-            }, 1s);
-        }
-        NODELET_DEBUG("imu_packets_processing_thread done.");
-    });
-
-    lidar_packets_processing_thread_active = true;
-    lidar_packets_processing_thread = std::make_unique<std::thread>([this]() {
-        while (lidar_packets_processing_thread_active) {
-            lidar_packets->read_timeout([this](const uint8_t* buffer) {
-                if (buffer) on_lidar_packet_msg(buffer);
-            }, 1s);
-        }
-
-        NODELET_DEBUG("lidar_packets_processing_thread done.");
-    });
+void OusterSensor::on_lidar_packet_msg(const LidarPacket&) {
+    lidar_packet_msg.buf.swap(lidar_packet.buf);
+    lidar_packet_pub.publish(lidar_packet_msg);
 }
 
-void OusterSensor::stop_packet_processing_threads() {
-    NODELET_DEBUG("stopping packet processing threads.");
-
-    if (imu_packets_processing_thread->joinable()) {
-        imu_packets_processing_thread_active = false;
-        imu_packets_processing_thread->join();
-    }
-
-    if (lidar_packets_processing_thread->joinable()) {
-        lidar_packets_processing_thread_active = false;
-        lidar_packets_processing_thread->join();
-    }
-}
-
-void OusterSensor::on_lidar_packet_msg(const uint8_t* raw_lidar_packet) {
-    // copying the data from queue buffer into the message buffer
-    // this can be avoided by constructing an abstraction where
-    // OusterSensor has its own RingBuffer of PacketMsg but for
-    // now we are focusing on optimizing the code for OusterDriver
-    std::memcpy(lidar_packet.buf.data(), raw_lidar_packet,
-                lidar_packet.buf.size());
-    lidar_packet_pub.publish(lidar_packet);
-}
-
-void OusterSensor::on_imu_packet_msg(const uint8_t* raw_imu_packet) {
-    // copying the data from queue buffer into the message buffer
-    // this can be avoided by constructing an abstraction where
-    // OusterSensor has its own RingBuffer of PacketMsg but for
-    // now we are focusing on optimizing the code for OusterDriver
-    std::memcpy(imu_packet.buf.data(), raw_imu_packet, imu_packet.buf.size());
-    imu_packet_pub.publish(imu_packet);
+void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
+    imu_packet_msg.buf.swap(imu_packet.buf);
+    imu_packet_pub.publish(imu_packet_msg);
 }
 
 // param init_id_reset is overriden to true when force_reinit is true

@@ -65,6 +65,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Enabled for Python build" OFF)
 option(BUILD_PCAP "Enabled for Python build" OFF)
+option(BUILD_OSF "Build OSF library." OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -107,7 +108,6 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
     tests/test_main.cpp
-    tests/ring_buffer_test.cpp
     tests/lock_free_ring_buffer_test.cpp
     tests/point_accessor_test.cpp
     tests/point_transform_test.cpp

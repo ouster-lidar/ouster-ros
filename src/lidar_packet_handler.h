@@ -47,14 +47,6 @@ uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
     return y0 + (x - x0) * sign * (max_v - min_v) / (x1 - x0);
 }
 
-template <typename T>
-uint64_t ulround(T value) {
-    T rounded_value = std::round(value);
-    if (rounded_value < 0) return 0ULL;
-    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
-    return static_cast<uint64_t>(rounded_value);
-}
-
 }  // namespace
 
 namespace ouster_ros {
@@ -65,15 +57,15 @@ using LidarScanProcessor =
     std::function<void(const ouster::LidarScan&, uint64_t, const ros::Time&)>;
 
 class LidarPacketHandler {
-    using LidarPacketAccumlator = std::function<bool(const uint8_t*)>;
+    using LidarPacketAccumlator = std::function<bool(const sensor::LidarPacket&)>;
 
    public:
     using HandlerOutput = ouster::LidarScan;
 
-    using HandlerType = std::function<void(const uint8_t*)>;
+    using HandlerType = std::function<void(const sensor::LidarPacket&)>;
 
    public:
-    LidarPacketHandler(const ouster::sensor::sensor_info& info,
+    LidarPacketHandler(const sensor::sensor_info& info,
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
                        int64_t ptp_utc_tai_offset)
@@ -103,23 +95,24 @@ class LidarPacketHandler {
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_0(ts_v);
         };
+
         const sensor::packet_format& pf = sensor::get_format(info);
 
         if (timestamp_mode == "TIME_FROM_ROS_TIME") {
             lidar_packet_accumlator =
-                LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
-                    return lidar_handler_ros_time(pf, lidar_buf);
+                LidarPacketAccumlator{[this, pf](const sensor::LidarPacket& lidar_packet) {
+                    return lidar_handler_ros_time(pf, lidar_packet);
                 }};
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
             lidar_packet_accumlator = LidarPacketAccumlator{
-                [this, pf, ptp_utc_tai_offset](const uint8_t* lidar_buf) {
-                    return lidar_handler_sensor_time_ptp(pf, lidar_buf,
+                [this, pf, ptp_utc_tai_offset](const sensor::LidarPacket& lidar_packet) {
+                    return lidar_handler_sensor_time_ptp(pf, lidar_packet,
                                                          ptp_utc_tai_offset);
                 }};
         } else {
             lidar_packet_accumlator =
-                LidarPacketAccumlator{[this, pf](const uint8_t* lidar_buf) {
-                    return lidar_handler_sensor_time(pf, lidar_buf);
+                LidarPacketAccumlator{[this, pf](const sensor::LidarPacket& lidar_packet) {
+                    return lidar_handler_sensor_time(pf, lidar_packet);
                 }};
         }
     }
@@ -142,13 +135,13 @@ class LidarPacketHandler {
 
    public:
     static HandlerType create_handler(
-        const ouster::sensor::sensor_info& info,
+        const sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
         const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
         auto handler = std::make_shared<LidarPacketHandler>(
             info, handlers, timestamp_mode, ptp_utc_tai_offset);
-        return [handler](const uint8_t* lidar_buf) {
-            if (handler->lidar_packet_accumlator(lidar_buf)) {
+        return [handler](const sensor::LidarPacket& lidar_packet) {
+            if (handler->lidar_packet_accumlator(lidar_packet)) {
                 handler->ring_buffer_has_elements.notify_one();
             }
         };
@@ -158,17 +151,14 @@ class LidarPacketHandler {
 
     void process_scans() {
 
-        using namespace std::chrono;
-
         {
+            using namespace std::chrono;
             std::unique_lock<std::mutex> index_lock(ring_buffer_mutex);
             ring_buffer_has_elements.wait_for(index_lock, 1s, [this] {
                 return !ring_buffer.empty();
             });
 
-            if (ring_buffer.empty()) {
-                return;
-            }
+            if (ring_buffer.empty()) return;
         }
 
         std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);
@@ -200,7 +190,7 @@ class LidarPacketHandler {
             last_scan_last_nonzero_idx, last_scan_last_nonzero_value,
             scan_width + curr_scan_first_nonzero_idx,
             curr_scan_first_nonzero_value, scan_width);
-        return ulround(interpolated_value);
+        return impl::ulround(interpolated_value);
     }
 
     uint64_t extrapolate_value(int curr_scan_first_nonzero_idx,
@@ -208,7 +198,7 @@ class LidarPacketHandler {
         double extrapolated_value =
             curr_scan_first_nonzero_value -
             scan_col_ts_spacing_ns * curr_scan_first_nonzero_idx;
-        return ulround(extrapolated_value);
+        return impl::ulround(extrapolated_value);
     }
 
     // compute_scan_ts_0 for first scan
@@ -275,7 +265,7 @@ class LidarPacketHandler {
     }
 
     bool lidar_handler_sensor_time(const sensor::packet_format&,
-                                   const uint8_t* lidar_buf) {
+                                   const sensor::LidarPacket& lidar_packet) {
 
         if (ring_buffer.full()) {
             NODELET_WARN("lidar_scans full, DROPPING PACKET");
@@ -284,7 +274,7 @@ class LidarPacketHandler {
 
         std::unique_lock<std::mutex> lock(*(mutexes[ring_buffer.write_head()]));
 
-        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
         lidar_scan_estimated_msg_ts = impl::ts_to_ros_time(lidar_scan_estimated_ts);
 
@@ -294,7 +284,7 @@ class LidarPacketHandler {
     }
 
     bool lidar_handler_sensor_time_ptp(const sensor::packet_format&,
-                                       const uint8_t* lidar_buf,
+                                       const sensor::LidarPacket& lidar_packet,
                                        int64_t ptp_utc_tai_offset) {
 
         if (ring_buffer.full()) {
@@ -305,7 +295,7 @@ class LidarPacketHandler {
         std::unique_lock<std::mutex> lock(
             *(mutexes[ring_buffer.write_head()]));
 
-        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
         auto ts_v = lidar_scans[ring_buffer.write_head()]->timestamp();
         for (int i = 0; i < ts_v.rows(); ++i)
             ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset);
@@ -319,11 +309,11 @@ class LidarPacketHandler {
     }
 
     bool lidar_handler_ros_time(const sensor::packet_format& pf,
-                                const uint8_t* lidar_buf) {
-        auto packet_receive_time = ros::Time::now();
+                                const sensor::LidarPacket& lidar_packet) {
+        auto packet_receive_time = impl::ts_to_ros_time(lidar_packet.host_timestamp);
         if (!lidar_handler_ros_time_frame_ts_initialized) {
             lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
-                pf, lidar_buf, packet_receive_time);  // first point cloud time
+                pf, lidar_packet.buf.data(), packet_receive_time);  // first point cloud time
             lidar_handler_ros_time_frame_ts_initialized = true;
         }
 
@@ -335,12 +325,12 @@ class LidarPacketHandler {
         std::unique_lock<std::mutex> lock(
             *(mutexes[ring_buffer.write_head()]));
 
-        if (!(*scan_batcher)(lidar_buf, *lidar_scans[ring_buffer.write_head()])) return false;
+        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
         lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts;
         // set time for next point cloud msg
         lidar_handler_ros_time_frame_ts =
-            extrapolate_frame_ts(pf, lidar_buf, packet_receive_time);
+            extrapolate_frame_ts(pf, lidar_packet.buf.data(), packet_receive_time);
 
         ring_buffer.write();
 
