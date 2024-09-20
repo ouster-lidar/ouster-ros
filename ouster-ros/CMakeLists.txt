@@ -46,6 +46,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Turn off building VIZ" OFF)
 option(BUILD_PCAP "Turn off building PCAP" OFF)
+option(BUILD_OSF "Turn off building OSF" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -189,7 +190,6 @@ if(BUILD_TESTING)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
     test/test_main.cpp
-    test/ring_buffer_test.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp

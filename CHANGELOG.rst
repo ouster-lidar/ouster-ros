@@ -2,8 +2,8 @@
 Changelog
 =========
 
-[unreleased]
-============
+ouster_ros v0.13.0
+==================
 * [BUGFIX]: LaserScan is not properly aligned with generated point cloud
   * address an issue where LaserScan appeared different on FW prior to 2.4
 * [BUGFIX]: LaserScan does not work when using dual mode
@@ -23,6 +23,22 @@ Changelog
   - Doesn't handle detect and handle invalid configurations
 * Added an automatic start mode to make it easier to start the node without using time actions.
   - To disable set ``auto_start`` to ``false`` during launch
+* Added a new parameter ``organized`` to request publishing unorganized point cloud
+* Added a new parameter ``destagger`` to request publishing staggered point cloud
+* Added two parameters ``min_range``, ``max_range`` to limit the lidar effective range
+* Updated ouster_client to the release of ``20240425`` [v0.11.1]; changes listed below.
+
+ouster_client
+-------------
+* Added a new buffered UDP source implementation BufferedUDPSource.
+* The method version_of_string is marked as deprecated, use version_from_string
+instead.
+* Added a new method firmware_version_from_metadata which works across firmwares.
+* Added support for return order configuration parameter.
+* Added support for gyro and accelerometer FSR configuration parameters.
+* [BUGFIX] mtp_init_client throws a bad optional access.
+* [BUGFIX] properly handle 32-bit frame IDs from the
+* FUSA_RNG15_RFL8_NIR8_DUAL sensor UDP profile.
 
 
 ouster_ros v0.12.0

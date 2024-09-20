@@ -101,9 +101,9 @@ class OusterReplay : public OusterSensorNodeBase {
     std::string parse_parameters() {
         auto meta_file = get_parameter("metadata").as_string();
         if (!is_arg_set(meta_file)) {
-            RCLCPP_ERROR(get_logger(),
+            RCLCPP_FATAL(get_logger(),
                          "Must specify metadata file in replay mode");
-            throw std::runtime_error("metadata no specificed");
+            throw std::runtime_error("metadata not specificed");
         }
         return meta_file;
     }

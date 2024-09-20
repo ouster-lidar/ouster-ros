@@ -60,6 +60,11 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("use_system_default_qos", false);
         declare_parameter("scan_ring", 0);
         declare_parameter("point_type", "original");
+        declare_parameter("organized", true);
+        declare_parameter("destagger", true);
+        declare_parameter("min_range", 0.0);
+        declare_parameter("max_range", 1000.0);
+        declare_parameter("rows_step", 1);
     }
 
     void metadata_handler(
@@ -95,8 +100,15 @@ class OusterCloud : public OusterProcessingNodeBase {
             imu_packet_sub = create_subscription<PacketMsg>(
                 "imu_packets", selected_qos,
                 [this](const PacketMsg::ConstSharedPtr msg) {
-                    auto imu_msg = imu_packet_handler(msg->buf.data());
-                    imu_pub->publish(imu_msg);
+                    if (imu_packet_handler) {
+                        // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                        // Need to redefine the Packet object and allow use of array_views
+                        sensor::ImuPacket imu_packet(msg->buf.size());
+                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        imu_packet.host_timestamp = static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                        auto imu_msg = imu_packet_handler(imu_packet);
+                        imu_pub->publish(imu_msg);
+                    }
                 });
         }
 
@@ -111,11 +123,30 @@ class OusterCloud : public OusterProcessingNodeBase {
             }
 
             auto point_type = get_parameter("point_type").as_string();
+            auto organized = get_parameter("organized").as_bool();
+            auto destagger = get_parameter("destagger").as_bool();
+            auto min_range_m = get_parameter("min_range").as_double();
+            auto max_range_m = get_parameter("max_range").as_double();
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                RCLCPP_FATAL(get_logger(), "min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                RCLCPP_FATAL(get_logger(), "min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
+            auto rows_step = get_parameter("rows_step").as_int();
             processors.push_back(
-                PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
-                    tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                PointCloudProcessorFactory::create_point_cloud_processor(point_type,
+                    info, tf_bcast.point_cloud_frame_id(),
+                    tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
+                        for (size_t i = 0; i < msgs.size(); ++i)
+                            lidar_pubs[i]->publish(*msgs[i]);
                     }
                 )
             );
@@ -162,7 +193,14 @@ class OusterCloud : public OusterProcessingNodeBase {
             lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets", selected_qos,
                 [this](const PacketMsg::ConstSharedPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
+                    if (lidar_packet_handler) {
+                        // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                        // Need to redefine the Packet object and allow use of array_views
+                        sensor::LidarPacket lidar_packet(msg->buf.size());
+                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        lidar_packet.host_timestamp = static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                        lidar_packet_handler(lidar_packet);
+                    }
                 });
         }
     }

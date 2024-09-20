@@ -93,6 +93,16 @@
   <arg name="auto_start" default="true"
     description="automatically configure and activate the node"/>
 
+  <arg name="organized" default="true"
+    description="generate an organzied point cloud"/>
+  <arg name="destagger" default="true"
+    description="enable or disable point cloud destaggering"/>
+
+  <arg name="min_range" default="0.0"
+    description="minimum lidar range to consider (meters)"/>
+  <arg name="max_range" default="10000.0"
+    description="minimum lidar range to consider (meters)"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_driver" name="os_driver" output="screen">
@@ -124,6 +134,10 @@
       <param name="max_failed_reconnect_attempts"
              value="$(var max_failed_reconnect_attempts)"/>
       <param name="auto_start" value="$(var auto_start)"/>
+      <param name="organized" value="$(var organized)"/>
+      <param name="destagger" value="$(var destagger)"/>
+      <param name="min_range" value="$(var min_range)"/>
+      <param name="max_range" value="$(var max_range)"/>
     </node>
   </group>
 

@@ -110,7 +110,14 @@ class OusterImage : public OusterProcessingNodeBase {
         lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets", selected_qos,
                 [this](const PacketMsg::ConstSharedPtr msg) {
-                    lidar_packet_handler(msg->buf.data());
+                    if (lidar_packet_handler) {
+                        // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                        // Need to redefine the Packet object and allow use of array_views
+                        sensor::LidarPacket lidar_packet(msg->buf.size());
+                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        lidar_packet.host_timestamp = static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                        lidar_packet_handler(lidar_packet);
+                    }
                 });
     }
 

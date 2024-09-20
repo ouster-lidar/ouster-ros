@@ -59,7 +59,7 @@ ouster/os_driver:
     point_cloud_frame: os_lidar 
     # proc_mask[optional]: use any combination of the 4 flags IMG, PCL, IMU and
     # SCAN to enable or disable their respective messages.
-    proc_mask: IMG|PCL|IMU|SCAN
+    proc_mask: IMU|PCL|SCAN|IMG|RAW
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
@@ -102,3 +102,12 @@ ouster/os_driver:
     # max_failed_reconnect_attempts[optional]: maximum number of attempts trying
     # to communicate with the sensor. Counter resets upon successful connection.
     max_failed_reconnect_attempts: 2147483647
+    # organized[optional]: whether to generate an organized point cloud. default
+    # is organized.
+    organized: true
+    # destagger[optional]: enable or disable point cloud destaggering, default enabled.
+    destagger: true
+    # min_range[optional]: minimum lidar range to consider (meters).
+    min_range: 0.0
+    # max_range[optional]: maximum lidar range to consider (meters).
+    max_range: 1000.0

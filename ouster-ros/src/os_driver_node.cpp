@@ -26,6 +26,8 @@
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
+using ouster::sensor::LidarPacket;
+using ouster::sensor::ImuPacket;
 
 class OusterDriver : public OusterSensor {
    public:
@@ -34,15 +36,19 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), tf_bcast(this) {
         tf_bcast.declare_parameters();
         tf_bcast.parse_parameters();
-        declare_parameter("proc_mask", "IMU|IMG|PCL|SCAN");
+        declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW");
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("point_type", "original");
+        declare_parameter("organized", true);
+        declare_parameter("destagger", true);
+        declare_parameter("min_range", 0.0);
+        declare_parameter("max_range", 1000.0);
+        declare_parameter("rows_step", 1);
     }
 
     ~OusterDriver() override {
         RCLCPP_DEBUG(get_logger(), "OusterDriver::~OusterDriver() called");
-        halt();
     }
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
@@ -84,11 +90,30 @@ class OusterDriver : public OusterSensor {
             }
 
             auto point_type = get_parameter("point_type").as_string();
+            auto organized = get_parameter("organized").as_bool();
+            auto destagger = get_parameter("destagger").as_bool();
+            auto min_range_m = get_parameter("min_range").as_double();
+            auto max_range_m = get_parameter("max_range").as_double();
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                RCLCPP_FATAL(get_logger(), "min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                RCLCPP_FATAL(get_logger(), "min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
+            auto rows_step = get_parameter("rows_step").as_int();
             processors.push_back(
-                PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
-                    tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                PointCloudProcessorFactory::create_point_cloud_processor(point_type,
+                    info, tf_bcast.point_cloud_frame_id(),
+                    tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
+                        for (size_t i = 0; i < msgs.size(); ++i)
+                            lidar_pubs[i]->publish(*msgs[i]);
                     }
                 )
             );
@@ -173,15 +198,24 @@ class OusterDriver : public OusterSensor {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+
+        publish_raw = impl::check_token(tokens, "RAW");
     }
 
-    virtual void on_lidar_packet_msg(const uint8_t* raw_lidar_packet) override {
-        if (lidar_packet_handler) lidar_packet_handler(raw_lidar_packet);
+    virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (lidar_packet_handler)
+            lidar_packet_handler(lidar_packet);
+        
+        if (publish_raw)
+            OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
 
-    virtual void on_imu_packet_msg(const uint8_t* raw_imu_packet) override {
+    virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
         if (imu_packet_handler)
-            imu_pub->publish(imu_packet_handler(raw_imu_packet));
+            imu_pub->publish(imu_packet_handler(imu_packet));
+        
+        if(publish_raw)
+            OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
     virtual void cleanup() override {
@@ -207,6 +241,8 @@ class OusterDriver : public OusterSensor {
         image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+
+    bool publish_raw = false;
 };
 
 }  // namespace ouster_ros
