@@ -108,6 +108,6 @@ ouster/os_driver:
     # destagger[optional]: enable or disable point cloud destaggering, default enabled.
     destagger: true
     # min_range[optional]: minimum lidar range to consider (meters).
-    min_range: 0
+    min_range: 0.0
     # max_range[optional]: maximum lidar range to consider (meters).
-    max_range: 1000
+    max_range: 1000.0
