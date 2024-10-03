@@ -35,6 +35,7 @@ OusterSensor::OusterSensor(const std::string& name,
       change_state_client{
           create_client<ChangeState>(get_name() + "/change_state"s)} {
     declare_parameters();
+    staged_config = parse_config_from_ros_parameters();
     attempt_reconnect = get_parameter("attempt_reconnect").as_bool();
     dormant_period_between_reconnects = 
         get_parameter("dormant_period_between_reconnects").as_double();

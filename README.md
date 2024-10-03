@@ -131,6 +131,13 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 > **Note**  
 > Specifying `Release` as the build type is important to have a reasonable performance of the driver.
 
+> **Note**  
+> For ROS2 we recommend using **CycloneDDS** over **FastDDS**, through out Galactic, Foxy, Humble distros.  
+> **FastDDS** is usually the default ros middleware on most platforms, please follow the
+[Guide](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html)
+to learn how to enable **CycloneDDS** on your platform.  
+> We are yet to evaluate Zeonh performance against the ouster-ros driver for later distros.  
+
 Once the build succeeds, you must source the _install_ folder of your ros2 workspace to add launch
 commands to your environment:
 ```bash
