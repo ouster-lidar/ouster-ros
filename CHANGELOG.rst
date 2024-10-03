@@ -4,7 +4,7 @@ Changelog
 
 ouster_ros v0.13.1
 ==================
-* [BUGFIX]: Make sure to initilaize the sensor with launch file parameters.
+* [BUGFIX]: Make sure to initialize the sensor with launch file parameters.
 
 ouster_ros v0.13.0
 ==================
