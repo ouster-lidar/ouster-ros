@@ -75,8 +75,6 @@ class OusterPcap : public OusterSensorNodeBase {
         RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
         LifecycleNode::on_activate(state);
         create_publishers();
-        if (imu_packet_pub) imu_packet_pub->on_activate();
-        if (lidar_packet_pub) lidar_packet_pub->on_activate();
         allocate_buffers();
         start_packet_read_thread();
         return LifecycleNodeInterface::CallbackReturn::SUCCESS;
@@ -278,10 +276,8 @@ class OusterPcap : public OusterSensorNodeBase {
     std::shared_ptr<PcapReader> pcap;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet;
     ouster_sensor_msgs::msg::PacketMsg imu_packet;
-    rclcpp_lifecycle::LifecyclePublisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr
-        lidar_packet_pub;
-    rclcpp_lifecycle::LifecyclePublisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr
-        imu_packet_pub;
+    rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr lidar_packet_pub;
+    rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr imu_packet_pub;
 
     std::atomic<bool> packet_read_active = {false};
     std::unique_ptr<std::thread> packet_read_thread;
