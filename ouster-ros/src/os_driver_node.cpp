@@ -200,12 +200,14 @@ class OusterDriver : public OusterSensor {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
 
         publish_raw = impl::check_token(tokens, "RAW");
+        if (publish_raw)
+            OusterSensor::create_publishers();
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
         if (lidar_packet_handler)
             lidar_packet_handler(lidar_packet);
-        
+
         if (publish_raw)
             OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
@@ -213,8 +215,8 @@ class OusterDriver : public OusterSensor {
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
         if (imu_packet_handler)
             imu_pub->publish(imu_packet_handler(imu_packet));
-        
-        if(publish_raw)
+
+        if (publish_raw)
             OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
