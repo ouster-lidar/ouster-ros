@@ -769,11 +769,10 @@ void OusterSensor::create_publishers() {
 
 void OusterSensor::allocate_buffers() {
     auto& pf = sensor::get_format(info);
-
-    lidar_packet_msg.buf.resize(pf.lidar_packet_size);
     lidar_packet.buf.resize(pf.lidar_packet_size);
+    lidar_packet_msg.buf.resize(pf.lidar_packet_size);
     imu_packet.buf.resize(pf.imu_packet_size);
-    imu_packet.buf.resize(pf.imu_packet_size);
+    imu_packet_msg.buf.resize(pf.imu_packet_size);
 }
 
 bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
