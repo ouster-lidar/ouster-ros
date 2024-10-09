@@ -152,7 +152,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud,
                     cloud.points.emplace_back();
             }
 
-            auto ts = timestamp[v_shift];
+            auto ts = timestamp[v];
             ts = ts > scan_ts ? ts - scan_ts : 0UL;
 
             // if target point and staging point has matching type bind the
