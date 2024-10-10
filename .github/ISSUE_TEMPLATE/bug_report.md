@@ -7,6 +7,14 @@ assignees: ''
 
 ---
 
+> **IMPORTANT**  
+> Before reporting a new bug make sure you have:
+> - [ ] Checked existing issues https://github.com/ouster-lidar/ouster-ros/issues
+> - [ ] Checked existing issues https://github.com/ouster-lidar/ouster-ros/issues
+> - [ ] Checked ouster community https://community.ouster.com/
+> If you couldn't find relevant information and you think this is rather a driver 
+> problem then proceed with bug reporting.
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 
