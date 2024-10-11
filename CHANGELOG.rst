@@ -2,8 +2,14 @@
 Changelog
 =========
 
-[ouster_ros v0.13.0]
-====================
+
+[unreleased]
+============
+* [BUGFIX]: correctly align timestamps to the generated point cloud
+
+
+ouster_ros v0.13.0
+==================
 
 ouster_ros(1)
 -------------

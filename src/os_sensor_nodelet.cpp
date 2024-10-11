@@ -116,9 +116,9 @@ void OusterSensor::onInit() {
     create_services();
     create_publishers();
     attempt_reconnect = getPrivateNodeHandle().param("attempt_reconnect", false);
-    dormant_period_between_reconnects = 
+    dormant_period_between_reconnects =
         getPrivateNodeHandle().param("dormant_period_between_reconnects", 1.0);
-    reconnect_attempts_available = 
+    reconnect_attempts_available =
         getPrivateNodeHandle().param("max_failed_reconnect_attempts", INT_MAX);
     attempt_start();
 }
