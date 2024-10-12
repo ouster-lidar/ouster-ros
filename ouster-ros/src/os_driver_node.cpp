@@ -53,7 +53,9 @@ class OusterDriver : public OusterSensor {
 
     virtual void on_metadata_updated(const sensor::sensor_info& info) override {
         OusterSensor::on_metadata_updated(info);
-        tf_bcast.broadcast_transforms(info);
+        if (tf_bcast.publish_static_tf()) {
+          tf_bcast.broadcast_transforms(info);
+        }
     }
 
     virtual void create_publishers() override {
