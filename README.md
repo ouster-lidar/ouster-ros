@@ -128,6 +128,12 @@ roslaunch ouster_ros driver.launch      \
 `driver.launch` offers better performance and reduced overhead on the ROS bus, thus it is preferred
 over `sensor.launch`. `sensor.launch` is mainly provided for backward compatibilty.
 
+> **Note**:
+> If you observe parts of the scan missing is missing, this suggests having a lots of dropped packets
+> It is recommended that you increase the maximum allowed size for receive memory buffers in network
+> subsystem, you can do so by running the script `network-configure.bash` under `util`.
+
+
 #### Recording Mode
 > Note
 > As of package version 8.1, specifiying metadata file is optional since the introduction of the
