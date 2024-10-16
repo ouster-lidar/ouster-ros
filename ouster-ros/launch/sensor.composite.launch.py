@@ -4,15 +4,66 @@
 """Launch ouster nodes using a composite container"""
 
 from pathlib import Path
-import launch
+from launch import LaunchDescription, LaunchContext, LaunchDescriptionEntity
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            ExecuteProcess, TimerAction)
+                            ExecuteProcess, TimerAction, OpaqueFunction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, FindExecutable
+
+import yaml
+from typing import Optional, List
+
+def composable_node_setup(context: LaunchContext) -> Optional[List[LaunchDescriptionEntity]]:
+    """
+    Generating launch description for composable nodes with correctly parsed node parameters,
+    this is a workaround for issue https://github.com/ros2/launch_ros/issues/156 in foxy.
+    """
+    params_file = LaunchConfiguration('params_file')
+    ouster_ns = LaunchConfiguration('ouster_ns')
+
+    with open(params_file.perform(context), 'r') as f:
+        ros_params = yaml.safe_load(f)
+
+    os_sensor = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterSensor',
+        name='os_sensor',
+        namespace=ouster_ns,
+        parameters=[ros_params[ouster_ns.perform(context) + '/os_sensor']['ros__parameters']]
+    )
+
+    os_cloud = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterCloud',
+        name='os_cloud',
+        namespace=ouster_ns,
+        parameters=[ros_params[ouster_ns.perform(context) + '/os_cloud']['ros__parameters']]
+    )
+
+    os_image = ComposableNode(
+        package='ouster_ros',
+        plugin='ouster_ros::OusterImage',
+        name='os_image',
+        namespace=ouster_ns,
+        parameters=[ros_params[ouster_ns.perform(context) + '/os_image']['ros__parameters']]
+    )
+
+    return [ComposableNodeContainer(
+        name='os_container',
+        namespace=ouster_ns,
+        package='rclcpp_components',
+        executable='component_container_mt',
+        composable_node_descriptions=[
+            os_sensor,
+            os_cloud,
+            os_image
+        ],
+        output='screen',
+    )]
 
 
 def generate_launch_description():
@@ -23,7 +74,6 @@ def generate_launch_description():
     ouster_ros_pkg_dir = get_package_share_directory('ouster_ros')
     default_params_file = \
         Path(ouster_ros_pkg_dir) / 'config' / 'os_sensor_cloud_image_params.yaml'
-    params_file = LaunchConfiguration('params_file')
     params_file_arg = DeclareLaunchArgument('params_file',
                                             default_value=str(
                                                 default_params_file),
@@ -35,43 +85,6 @@ def generate_launch_description():
 
     rviz_enable = LaunchConfiguration('viz')
     rviz_enable_arg = DeclareLaunchArgument('viz', default_value='True')
-
-    os_sensor = ComposableNode(
-        package='ouster_ros',
-        plugin='ouster_ros::OusterSensor',
-        name='os_sensor',
-        namespace=ouster_ns,
-        parameters=[params_file]
-    )
-
-    os_cloud = ComposableNode(
-        package='ouster_ros',
-        plugin='ouster_ros::OusterCloud',
-        name='os_cloud',
-        namespace=ouster_ns,
-        parameters=[params_file]
-    )
-
-    os_image = ComposableNode(
-        package='ouster_ros',
-        plugin='ouster_ros::OusterImage',
-        name='os_image',
-        namespace=ouster_ns,
-        parameters=[params_file]
-    )
-
-    os_container = ComposableNodeContainer(
-        name='os_container',
-        namespace=ouster_ns,
-        package='rclcpp_components',
-        executable='component_container_mt',
-        composable_node_descriptions=[
-            os_sensor,
-            os_cloud,
-            os_image
-        ],
-        output='screen',
-    )
 
     rviz_launch_file_path = \
         Path(ouster_ros_pkg_dir) / 'launch' / 'rviz.launch.py'
@@ -93,12 +106,12 @@ def generate_launch_description():
     sensor_configure_cmd = invoke_lifecycle_cmd('os_sensor', 'configure')
     sensor_activate_cmd = invoke_lifecycle_cmd('os_sensor', 'activate')
 
-    return launch.LaunchDescription([
+    return LaunchDescription([
         params_file_arg,
         ouster_ns_arg,
         rviz_enable_arg,
         rviz_launch,
-        os_container,
+        OpaqueFunction(function=composable_node_setup),
         sensor_configure_cmd,
         TimerAction(period=1.0, actions=[sensor_activate_cmd])
     ])
