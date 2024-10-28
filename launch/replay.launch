@@ -3,7 +3,7 @@
   <param name="use_sim_time" value="true"/>
 
   <arg name="loop" default="false" doc="request loop playback"/>
-  <arg name="play_delay" default="0.4"/>
+  <arg name="play_delay" default="0" doc="playback start delay in seconds"/>
   <arg name="play_rate" default="1.0"/>
 
   <arg if="$(arg loop)" name="_loop" value="--loop"/>

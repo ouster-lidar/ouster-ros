@@ -4,7 +4,7 @@
   <param name="use_sim_time" value="false"/>
 
   <arg name="loop" default="false" doc="request loop playback"/>
-  <arg name="play_delay" default="0.4" doc="playback start delay"/>
+  <arg name="play_delay" default="0" doc="playback start delay in seconds"/>
   <arg name="progress_update_freq" default="3.0"
     doc="progress update frequency per second"/>
 
