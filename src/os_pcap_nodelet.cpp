@@ -35,6 +35,10 @@ class OusterPcap : public OusterSensorNodeletBase {
     virtual void onInit() override {
         auto meta_file = get_meta_file();
         auto pcap_file = get_pcap_file();
+        loop = getPrivateNodeHandle().param("loop", false);
+        progress_update_freq = getPrivateNodeHandle().param("progress_update_freq", 1.0);
+        if (progress_update_freq < 0.001)
+            progress_update_freq = 0.001;
         create_metadata_pub();
         load_metadata_from_file(meta_file);
         allocate_buffers();
@@ -104,10 +108,12 @@ class OusterPcap : public OusterSensorNodeletBase {
         packet_read_active = true;
         packet_read_thread = std::make_unique<std::thread>([this]() {
             auto& pf = sensor::get_format(info);
-            while (packet_read_active) {
+            do {
                 read_packets(*pcap, pf);
-            }
+                pcap->reset();
+            } while (loop);
             NODELET_DEBUG("packet_read_thread done.");
+            ros::shutdown();
         });
     }
 
@@ -125,9 +131,9 @@ class OusterPcap : public OusterSensorNodeletBase {
         auto file_start = packet_info.timestamp;
         auto last_update = file_start;
         using namespace std::chrono_literals;
-        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s / 3);
+        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s / progress_update_freq);
 
-        while (ros::ok() && payload_size) {
+        while (ros::ok() && packet_read_active && payload_size) {
             auto start = high_resolution_clock::now();
             if (packet_info.dst_port == info.config.udp_port_imu) {
                 std::memcpy(imu_packet.buf.data(), pcap.current_data(),
@@ -167,6 +173,8 @@ class OusterPcap : public OusterSensorNodeletBase {
     PacketMsg imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
+    bool loop;
+    double progress_update_freq;
 
     std::atomic<bool> packet_read_active = {false};
     std::unique_ptr<std::thread> packet_read_thread;

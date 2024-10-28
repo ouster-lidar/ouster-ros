@@ -1,7 +1,12 @@
 <launch>
 
-  <!-- NOTE: pcap replay node does not implement clock-->
+  <!-- NOTE: pcap replay node does not implement clock -->
   <param name="use_sim_time" value="false"/>
+
+  <arg name="loop" default="false" doc="request loop playback"/>
+  <arg name="play_delay" default="0.4" doc="playback start delay"/>
+  <arg name="progress_update_freq" default="3.0"
+    doc="progress update frequency per second"/>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>
@@ -71,10 +76,12 @@
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet"
       name="os_node" output="screen" required="true"
-      launch-prefix="bash -c 'sleep 3; $0 $@' "
+      launch-prefix="bash -c 'sleep $(arg play_delay); $0 $@' "
       args="load ouster_ros/OusterPcap os_nodelet_mgr">
       <param name="~/metadata" value="$(arg metadata)"/>
       <param name="~/pcap_file" value="$(arg pcap_file)"/>
+      <param name="~/loop" value="$(arg loop)"/>
+      <param name="~/progress_update_freq" value="$(arg progress_update_freq)"/>
     </node>
   </group>
 
