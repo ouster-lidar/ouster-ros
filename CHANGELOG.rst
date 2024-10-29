@@ -5,6 +5,7 @@ Changelog
 [unreleased]
 ============
 * [BUGFIX]: correctly align timestamps to the generated point cloud.
+* Added support to enable **loop** for pcap replay + other replay config
 
 ouster_ros v0.13.2
 ==================
