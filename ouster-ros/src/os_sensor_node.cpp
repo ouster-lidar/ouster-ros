@@ -22,7 +22,6 @@ using ouster_sensor_msgs::srv::SetConfig;
 
 using std::to_string;
 using namespace std::chrono_literals;
-using namespace std::string_literals;
 
 using sensor::LidarPacket;
 using sensor::ImuPacket;
@@ -31,9 +30,7 @@ namespace ouster_ros {
 
 OusterSensor::OusterSensor(const std::string& name,
                            const rclcpp::NodeOptions& options)
-    : OusterSensorNodeBase(name, options),
-      change_state_client{
-          create_client<ChangeState>(get_name() + "/change_state"s)} {
+    : OusterSensorNodeBase(name, options) {
     declare_parameters();
     staged_config = parse_config_from_ros_parameters();
     attempt_reconnect = get_parameter("attempt_reconnect").as_bool();
@@ -290,75 +287,6 @@ void OusterSensor::save_metadata() {
                    "path, please note that the working directory of all ROS "
                    "nodes is set by default to $ROS_HOME");
     }
-}
-
-std::string OusterSensor::transition_id_to_string(uint8_t transition_id) {
-    switch (transition_id) {
-        case lifecycle_msgs::msg::Transition::TRANSITION_CREATE:
-            return "create"s;
-        case lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE:
-            return "configure"s;
-        case lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP:
-            return "cleanup"s;
-        case lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE:
-            return "activate";
-        case lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE:
-            return "deactivate"s;
-        case lifecycle_msgs::msg::Transition::TRANSITION_DESTROY:
-            return "destroy"s;
-        default:
-            return "unknown"s;
-    }
-}
-
-template <typename CallbackT, typename... CallbackT_Args>
-bool OusterSensor::change_state(std::uint8_t transition_id, CallbackT callback,
-                                CallbackT_Args... callback_args,
-                                std::chrono::seconds time_out) {
-    if (!change_state_client->wait_for_service(time_out)) {
-        RCLCPP_ERROR_STREAM(
-            get_logger(), "Service " << change_state_client->get_service_name()
-                                     << "is not available.");
-        return false;
-    }
-
-    auto request = std::make_shared<ChangeState::Request>();
-    request->transition.id = transition_id;
-    // send an async request to perform the transition
-    change_state_client->async_send_request(
-        request, [this, callback,
-                  callback_args...](rclcpp::Client<ChangeState>::SharedFuture ff) {
-            callback(callback_args..., ff.get()->success);
-        });
-    return true;
-}
-
-void OusterSensor::execute_transitions_sequence(
-    std::vector<uint8_t> transitions_sequence, size_t at) {
-    assert(at < transitions_sequence.size() &&
-           "at index exceeds the number of transitions");
-    auto transition_id = transitions_sequence[at];
-    RCLCPP_DEBUG_STREAM(
-        get_logger(), "transition: [" << transition_id_to_string(transition_id)
-                                      << "] started");
-    change_state(transition_id, [this, transitions_sequence, at](bool success) {
-        if (success) {
-            RCLCPP_DEBUG_STREAM(
-                get_logger(),
-                "transition: [" << transition_id_to_string(transitions_sequence[at])
-                                << "] completed");
-            if (at < transitions_sequence.size() - 1) {
-                execute_transitions_sequence(transitions_sequence, at + 1);
-            } else {
-                RCLCPP_DEBUG_STREAM(get_logger(), "transitions sequence completed");
-            }
-        } else {
-            RCLCPP_DEBUG_STREAM(
-                get_logger(),
-                "transition: [" << transition_id_to_string(transitions_sequence[at])
-                                << "] failed");
-        }
-    });
 }
 
 // param init_id_reset is overriden to true when force_reinit is true
