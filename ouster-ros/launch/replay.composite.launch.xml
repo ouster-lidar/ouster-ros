@@ -3,6 +3,9 @@
   <set_parameter name="use_sim_time" value="true" />
 
   <arg name="loop" default="false" description="request loop playback"/>
+  <arg name="play_delay" default="0" description="playback start delay in seconds"/>
+  <arg name="play_rate" default="1.0"/>
+
   <let if="$(var loop)" name="_loop" value="--loop"/>
   <let unless="$(var loop)" name="_loop" value=" "/>
 
@@ -77,6 +80,7 @@
     </node>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
+        <remap from="/os_node/metadata" to="/ouster/metadata"/>
         <remap from="/os_node/imu_packets" to="/ouster/imu_packets"/>
         <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
         <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -95,6 +99,7 @@
         <param name="max_range" value="$(var max_range)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
+        <remap from="/os_node/metadata" to="/ouster/metadata"/>
         <remap from="/os_node/lidar_packets" to="/ouster/lidar_packets"/>
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
         <param name="proc_mask" value="$(var proc_mask)"/>
@@ -119,9 +124,9 @@
   <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
 
   <executable if="$(var _use_bag_file_name)" output="screen"
-    launch-prefix="bash -c 'sleep 3; $0 $@'"
+    launch-prefix="bash -c 'sleep $(var play_delay); $0 $@'"
     cmd="ros2 bag play $(var bag_file) --clock $(var _loop)
-      --qos-profile-overrides-path
+      --rate $(var play_rate) --qos-profile-overrides-path
       $(find-pkg-share ouster_ros)/config/metadata-qos-override.yaml"/>
 
 </launch>
