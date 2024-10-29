@@ -6,7 +6,7 @@
   <arg name="loop" default="false" doc="request loop playback"/>
   <arg name="play_delay" default="0" doc="playback start delay in seconds"/>
   <arg name="progress_update_freq" default="3.0"
-    doc="progress update frequency per second"/>
+    doc="playback progress update frequency per second"/>
 
   <arg name="ouster_ns" default="ouster" doc="Override the default namespace of all ouster nodes"/>
   <arg name="metadata" doc="path to read metadata file when replaying sensor data"/>

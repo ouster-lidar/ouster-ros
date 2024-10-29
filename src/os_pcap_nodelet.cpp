@@ -111,7 +111,7 @@ class OusterPcap : public OusterSensorNodeletBase {
             do {
                 read_packets(*pcap, pf);
                 pcap->reset();
-            } while (loop);
+            } while (ros::ok() && packet_read_active && loop);
             NODELET_DEBUG("packet_read_thread done.");
             ros::shutdown();
         });
