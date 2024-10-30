@@ -7,7 +7,7 @@ Changelog
 ============
 * [BUGFIX]: correctly align timestamps to the generated point cloud
 * Added support to enable **loop** for pcap replay + other replay config
-* Added a new launch file parameter ``pub_static_tf`` that allows uers to turn off the broadcast
+* Added a new launch file parameter ``pub_static_tf`` that allows users to turn off the broadcast
   of sensor TF transforms.
 
 
