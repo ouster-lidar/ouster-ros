@@ -91,7 +91,7 @@ std::string OusterSensorNodeBase::transition_id_to_string(uint8_t transition_id)
         case lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP:
             return "cleanup"s;
         case lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE:
-            return "activate";
+            return "activate"s;
         case lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE:
             return "deactivate"s;
         case lifecycle_msgs::msg::Transition::TRANSITION_DESTROY:
