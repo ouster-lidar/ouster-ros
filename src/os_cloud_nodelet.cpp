@@ -76,20 +76,22 @@ class OusterCloud : public nodelet::Nodelet {
             dynamic_transforms_rate = 1.0;
         }
 
-        if (!dynamic_transforms) {
-            NODELET_INFO("OusterCloud: using static transforms broadcast");
-            tf_bcast.broadcast_transforms(info);
-        } else {
-            NODELET_INFO_STREAM(
-                "OusterCloud: dynamic transforms broadcast enabled with "
-                "broadcast rate of: "
-                << dynamic_transforms_rate << " Hz");
-            timer_.stop();
-            timer_ = getNodeHandle().createTimer(
-                ros::Duration(1.0 / dynamic_transforms_rate),
-                [this, info](const ros::TimerEvent&) {
-                    tf_bcast.broadcast_transforms(info, last_msg_ts);
-                });
+        if (tf_bcast.publish_static_tf()) {
+            if (!dynamic_transforms) {
+                NODELET_INFO("OusterCloud: using static transforms broadcast");
+                tf_bcast.broadcast_transforms(info);
+            } else {
+                NODELET_INFO_STREAM(
+                    "OusterCloud: dynamic transforms broadcast enabled with "
+                    "broadcast rate of: "
+                    << dynamic_transforms_rate << " Hz");
+                timer_.stop();
+                timer_ = getNodeHandle().createTimer(
+                    ros::Duration(1.0 / dynamic_transforms_rate),
+                    [this, info](const ros::TimerEvent&) {
+                        tf_bcast.broadcast_transforms(info, last_msg_ts);
+                    });
+            }
         }
 
         create_handlers(info);

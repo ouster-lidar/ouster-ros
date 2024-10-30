@@ -62,7 +62,9 @@ class OusterDriver : public OusterSensor {
         // for OusterDriver we are going to always assume static broadcast
         // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
-        tf_bcast.broadcast_transforms(info);
+        if (tf_bcast.publish_static_tf()) {
+            tf_bcast.broadcast_transforms(info);
+        }
         create_handlers();
     }
 

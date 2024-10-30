@@ -32,6 +32,7 @@ class OusterTransformsBroadcaster {
         lidar_frame = pnh.param("lidar_frame", std::string{"os_lidar"});
         imu_frame = pnh.param("imu_frame", std::string{"os_imu"});
         point_cloud_frame = pnh.param("point_cloud_frame", std::string{});
+        pub_static_tf = pnh.param("pub_static_tf", true);
 
         if (!is_arg_set(sensor_frame) || !is_arg_set(lidar_frame) ||
             !is_arg_set(imu_frame)) {
@@ -100,6 +101,8 @@ class OusterTransformsBroadcaster {
         return point_cloud_frame == sensor_frame;
     }
 
+    bool publish_static_tf() const { return pub_static_tf; }
+
    private:
     std::string node_name;
     tf2_ros::StaticTransformBroadcaster static_tf_bcast;
@@ -108,6 +111,7 @@ class OusterTransformsBroadcaster {
     std::string lidar_frame;
     std::string sensor_frame;
     std::string point_cloud_frame;
+    bool pub_static_tf;
 };
 
 }  // namespace ouster_ros
