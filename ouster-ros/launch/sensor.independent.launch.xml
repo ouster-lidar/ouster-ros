@@ -53,6 +53,10 @@
     description="which frame to be used when publishing PointCloud2 or LaserScan messages.
     Choose between the value of sensor_frame or lidar_frame, leaving this value empty
     would set lidar_frame to be the frame used when publishing these messages."/>
+  <arg name="pub_static_tf" default="true"
+    description="when this flag is set to True, the driver will broadcast the TF transforms
+    for the imu/sensor/lidar frames. Prevent the driver from broadcasting TF transforms by
+    setting this parameter to False."/>
 
   <arg name="use_system_default_qos" default="false"
     description="Use the default system QoS settings"/>
@@ -122,6 +126,7 @@
       <param name="lidar_frame" value="$(var lidar_frame)"/>
       <param name="imu_frame" value="$(var imu_frame)"/>
       <param name="point_cloud_frame" value="$(var point_cloud_frame)"/>
+      <param name="pub_static_tf" value="$(var pub_static_tf)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
       <param name="ptp_utc_tai_offset" value="$(var ptp_utc_tai_offset)"/>
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>

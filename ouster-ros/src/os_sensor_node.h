@@ -18,8 +18,6 @@
 #include <vector>
 
 #include <std_srvs/srv/empty.hpp>
-#include <lifecycle_msgs/msg/transition.hpp>
-#include <lifecycle_msgs/srv/change_state.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/srv/get_config.hpp"
 #include "ouster_sensor_msgs/srv/set_config.hpp"
@@ -28,7 +26,6 @@
 
 
 namespace sensor = ouster::sensor;
-using lifecycle_msgs::srv::ChangeState;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace ouster_ros {
@@ -76,15 +73,6 @@ class OusterSensor : public OusterSensorNodeBase {
     void update_metadata(sensor::client& client);
 
     void save_metadata();
-
-    static std::string transition_id_to_string(uint8_t transition_id);
-    template <typename CallbackT, typename... CallbackT_Args>
-    bool change_state(std::uint8_t transition_id, CallbackT callback,
-                      CallbackT_Args... callback_args,
-                      std::chrono::seconds time_out = std::chrono::seconds{3});
-
-    void execute_transitions_sequence(std::vector<uint8_t> transitions_sequence,
-                                      size_t at);
 
     // param init_id_reset is overriden to true when force_reinit is true
     void reset_sensor(bool force_reinit, bool init_id_reset = false);
@@ -152,7 +140,6 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::SetConfig>::SharedPtr set_config_srv;
-    std::shared_ptr<rclcpp::Client<ChangeState>> change_state_client;
 
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;

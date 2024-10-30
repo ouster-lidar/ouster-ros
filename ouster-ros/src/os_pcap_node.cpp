@@ -18,16 +18,18 @@
 #include <chrono>
 #include <iomanip>
 
+#include <lifecycle_msgs/msg/transition.hpp>
+#include <lifecycle_msgs/srv/change_state.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.h"
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
 
 #include <ouster/os_pcap.h>
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
 namespace sensor = ouster::sensor;
 using ouster::sensor_utils::PcapReader;
-using namespace std::chrono;
-
 using ouster_sensor_msgs::msg::PacketMsg;
 
 namespace ouster_ros {
@@ -36,8 +38,19 @@ class OusterPcap : public OusterSensorNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterPcap(const rclcpp::NodeOptions& options)
-        : OusterSensorNodeBase("os_pcap", options) {
+        : OusterSensorNodeBase("os_pcap", options)
+    {
         declare_parameters();
+        bool auto_start = get_parameter("auto_start").as_bool();
+
+        if (auto_start) {
+            RCLCPP_INFO(get_logger(), "auto start requested");
+            auto request_transitions = std::vector<uint8_t>{
+                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+            execute_transitions_sequence(request_transitions, 0);
+            RCLCPP_INFO(get_logger(), "auto start initiated");
+        }
     }
 
     ~OusterPcap() override {
@@ -52,6 +65,10 @@ class OusterPcap : public OusterSensorNodeBase {
         try {
             auto meta_file = get_meta_file();
             auto pcap_file = get_pcap_file();
+            loop = get_parameter("loop").as_bool();
+            progress_update_freq = get_parameter("progress_update_freq").as_double();
+            if (progress_update_freq < 0.001)
+                progress_update_freq = 0.001;
             create_metadata_pub();
             load_metadata_from_file(meta_file);
             open_pcap(pcap_file);
@@ -131,8 +148,11 @@ class OusterPcap : public OusterSensorNodeBase {
     }
 
     void declare_parameters() {
+        declare_parameter("auto_start", true);
         declare_parameter<std::string>("metadata");
         declare_parameter<std::string>("pcap_file");
+        declare_parameter("loop", false);
+        declare_parameter("progress_update_freq", 1.0);
         declare_parameter("use_system_default_qos", false);
     }
 
@@ -195,11 +215,13 @@ class OusterPcap : public OusterSensorNodeBase {
         packet_read_active = true;
         packet_read_thread = std::make_unique<std::thread>([this]() {
             auto& pf = sensor::get_format(info);
-            while (packet_read_active) {
+            do {
                 read_packets(*pcap, pf);
-            }
+                pcap->reset();
+            } while(rclcpp::ok() && packet_read_active && loop);
             RCLCPP_DEBUG(get_logger(),
                          "packet_read_thread done.");
+            rclcpp::shutdown();
         });
     }
 
@@ -236,10 +258,9 @@ class OusterPcap : public OusterSensorNodeBase {
         auto packet_info = pcap.current_info();
         auto file_start = packet_info.timestamp;
         auto last_update = file_start;
-        using namespace std::chrono_literals;
-        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s);
+        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s / progress_update_freq);
 
-        while (rclcpp::ok() && payload_size) {
+        while (rclcpp::ok() && packet_read_active && payload_size) {
             auto start = high_resolution_clock::now();
             if (packet_info.dst_port == info.config.udp_port_imu) {
                 std::memcpy(imu_packet.buf.data(), pcap.current_data(),
@@ -278,7 +299,8 @@ class OusterPcap : public OusterSensorNodeBase {
     ouster_sensor_msgs::msg::PacketMsg imu_packet;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr imu_packet_pub;
-
+    bool loop;
+    double progress_update_freq;
     std::atomic<bool> packet_read_active = {false};
     std::unique_ptr<std::thread> packet_read_thread;
 };
