@@ -6,8 +6,8 @@ Changelog
 ============
 * [BUGFIX]: correctly align timestamps to the generated point cloud.
 * Added support to enable **loop** for pcap replay + other replay config.
-* Added a new launch file parameter ``pub_static_tf`` that allows users to turn off braodcast
-  of the sensor TF transforms.
+* Added a new launch file parameter ``pub_static_tf`` that allows users to turn off the braodcast
+  of sensor TF transforms.
 
 
 ouster_ros v0.13.2
