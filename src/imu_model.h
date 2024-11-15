@@ -18,7 +18,7 @@ class ImuModel {
      * param: orientation represented as euler
      * TODO: add initial angular velocity
     */
-    virtual void set_initial_state(const Eigen::Vector3d& orientation) = 0;
+    virtual void set_initial_state(const Eigen::Vector3d& initial_orientation) = 0;
 
     /*
      * TODO: Update
@@ -31,17 +31,15 @@ class ImuModel {
 
 class SimpleImuModel : public ImuModel {
    public:
-    void set_initial_state(const Eigen::Vector3d& orientation) override {
-        this->orientation = orientation;
+    void set_initial_state(const Eigen::Vector3d& initial_orientation) override {
+        this->initial_orientation = initial_orientation;
     }
 
     Eigen::Quaterniond update(uint64_t ts, const Eigen::Vector3d& la, const Eigen::Vector3d& av) override {
-        // TODO: compute delta t
+        // TODO: compute dt from consecutive ts
         double dt = 0.01;
 
-        orientation.x() += av.x() * dt;
-        orientation.y() += av.y() * dt;
-        orientation.z() += av.z() * dt;
+        Eigen::Vector3d orientation = initial_orientation + av * dt;
         orientation.x() += atan2(la.y(), la.z());
         orientation.y() += atan2(-la.x(), sqrt(la.y() * la.y() + la.z() * la.z()));
 
@@ -54,5 +52,5 @@ class SimpleImuModel : public ImuModel {
 
 private:
     // using euler angles for now
-    Eigen::Vector3d orientation;
+    Eigen::Vector3d initial_orientation;
 };
