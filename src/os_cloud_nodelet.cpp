@@ -154,11 +154,13 @@ class OusterCloud : public nodelet::Nodelet {
 
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        auto estimate_imu_orientation = pnh.param("estimate_imu_orientation", false);
 
         if (impl::check_token(tokens, "IMU")) {
             imu_packet_handler = ImuPacketHandler::create_handler(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+                estimate_imu_orientation);
         }
 
         std::vector<LidarScanProcessor> processors;
