@@ -55,7 +55,9 @@ void cartesianT(PointsT<T>& points,
         const auto idx_y = col_y + i;
         const auto idx_z = col_z + i;
         if (r <= min_r || r >= max_r) {
-            pts[idx_x] = pts[idx_y] = pts[idx_z] = invalid;
+            pts[idx_x] = invalid * dir[idx_x] + ofs[idx_x];
+            pts[idx_y] = invalid * dir[idx_y] + ofs[idx_y];
+            pts[idx_z] = invalid * dir[idx_z] + ofs[idx_z];
         } else {
             pts[idx_x] = r * dir[idx_x] + ofs[idx_x];
             pts[idx_y] = r * dir[idx_y] + ofs[idx_y];
