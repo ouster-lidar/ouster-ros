@@ -56,17 +56,66 @@ struct PointXYZIR : public _PointXYZIR {
     }
 };
 
+/*
+ * Same as Apollo point cloud type
+ * @remark XYZIT point type is not compatible with RNG15_RFL8_NIR8/LOW_DATA
+ * udp lidar profile.
+ */
+struct EIGEN_ALIGN16 _PointXYZIT {
+    PCL_ADD_POINT4D;
+    uint32_t intensity;
+    uint64_t timestamp;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct PointXYZIT : public _PointXYZIT {
+
+    inline PointXYZIT(const _PointXYZIT& pt)
+    {
+      x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
+      intensity = pt.intensity; timestamp = pt.timestamp;
+    }
+
+    inline PointXYZIT()
+    {
+      x = y = z = 0.0f; data[3] = 1.0f;
+      intensity = 0.0f; timestamp = 0;
+    }
+
+    inline const auto as_tuple() const {
+        return std::tie(x, y, z, intensity, timestamp);
+    }
+
+    inline auto as_tuple() {
+        return std::tie(x, y, z, intensity, timestamp);
+    }
+
+    template<size_t I>
+    inline auto& get() {
+        return std::get<I>(as_tuple());
+    }
+};
+
 }   // namespace ouster_ros
 
 // clang-format off
 
 /* common point types */
+
 POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIR,
     (float, x, x)
     (float, y, y)
     (float, z, z)
     (float, intensity, intensity)
     (std::uint16_t, ring, ring)
+)
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIT,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, intensity, intensity)
+    (std::uint16_t, timestamp, timestamp)
 )
 
 // clang-format on
