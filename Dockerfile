@@ -21,8 +21,8 @@ RUN set -xue \
     python3-bloom           \
     python3-colcon-common-extensions
 
-RUN if [ "$RMW_IMPLEMENTATION" = "rmw_cyclonedds_cpp" ]; then   \
-        apt-get install -y ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+RUN if [ "$RMW_IMPLEMENTATION" = "rmw_cyclonedds_cpp" ]; then \
+        apt-get install -y ros-${ROS_DISTRO}-rmw-cyclonedds-cpp; \
     fi
 
 # Set up non-root build user
