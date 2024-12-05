@@ -3,7 +3,7 @@ ARG RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
 ENV DEBIAN_FRONTEND=noninteractive \
-    RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION}
+    RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION} \
     BUILD_HOME=/var/lib/build \
     OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
