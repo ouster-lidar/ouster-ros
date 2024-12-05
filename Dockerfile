@@ -22,7 +22,7 @@ RUN set -xue \
     python3-colcon-common-extensions
 
 # TODO: install this only when rmw_cyclonedds_cpp is selected
-RUN apt-get install ros-humble-rmw-cyclonedds-cpp
+RUN apt-get install ros-${ROS_DISTRO}-rmw-cyclonedds-cpp
 
 # Set up non-root build user
 ARG BUILD_UID=1000
