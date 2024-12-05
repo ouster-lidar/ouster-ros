@@ -1,4 +1,5 @@
 ARG ROS_DISTRO=rolling
+ARG RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -19,6 +20,9 @@ RUN set -xue \
     python3-rospkg          \
     python3-bloom           \
     python3-colcon-common-extensions
+
+# TODO: install this only when rmw_cyclonedds_cpp is selected
+RUN apt install ros-humble-rmw-cyclonedds-cpp
 
 # Set up non-root build user
 ARG BUILD_UID=1000
