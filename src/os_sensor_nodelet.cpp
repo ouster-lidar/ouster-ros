@@ -644,7 +644,7 @@ void OusterSensor::start_sensor_connection_thread() {
 
 void OusterSensor::stop_sensor_connection_thread() {
     NODELET_DEBUG("sensor_connection_thread stopping.");
-    if (sensor_connection_thread->joinable()) {
+    if ((sensor_connection_thread != nullptr) && sensor_connection_thread->joinable()) {
         sensor_connection_active = false;
         sensor_connection_thread->join();
     }
