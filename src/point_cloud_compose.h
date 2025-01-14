@@ -137,6 +137,13 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             const auto tgt_idx =
                 organized ? (u / rows_step) * ls.w + v : cloud.size();
 
+            // as opposed to the point cloud destaggering if it is disabled
+            // then timestamps needs to be staggered.
+            auto ts_idx =
+                destagger ? v : (v + ls.w + pixel_shift_by_row[u]) % ls.w;
+            auto ts =
+                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
+
             if (xyz.isNaN().any()) {
                 if (organized) {
                     cloud.is_dense = false;
@@ -144,18 +151,16 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                     pt.x = static_cast<decltype(pt.x)>(xyz(0));
                     pt.y = static_cast<decltype(pt.y)>(xyz(1));
                     pt.z = static_cast<decltype(pt.z)>(xyz(2));
+                    CondBinaryOp<point::has_t_v<PointT>>::run(
+                        pt, ts, [](auto& pt, const auto& ts) {
+                            pt.t = static_cast<uint32_t>(ts); }
+                    );
                 }
                 continue;
             } else {
                 if (!organized) cloud.points.emplace_back();
             }
 
-            // as opposed to the point cloud destaggering if it is disabled
-            // then timestamps needs to be staggered.
-            auto ts_idx =
-                destagger ? v : (v + ls.w + pixel_shift_by_row[u]) % ls.w;
-            auto ts =
-                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
 
             // if target point and staging point has matching type bind the
             // target directly and avoid performing transform_point at the end
