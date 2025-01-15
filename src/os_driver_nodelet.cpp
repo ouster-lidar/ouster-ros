@@ -53,6 +53,9 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "IMG"))
             create_image_pubs();
         publish_raw = impl::check_token(tokens, "RAW");
+        publish_telemetry = impl::check_token(tokens, "TLM");
+        if (publish_telemetry)
+            create_telemetry_pub();
         OusterSensor::onInit();
     }
 
@@ -105,6 +108,10 @@ class OusterDriver : public OusterSensor {
         for (auto it : channel_field_topic_map) {
             image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
         }
+    }
+
+    void create_telemetry_pub() {
+        telemetry_pub = getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 100);
     }
 
     virtual void create_handlers() {
@@ -194,15 +201,20 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
-            impl::check_token(tokens, "IMG"))
+            impl::check_token(tokens, "IMG")) {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
         if (lidar_packet_handler) {
             lidar_packet_handler(lidar_packet);
+        }
+
+        if (publish_telemetry) {
+            process_publish_telemetry(lidar_packet);
         }
 
         if (publish_raw)
@@ -219,11 +231,19 @@ class OusterDriver : public OusterSensor {
             OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
+    void process_publish_telemetry(const LidarPacket& lidar_packet) {
+        const auto& pf = sensor::get_format(info);
+        auto telemetry = lidar_packet_to_telemetry_msg(lidar_packet,
+            impl::ts_to_ros_time(lidar_packet.host_timestamp), pf);
+        telemetry_pub.publish(telemetry);
+    }
+
    private:
     ros::Publisher imu_pub;
     std::vector<ros::Publisher> lidar_pubs;
     std::vector<ros::Publisher> scan_pubs;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    ros::Publisher telemetry_pub;
 
     OusterTransformsBroadcaster tf_bcast;
 
@@ -231,6 +251,7 @@ class OusterDriver : public OusterSensor {
     LidarPacketHandler::HandlerType lidar_packet_handler;
 
     bool publish_raw = false;
+    bool publish_telemetry = false;
 
 };
 
