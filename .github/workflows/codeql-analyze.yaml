@@ -24,7 +24,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        path: src/ouster-ros
 
     - name: Set up ROS
       run: |
@@ -45,9 +48,7 @@ jobs:
     - name: Build with catkin
       run: |
         source /opt/ros/noetic/setup.bash
-        mkdir -p build
-        cd build
-        catkin_make -DCMAKE_BUILD_TYPE=Release
+        catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
