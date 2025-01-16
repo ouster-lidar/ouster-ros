@@ -25,9 +25,8 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 namespace sensor = ouster::sensor;
-using sensor::LidarPacket;
 using sensor::ImuPacket;
-
+using sensor::LidarPacket;
 
 namespace ouster_ros {
 
@@ -45,10 +44,8 @@ bool OusterSensor::start() {
             return false;
         config = staged_config.value();
         staged_config.reset();
-    }
-    else {
-        if (!get_active_config_no_throw(sensor_hostname, config))
-            return false;
+    } else {
+        if (!get_active_config_no_throw(sensor_hostname, config)) return false;
 
         NODELET_INFO("Retrived sensor active config");
 
@@ -56,8 +53,7 @@ bool OusterSensor::start() {
         // TODO[UN]: find a shortcut
         // Only reset udp_dest if auto_udp was allowed on startup
         if (auto_udp_allowed) config.udp_dest.reset();
-        if (!configure_sensor(sensor_hostname, config))
-            return false;
+        if (!configure_sensor(sensor_hostname, config)) return false;
     }
 
     reset_last_init_id = true;
@@ -85,29 +81,36 @@ void OusterSensor::attempt_start() {
             reconnect_timer = getNodeHandle().createTimer(
                 ros::Duration(dormant_period_between_reconnects),
                 [this](const ros::TimerEvent&) {
-                    NODELET_INFO_STREAM("Attempting to communicate with the sensor, "
-                                        "remaining attempts: " << reconnect_attempts_available);
+                    NODELET_INFO_STREAM(
+                        "Attempting to communicate with the sensor, "
+                        "remaining attempts: "
+                        << reconnect_attempts_available);
                     attempt_start();
-                }, true);
+                },
+                true);
         }
     } else {
         // reset counter
-        reconnect_attempts_available = 
-            getPrivateNodeHandle().param("max_failed_reconnect_attempts", INT_MAX);
+        reconnect_attempts_available = getPrivateNodeHandle().param(
+            "max_failed_reconnect_attempts", INT_MAX);
     }
 }
 
 void OusterSensor::schedule_stop() {
     sensor_connection_active = false;
     reconnect_timer = getNodeHandle().createTimer(
-        ros::Duration(0.0), [this](const ros::TimerEvent&) {
+        ros::Duration(0.0),
+        [this](const ros::TimerEvent&) {
             stop();
             if (attempt_reconnect && reconnect_attempts_available-- > 0) {
-                NODELET_INFO_STREAM("Attempting to communicate with the sensor, "
-                                    "remaining attempts: " << reconnect_attempts_available);
+                NODELET_INFO_STREAM(
+                    "Attempting to communicate with the sensor, "
+                    "remaining attempts: "
+                    << reconnect_attempts_available);
                 attempt_start();
             }
-        }, true);
+        },
+        true);
 }
 
 void OusterSensor::onInit() {
@@ -115,7 +118,8 @@ void OusterSensor::onInit() {
     create_metadata_pub();
     create_services();
     create_publishers();
-    attempt_reconnect = getPrivateNodeHandle().param("attempt_reconnect", false);
+    attempt_reconnect =
+        getPrivateNodeHandle().param("attempt_reconnect", false);
     dormant_period_between_reconnects =
         getPrivateNodeHandle().param("dormant_period_between_reconnects", 1.0);
     reconnect_attempts_available =
@@ -144,8 +148,8 @@ void OusterSensor::update_metadata(sensor::client& cli) {
     }
 
     if (cached_metadata.empty()) {
-        auto error_msg = std::string{"Failed to collect sensor metadata"};
-        NODELET_ERROR_STREAM(error_msg);
+        const auto error_msg = "Failed to collect sensor metadata";
+        NODELET_ERROR(error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -174,24 +178,23 @@ void OusterSensor::save_metadata() {
         NODELET_INFO_STREAM("Wrote sensor metadata to " << meta_file);
     } else {
         NODELET_WARN_STREAM(
-            "Failed to write metadata to " << meta_file <<
-            "; check that the path is valid. If you provided a relative "
-            "path, please note that the working directory of all ROS "
-            "nodes is set by default to $ROS_HOME");
+            "Failed to write metadata to " << meta_file
+            << "; check that the path is valid. If you provided a relative "
+               "path, please note that the working directory of all ROS "
+               "nodes is set by default to $ROS_HOME");
     }
 }
 
 void OusterSensor::create_reset_service() {
-    reset_srv = 
-        getNodeHandle()
-            .advertiseService<std_srvs::Empty::Request,
-                                std_srvs::Empty::Response>(
-                "reset", [this](std_srvs::Empty::Request&,
-                                std_srvs::Empty::Response&) {
-                    NODELET_INFO("reset service invoked");
-                    reset_sensor(true);
-                    return true;
-                });
+    reset_srv = getNodeHandle()
+                    .advertiseService<std_srvs::Empty::Request,
+                                      std_srvs::Empty::Response>(
+                        "reset", [this](std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&) {
+                            NODELET_INFO("reset service invoked");
+                            reset_sensor(true);
+                            return true;
+                        });
 
     NODELET_INFO("reset service created");
 }
@@ -199,19 +202,16 @@ void OusterSensor::create_reset_service() {
 bool OusterSensor::get_active_config_no_throw(
     const std::string& sensor_hostname, sensor::sensor_config& config) {
     try {
-        if (get_config(sensor_hostname, config, true))
-            return true;
-    } catch(const std::exception&) {
+        if (get_config(sensor_hostname, config, true)) return true;
+    } catch (const std::exception&) {
         NODELET_ERROR_STREAM(
             "Couldn't get active config for: " << sensor_hostname);
         return false;
     }
 
-    NODELET_ERROR_STREAM(
-        "Couldn't get active config for: " << sensor_hostname);
+    NODELET_ERROR_STREAM("Couldn't get active config for: " << sensor_hostname);
     return false;
 }
-
 
 void OusterSensor::create_get_config_service() {
     get_config_srv =
@@ -271,13 +271,14 @@ void OusterSensor::create_set_config_service() {
 
 std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     const std::string& hostname, const sensor::sensor_config& config) {
-
     int lidar_port = config.udp_port_lidar ? config.udp_port_lidar.value() : 0;
     int imu_port = config.udp_port_imu ? config.udp_port_imu.value() : 0;
     auto udp_dest = config.udp_dest ? config.udp_dest.value() : "";
 
-    NODELET_INFO_STREAM("Starting sensor " << hostname << " initialization..."
-    " Using ports: " << lidar_port << "/" << imu_port);
+    NODELET_INFO_STREAM("Starting sensor " << hostname
+                                           << " initialization..."
+                                              " Using ports: "
+                                           << lidar_port << "/" << imu_port);
 
     std::shared_ptr<sensor::client> cli;
     if (sensor::in_multicast(udp_dest)) {
@@ -291,8 +292,9 @@ std::shared_ptr<sensor::client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli = sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
-                                  sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
+        cli =
+            sensor::init_client(hostname, udp_dest, sensor::MODE_UNSPEC,
+                                sensor::TIME_FROM_UNSPEC, lidar_port, imu_port);
     }
 
     return cli;
@@ -394,9 +396,11 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
 
     persist_config = nh.param("persist_config", false);
     if (persist_config && (lidar_port == 0 || imu_port == 0)) {
-        NODELET_WARN("When using persist_config it is recommended to not "
-        "use 0 for port values as this currently will trigger sensor reinit "
-        "event each time");
+        NODELET_WARN(
+            "When using persist_config it is recommended to not "
+            "use 0 for port values as this currently will trigger sensor "
+            "reinit "
+            "event each time");
     }
 
     config.udp_profile_lidar = udp_profile_lidar;
@@ -416,7 +420,7 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     if (azimuth_window_start < MIN_AZW || azimuth_window_start > MAX_AZW ||
         azimuth_window_end < MIN_AZW || azimuth_window_end > MAX_AZW) {
         auto error_msg = "azimuth window values must be between " +
-                    to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
+                         to_string(MIN_AZW) + " and " + to_string(MAX_AZW);
         NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
     }
@@ -455,7 +459,8 @@ uint8_t OusterSensor::compose_config_flags(
     }
 
     if (persist_config) {
-        persist_config = false; // avoid persisting configs implicitly on restarts
+        persist_config =
+            false;  // avoid persisting configs implicitly on restarts
         NODELET_INFO("Configuration will be persisted");
         config_flags |= ouster::sensor::CONFIG_PERSIST;
     }
@@ -482,8 +487,8 @@ bool OusterSensor::configure_sensor(const std::string& hostname,
     try {
         set_config(hostname, config, config_flags);
     } catch (const std::exception& ex) {
-        NODELET_ERROR_STREAM("Error connecting to sensor " << hostname <<
-        ", details: " << ex.what());
+        NODELET_ERROR_STREAM("Error connecting to sensor "
+                             << hostname << ", details: " << ex.what());
         return false;
     }
 
@@ -535,6 +540,15 @@ void OusterSensor::create_publishers() {
     auto& nh = getNodeHandle();
     lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
     imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
+
+    auto& pnh = getPrivateNodeHandle();
+    auto proc_mask = pnh.param("proc_mask", std::string{});
+    auto tokens = impl::parse_tokens(proc_mask, '|');
+    publish_telemetry = impl::check_token(tokens, "TLM");
+    if (publish_telemetry)
+        telemetry_pub =
+            getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 1280);
+    ;
 }
 
 void OusterSensor::allocate_buffers() {
@@ -562,7 +576,8 @@ bool OusterSensor::init_id_changed(const sensor::packet_format& pf,
 }
 
 void OusterSensor::handle_poll_client_error() {
-    NODELET_WARN_THROTTLE(1, "sensor::poll_client()) returned an error or timed out");
+    NODELET_WARN_THROTTLE(
+        1, "sensor::poll_client()) returned an error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
     if (++poll_client_error_count > max_poll_client_error_count) {
@@ -574,16 +589,17 @@ void OusterSensor::handle_poll_client_error() {
     }
 }
 
-void OusterSensor::handle_lidar_packet(sensor::client& cli,
-                                       const sensor::packet_format& pf) {
+void OusterSensor::read_lidar_packet(sensor::client& cli,
+                                     const sensor::packet_format& pf) {
     if (sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
-        if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
+        if (!is_legacy_lidar_profile(info) &&
+            init_id_changed(pf, lidar_packet)) {
             // TODO: short circut reset if no breaking changes occured?
             NODELET_WARN("sensor init_id has changed! reactivating..");
             reset_sensor(false);
         }
-        on_lidar_packet_msg(lidar_packet);
+        handle_lidar_packet(lidar_packet);
     } else {
         if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
             NODELET_ERROR(
@@ -595,10 +611,18 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
     }
 }
 
-void OusterSensor::handle_imu_packet(sensor::client& cli,
-                                     const sensor::packet_format&) {
+void OusterSensor::handle_lidar_packet(const LidarPacket& lidar_packet) {
+    if (publish_telemetry) {
+        process_publish_telemetry(lidar_packet);
+    }
+
+    on_lidar_packet_msg(lidar_packet);
+}
+
+void OusterSensor::read_imu_packet(sensor::client& cli,
+                                   const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
-        on_imu_packet_msg(imu_packet);
+        handle_imu_packet(imu_packet);
     } else {
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
             NODELET_ERROR(
@@ -608,6 +632,10 @@ void OusterSensor::handle_imu_packet(sensor::client& cli,
             reactivate_sensor(true);
         }
     }
+}
+
+void OusterSensor::handle_imu_packet(const ImuPacket& imu_packet) {
+    on_imu_packet_msg(imu_packet);
 }
 
 void OusterSensor::connection_loop(sensor::client& cli,
@@ -623,10 +651,10 @@ void OusterSensor::connection_loop(sensor::client& cli,
     }
     poll_client_error_count = 0;
     if (state & sensor::LIDAR_DATA) {
-        handle_lidar_packet(cli, pf);
+        read_lidar_packet(cli, pf);
     }
     if (state & sensor::IMU_DATA) {
-        handle_imu_packet(cli, pf);
+        read_imu_packet(cli, pf);
     }
 }
 
@@ -644,7 +672,8 @@ void OusterSensor::start_sensor_connection_thread() {
 
 void OusterSensor::stop_sensor_connection_thread() {
     NODELET_DEBUG("sensor_connection_thread stopping.");
-    if ((sensor_connection_thread != nullptr) && sensor_connection_thread->joinable()) {
+    if ((sensor_connection_thread != nullptr) &&
+        sensor_connection_thread->joinable()) {
         sensor_connection_active = false;
         sensor_connection_thread->join();
     }
@@ -668,6 +697,13 @@ void OusterSensor::reset_sensor(bool /*force_reinit*/, bool /*init_id_reset*/) {
 void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
     NODELET_WARN(
         "sensor reactivate is invoked but sensor it is not implemented");
+}
+
+void OusterSensor::process_publish_telemetry(const LidarPacket& lidar_packet) {
+    const auto& pf = sensor::get_format(info);
+    auto telemetry = lidar_packet_to_telemetry_msg(
+        lidar_packet, impl::ts_to_ros_time(lidar_packet.host_timestamp), pf);
+    telemetry_pub.publish(telemetry);
 }
 
 }  // namespace ouster_ros

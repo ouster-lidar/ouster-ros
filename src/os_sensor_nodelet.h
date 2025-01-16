@@ -96,11 +96,15 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void handle_poll_client_error();
 
-    void handle_lidar_packet(sensor::client& client,
-                             const sensor::packet_format& pf);
-
-    void handle_imu_packet(sensor::client& client,
+    void read_lidar_packet(sensor::client& client,
                            const sensor::packet_format& pf);
+
+    void handle_lidar_packet(const sensor::LidarPacket& lidar_packet);
+
+    void read_imu_packet(sensor::client& client,
+                         const sensor::packet_format& pf);
+
+    void handle_imu_packet(const sensor::ImuPacket& imu_packet);
 
     void cleanup();
 
@@ -108,7 +112,9 @@ class OusterSensor : public OusterSensorNodeletBase {
                          const sensor::packet_format& pf);
 
     bool get_active_config_no_throw(const std::string& sensor_hostname,
-                             sensor::sensor_config& config);
+                                    sensor::sensor_config& config);
+
+    void process_publish_telemetry(const sensor::LidarPacket& lidar_packet);
 
    private:
     std::string sensor_hostname;
@@ -122,6 +128,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     ouster::sensor::ImuPacket imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
+    ros::Publisher telemetry_pub;
     ros::ServiceServer reset_srv;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
@@ -155,6 +162,8 @@ class OusterSensor : public OusterSensorNodeletBase {
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
     ros::Timer reconnect_timer;
+
+    bool publish_telemetry = false;
 };
 
 }  // namespace ouster_ros

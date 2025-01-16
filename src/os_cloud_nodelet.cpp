@@ -42,12 +42,9 @@ class OusterCloud : public nodelet::Nodelet {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
-        if (impl::check_token(tokens, "IMU"))
-            create_imu_pub_sub();
-        if (impl::check_token(tokens, "PCL"))
-            create_point_cloud_pubs();
-        if (impl::check_token(tokens, "SCAN"))
-            create_laser_scan_pubs();
+        if (impl::check_token(tokens, "IMU")) create_imu_pub_sub();
+        if (impl::check_token(tokens, "PCL")) create_point_cloud_pubs();
+        if (impl::check_token(tokens, "SCAN")) create_laser_scan_pubs();
         if (impl::check_token(tokens, "PCL") ||
             impl::check_token(tokens, "SCAN"))
             create_lidar_packets_sub();
@@ -66,7 +63,8 @@ class OusterCloud : public nodelet::Nodelet {
 
         auto pnh = getPrivateNodeHandle();
         tf_bcast.parse_parameters(pnh);
-        auto dynamic_transforms = pnh.param("dynamic_transforms_broadcast", false);
+        auto dynamic_transforms =
+            pnh.param("dynamic_transforms_broadcast", false);
         auto dynamic_transforms_rate = getPrivateNodeHandle().param(
             "dynamic_transforms_broadcast_rate", 1.0);
         if (dynamic_transforms && dynamic_transforms_rate < 1.0) {
@@ -102,11 +100,14 @@ class OusterCloud : public nodelet::Nodelet {
         imu_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "imu_packets", 100, [this](const PacketMsg::ConstPtr msg) {
                 if (imu_packet_handler) {
-                    // TODO[UN]: this is not ideal since we can't reuse the msg buffer
-                    // Need to redefine the Packet object and allow use of array_views
+                    // TODO[UN]: this is not ideal since we can't reuse the msg
+                    // buffer Need to redefine the Packet object and allow use
+                    // of array_views
                     sensor::ImuPacket imu_packet(msg->buf.size());
-                    memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                    imu_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
+                    memcpy(imu_packet.buf.data(), msg->buf.data(),
+                           msg->buf.size());
+                    imu_packet.host_timestamp =
+                        static_cast<uint64_t>(ros::Time::now().toNSec());
                     auto imu_msg = imu_packet_handler(imu_packet);
                     if (imu_msg.header.stamp > last_msg_ts)
                         last_msg_ts = imu_msg.header.stamp;
@@ -135,16 +136,19 @@ class OusterCloud : public nodelet::Nodelet {
 
     void create_lidar_packets_sub() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
-        "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-            if (lidar_packet_handler) {
-                // TODO[UN]: this is not ideal since we can't reuse the msg buffer
-                // Need to redefine the Packet object and allow use of array_views
-                sensor::LidarPacket lidar_packet(msg->buf.size());
-                memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                lidar_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
-                lidar_packet_handler(lidar_packet);
-            }
-        });
+            "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+                if (lidar_packet_handler) {
+                    // TODO[UN]: this is not ideal since we can't reuse the msg
+                    // buffer Need to redefine the Packet object and allow use
+                    // of array_views
+                    sensor::LidarPacket lidar_packet(msg->buf.size());
+                    memcpy(lidar_packet.buf.data(), msg->buf.data(),
+                           msg->buf.size());
+                    lidar_packet.host_timestamp =
+                        static_cast<uint64_t>(ros::Time::now().toNSec());
+                    lidar_packet_handler(lidar_packet);
+                }
+            });
     }
 
     void create_handlers(const sensor::sensor_info& info) {
@@ -173,8 +177,9 @@ class OusterCloud : public nodelet::Nodelet {
                 throw std::runtime_error("negative range limits!");
             }
             if (min_range_m >= max_range_m) {
-                NODELET_FATAL("min_range can't be equal or exceed max_range");
-                throw std::runtime_error("min_range equal to or exceeds max_range!");
+                const auto error_msg = "min_range can't be equal or exceed max_range";
+                NODELET_FATAL(error_msg);
+                throw std::runtime_error(error_msg);
             }
             // convert to millimeters
             uint32_t min_range = impl::ulround(min_range_m * 1000);
@@ -183,23 +188,24 @@ class OusterCloud : public nodelet::Nodelet {
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(
                     point_type, info, tf_bcast.point_cloud_frame_id(),
-                    tf_bcast.apply_lidar_to_sensor_transform(),
-                    organized, destagger, min_range, max_range, rows_step,
+                    tf_bcast.apply_lidar_to_sensor_transform(), organized,
+                    destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i) {
                             if (msgs[i]->header.stamp > last_msg_ts)
                                 last_msg_ts = msgs[i]->header.stamp;
                             lidar_pubs[i].publish(*msgs[i]);
                         }
-                    }
-                )
-            );
+                    }));
 
             // warn about profile incompatibility
-            if (PointCloudProcessorFactory::point_type_requires_intensity(point_type) &&
-                !PointCloudProcessorFactory::profile_has_intensity(info.format.udp_profile_lidar)) {
+            if (PointCloudProcessorFactory::point_type_requires_intensity(
+                    point_type) &&
+                !PointCloudProcessorFactory::profile_has_intensity(
+                    info.format.udp_profile_lidar)) {
                 NODELET_WARN_STREAM(
-                    "selected point type '" << point_type
+                    "selected point type '"
+                    << point_type
                     << "' is not compatible with the udp profile: "
                     << to_string(info.format.udp_profile_lidar));
             }
@@ -213,8 +219,9 @@ class OusterCloud : public nodelet::Nodelet {
             if (scan_ring != pnh.param("scan_ring", 0)) {
                 NODELET_WARN_STREAM(
                     "scan ring is set to a value that exceeds available range "
-                    "please choose a value between [0, " << beams_count << "], "
-                    "ring value clamped to: " << scan_ring);
+                    "please choose a value between "
+                    << " [0, " << beams_count << "],"
+                    << " ring value clamped to: " << scan_ring);
             }
 
             processors.push_back(LaserScanProcessor::create(
@@ -228,12 +235,12 @@ class OusterCloud : public nodelet::Nodelet {
                 }));
         }
 
-        if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN")) {
+        if (impl::check_token(tokens, "PCL") ||
+            impl::check_token(tokens, "SCAN")) {
             lidar_packet_handler = LidarPacketHandler::create_handler(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
-
     }
 
    private:
