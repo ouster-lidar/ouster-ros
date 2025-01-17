@@ -21,7 +21,6 @@
 #include "ouster_ros/SetConfig.h"
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_sensor_nodelet_base.h"
-#include "telemetry_handler.h"
 
 namespace sensor = ouster::sensor;
 
@@ -117,8 +116,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     bool get_active_config_no_throw(const std::string& sensor_hostname,
                                     sensor::sensor_config& config);
 
-    void process_publish_telemetry(const sensor::LidarPacket& lidar_packet);
-
    private:
     std::string sensor_hostname;
     std::optional<sensor::sensor_config> staged_config;
@@ -131,7 +128,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     ouster::sensor::ImuPacket imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
-    ros::Publisher telemetry_pub;
     ros::ServiceServer reset_srv;
     ros::ServiceServer get_config_srv;
     ros::ServiceServer set_config_srv;
@@ -165,9 +161,6 @@ class OusterSensor : public OusterSensorNodeletBase {
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
     ros::Timer reconnect_timer;
-
-    bool publish_telemetry = false;
-    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros

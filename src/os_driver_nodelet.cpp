@@ -25,6 +25,7 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "telemetry_handler.h"
 
 namespace sensor = ouster::sensor;
 using ouster::sensor::ImuPacket;
@@ -49,6 +50,7 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "PCL")) create_point_cloud_pubs();
         if (impl::check_token(tokens, "SCAN")) create_laser_scan_pubs();
         if (impl::check_token(tokens, "IMG")) create_image_pubs();
+        if (impl::check_token(tokens, "TLM")) create_telemetry_pub();
         publish_raw = impl::check_token(tokens, "RAW");
         OusterSensor::onInit();
     }
@@ -66,6 +68,11 @@ class OusterDriver : public OusterSensor {
 
     void create_imu_pub() {
         imu_pub = getNodeHandle().advertise<sensor_msgs::Imu>("imu", 100);
+    }
+
+    void create_telemetry_pub() {
+        telemetry_pub =
+            getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 1280);
     }
 
     void create_point_cloud_pubs() {
@@ -130,7 +137,8 @@ class OusterDriver : public OusterSensor {
                 throw std::runtime_error("negative range limits!");
             }
             if (min_range_m >= max_range_m) {
-                const auto error_msg = "min_range can't be equal or exceed max_range";
+                const auto error_msg =
+                    "min_range can't be equal or exceed max_range";
                 NODELET_FATAL(error_msg);
                 throw std::runtime_error(error_msg);
             }
@@ -199,9 +207,20 @@ class OusterDriver : public OusterSensor {
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
+
+        if (impl::check_token(tokens, "TLM")) {
+            telemetry_handler = TelemetryHandler::create(
+                info, timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (telemetry_handler) {
+            auto telemetry = telemetry_handler(lidar_packet);
+            telemetry_pub.publish(telemetry);
+        }
+
         if (lidar_packet_handler) {
             lidar_packet_handler(lidar_packet);
         }
@@ -230,6 +249,9 @@ class OusterDriver : public OusterSensor {
     LidarPacketHandler::HandlerType lidar_packet_handler;
 
     bool publish_raw = false;
+
+    ros::Publisher telemetry_pub;
+    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros

@@ -27,6 +27,7 @@
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "telemetry_handler.h"
 
 namespace ouster_ros {
 
@@ -45,8 +46,10 @@ class OusterCloud : public nodelet::Nodelet {
         if (impl::check_token(tokens, "IMU")) create_imu_pub_sub();
         if (impl::check_token(tokens, "PCL")) create_point_cloud_pubs();
         if (impl::check_token(tokens, "SCAN")) create_laser_scan_pubs();
+        if (impl::check_token(tokens, "TLM")) create_telemetry_pub();
         if (impl::check_token(tokens, "PCL") ||
-            impl::check_token(tokens, "SCAN"))
+            impl::check_token(tokens, "SCAN") ||
+            impl::check_token(tokens, "TLM"))
             create_lidar_packets_sub();
         create_metadata_subscriber();
         NODELET_INFO("OusterCloud: nodelet created!");
@@ -134,18 +137,29 @@ class OusterCloud : public nodelet::Nodelet {
         }
     }
 
+    void create_telemetry_pub() {
+        telemetry_pub =
+            getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 1280);
+    }
+
     void create_lidar_packets_sub() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
+                sensor::LidarPacket lidar_packet(msg->buf.size());
+                memcpy(lidar_packet.buf.data(), msg->buf.data(),
+                       msg->buf.size());
+                lidar_packet.host_timestamp =
+                    static_cast<uint64_t>(ros::Time::now().toNSec());
+
+                if (telemetry_handler) {
+                    auto telemetry = telemetry_handler(lidar_packet);
+                    telemetry_pub.publish(telemetry);
+                }
+
                 if (lidar_packet_handler) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg
                     // buffer Need to redefine the Packet object and allow use
                     // of array_views
-                    sensor::LidarPacket lidar_packet(msg->buf.size());
-                    memcpy(lidar_packet.buf.data(), msg->buf.data(),
-                           msg->buf.size());
-                    lidar_packet.host_timestamp =
-                        static_cast<uint64_t>(ros::Time::now().toNSec());
                     lidar_packet_handler(lidar_packet);
                 }
             });
@@ -177,7 +191,8 @@ class OusterCloud : public nodelet::Nodelet {
                 throw std::runtime_error("negative range limits!");
             }
             if (min_range_m >= max_range_m) {
-                const auto error_msg = "min_range can't be equal or exceed max_range";
+                const auto error_msg =
+                    "min_range can't be equal or exceed max_range";
                 NODELET_FATAL(error_msg);
                 throw std::runtime_error(error_msg);
             }
@@ -241,6 +256,12 @@ class OusterCloud : public nodelet::Nodelet {
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
+
+        if (impl::check_token(tokens, "TLM")) {
+            telemetry_handler = TelemetryHandler::create(
+                info, timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
     }
 
    private:
@@ -258,6 +279,9 @@ class OusterCloud : public nodelet::Nodelet {
 
     ros::Timer timer_;
     ros::Time last_msg_ts;
+
+    ros::Publisher telemetry_pub;
+    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros

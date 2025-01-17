@@ -525,21 +525,10 @@ void OusterSensor::populate_metadata_defaults(
     }
 }
 
-void OusterSensor::on_metadata_updated(const sensor::sensor_info& info) {
-}
+void OusterSensor::on_metadata_updated(const sensor::sensor_info&) {}
 
 void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
     display_lidar_info(info);
-
-    if (publish_telemetry) {
-        auto& pnh = getPrivateNodeHandle();
-        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
-        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
-        telemetry_handler = TelemetryHandler::create(
-            info, timestamp_mode,
-            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
-    }
-
     on_metadata_updated(info);
 }
 
@@ -554,13 +543,6 @@ void OusterSensor::create_publishers() {
     auto& nh = getNodeHandle();
     lidar_packet_pub = nh.advertise<PacketMsg>("lidar_packets", 1280);
     imu_packet_pub = nh.advertise<PacketMsg>("imu_packets", 100);
-
-    auto& pnh = getPrivateNodeHandle();
-    auto proc_mask = pnh.param("proc_mask", std::string{});
-    auto tokens = impl::parse_tokens(proc_mask, '|');
-    publish_telemetry = impl::check_token(tokens, "TLM");
-    if (publish_telemetry)
-        telemetry_pub = nh.advertise<ouster_ros::Telemetry>("telemetry", 1280);
 }
 
 void OusterSensor::allocate_buffers() {
@@ -624,10 +606,6 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
 }
 
 void OusterSensor::handle_lidar_packet(const LidarPacket& lidar_packet) {
-    if (publish_telemetry) {
-        process_publish_telemetry(lidar_packet);
-    }
-
     on_lidar_packet_msg(lidar_packet);
 }
 
@@ -709,11 +687,6 @@ void OusterSensor::reset_sensor(bool /*force_reinit*/, bool /*init_id_reset*/) {
 void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
     NODELET_WARN(
         "sensor reactivate is invoked but sensor it is not implemented");
-}
-
-void OusterSensor::process_publish_telemetry(const LidarPacket& lidar_packet) {
-    auto telemetry = telemetry_handler(lidar_packet);
-    telemetry_pub.publish(telemetry);
 }
 
 }  // namespace ouster_ros
