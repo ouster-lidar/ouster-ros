@@ -102,6 +102,61 @@ struct PointXYZIR : public _PointXYZIR {
     }
 };
 
+// Autoware specific point type XYZIRC
+// X 	            - 	X position
+// Y 	            - 	Y position
+// Z 	            - 	Z position
+// I (intensity) 	- 	Measured reflectivity, intensity of the point
+// R (return type)  - 	Laser return type for dual return lidars NOT RING
+// C (channel)   	- 	Channel ID of the laser that measured the point NOT RING, NOT RETURN TYPE
+
+// (float, x, x)
+// (float, y, y)
+// (float, z, z)
+// (uint8_t, intensity, intensity)
+// (uint8_t, return_type, return_type)
+// (uint16_t, channel, channel)
+
+struct EIGEN_ALIGN16 _PointXYZIRC {
+    // PCL_ADD_POINT4D;
+    float x;
+    float y;
+    float z;
+    uint8_t intensity;
+    uint8_t return_type;
+    uint16_t channel;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct PointXYZIRC : public _PointXYZIRC {
+    inline PointXYZIRC(const _PointXYZIRC& pt)
+    {
+      x = pt.x; y = pt.y; z = pt.z; //data[3] = 1.0f;
+      intensity = pt.intensity; return_type = pt.return_type;
+      channel = pt.channel;
+    }
+
+    inline PointXYZIRC()
+    {
+      x = y = z = 0.0f; //data[3] = 1.0f;
+      intensity = 0; return_type = 0;
+      channel = 0;
+    }
+
+    inline const auto as_tuple() const {
+        return std::tie(x, y, z, intensity, return_type, channel);
+    }
+
+    inline auto as_tuple() {
+        return std::tie(x, y, z, intensity, return_type, channel);
+    }
+
+    template<size_t I>
+    inline auto& get() {
+        return std::get<I>(as_tuple());
+    }
+};
+
 }   // namespace ouster_ros
 
 // clang-format off
@@ -120,6 +175,15 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIR,
     (float, z, z)
     (float, intensity, intensity)
     (std::uint16_t, ring, ring)
+)
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIRC,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (uint8_t, intensity, intensity)
+    (uint8_t, return_type, return_type)
+    (uint16_t, channel, channel)
 )
 
 // clang-format on
