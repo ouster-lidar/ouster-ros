@@ -120,7 +120,7 @@ sensor_msgs::LaserScan lidar_scan_to_laser_scan_msg(
 
 /**
  * Parse a LidarPacket and generate the Telemetry message
- * @param[in] pm packet message populated by read_imu_packet
+ * @param[in] lidar_packet lidar packet to parse telemetry data from
  * @param[in] timestamp the timestamp to give the resulting ROS message
  * @param[in] pf the packet format
  * @return ROS sensor message with fields populated from the packet
