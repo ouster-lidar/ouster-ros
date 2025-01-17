@@ -129,6 +129,8 @@
       <param name="~/udp_profile_lidar" type="str" value="$(arg udp_profile_lidar)"/>
       <param name="~/lidar_mode" type="str" value="$(arg lidar_mode)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/ptp_utc_tai_offset" type="double"
+        value="$(arg ptp_utc_tai_offset)"/>
       <param name="~/metadata" type="str" value="$(arg metadata)"/>
       <param name="~/proc_mask" type="str" value="$(arg proc_mask)"/>
       <param name="~/azimuth_window_start" value="$(arg azimuth_window_start)"/>

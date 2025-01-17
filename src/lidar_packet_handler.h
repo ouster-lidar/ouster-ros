@@ -153,7 +153,7 @@ class LidarPacketHandler {
     void clear_registered_lidar_scan_handlers() { lidar_scan_handlers.clear(); }
 
    public:
-    static HandlerType create_handler(
+    static HandlerType create(
         const sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
         const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {

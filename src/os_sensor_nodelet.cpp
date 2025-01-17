@@ -159,7 +159,7 @@ void OusterSensor::update_metadata(sensor::client& cli) {
 
     publish_metadata();
     save_metadata();
-    on_metadata_updated(info);
+    metadata_updated(info);
 }
 
 void OusterSensor::save_metadata() {
@@ -526,7 +526,21 @@ void OusterSensor::populate_metadata_defaults(
 }
 
 void OusterSensor::on_metadata_updated(const sensor::sensor_info& info) {
+}
+
+void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
     display_lidar_info(info);
+
+    if (publish_telemetry) {
+        auto& pnh = getPrivateNodeHandle();
+        auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
+        double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
+        telemetry_handler = TelemetryHandler::create(
+            info, timestamp_mode,
+            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+    }
+
+    on_metadata_updated(info);
 }
 
 void OusterSensor::create_services() {
@@ -546,9 +560,7 @@ void OusterSensor::create_publishers() {
     auto tokens = impl::parse_tokens(proc_mask, '|');
     publish_telemetry = impl::check_token(tokens, "TLM");
     if (publish_telemetry)
-        telemetry_pub =
-            getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 1280);
-    ;
+        telemetry_pub = nh.advertise<ouster_ros::Telemetry>("telemetry", 1280);
 }
 
 void OusterSensor::allocate_buffers() {
@@ -700,9 +712,7 @@ void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
 }
 
 void OusterSensor::process_publish_telemetry(const LidarPacket& lidar_packet) {
-    const auto& pf = sensor::get_format(info);
-    auto telemetry = lidar_packet_to_telemetry_msg(
-        lidar_packet, impl::ts_to_ros_time(lidar_packet.host_timestamp), pf);
+    auto telemetry = telemetry_handler(lidar_packet);
     telemetry_pub.publish(telemetry);
 }
 

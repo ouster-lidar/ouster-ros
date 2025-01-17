@@ -21,6 +21,7 @@
 #include "ouster_ros/SetConfig.h"
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_sensor_nodelet_base.h"
+#include "telemetry_handler.h"
 
 namespace sensor = ouster::sensor;
 
@@ -59,6 +60,8 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::string get_sensor_hostname();
 
     void update_metadata(sensor::client& client);
+
+    void metadata_updated(const sensor::sensor_info& info);
 
     void save_metadata();
 
@@ -164,6 +167,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     ros::Timer reconnect_timer;
 
     bool publish_telemetry = false;
+    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros

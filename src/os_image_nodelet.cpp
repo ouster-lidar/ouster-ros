@@ -109,7 +109,7 @@ class OusterImage : public nodelet::Nodelet {
                 })
         };
 
-        lidar_packet_handler = LidarPacketHandler::create_handler(
+        lidar_packet_handler = LidarPacketHandler::create(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
     }

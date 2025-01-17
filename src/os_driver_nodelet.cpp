@@ -54,8 +54,7 @@ class OusterDriver : public OusterSensor {
     }
 
    private:
-    virtual void on_metadata_updated(const sensor::sensor_info& info) override {
-        OusterSensor::on_metadata_updated(info);
+    void on_metadata_updated(const sensor::sensor_info& info) override {
         // for OusterDriver we are going to always assume static broadcast
         // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
@@ -114,7 +113,7 @@ class OusterDriver : public OusterSensor {
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
         if (impl::check_token(tokens, "IMU")) {
-            imu_packet_handler = ImuPacketHandler::create_handler(
+            imu_packet_handler = ImuPacketHandler::create(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
@@ -196,7 +195,7 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "PCL") ||
             impl::check_token(tokens, "SCAN") ||
             impl::check_token(tokens, "IMG")) {
-            lidar_packet_handler = LidarPacketHandler::create_handler(
+            lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
