@@ -9,6 +9,9 @@ Changelog
 * Added support to enable **loop** for pcap replay + other replay config
 * Added a new launch file parameter ``pub_static_tf`` that allows users to turn off the broadcast
   of sensor TF transforms.
+* Introduced a new topic ``/ouster/telemetry`` that publishes ``ouster_ros::Telemetry`` messages,
+  the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
+
 
 
 ouster_ros v0.13.0
