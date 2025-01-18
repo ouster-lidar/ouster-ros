@@ -13,7 +13,6 @@ Changelog
   the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
 
 
-
 ouster_ros v0.13.0
 ==================
 
