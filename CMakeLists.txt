@@ -31,7 +31,7 @@ add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 # ==== Catkin ====
-add_message_files(FILES PacketMsg.msg)
+add_message_files(FILES PacketMsg.msg Telemetry.msg)
 add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 

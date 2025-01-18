@@ -56,7 +56,7 @@
   <arg if="$(arg no_bond)" name="_no_bond" value="--no-bond"/>
   <arg unless="$(arg no_bond)" name="_no_bond" value=" "/>
 
-  <arg name="proc_mask" default="IMU|PCL|SCAN|IMG|RAW" doc="
+  <arg name="proc_mask" default="IMU|PCL|SCAN|IMG|RAW|TLM" doc="
     use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" doc="

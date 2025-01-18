@@ -25,10 +25,11 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "telemetry_handler.h"
 
 namespace sensor = ouster::sensor;
-using ouster::sensor::LidarPacket;
 using ouster::sensor::ImuPacket;
+using ouster::sensor::LidarPacket;
 
 namespace ouster_ros {
 
@@ -42,23 +43,20 @@ class OusterDriver : public OusterSensor {
    protected:
     virtual void onInit() override {
         auto& pnh = getPrivateNodeHandle();
-        auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN|IMG|RAW"});
+        auto proc_mask =
+            pnh.param("proc_mask", std::string{"IMU|PCL|SCAN|IMG|RAW"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
-        if (impl::check_token(tokens, "IMU"))
-            create_imu_pub();
-        if (impl::check_token(tokens, "PCL"))
-            create_point_cloud_pubs();
-        if (impl::check_token(tokens, "SCAN"))
-            create_laser_scan_pubs();
-        if (impl::check_token(tokens, "IMG"))
-            create_image_pubs();
+        if (impl::check_token(tokens, "IMU")) create_imu_pub();
+        if (impl::check_token(tokens, "PCL")) create_point_cloud_pubs();
+        if (impl::check_token(tokens, "SCAN")) create_laser_scan_pubs();
+        if (impl::check_token(tokens, "IMG")) create_image_pubs();
+        if (impl::check_token(tokens, "TLM")) create_telemetry_pub();
         publish_raw = impl::check_token(tokens, "RAW");
         OusterSensor::onInit();
     }
 
    private:
-    virtual void on_metadata_updated(const sensor::sensor_info& info) override {
-        OusterSensor::on_metadata_updated(info);
+    void on_metadata_updated(const sensor::sensor_info& info) override {
         // for OusterDriver we are going to always assume static broadcast
         // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
@@ -70,6 +68,11 @@ class OusterDriver : public OusterSensor {
 
     void create_imu_pub() {
         imu_pub = getNodeHandle().advertise<sensor_msgs::Imu>("imu", 100);
+    }
+
+    void create_telemetry_pub() {
+        telemetry_pub =
+            getNodeHandle().advertise<ouster_ros::Telemetry>("telemetry", 1280);
     }
 
     void create_point_cloud_pubs() {
@@ -89,21 +92,21 @@ class OusterDriver : public OusterSensor {
                 topic_for_return("scan", i), 10);
         }
     }
-    
+
     void create_image_pubs() {
         // NOTE: always create the 2nd topics
-        const std::map<sensor::ChanField, std::string>
-            channel_field_topic_map {
-                {sensor::ChanField::RANGE, "range_image"},
-                {sensor::ChanField::SIGNAL, "signal_image"},
-                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                {sensor::ChanField::NEAR_IR, "nearir_image"},
-                {sensor::ChanField::RANGE2, "range_image2"},
-                {sensor::ChanField::SIGNAL2, "signal_image2"},
-                {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+        const std::map<sensor::ChanField, std::string> channel_field_topic_map{
+            {sensor::ChanField::RANGE, "range_image"},
+            {sensor::ChanField::SIGNAL, "signal_image"},
+            {sensor::ChanField::REFLECTIVITY, "reflec_image"},
+            {sensor::ChanField::NEAR_IR, "nearir_image"},
+            {sensor::ChanField::RANGE2, "range_image2"},
+            {sensor::ChanField::SIGNAL2, "signal_image2"},
+            {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
 
         for (auto it : channel_field_topic_map) {
-            image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
+            image_pubs[it.first] =
+                getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
         }
     }
 
@@ -117,7 +120,7 @@ class OusterDriver : public OusterSensor {
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
         if (impl::check_token(tokens, "IMU")) {
-            imu_packet_handler = ImuPacketHandler::create_handler(
+            imu_packet_handler = ImuPacketHandler::create(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
@@ -134,27 +137,30 @@ class OusterDriver : public OusterSensor {
                 throw std::runtime_error("negative range limits!");
             }
             if (min_range_m >= max_range_m) {
-                NODELET_FATAL("min_range can't be equal or exceed max_range");
-                throw std::runtime_error("min_range equal to or exceeds max_range!");
+                const auto error_msg =
+                    "min_range can't be equal or exceed max_range";
+                NODELET_FATAL(error_msg);
+                throw std::runtime_error(error_msg);
             }
             // convert to millimeters
             uint32_t min_range = impl::ulround(min_range_m * 1000);
             uint32_t max_range = impl::ulround(max_range_m * 1000);
             auto rows_step = pnh.param("rows_step", 1);
             processors.push_back(
-                PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
-                    tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
-                    organized, destagger, min_range, max_range, rows_step,
+                PointCloudProcessorFactory::create_point_cloud_processor(
+                    point_type, info, tf_bcast.point_cloud_frame_id(),
+                    tf_bcast.apply_lidar_to_sensor_transform(), organized,
+                    destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
                             lidar_pubs[i].publish(*msgs[i]);
-                    }
-                )
-            );
+                    }));
 
             // warn about profile incompatibility
-            if (PointCloudProcessorFactory::point_type_requires_intensity(point_type) &&
-                !PointCloudProcessorFactory::profile_has_intensity(info.format.udp_profile_lidar)) {
+            if (PointCloudProcessorFactory::point_type_requires_intensity(
+                    point_type) &&
+                !PointCloudProcessorFactory::profile_has_intensity(
+                    info.format.udp_profile_lidar)) {
                 NODELET_WARN_STREAM(
                     "selected point type '" << point_type
                     << "' is not compatible with the udp profile: "
@@ -169,9 +175,10 @@ class OusterDriver : public OusterSensor {
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != pnh.param("scan_ring", 0)) {
                 NODELET_WARN_STREAM(
-                    "scan ring is set to a value that exceeds available range"
-                    "please choose a value between [0, " << beams_count <<
-                    "], ring value clamped to: " << scan_ring);
+                    "scan ring is set to a value that exceeds available range "
+                    "please choose a value between "
+                    << " [0, " << beams_count << "],"
+                    << " ring value clamped to: " << scan_ring);
             }
 
             processors.push_back(LaserScanProcessor::create(
@@ -193,20 +200,32 @@ class OusterDriver : public OusterSensor {
                 }));
         }
 
-        if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
-            impl::check_token(tokens, "IMG"))
-            lidar_packet_handler = LidarPacketHandler::create_handler(
+        if (impl::check_token(tokens, "PCL") ||
+            impl::check_token(tokens, "SCAN") ||
+            impl::check_token(tokens, "IMG")) {
+            lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
+
+        if (impl::check_token(tokens, "TLM")) {
+            telemetry_handler = TelemetryHandler::create(
+                info, timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (telemetry_handler) {
+            auto telemetry = telemetry_handler(lidar_packet);
+            telemetry_pub.publish(telemetry);
+        }
+
         if (lidar_packet_handler) {
             lidar_packet_handler(lidar_packet);
         }
 
-        if (publish_raw)
-            OusterSensor::on_lidar_packet_msg(lidar_packet);
+        if (publish_raw) OusterSensor::on_lidar_packet_msg(lidar_packet);
     }
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
@@ -215,8 +234,7 @@ class OusterDriver : public OusterSensor {
             imu_pub.publish(imu_msg);
         }
 
-        if (publish_raw)
-            OusterSensor::on_imu_packet_msg(imu_packet);
+        if (publish_raw) OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
    private:
@@ -232,6 +250,8 @@ class OusterDriver : public OusterSensor {
 
     bool publish_raw = false;
 
+    ros::Publisher telemetry_pub;
+    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros

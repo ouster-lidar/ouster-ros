@@ -62,7 +62,7 @@
   <arg name="dynamic_transforms_broadcast_rate" default="1.0"
     doc="set the rate (Hz) of broadcast when using dynamic broadcast; minimum value is 1 Hz"/>
 
-  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" doc="
+  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN|TLM" doc="
     The IMG flag here is not supported and does not affect anything,
     to disable image topics you would need to omit the os_image node
     from the launch file"/>
@@ -123,7 +123,10 @@
       <param name="~/udp_profile_lidar" type="str" value="$(arg udp_profile_lidar)"/>
       <param name="~/lidar_mode" type="str" value="$(arg lidar_mode)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/ptp_utc_tai_offset" type="double"
+        value="$(arg ptp_utc_tai_offset)"/>
       <param name="~/metadata" type="str" value="$(arg metadata)"/>
+      <param name="~/proc_mask" type="str" value="$(arg proc_mask)"/>
       <param name="~/azimuth_window_start" value="$(arg azimuth_window_start)"/>
       <param name="~/azimuth_window_end" value="$(arg azimuth_window_end)"/>
       <param name="~/persist_config" value="$(arg persist_config)"/>
