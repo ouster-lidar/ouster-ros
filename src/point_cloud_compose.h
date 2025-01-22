@@ -144,21 +144,13 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             auto ts =
                 timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
 
-            if (xyz.isNaN().any()) {
-                if (organized) {
-                    cloud.is_dense = false;
-                    auto& pt = cloud.points[tgt_idx];
-                    pt.x = static_cast<decltype(pt.x)>(xyz(0));
-                    pt.y = static_cast<decltype(pt.y)>(xyz(1));
-                    pt.z = static_cast<decltype(pt.z)>(xyz(2));
-                    CondBinaryOp<point::has_t_v<PointT>>::run(
-                        pt, ts, [](auto& pt, const auto& ts) {
-                            pt.t = static_cast<uint32_t>(ts); }
-                    );
-                }
-                continue;
+            if (organized) {
+                cloud.is_dense &= xyz.isNaN().any();
             } else {
-                if (!organized) cloud.points.emplace_back();
+                if (xyz.isNaN().any())
+                    continue;
+                else
+                    cloud.points.emplace_back();
             }
 
 

@@ -11,6 +11,7 @@ Changelog
   of sensor TF transforms.
 * Introduced a new topic ``/ouster/telemetry`` that publishes ``ouster_ros::Telemetry`` messages,
   the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
+* [BUGFIX]: NEAR_IR data is not populated with data for organized point clouds that have no range.
 
 
 ouster_ros v0.13.0
