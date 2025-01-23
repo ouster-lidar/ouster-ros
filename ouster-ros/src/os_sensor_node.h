@@ -72,6 +72,8 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void update_metadata(sensor::client& client);
 
+    void metadata_updated(const sensor::sensor_info& info);
+
     void save_metadata();
 
     // param init_id_reset is overriden to true when force_reinit is true
@@ -109,11 +111,15 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void handle_poll_client_error();
 
-    void handle_lidar_packet(sensor::client& client,
-                             const sensor::packet_format& pf);
-
-    void handle_imu_packet(sensor::client& client,
+    void read_lidar_packet(sensor::client& client,
                            const sensor::packet_format& pf);
+
+    void handle_lidar_packet(const sensor::LidarPacket& lidar_packet);
+
+    void read_imu_packet(sensor::client& client,
+                         const sensor::packet_format& pf);
+
+    void handle_imu_packet(const sensor::ImuPacket& imu_packet);
 
     void connection_loop(sensor::client& client,
                          const sensor::packet_format& pf);
@@ -123,7 +129,7 @@ class OusterSensor : public OusterSensorNodeBase {
     void stop_sensor_connection_thread();
 
     bool get_active_config_no_throw(const std::string& sensor_hostname,
-                             sensor::sensor_config& config);
+                                    sensor::sensor_config& config);
 
    private:
     std::string sensor_hostname;

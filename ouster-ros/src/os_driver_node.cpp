@@ -22,12 +22,14 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "telemetry_handler.h"
 
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
 using ouster::sensor::LidarPacket;
 using ouster::sensor::ImuPacket;
+using ouster::sensor::LidarPacket;
 
 class OusterDriver : public OusterSensor {
    public:
@@ -36,7 +38,7 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), tf_bcast(this) {
         tf_bcast.declare_parameters();
         tf_bcast.parse_parameters();
-        declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW");
+        declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW|TLM");
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("point_type", "original");
@@ -76,7 +78,7 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "IMU")) {
             imu_pub =
                 create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
-            imu_packet_handler = ImuPacketHandler::create_handler(
+            imu_packet_handler = ImuPacketHandler::create(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
@@ -101,8 +103,9 @@ class OusterDriver : public OusterSensor {
                 throw std::runtime_error("negative range limits!");
             }
             if (min_range_m >= max_range_m) {
-                RCLCPP_FATAL(get_logger(), "min_range can't be equal or exceed max_range");
-                throw std::runtime_error("min_range equal to or exceeds max_range!");
+                const auto error_msg = "min_range can't be equal or exceed max_range";
+                RCLCPP_FATAL(get_logger(), error_msg);
+                throw std::runtime_error(error_msg);
             }
             // convert to millimeters
             uint32_t min_range = impl::ulround(min_range_m * 1000);
@@ -197,9 +200,18 @@ class OusterDriver : public OusterSensor {
 
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
             impl::check_token(tokens, "IMG"))
-            lidar_packet_handler = LidarPacketHandler::create_handler(
+            lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+
+        if (impl::check_token(tokens, "TLM")) {
+            telemetry_pub =
+                create_publisher<ouster_sensor_msgs::msg::Telemetry>("telemetry",
+                                                                     selected_qos);
+            telemetry_handler = TelemetryHandler::create(
+                info, timestamp_mode,
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
 
         publish_raw = impl::check_token(tokens, "RAW");
         if (publish_raw)
@@ -207,6 +219,11 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
+        if (telemetry_handler) {
+            auto telemetry = telemetry_handler(lidar_packet);
+            telemetry_pub->publish(telemetry);
+        }
+
         if (lidar_packet_handler)
             lidar_packet_handler(lidar_packet);
 
@@ -247,6 +264,9 @@ class OusterDriver : public OusterSensor {
     LidarPacketHandler::HandlerType lidar_packet_handler;
 
     bool publish_raw = false;
+
+    rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
+    TelemetryHandler::HandlerType telemetry_handler;
 };
 
 }  // namespace ouster_ros
