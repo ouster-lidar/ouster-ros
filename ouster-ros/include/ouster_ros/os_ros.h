@@ -25,6 +25,7 @@
 #include <string>
 
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
+#include "ouster_sensor_msgs/msg/telemetry.hpp"
 #include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
@@ -120,7 +121,20 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
     const int return_index);
 
+/**
+ * Parse a LidarPacket and generate the Telemetry message
+ * @param[in] lidar_packet lidar packet to parse telemetry data from
+ * @param[in] timestamp the timestamp to give the resulting ROS message
+ * @param[in] pf the packet format
+ * @return ROS sensor message with fields populated from the packet
+ */
+ouster_sensor_msgs::msg::Telemetry lidar_packet_to_telemetry_msg(
+    const ouster::sensor::LidarPacket& lidar_packet,
+    const rclcpp::Time& timestamp,
+    const ouster::sensor::packet_format& pf);
+
 namespace impl {
+
 sensor::ChanField suitable_return(sensor::ChanField input_field, bool second);
 
 struct read_and_cast {

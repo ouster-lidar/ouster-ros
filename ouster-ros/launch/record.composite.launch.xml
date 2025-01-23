@@ -63,7 +63,7 @@
   <arg name="use_system_default_qos" default="true"
     description="Use the default system QoS settings"/>
 
-  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN" description="
+  <arg name="proc_mask" default="IMG|PCL|IMU|SCAN|TLM" description="
     use any combination of the 4 flags to enable or disable specific processors"/>
 
   <arg name="scan_ring" default="0" description="

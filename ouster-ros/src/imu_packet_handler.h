@@ -22,10 +22,10 @@ class ImuPacketHandler {
     using HandlerType = std::function<HandlerOutput(const sensor::ImuPacket&)>;
 
    public:
-    static HandlerType create_handler(const sensor::sensor_info& info,
-                                      const std::string& frame,
-                                      const std::string& timestamp_mode,
-                                      int64_t ptp_utc_tai_offset) {
+    static HandlerType create(const sensor::sensor_info& info,
+                              const std::string& frame,
+                              const std::string& timestamp_mode,
+                              int64_t ptp_utc_tai_offset) {
         const auto& pf = sensor::get_format(info);
         using Timestamper = std::function<rclcpp::Time(const sensor::ImuPacket&)>;
         Timestamper timestamper;

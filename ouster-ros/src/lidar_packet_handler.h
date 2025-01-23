@@ -57,7 +57,8 @@ using LidarScanProcessor =
     std::function<void(const ouster::LidarScan&, uint64_t, const rclcpp::Time&)>;
 
 class LidarPacketHandler {
-    using LidarPacketAccumlator = std::function<bool(const sensor::LidarPacket&)>;
+    using LidarPacketAccumlator =
+        std::function<bool(const sensor::LidarPacket&)>;
 
    public:
     using HandlerOutput = ouster::LidarScan;
@@ -69,7 +70,9 @@ class LidarPacketHandler {
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
                        int64_t ptp_utc_tai_offset)
-        : ring_buffer(LIDAR_SCAN_COUNT), lidar_scan_handlers{handlers} {
+        : ring_buffer(LIDAR_SCAN_COUNT),
+          lidar_scan_handlers{handlers},
+          ptp_utc_tai_offset_(ptp_utc_tai_offset) {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
 
@@ -99,23 +102,40 @@ class LidarPacketHandler {
 
         const sensor::packet_format& pf = sensor::get_format(info);
 
+        std::function<bool(LidarPacketHandler&, const sensor::packet_format&,
+                           const sensor::LidarPacket&, ouster::LidarScan&)>
+            lidar_handler;
+
         if (timestamp_mode == "TIME_FROM_ROS_TIME") {
-            lidar_packet_accumlator =
-                LidarPacketAccumlator{[this, pf](const sensor::LidarPacket& lidar_packet) {
-                    return lidar_handler_ros_time(pf, lidar_packet);
-                }};
+            lidar_handler =
+                std::mem_fn(&LidarPacketHandler::lidar_handler_ros_time);
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
-            lidar_packet_accumlator = LidarPacketAccumlator{
-                [this, pf, ptp_utc_tai_offset](const sensor::LidarPacket& lidar_packet) {
-                    return lidar_handler_sensor_time_ptp(pf, lidar_packet,
-                                                         ptp_utc_tai_offset);
-                }};
-        } else {
-            lidar_packet_accumlator =
-                LidarPacketAccumlator{[this, pf](const sensor::LidarPacket& lidar_packet) {
-                    return lidar_handler_sensor_time(pf, lidar_packet);
-                }};
+            lidar_handler =
+                std::mem_fn(&LidarPacketHandler::lidar_handler_sensor_time_ptp);
+        } else /*SENSOR TIME (INTERNAL_OSC, SYNC_PULSE_IN)*/ {
+            lidar_handler =
+                std::mem_fn(&LidarPacketHandler::lidar_handler_sensor_time);
         }
+
+        lidar_packet_accumlator = LidarPacketAccumlator{
+            [this, pf, lidar_handler](const sensor::LidarPacket& lidar_packet) {
+                if (ring_buffer.full()) {
+                    RCLCPP_WARN(rclcpp::get_logger(getName()),
+                                "lidar_scans full, DROPPING PACKET");
+                    return false;
+                }
+                bool result = false;
+                {
+                    std::unique_lock<std::mutex> lock(
+                        *(mutexes[ring_buffer.write_head()]));
+                    auto& lidar_scan = *lidar_scans[ring_buffer.write_head()];
+                    result = lidar_handler(*this, pf, lidar_packet, lidar_scan);
+                }
+                if (result) {
+                    ring_buffer.write();
+                }
+                return result;
+            }};
     }
 
     LidarPacketHandler(const LidarPacketHandler&) = delete;
@@ -136,7 +156,7 @@ class LidarPacketHandler {
     void clear_registered_lidar_scan_handlers() { lidar_scan_handlers.clear(); }
 
    public:
-    static HandlerType create_handler(
+    static HandlerType create(
         const sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
         const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
@@ -152,13 +172,11 @@ class LidarPacketHandler {
     const std::string getName() const { return "lidar_packet_hander"; }
 
     void process_scans() {
-
         {
             using namespace std::chrono;
             std::unique_lock<std::mutex> index_lock(ring_buffer_mutex);
-            ring_buffer_has_elements.wait_for(index_lock, 1s, [this] {
-                return !ring_buffer.empty();
-            });
+            ring_buffer_has_elements.wait_for(
+                index_lock, 1s, [this] { return !ring_buffer.empty(); });
 
             if (ring_buffer.empty()) return;
         }
@@ -167,10 +185,10 @@ class LidarPacketHandler {
 
         for (auto h : lidar_scan_handlers) {
             h(*lidar_scans[ring_buffer.read_head()], lidar_scan_estimated_ts,
-                lidar_scan_estimated_msg_ts);
+              lidar_scan_estimated_msg_ts);
         }
 
-        // why we hit percent amount of the ring_buffer capacity throttle
+        // when we hit percent amount of the ring_buffer capacity throttle
         size_t read_step = 1;
         if (ring_buffer.size() > THROTTLE_PERCENT * ring_buffer.capacity()) {
             RCLCPP_WARN(rclcpp::get_logger(getName()),
@@ -268,78 +286,46 @@ class LidarPacketHandler {
     }
 
     bool lidar_handler_sensor_time(const sensor::packet_format&,
-                                   const sensor::LidarPacket& lidar_packet) {
-
-        if (ring_buffer.full()) {
-            RCLCPP_WARN(rclcpp::get_logger(getName()),
-                        "lidar_scans full, DROPPING PACKET");
-            return false;
-        }
-
-        std::unique_lock<std::mutex> lock(*(mutexes[ring_buffer.write_head()]));
-
-        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
+                                   const sensor::LidarPacket& lidar_packet,
+                                   ouster::LidarScan& lidar_scan) {
+        if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
         lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
-
-        ring_buffer.write();
 
         return true;
     }
 
     bool lidar_handler_sensor_time_ptp(const sensor::packet_format&,
                                        const sensor::LidarPacket& lidar_packet,
-                                       int64_t ptp_utc_tai_offset) {
-
-        if (ring_buffer.full()) {
-            RCLCPP_WARN(rclcpp::get_logger(getName()),
-                        "lidar_scans full, DROPPING PACKET");
-            return false;
-        }
-
-        std::unique_lock<std::mutex> lock(
-            *(mutexes[ring_buffer.write_head()]));
-
-        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
-        auto ts_v = lidar_scans[ring_buffer.write_head()]->timestamp();
+                                       ouster::LidarScan& lidar_scan) {
+        if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
+        auto ts_v = lidar_scan.timestamp();
         for (int i = 0; i < ts_v.rows(); ++i)
-            ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset);
+            ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset_);
         lidar_scan_estimated_ts = compute_scan_ts(ts_v);
         lidar_scan_estimated_msg_ts =
             rclcpp::Time(lidar_scan_estimated_ts);
-
-        ring_buffer.write();
 
         return true;
     }
 
     bool lidar_handler_ros_time(const sensor::packet_format& pf,
-                                const sensor::LidarPacket& lidar_packet) {
+                                const sensor::LidarPacket& lidar_packet,
+                                ouster::LidarScan& lidar_scan) {
         auto packet_receive_time = rclcpp::Time(lidar_packet.host_timestamp);
-        if (!lidar_handler_ros_time_frame_ts_initialized) {
+
+        if (!lidar_handler_ros_time_frame_ts) {
             lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
-                pf, lidar_packet.buf.data(), packet_receive_time);  // first point cloud time
-            lidar_handler_ros_time_frame_ts_initialized = true;
+                pf, lidar_packet.buf.data(),
+                packet_receive_time);  // first point cloud time
         }
 
-        if (ring_buffer.full()) {
-            RCLCPP_WARN(rclcpp::get_logger(getName()),
-                        "lidar_scans full, DROPPING PACKET");
-            return false;
-        }
-
-        std::unique_lock<std::mutex> lock(
-            *(mutexes[ring_buffer.write_head()]));
-
-        if (!(*scan_batcher)(lidar_packet, *lidar_scans[ring_buffer.write_head()])) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scans[ring_buffer.write_head()]->timestamp());
-        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts;
+        if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
+        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
+        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts.value();
         // set time for next point cloud msg
-        lidar_handler_ros_time_frame_ts =
-            extrapolate_frame_ts(pf, lidar_packet.buf.data(), packet_receive_time);
-
-        ring_buffer.write();
-
+        lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
+            pf, lidar_packet.buf.data(), packet_receive_time);
         return true;
     }
 
@@ -362,8 +348,7 @@ class LidarPacketHandler {
     uint64_t lidar_scan_estimated_ts;
     rclcpp::Time lidar_scan_estimated_msg_ts;
 
-    bool lidar_handler_ros_time_frame_ts_initialized = false;
-    rclcpp::Time lidar_handler_ros_time_frame_ts;
+    std::optional<rclcpp::Time> lidar_handler_ros_time_frame_ts;
 
     int last_scan_last_nonzero_idx = -1;
     uint64_t last_scan_last_nonzero_value = 0;
@@ -381,6 +366,8 @@ class LidarPacketHandler {
     bool lidar_scans_processing_active = true;
     std::unique_ptr<std::thread> lidar_scans_processing_thread;
     std::condition_variable ring_buffer_has_elements;
+
+    int64_t ptp_utc_tai_offset_;
 };
 
 }  // namespace ouster_ros

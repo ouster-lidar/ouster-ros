@@ -61,9 +61,9 @@ ouster/os_driver:
     # broadcast the TF transforms for the imu/sensor/lidar frames. Prevent the
     # driver from broadcasting TF transforms by setting this parameter to False.
     pub_static_tf: true
-    # proc_mask[optional]: use any combination of the 4 flags IMG, PCL, IMU and
-    # SCAN to enable or disable their respective messages.
-    proc_mask: IMU|PCL|SCAN|IMG|RAW
+    # proc_mask[optional]: use any combination of the 6 flags IMG, PCL, IMU, SCAN
+    # RAW and TLM to enable or disable their respective messages.
+    proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).

@@ -51,4 +51,4 @@ ouster_driver:
     # IMG|PCL|IMU|SCAN
     # PCL
     #
-    proc_mask: IMG|PCL|IMU|SCAN
+    proc_mask: IMG|PCL|IMU|SCAN|TLM

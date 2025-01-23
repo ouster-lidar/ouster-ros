@@ -23,8 +23,8 @@ using ouster_sensor_msgs::srv::SetConfig;
 using std::to_string;
 using namespace std::chrono_literals;
 
-using sensor::LidarPacket;
 using sensor::ImuPacket;
+using sensor::LidarPacket;
 
 namespace ouster_ros {
 
@@ -249,8 +249,8 @@ void OusterSensor::update_metadata(sensor::client& cli) {
     }
 
     if (cached_metadata.empty()) {
-        auto error_msg = "Failed to collect sensor metadata";
-        RCLCPP_ERROR_STREAM(get_logger(), error_msg);
+        const auto error_msg = "Failed to collect sensor metadata";
+        RCLCPP_ERROR(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
 
@@ -260,7 +260,7 @@ void OusterSensor::update_metadata(sensor::client& cli) {
 
     publish_metadata();
     save_metadata();
-    on_metadata_updated(info);
+    metadata_updated(info);
 }
 
 void OusterSensor::save_metadata() {
@@ -672,8 +672,11 @@ void OusterSensor::populate_metadata_defaults(
     }
 }
 
-void OusterSensor::on_metadata_updated(const sensor::sensor_info& info) {
+void OusterSensor::on_metadata_updated(const sensor::sensor_info&) {}
+
+void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
     display_lidar_info(info);
+    on_metadata_updated(info);
 }
 
 void OusterSensor::create_services() {
@@ -734,7 +737,7 @@ void OusterSensor::handle_poll_client_error() {
     }
 }
 
-void OusterSensor::handle_lidar_packet(sensor::client& cli,
+void OusterSensor::read_lidar_packet(sensor::client& cli,
                                        const sensor::packet_format& pf) {
     if (sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
@@ -743,7 +746,7 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
             RCLCPP_WARN(get_logger(), "sensor init_id has changed! reactivating..");
             reset_sensor(false);
         }
-        on_lidar_packet_msg(lidar_packet);
+        handle_lidar_packet(lidar_packet);
     } else {
         if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
             RCLCPP_ERROR(
@@ -756,7 +759,11 @@ void OusterSensor::handle_lidar_packet(sensor::client& cli,
     }
 }
 
-void OusterSensor::handle_imu_packet(sensor::client& cli,
+void OusterSensor::handle_lidar_packet(const LidarPacket& lidar_packet) {
+    on_lidar_packet_msg(lidar_packet);
+}
+
+void OusterSensor::read_imu_packet(sensor::client& cli,
                                      const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
@@ -770,6 +777,10 @@ void OusterSensor::handle_imu_packet(sensor::client& cli,
             reactivate_sensor(true);
         }
     }
+}
+
+void OusterSensor::handle_imu_packet(const ImuPacket& imu_packet) {
+    on_imu_packet_msg(imu_packet);
 }
 
 void OusterSensor::cleanup() {
@@ -795,10 +806,10 @@ void OusterSensor::connection_loop(sensor::client& cli,
     }
     poll_client_error_count = 0;
     if (state & sensor::LIDAR_DATA) {
-        handle_lidar_packet(cli, pf);
+        read_lidar_packet(cli, pf);
     }
     if (state & sensor::IMU_DATA) {
-        handle_imu_packet(cli, pf);
+        read_imu_packet(cli, pf);
     }
 }
 
@@ -816,7 +827,8 @@ void OusterSensor::start_sensor_connection_thread() {
 
 void OusterSensor::stop_sensor_connection_thread() {
     RCLCPP_DEBUG(get_logger(), "sensor_connection_thread stopping.");
-    if (sensor_connection_thread->joinable()) {
+    if (sensor_connection_thread != nullptr &&
+        sensor_connection_thread->joinable()) {
         sensor_connection_active = false;
         sensor_connection_thread->join();
     }
