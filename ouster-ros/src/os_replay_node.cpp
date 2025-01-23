@@ -20,6 +20,16 @@ class OusterReplay : public OusterSensorNodeBase {
     explicit OusterReplay(const rclcpp::NodeOptions& options)
         : OusterSensorNodeBase("os_replay", options) {
         declare_parameters();
+        bool auto_start = get_parameter("auto_start").as_bool();
+
+        if (auto_start) {
+            RCLCPP_WARN(get_logger(), "auto start requested");
+            auto request_transitions = std::vector<uint8_t>{
+                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+            execute_transitions_sequence(request_transitions, 0);
+            RCLCPP_WARN(get_logger(), "auto start initiated");
+        }
     }
 
     LifecycleNodeInterface::CallbackReturn on_configure(
@@ -96,7 +106,10 @@ class OusterReplay : public OusterSensorNodeBase {
     }
 
    private:
-    void declare_parameters() { declare_parameter<std::string>("metadata"); }
+    void declare_parameters() {
+        declare_parameter("auto_start", true);
+        declare_parameter<std::string>("metadata");
+    }
 
     std::string parse_parameters() {
         auto meta_file = get_parameter("metadata").as_string();
