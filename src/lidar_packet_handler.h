@@ -128,6 +128,17 @@ class LidarPacketHandler {
                         *(mutexes[ring_buffer.write_head()]));
                     auto& lidar_scan = *lidar_scans[ring_buffer.write_head()];
                     result = lidar_handler(*this, pf, lidar_packet, lidar_scan);
+                    if (result) {
+                        // count the number of valid columns in the scan
+                        auto status = lidar_scan.status();
+                        size_t valid_cols = std::count_if(status.data(), status.data() + status.size(),
+                               [](const uint32_t s) { return (s & 0x01); });
+                        if (valid_cols < static_cast<size_t>(0.7 * lidar_scan.status().size())) {
+                            NODELET_WARN("valid_cols %zu, less than 70%%, SKIPPING SCAN",
+                                valid_cols);
+                            result = false;
+                        }
+                    }
                 }
                 if (result) {
                     ring_buffer.write();
