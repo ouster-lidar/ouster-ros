@@ -51,6 +51,9 @@
   <arg name="min_range" doc="minimum lidar range to consider (meters)"/>
   <arg name="max_range" doc="maximum lidar range to consider (meters)"/>
 
+  <arg name="min_scan_valid_columns_ratio"
+    doc="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
@@ -74,6 +77,8 @@
       <param name="~/destagger" value="$(arg destagger)"/>
       <param name="~/min_range" value="$(arg min_range)"/>
       <param name="~/max_range" value="$(arg max_range)"/>
+      <param name="~/min_scan_valid_columns_ratio"
+        value="$(arg min_scan_valid_columns_ratio)"/>
     </node>
   </group>
 
