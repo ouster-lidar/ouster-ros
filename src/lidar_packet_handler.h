@@ -135,10 +135,10 @@ class LidarPacketHandler {
                         auto status = lidar_scan.status();
                         size_t valid_cols = std::count_if(status.data(), status.data() + status.size(),
                                [](const uint32_t s) { return (s & 0x01); });
-                        if (valid_cols < static_cast<size_t>(min_scan_valid_columns_ratio_ * lidar_scan.status().size())) {
-                            NODELET_WARN_STREAM("number of valid columns per scan " << valid_cols
+                        if (valid_cols < static_cast<size_t>(min_scan_valid_columns_ratio_ * status.size())) {
+                            NODELET_WARN_STREAM("number of valid columns per scan " << valid_cols << "/" << status.size()
                              <<" which is below the ratio " << std::setprecision(4) << (100 * min_scan_valid_columns_ratio_)
-                             << "%% SKIPPING SCAN");
+                             << "%, SKIPPING SCAN");
                             result = false;
                         }
                     }
