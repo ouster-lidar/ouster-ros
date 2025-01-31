@@ -99,6 +99,12 @@ class OusterImage : public nodelet::Nodelet {
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
+        auto min_scan_valid_columns_ratio = pnh.param("min_scan_valid_columns_ratio", 0.0);
+        if (min_scan_valid_columns_ratio < 0.0 || min_scan_valid_columns_ratio > 1.0) {
+            NODELET_FATAL("min_scan_valid_columns_ratio needs to be in the range [0, 1]");
+            throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
+        }
+
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
@@ -111,7 +117,8 @@ class OusterImage : public nodelet::Nodelet {
 
         lidar_packet_handler = LidarPacketHandler::create(
             info, processors, timestamp_mode,
-            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+            static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+            min_scan_valid_columns_ratio);
     }
 
    private:

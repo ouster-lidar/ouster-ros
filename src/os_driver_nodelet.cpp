@@ -125,6 +125,12 @@ class OusterDriver : public OusterSensor {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
 
+        auto min_scan_valid_columns_ratio = pnh.param("min_scan_valid_columns_ratio", 0.0);
+        if (min_scan_valid_columns_ratio < 0.0 || min_scan_valid_columns_ratio > 1.0) {
+            NODELET_FATAL("min_scan_valid_columns_ratio needs to be in the range [0, 1]");
+            throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
+        }
+
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
@@ -146,6 +152,7 @@ class OusterDriver : public OusterSensor {
             uint32_t min_range = impl::ulround(min_range_m * 1000);
             uint32_t max_range = impl::ulround(max_range_m * 1000);
             auto rows_step = pnh.param("rows_step", 1);
+
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(
                     point_type, info, tf_bcast.point_cloud_frame_id(),
@@ -205,7 +212,8 @@ class OusterDriver : public OusterSensor {
             impl::check_token(tokens, "IMG")) {
             lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+                min_scan_valid_columns_ratio);
         }
 
         if (impl::check_token(tokens, "TLM")) {

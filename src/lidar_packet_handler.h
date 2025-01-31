@@ -69,10 +69,12 @@ class LidarPacketHandler {
     LidarPacketHandler(const sensor::sensor_info& info,
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
-                       int64_t ptp_utc_tai_offset)
+                       int64_t ptp_utc_tai_offset,
+                       float min_scan_valid_columns_ratio)
         : ring_buffer(LIDAR_SCAN_COUNT),
           lidar_scan_handlers{handlers},
-          ptp_utc_tai_offset_(ptp_utc_tai_offset) {
+          ptp_utc_tai_offset_(ptp_utc_tai_offset),
+          min_scan_valid_columns_ratio_(min_scan_valid_columns_ratio) {
         // initialize lidar_scan processor and buffer
         scan_batcher = std::make_unique<ouster::ScanBatcher>(info);
 
@@ -133,9 +135,10 @@ class LidarPacketHandler {
                         auto status = lidar_scan.status();
                         size_t valid_cols = std::count_if(status.data(), status.data() + status.size(),
                                [](const uint32_t s) { return (s & 0x01); });
-                        if (valid_cols < static_cast<size_t>(0.7 * lidar_scan.status().size())) {
-                            NODELET_WARN("valid_cols %zu, less than 70%%, SKIPPING SCAN",
-                                valid_cols);
+                        if (valid_cols < static_cast<size_t>(min_scan_valid_columns_ratio_ * lidar_scan.status().size())) {
+                            NODELET_WARN_STREAM("number of valid columns per scan " << valid_cols
+                             <<" which is below the ratio " << std::setprecision(4) << (100 * min_scan_valid_columns_ratio_)
+                             << "%% SKIPPING SCAN");
                             result = false;
                         }
                     }
@@ -167,9 +170,11 @@ class LidarPacketHandler {
     static HandlerType create(
         const sensor::sensor_info& info,
         const std::vector<LidarScanProcessor>& handlers,
-        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset) {
+        const std::string& timestamp_mode, int64_t ptp_utc_tai_offset,
+        float min_scan_valid_columns_ratio) {
         auto handler = std::make_shared<LidarPacketHandler>(
-            info, handlers, timestamp_mode, ptp_utc_tai_offset);
+            info, handlers, timestamp_mode, ptp_utc_tai_offset,
+            min_scan_valid_columns_ratio);
         return [handler](const sensor::LidarPacket& lidar_packet) {
             if (handler->lidar_packet_accumlator(lidar_packet)) {
                 handler->ring_buffer_has_elements.notify_one();
@@ -348,7 +353,7 @@ class LidarPacketHandler {
    private:
     std::unique_ptr<ouster::ScanBatcher> scan_batcher;
     const int LIDAR_SCAN_COUNT = 10;
-    const double THROTTLE_PERCENT = 0.7;
+    const float THROTTLE_PERCENT = 0.7f;
     LockFreeRingBuffer ring_buffer;
     std::mutex ring_buffer_mutex;
     std::vector<std::unique_ptr<ouster::LidarScan>> lidar_scans;
@@ -377,6 +382,8 @@ class LidarPacketHandler {
     std::condition_variable ring_buffer_has_elements;
 
     int64_t ptp_utc_tai_offset_;
+
+    float min_scan_valid_columns_ratio_ = 0.7;
 };
 
 }  // namespace ouster_ros
