@@ -383,7 +383,7 @@ class LidarPacketHandler {
 
     int64_t ptp_utc_tai_offset_;
 
-    float min_scan_valid_columns_ratio_ = 0.7;
+    float min_scan_valid_columns_ratio_ = 0.0f;
 };
 
 }  // namespace ouster_ros
