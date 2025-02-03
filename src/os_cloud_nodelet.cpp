@@ -179,13 +179,13 @@ class OusterCloud : public nodelet::Nodelet {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
         }
 
-        std::vector<LidarScanProcessor> processors;
-
         auto min_scan_valid_columns_ratio = pnh.param("min_scan_valid_columns_ratio", 0.0);
         if (min_scan_valid_columns_ratio < 0.0 || min_scan_valid_columns_ratio > 1.0) {
             NODELET_FATAL("min_scan_valid_columns_ratio needs to be in the range [0, 1]");
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
+
+        std::vector<LidarScanProcessor> processors;
 
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
