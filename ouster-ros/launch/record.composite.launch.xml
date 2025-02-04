@@ -79,6 +79,16 @@
     xyzir
     }"/>
 
+  <arg name="organized" default="true"
+    description="generate an organzied point cloud"/>
+  <arg name="destagger" default="true"
+    description="enable or disable point cloud destaggering"/>
+
+  <arg name="min_range" default="0.0"
+    description="minimum lidar range to consider (meters)"/>
+  <arg name="max_range" default="100000.0"
+    description="minimum lidar range to consider (meters)"/>
+
   <arg name="azimuth_window_start" default="0" description="azimuth window start;
     values range [0, 360000] millidegrees"/>
   <arg name="azimuth_window_end" default="360000" description="azimuth window end;
@@ -98,6 +108,9 @@
 
   <arg name="auto_start" default="true"
     description="automatically configure and activate the node"/>
+
+  <arg name="min_scan_valid_columns_ratio" default="0.0"
+    description="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
 
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
@@ -136,6 +149,11 @@
         <param name="proc_mask" value="$(var proc_mask)"/>
         <param name="scan_ring" value="$(var scan_ring)"/>
         <param name="point_type" value="$(var point_type)"/>
+        <param name="organized" value="$(var organized)"/>
+        <param name="destagger" value="$(var destagger)"/>
+        <param name="min_range" value="$(var min_range)"/>
+        <param name="max_range" value="$(var max_range)"/>
+        <param name="min_scan_valid_columns_ratio" value="$(var min_scan_valid_columns_ratio)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>

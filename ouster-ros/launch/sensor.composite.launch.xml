@@ -107,6 +107,9 @@
   <arg name="max_range" default="10000.0"
     description="minimum lidar range to consider (meters)"/>
 
+  <arg name="min_scan_valid_columns_ratio" default="0.0"
+    description="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_driver" name="os_driver" output="screen">
@@ -143,6 +146,8 @@
       <param name="destagger" value="$(var destagger)"/>
       <param name="min_range" value="$(var min_range)"/>
       <param name="max_range" value="$(var max_range)"/>
+      <param name="min_scan_valid_columns_ratio"
+             value="$(var min_scan_valid_columns_ratio)"/>
     </node>
   </group>
 
