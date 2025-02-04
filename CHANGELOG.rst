@@ -6,12 +6,14 @@ Changelog
 [unreleased]
 ============
 * [BUGFIX]: correctly align timestamps to the generated point cloud
-* Added support to enable **loop** for pcap replay + other replay config
-* Added a new launch file parameter ``pub_static_tf`` that allows users to turn off the broadcast
-  of sensor TF transforms.
-* Introduced a new topic ``/ouster/telemetry`` that publishes ``ouster_ros::Telemetry`` messages,
-  the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
 * [BUGFIX]: NEAR_IR data is not populated with data for organized point clouds that have no range.
+* Add support to enable **loop** for pcap replay + other replay config
+* Add a new launch file parameter ``pub_static_tf`` that allows users to turn off the broadcast
+  of sensor TF transforms.
+* Introduce a new topic ``/ouster/telemetry`` that publishes ``ouster_ros::Telemetry`` messages,
+  the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
+* Add a new launch file parameter ``min_scan_valid_columns_ratio`` to allow users to set the minimum
+  ratio of valid columns in a scan for it to be processed. Default value is ``0.0``.
 
 
 ouster_ros v0.13.0
