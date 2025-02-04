@@ -99,8 +99,8 @@ class OusterImage : public nodelet::Nodelet {
         auto timestamp_mode = pnh.param("timestamp_mode", std::string{});
         double ptp_utc_tai_offset = pnh.param("ptp_utc_tai_offset", -37.0);
 
-        auto min_scan_valid_columns_ratio = pnh.param("min_scan_valid_columns_ratio", 0.0);
-        if (min_scan_valid_columns_ratio < 0.0 || min_scan_valid_columns_ratio > 1.0) {
+        auto min_scan_valid_columns_ratio = pnh.param("min_scan_valid_columns_ratio", 0.0f);
+        if (min_scan_valid_columns_ratio < 0.0f || min_scan_valid_columns_ratio > 1.0f) {
             NODELET_FATAL("min_scan_valid_columns_ratio needs to be in the range [0, 1]");
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
