@@ -66,6 +66,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("min_range", 0.0);
         declare_parameter("max_range", 1000.0);
         declare_parameter("rows_step", 1);
+        declare_parameter("min_scan_valid_columns_ratio", 0.0);
     }
 
     void metadata_handler(
@@ -115,9 +116,16 @@ class OusterCloud : public OusterProcessingNodeBase {
                 });
         }
 
+        auto min_scan_valid_columns_ratio = get_parameter("min_scan_valid_columns_ratio").as_double();
+        if (min_scan_valid_columns_ratio < 0.0f || min_scan_valid_columns_ratio > 1.0f) {
+            RCLCPP_FATAL(get_logger(), "min_scan_valid_columns_ratio needs to be in the range [0, 1]");
+            throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
+        }
+
         int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
+
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
@@ -192,7 +200,8 @@ class OusterCloud : public OusterProcessingNodeBase {
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN")) {
             lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
-                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
+                min_scan_valid_columns_ratio);
         }
 
         if (impl::check_token(tokens, "TLM")) {
