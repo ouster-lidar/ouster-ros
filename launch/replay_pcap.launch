@@ -115,7 +115,7 @@
     <arg name="destagger" value="$(arg destagger)"/>
     <arg name="min_range" value="$(arg min_range)"/>
     <arg name="max_range" value="$(arg max_range)"/>
-    <arg name="~/min_scan_valid_columns_ratio"
+    <arg name="min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
   </include>
 
