@@ -83,7 +83,7 @@ class PointCloudProcessor {
             auto range_channel = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
             auto range = lidar_scan.field<uint32_t>(range_channel);
             ouster::cartesianT(points, range, lut_direction, lut_offset,
-                               min_range_, max_range_
+                               min_range_, max_range_,
                                std::numeric_limits<float>::quiet_NaN());
 
             scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
