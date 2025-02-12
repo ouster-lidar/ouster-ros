@@ -38,6 +38,11 @@ class OusterDriver : public OusterSensor {
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("point_type", "original");
+        declare_parameter("organized", true);
+        declare_parameter("destagger", true);
+        declare_parameter("min_range", 0.0);
+        declare_parameter("max_range", 1000.0);
+        declare_parameter("rows_step", 1);
     }
 
     ~OusterDriver() override {
