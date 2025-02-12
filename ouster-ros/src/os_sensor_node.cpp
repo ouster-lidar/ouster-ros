@@ -32,6 +32,20 @@ OusterSensor::OusterSensor(const std::string& name,
       change_state_client{
           create_client<ChangeState>(get_name() + "/change_state"s)} {
     declare_parameters();
+
+    bool auto_start = get_parameter("auto_start").as_bool();
+
+    if (auto_start) {
+        RCLCPP_INFO(get_logger(), "auto start requested");
+        reconnect_timer = create_wall_timer(1s, [this]() {
+            reconnect_timer->cancel();
+            auto request_transitions = std::vector<uint8_t>{
+                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+            execute_transitions_sequence(request_transitions, 0);
+            RCLCPP_INFO(get_logger(), "auto start initiated");
+        });
+    }
 }
 
 OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
@@ -64,6 +78,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("azimuth_window_start", MIN_AZW);
     declare_parameter("azimuth_window_end", MAX_AZW);
     declare_parameter("persist_config", false);
+    declare_parameter("auto_start", false);
 }
 
 LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
