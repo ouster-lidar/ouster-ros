@@ -93,3 +93,12 @@ ouster/os_driver:
     azimuth_window_end: 360000
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
+    # organized[optional]: whether to generate an organized point cloud. default
+    # is organized.
+    organized: true
+    # destagger[optional]: enable or disable point cloud destaggering, default enabled.
+    destagger: true
+    # min_range[optional]: minimum lidar range to consider (meters).
+    min_range: 0.0
+    # max_range[optional]: maximum lidar range to consider (meters).
+    max_range: 1000.0
