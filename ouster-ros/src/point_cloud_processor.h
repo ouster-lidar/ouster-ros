@@ -102,7 +102,7 @@ class PointCloudProcessor {
                                      const std::string& frame,
                                      bool apply_lidar_to_sensor_transform,
                                      uint32_t min_range, uint32_t max_range,
-                                     ScanToCloudFn scan_to_cloud_fn_,
+                                     int rows_step, ScanToCloudFn scan_to_cloud_fn_,
                                      PointCloudProcessor_PostProcessingFn post_processing_fn) {
         auto handler = std::make_shared<PointCloudProcessor>(
             info, frame, apply_lidar_to_sensor_transform,
