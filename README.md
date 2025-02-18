@@ -223,6 +223,8 @@ New launch file parameter:
   - `xyzir`: same as xyzi type but adds ring (channel) field.
           this type is same as Velodyne point cloud type
           this type is not compatible with the low data profile.
+  - `xyzit`: same as xyzi type but adds timestamp field.
+          this type is not compatible with the low data profile.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal

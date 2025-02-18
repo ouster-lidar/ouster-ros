@@ -69,7 +69,8 @@
     native,
     xyz,
     xyzi,
-    xyzir
+    xyzir,
+    xyzit
     }"/>
 
   <arg name="organized" default="true"
