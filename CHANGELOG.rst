@@ -14,6 +14,8 @@ Changelog
   the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
 * Add a new launch file parameter ``min_scan_valid_columns_ratio`` to allow users to set the minimum
   ratio of valid columns in a scan for it to be processed. Default value is ``0.0``.
+* Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
+  version ``pcl::PointXYZI`` for bandwith sensitive applications.
 
 
 ouster_ros v0.13.0
