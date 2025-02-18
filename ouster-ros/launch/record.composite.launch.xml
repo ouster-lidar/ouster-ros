@@ -1,5 +1,7 @@
 <launch>
 
+  <arg name="storage" default="sqlite3" description="specify the storage {sqlite3, mcap}"/>
+
   <arg name="ouster_ns" default="ouster"
     description="Override the default namespace of all ouster nodes"/>
   <arg name="sensor_hostname"
@@ -172,13 +174,16 @@
   <!-- <let name="_topics_to_record" value="/imu_packets /lidar_packets"/> -->
 
   <executable if="$(var _use_bag_file_name)" output="screen"
-    cmd="ros2 bag record --output $(var bag_file)
+    cmd="ros2 bag record
+      --output $(var bag_file)
+      --storage $(var storage)
       /$(var ouster_ns)/imu_packets
       /$(var ouster_ns)/lidar_packets
       /$(var ouster_ns)/metadata"/>
 
   <executable unless="$(var _use_bag_file_name)" output="screen"
     cmd="ros2 bag record
+      --storage $(var storage)
       /$(var ouster_ns)/imu_packets
       /$(var ouster_ns)/lidar_packets
       /$(var ouster_ns)/metadata"/>
