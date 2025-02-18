@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="storage" default="sqlite3" description="specify the storage {sqlite3, mcap}"/>
+  <arg name="storage" default="sqlite3" description="specify bag file storage {sqlite3, mcap}"/>
 
   <arg name="ouster_ns" default="ouster"
     description="Override the default namespace of all ouster nodes"/>
