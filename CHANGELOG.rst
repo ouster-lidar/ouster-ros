@@ -16,6 +16,8 @@ Changelog
 * Update where ouster-ros and ouster_client include directories get installed so that those headers
   can be included externally.
 * Add ``storage`` launch parameter to ``record.launch.xml``
+* Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
+  version ``pcl::PointXYZI`` for bandwith sensitive applications.
 
 ouster_ros v0.13.2
 ==================
