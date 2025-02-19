@@ -17,6 +17,52 @@ namespace ouster_ros {
  */
 
 /*
+ * Same as Apollo point cloud type
+ * @remark XYZIT point type is not compatible with RNG15_RFL8_NIR8/LOW_DATA
+ * udp lidar profile.
+ */
+struct EIGEN_ALIGN16 _Ouster_PointXYZI {
+    union EIGEN_ALIGN16 {
+        float data[4];
+        struct {
+          float x;
+          float y;
+          float z;
+          float intensity;
+        };
+   };
+   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct PointXYZI : public _Ouster_PointXYZI {
+
+    inline PointXYZI(const _Ouster_PointXYZI& pt)
+    {
+      x = pt.x; y = pt.y; z = pt.z;
+      intensity = pt.intensity;
+    }
+
+    inline PointXYZI()
+    {
+      x = y = z = 0.0f; data[3] = 1.0f;
+      intensity = 0.0f;
+    }
+
+    inline const auto as_tuple() const {
+        return std::tie(x, y, z, intensity);
+    }
+
+    inline auto as_tuple() {
+        return std::tie(x, y, z, intensity);
+    }
+
+    template<size_t I>
+    inline auto& get() {
+        return std::get<I>(as_tuple());
+    }
+};
+
+/*
  * Same as Velodyne point cloud type
  * @remark XYZIR point type is not compatible with RNG15_RFL8_NIR8/LOW_DATA
  * udp lidar profile.
@@ -59,6 +105,13 @@ struct PointXYZIR : public _PointXYZIR {
 }   // namespace ouster_ros
 
 // clang-format off
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZI,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, intensity, intensity)
+)
 
 /* common point types */
 POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::PointXYZIR,
