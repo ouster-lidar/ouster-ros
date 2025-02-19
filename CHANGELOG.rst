@@ -18,6 +18,8 @@ Changelog
 * Add ``storage`` launch parameter to ``record.launch.xml``
 * Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
   version ``pcl::PointXYZI`` for bandwith sensitive applications.
+* [BUGFIX]: Use the node clock to ensure messages report sim time in replay mode.
+
 
 ouster_ros v0.13.2
 ==================
