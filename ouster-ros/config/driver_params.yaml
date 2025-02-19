@@ -72,7 +72,8 @@ ouster/os_driver:
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
-    # point_type[optional]: choose from: {original, native, xyz, xyzi, xyzir}
+    # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi, 
+    #                                     yzir}
     # Here is a breif description of each option:
     #  - original: This uses the original point representation ouster_ros::Point
     #          of the ouster-ros driver.
@@ -82,6 +83,7 @@ ouster/os_driver:
     #  - xyz: the simplest point type, only has {x, y, z}
     #  - xyzi: same as xyz point type but adds intensity (signal) field. this
     #          type is not compatible with the low data profile.
+    #  - o_xyzi: same as xyzi point type but doesn't add the extra 4 padding bytes.
     #  - xyzir: same as xyzi type but adds ring (channel) field.
     #          this type is same as Velodyne point cloud type
     #          this type is not compatible with the low data profile.
