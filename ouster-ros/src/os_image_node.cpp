@@ -123,7 +123,7 @@ class OusterImage : public OusterProcessingNodeBase {
                         // Need to redefine the Packet object and allow use of array_views
                         sensor::LidarPacket lidar_packet(msg->buf.size());
                         memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                        lidar_packet.host_timestamp = static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                        lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         lidar_packet_handler(lidar_packet);
                     }
                 });
