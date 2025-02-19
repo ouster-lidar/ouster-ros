@@ -46,14 +46,6 @@ uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
     return y0 + (x - x0) * sign * (max_v - min_v) / (x1 - x0);
 }
 
-template <typename T>
-uint64_t ulround(T value) {
-    T rounded_value = std::round(value);
-    if (rounded_value < 0) return 0ULL;
-    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
-    return static_cast<uint64_t>(rounded_value);
-}
-
 }  // namespace
 
 namespace ouster_ros {
@@ -189,7 +181,7 @@ class LidarPacketHandler {
             last_scan_last_nonzero_idx, last_scan_last_nonzero_value,
             scan_width + curr_scan_first_nonzero_idx,
             curr_scan_first_nonzero_value, scan_width);
-        return ulround(interpolated_value);
+        return impl::ulround(interpolated_value);
     }
 
     uint64_t extrapolate_value(int curr_scan_first_nonzero_idx,
@@ -197,7 +189,7 @@ class LidarPacketHandler {
         double extrapolated_value =
             curr_scan_first_nonzero_value -
             scan_col_ts_spacing_ns * curr_scan_first_nonzero_idx;
-        return ulround(extrapolated_value);
+        return impl::ulround(extrapolated_value);
     }
 
     // compute_scan_ts_0 for first scan

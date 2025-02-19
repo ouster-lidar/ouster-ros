@@ -114,24 +114,47 @@ void copy_lidar_scan_fields_to_point(PointT& pt, const Tuple& tp, int idx) {
 template <class T>
 using Cloud = pcl::PointCloud<T>;
 
+// TODO[UN]: make this a functor
 template <std::size_t N, const ChanFieldTable<N>& PROFILE, typename PointT,
           typename PointS>
-void scan_to_cloud_f_destaggered(ouster_ros::Cloud<PointT>& cloud,
-                                 PointS& staging_point,
-                                 const ouster::PointsF& points,
-                                 uint64_t scan_ts, const ouster::LidarScan& ls,
-                                 const std::vector<int>& pixel_shift_by_row) {
+void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
+                     const ouster::PointsF& points, uint64_t scan_ts,
+                     const ouster::LidarScan& ls,
+                     const std::vector<int>& pixel_shift_by_row,
+                     bool organized = false, bool destagger = true,
+                     int rows_step = 1) {
     auto ls_tuple = make_lidar_scan_tuple<0, N, PROFILE>(ls);
     auto timestamp = ls.timestamp();
 
-    for (auto u = 0; u < ls.h; u++) {
-        for (auto v = 0; v < ls.w; v++) {
-            const auto v_shift = (v + ls.w - pixel_shift_by_row[u]) % ls.w;
-            auto ts = timestamp[v_shift];
-            ts = ts > scan_ts ? ts - scan_ts : 0UL;
+    if (!organized) cloud.clear();
+    cloud.is_dense = true;
+
+    for (auto u = 0; u < ls.h; u += rows_step) {
+        for (auto v = 0; v < ls.w; ++v) {   // TODO[UN]: consider cols_step in future
+            const auto v_shift =
+                destagger ? (v + ls.w - pixel_shift_by_row[u]) % ls.w : v;
             const auto src_idx = u * ls.w + v_shift;
-            const auto tgt_idx = u * ls.w + v;
             const auto xyz = points.row(src_idx);
+            const auto tgt_idx =
+                organized ? (u / rows_step) * ls.w + v : cloud.size();
+
+            // as opposed to the point cloud destaggering if it is disabled
+            // then timestamps needs to be staggered.
+            auto ts_idx =
+                destagger ? v : (v + ls.w + pixel_shift_by_row[u]) % ls.w;
+            auto ts =
+                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
+
+            if (organized) {
+                cloud.is_dense &= xyz.isNaN().any();
+            } else {
+                if (xyz.isNaN().any())
+                    continue;
+                else
+                    cloud.points.emplace_back();
+            }
+
+
             // if target point and staging point has matching type bind the
             // target directly and avoid performing transform_point at the end
             auto& pt = CondBinaryBind<std::is_same_v<PointT, PointS>>::run(
@@ -141,7 +164,7 @@ void scan_to_cloud_f_destaggered(ouster_ros::Cloud<PointT>& cloud,
             pt.y = static_cast<decltype(pt.y)>(xyz(1));
             pt.z = static_cast<decltype(pt.z)>(xyz(2));
             // TODO: in the future we could probably skip copying t and ring
-            // values if knowing before hand that the target point cloud does
+            // values if known before hand that the target point cloud does
             // not have a field to hold the timestamp or a ring for example the
             // case of pcl::PointXYZ or pcl::PointXYZI.
             pt.t = static_cast<uint32_t>(ts);

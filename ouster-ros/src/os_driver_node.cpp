@@ -38,6 +38,11 @@ class OusterDriver : public OusterSensor {
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("point_type", "original");
+        declare_parameter("organized", true);
+        declare_parameter("destagger", true);
+        declare_parameter("min_range", 0.0);
+        declare_parameter("max_range", 1000.0);
+        declare_parameter("rows_step", 1);
     }
 
     ~OusterDriver() override {
@@ -97,9 +102,26 @@ class OusterDriver : public OusterSensor {
             }
 
             auto point_type = get_parameter("point_type").as_string();
+            auto organized = get_parameter("organized").as_bool();
+            auto destagger = get_parameter("destagger").as_bool();
+            auto min_range_m = get_parameter("min_range").as_double();
+            auto max_range_m = get_parameter("max_range").as_double();
+            if (min_range_m < 0.0 || max_range_m < 0.0) {
+                RCLCPP_FATAL(get_logger(), "min_range and max_range need to be positive");
+                throw std::runtime_error("negative range limits!");
+            }
+            if (min_range_m >= max_range_m) {
+                RCLCPP_FATAL(get_logger(), "min_range can't be equal or exceed max_range");
+                throw std::runtime_error("min_range equal to or exceeds max_range!");
+            }
+            // convert to millimeters
+            uint32_t min_range = impl::ulround(min_range_m * 1000);
+            uint32_t max_range = impl::ulround(max_range_m * 1000);
+            auto rows_step = get_parameter("rows_step").as_int();
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type, info,
                     tf_bcast.point_cloud_frame_id(), tf_bcast.apply_lidar_to_sensor_transform(),
+                    organized, destagger, min_range, max_range, rows_step,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i) lidar_pubs[i]->publish(*msgs[i]);
                     }

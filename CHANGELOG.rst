@@ -18,6 +18,11 @@ Changelog
   to the default
 * Added a new launch ``persist_config`` option to request the sensor persist the current config
 * Added a new ``loop`` option to the ``replay.launch.xml`` file.
+* Added an automatic start mode to make it easier to start the node without using time actions.
+  - To disable set ``auto_start`` to ``false`` during launch
+* Added a new parameter ``organized`` to request publishing unorganized point cloud
+* Added a new parameter ``destagger`` to request publishing staggered point cloud
+* Added two parameters ``min_range``, ``max_range`` to limit the lidar effective range
 
 ouster_ros v0.12.0
 ==================

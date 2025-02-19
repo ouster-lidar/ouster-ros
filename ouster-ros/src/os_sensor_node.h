@@ -190,6 +190,8 @@ class OusterSensor : public OusterSensorNodeBase {
 
     const int MIN_AZW = 0;
     const int MAX_AZW = 360000;
+
+    rclcpp::TimerBase::SharedPtr reconnect_timer;
 };
 
 }  // namespace ouster_ros
