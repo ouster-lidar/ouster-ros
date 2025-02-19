@@ -97,7 +97,7 @@ class OusterImage : public nodelet::Nodelet {
 
     void create_camera_info_pub() {
         auto& nh = getNodeHandle();
-        camera_info_pub = nh.advertise<std_msgs::String>("camera_info", 1, true);
+        camera_info_pub = nh.advertise<sensor_msgs::CameraInfo>("camera_info", 1, true);
     }    
 
     void publish_camera_info(const sensor::sensor_info& info) {
@@ -109,7 +109,7 @@ class OusterImage : public nodelet::Nodelet {
         double cy = static_cast<double>(H) / 2.0;
         sensor_msgs::CameraInfo camera_info_msg;
         camera_info_msg.header.stamp = ros::Time::now();
-        camera_info_msg.header.frame_id = "camera";
+        camera_info_msg.header.frame_id = "os_lidar";
         camera_info_msg.height = H;
         camera_info_msg.width = W;
         camera_info_msg.distortion_model = "equidistant";
