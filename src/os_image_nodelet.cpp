@@ -20,6 +20,7 @@
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/String.h>
+#include <sensor_msgs/CameraInfo.h>
 
 #include "lidar_packet_handler.h"
 #include "image_processor.h"
@@ -87,8 +88,36 @@ class OusterImage : public nodelet::Nodelet {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
-        if (impl::check_token(tokens, "IMG"))
+        if (impl::check_token(tokens, "IMG")) {
             create_handlers(info);
+            create_camera_info_pub();
+            publish_camera_info(info);
+        }
+    }
+
+    void create_camera_info_pub() {
+        auto& nh = getNodeHandle();
+        camera_info_pub = nh.advertise<std_msgs::String>("camera_info", 1, true);
+    }    
+
+    void publish_camera_info(const sensor::sensor_info& info) {
+        uint32_t H = info.format.pixels_per_column;
+        uint32_t W = info.format.columns_per_frame;
+        double fx = static_cast<double>(W) / (2.0 * M_PI);
+        double fy = static_cast<double>(H) / (2.0 * M_PI);
+        double cx = static_cast<double>(W) / 2.0;
+        double cy = static_cast<double>(H) / 2.0;
+        sensor_msgs::CameraInfo camera_info_msg;
+        camera_info_msg.header.stamp = ros::Time::now();
+        camera_info_msg.header.frame_id = "camera";
+        camera_info_msg.height = H;
+        camera_info_msg.width = W;
+        camera_info_msg.distortion_model = "equidistant";
+        camera_info_msg.K = {fx, 0.0, cx, 0.0, fy, cy, 0.0, 0.0, 1};
+        camera_info_msg.D = {0.0, 0.0, 0.0, 0.0, 0.0};
+        camera_info_msg.R = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+        camera_info_msg.P = {fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0, 0.0, 0.0, 1, 0.0};
+        camera_info_pub.publish(camera_info_msg);
     }
 
     void create_handlers(const sensor::sensor_info& info) {
@@ -125,6 +154,7 @@ class OusterImage : public nodelet::Nodelet {
     ros::Subscriber metadata_sub;
     ros::Subscriber lidar_packet_sub;
     std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    ros::Publisher camera_info_pub;
 
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
