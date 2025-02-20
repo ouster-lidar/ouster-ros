@@ -109,7 +109,7 @@ class OusterCloud : public OusterProcessingNodeBase {
                         // Need to redefine the Packet object and allow use of array_views
                         sensor::ImuPacket imu_packet(msg->buf.size());
                         memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                        imu_packet.host_timestamp = static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                        imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         auto imu_msg = imu_packet_handler(imu_packet);
                         imu_pub->publish(imu_msg);
                     }
@@ -223,8 +223,7 @@ class OusterCloud : public OusterProcessingNodeBase {
                     // Need to redefine the Packet object and allow use of array_views
                     sensor::LidarPacket lidar_packet(msg->buf.size());
                     memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                    lidar_packet.host_timestamp =
-                        static_cast<uint64_t>(rclcpp::Clock(RCL_ROS_TIME).now().nanoseconds());
+                    lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
 
                     if (telemetry_handler) {
                         auto telemetry = telemetry_handler(lidar_packet);
