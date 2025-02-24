@@ -23,7 +23,8 @@ find_package(
              roscpp
              tf2
              tf2_ros
-             nodelet)
+             nodelet
+             rosbag)
 
 # ==== Options ====
 add_compile_options(-std=c++17)
@@ -52,6 +53,7 @@ catkin_package(
     std_msgs
     sensor_msgs
     geometry_msgs
+    rosbag
   DEPENDS
     EIGEN3
 )
@@ -102,6 +104,12 @@ add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
 target_link_libraries(${PROJECT_NAME}_nodelets ouster_ros ${catkin_LIBRARIES})
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
+
+add_executable(bag_converter src/bag_converter.cpp)
+target_link_libraries(bag_converter
+  ${catkin_LIBRARIES}
+  ouster_ros
+)
 
 # ==== Test ====
 if(CATKIN_ENABLE_TESTING)
