@@ -14,6 +14,7 @@
   <depend>tf2_ros</depend>
   <depend>pcl_ros</depend>
   <depend>pcl_conversions</depend>
+  <depend>rosbag</depend>
 
   <build_depend>boost</build_depend>
   <build_depend>nodelet</build_depend>
