@@ -19,6 +19,8 @@ Changelog
 * Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
   version ``pcl::PointXYZI`` for bandwith sensitive applications.
 * [BUGFIX]: Use the node clock to ensure messages report sim time in replay mode.
+* Introduce a new param ``v_reduction`` that allows reducing the number of beams count of the published
+  point cloud
 
 
 ouster_ros v0.13.2
