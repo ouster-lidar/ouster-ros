@@ -16,6 +16,8 @@ Changelog
   ratio of valid columns in a scan for it to be processed. Default value is ``0.0``.
 * Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
   version ``pcl::PointXYZI`` for bandwith sensitive applications.
+* Introduce a new param ``v_reduction`` that allows reducing the number of beams count of the published
+  point cloud.
 
 
 ouster_ros v0.13.0
