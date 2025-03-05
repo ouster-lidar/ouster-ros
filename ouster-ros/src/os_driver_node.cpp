@@ -119,8 +119,9 @@ class OusterDriver : public OusterSensor {
             uint32_t max_range = impl::ulround(max_range_m * 1000);
             auto v_reduction = get_parameter("v_reduction").as_int();
             auto valid_values = std::vector<int>{1, 2, 4, 8, 16};
-            if (std::find(valid_values.begin(), valid_values.end(), v_reduction) == valid_values.end()) {
-                RCLCPP_FATAL_STREAM(get_logger(),
+            if (std::find(valid_values.begin(), valid_values.end(),
+                          v_reduction) == valid_values.end()) {
+                RCLCPP_FATAL(get_logger(),
                     "v_reduction needs to be one of the values: {1, 2, 4, 8, 16}");
                 throw std::runtime_error("invalid v_reduction value!");
             }
