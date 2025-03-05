@@ -115,6 +115,9 @@
   <arg name="min_scan_valid_columns_ratio" default="0.0"
     description="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
 
+  <arg name="v_reduction" default="1" description="vertical beam reduction;
+   available options: {1, 2, 4, 8, 16}"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
@@ -156,6 +159,7 @@
         <param name="destagger" value="$(var destagger)"/>
         <param name="min_range" value="$(var min_range)"/>
         <param name="max_range" value="$(var max_range)"/>
+        <param name="v_reduction" value="$(var v_reduction)"/>
         <param name="min_scan_valid_columns_ratio" value="$(var min_scan_valid_columns_ratio)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
