@@ -55,6 +55,8 @@
   <arg name="min_scan_valid_columns_ratio"
     doc="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
 
+  <arg name="v_reduction" doc="vertical beam reduction; available options: {1, 2, 4, 8, 16}"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
@@ -78,6 +80,7 @@
       <param name="~/destagger" value="$(arg destagger)"/>
       <param name="~/min_range" value="$(arg min_range)"/>
       <param name="~/max_range" value="$(arg max_range)"/>
+      <param name="~/v_reduction" value="$(arg v_reduction)"/>
       <param name="~/min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
     </node>
