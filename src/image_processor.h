@@ -22,6 +22,7 @@ namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
 namespace viz = ouster::viz;
+using sensor::ChanField;
 
 class ImageProcessor {
    public:
@@ -36,41 +37,38 @@ class ImageProcessor {
         uint32_t H = info.format.pixels_per_column;
         uint32_t W = info.format.columns_per_frame;
 
-        image_msgs[sensor::ChanField::RANGE] =
-            std::make_shared<sensor_msgs::Image>();
-        image_msgs[sensor::ChanField::SIGNAL] =
-            std::make_shared<sensor_msgs::Image>();
-        image_msgs[sensor::ChanField::REFLECTIVITY] =
-            std::make_shared<sensor_msgs::Image>();
-        image_msgs[sensor::ChanField::NEAR_IR] =
-            std::make_shared<sensor_msgs::Image>();
+        image_msgs[ChanField::RANGE] = create_image_msg<int32_t>(
+            H, W, frame, sensor_msgs::image_encodings::TYPE_32SC1);
+        image_msgs[ChanField::SIGNAL] = create_image_msg<uint16_t>(
+            H, W, frame, sensor_msgs::image_encodings::MONO16);
+        image_msgs[ChanField::REFLECTIVITY] = create_image_msg<uint16_t>(
+            H, W, frame, sensor_msgs::image_encodings::MONO16);
+        image_msgs[ChanField::NEAR_IR] = create_image_msg<uint16_t>(
+            H, W, frame, sensor_msgs::image_encodings::MONO16);
         if (get_n_returns(info) == 2) {
-            image_msgs[sensor::ChanField::RANGE2] =
-                std::make_shared<sensor_msgs::Image>();
-            image_msgs[sensor::ChanField::SIGNAL2] =
-                std::make_shared<sensor_msgs::Image>();
-            image_msgs[sensor::ChanField::REFLECTIVITY2] =
-                std::make_shared<sensor_msgs::Image>();
-        }
-
-        for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
-            init_image_msg(*it->second, H, W, frame);
+            image_msgs[ChanField::RANGE2] = create_image_msg<int32_t>(
+                H, W, frame, sensor_msgs::image_encodings::TYPE_32SC1);
+            image_msgs[ChanField::SIGNAL2] = create_image_msg<uint16_t>(
+            H, W, frame, sensor_msgs::image_encodings::MONO16);
+            image_msgs[ChanField::REFLECTIVITY2] = create_image_msg<uint16_t>(
+            H, W, frame, sensor_msgs::image_encodings::MONO16);
         }
     }
 
    private:
-    using pixel_type = uint16_t;
-    const size_t pixel_value_max = std::numeric_limits<pixel_type>::max();
-
-    static void init_image_msg(sensor_msgs::Image& msg, size_t H, size_t W,
-                               const std::string& frame) {
-        msg.width = W;
-        msg.height = H;
-        msg.step = W * sizeof(pixel_type);
-        // TODO: allow choosing higher image encoding representation
-        msg.encoding = sensor_msgs::image_encodings::MONO16;
-        msg.data.resize(W * H * sizeof(pixel_type));
-        msg.header.frame_id = frame;
+    template <typename pixel_type>
+    static std::shared_ptr<sensor_msgs::Image> create_image_msg(
+        size_t H, size_t W,
+        const std::string& frame,
+        const std::string& encoding) {
+        auto msg = std::make_shared<sensor_msgs::Image>();
+        msg->height = H;
+        msg->width = W;
+        msg->step = W * sizeof(pixel_type);
+        msg->encoding = encoding;
+        msg->data.resize(W * H * sizeof(pixel_type));
+        msg->header.frame_id = frame;
+        return msg;
     }
 
    private:
@@ -88,50 +86,32 @@ class ImageProcessor {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
-        auto range_channel =
-            first ? sensor::ChanField::RANGE : sensor::ChanField::RANGE2;
-        ouster::img_t<uint32_t> range =
-            lidar_scan.field<uint32_t>(range_channel);
+        auto range_ch = first ? ChanField::RANGE : ChanField::RANGE2;
+        ouster::img_t<uint32_t> range = lidar_scan.field<uint32_t>(range_ch);
 
-        ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
-            impl::suitable_return(sensor::ChanField::REFLECTIVITY, !first),
-            lidar_scan);
+        // NOTE: signal is 32-bit only in legacy and is 16-bit in the remaining profiles.
+        auto signal_ch = impl::suitable_return(ChanField::SIGNAL, !first);
+        ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(signal_ch, lidar_scan);
 
-        ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
-            impl::suitable_return(sensor::ChanField::SIGNAL, !first),
-            lidar_scan);
+        // NOTE: reflectivity varies between 32-bit, 16-bit and 8-bit.
+        auto reflect_ch = impl::suitable_return(ChanField::REFLECTIVITY, !first);
+        ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(reflect_ch, lidar_scan);
 
-        // TODO: note that near_ir will be processed twice for DUAL return
-        // sensor
-        ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
-            impl::suitable_return(sensor::ChanField::NEAR_IR, !first),
-            lidar_scan);
+        // TODO: note that near_ir will be processed twice for DUAL return sensor
+        ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(ChanField::NEAR_IR, lidar_scan);
 
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
 
         // views into message data
-        auto range_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
-                                        sensor::ChanField::RANGE, !first)]
-                ->data.data(),
-            H, W);
-        auto signal_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
-                                        sensor::ChanField::SIGNAL, !first)]
-                ->data.data(),
-            H, W);
-        auto reflec_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)
-                image_msgs[impl::suitable_return(
-                               sensor::ChanField::REFLECTIVITY, !first)]
-                    ->data.data(),
-            H, W);
-        auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
-            (pixel_type*)image_msgs[impl::suitable_return(
-                                        sensor::ChanField::NEAR_IR, !first)]
-                ->data.data(),
-            H, W);
+        auto range_image_map = Eigen::Map<ouster::img_t<uint32_t>>(
+            (uint32_t*)image_msgs[range_ch]->data.data(), H, W);
+        auto signal_image_map = Eigen::Map<ouster::img_t<uint16_t>>(
+            (uint16_t*)image_msgs[signal_ch]->data.data(), H, W);
+        auto reflec_image_map = Eigen::Map<ouster::img_t<uint16_t>>(
+            (uint16_t*)image_msgs[reflect_ch]->data.data(), H, W);
+        auto nearir_image_map = Eigen::Map<ouster::img_t<uint16_t>>(
+            (uint16_t*)image_msgs[ChanField::NEAR_IR]->data.data(), H, W);
 
         const auto& px_offset = info_.format.pixel_shift_by_row;
 
@@ -144,15 +124,12 @@ class ImageProcessor {
         const auto rf = reflectivity.data();
         const auto nr = near_ir.data();
 
-        // copy data out of Cloud message, with destaggering
+        // copy data out of LidarScan with destaggering
         for (size_t u = 0; u < H; u++) {
             for (size_t v = 0; v < W; v++) {
                 const size_t vv = (v + W - px_offset[u]) % W;
                 const size_t idx = u * W + vv;
-                // TODO: re-examine this truncation later
-                // 16 bit img: use 4mm resolution and throw out returns > 260m
-                auto r = (rg[idx] + 0b10) >> 2;
-                range_image_map(u, v) = r > pixel_value_max ? 0 : r;
+                range_image_map(u, v) = rg[idx];
                 signal_image_eigen(u, v) = sg[idx];
                 reflec_image_eigen(u, v) = rf[idx];
                 nearir_image_eigen(u, v) = nr[idx];
@@ -166,13 +143,11 @@ class ImageProcessor {
         nearir_image_eigen = nearir_image_eigen.sqrt();
         signal_image_eigen = signal_image_eigen.sqrt();
 
-        // copy data into image messages
-        signal_image_map =
-            (signal_image_eigen * pixel_value_max).cast<pixel_type>();
-        reflec_image_map =
-            (reflec_image_eigen * pixel_value_max).cast<pixel_type>();
-        nearir_image_map =
-            (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
+        // TODO[UN]: we should have a custom scale per image type
+        const size_t max_px = std::numeric_limits<uint16_t>::max();
+        signal_image_map = (signal_image_eigen * max_px).cast<uint16_t>();
+        reflec_image_map = (reflec_image_eigen * max_px).cast<uint16_t>();
+        nearir_image_map = (nearir_image_eigen * max_px).cast<uint16_t>();
     }
 
    public:
