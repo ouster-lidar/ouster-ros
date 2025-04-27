@@ -64,6 +64,8 @@ void OusterSensor::declare_parameters() {
     declare_parameter("azimuth_window_start", MIN_AZW);
     declare_parameter("azimuth_window_end", MAX_AZW);
     declare_parameter("persist_config", false);
+    declare_parameter("multipurpose_io_mode", 1);
+    declare_parameter("sync_pulse_out_angle", 360);
 }
 
 LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
@@ -450,6 +452,10 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     auto azimuth_window_start = get_parameter("azimuth_window_start").as_int();
     auto azimuth_window_end = get_parameter("azimuth_window_end").as_int();
 
+    // Adding output signal config 
+    auto multipurpose_io_mode = get_parameter("multipurpose_io_mode").as_int();
+    auto sync_pulse_out_angle = get_parameter("sync_pulse_out_angle").as_int();
+
     if (lidar_port < 0 || lidar_port > 65535) {
         auto error_msg =
             "Invalid lidar port number! port value should be in the range "
@@ -560,7 +566,39 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
 
     config.azimuth_window = {azimuth_window_start, azimuth_window_end};
 
+    if (multipurpose_io_mode < 1 || multipurpose_io_mode > 6)
+    {
+        multipurpose_io_mode = 1;
+    }
+    config.multipurpose_io_mode = getMultipurposeIOMode(multipurpose_io_mode);
+
+    if (sync_pulse_out_angle < 0 || sync_pulse_out_angle > 360)
+    {
+        sync_pulse_out_angle = 360;
+    }
+    config.sync_pulse_out_angle = sync_pulse_out_angle;
+
     return config;
+}
+
+sensor::MultipurposeIOMode OusterSensor::getMultipurposeIOMode(int mode_value) {
+    switch (mode_value) {
+        case 1:
+            return sensor::MULTIPURPOSE_OFF;
+        case 2:
+            return sensor::MULTIPURPOSE_INPUT_NMEA_UART;
+        case 3:
+            return sensor::MULTIPURPOSE_OUTPUT_FROM_INTERNAL_OSC;
+        case 4:
+            return sensor::MULTIPURPOSE_OUTPUT_FROM_SYNC_PULSE_IN;
+        case 5:
+            return sensor::MULTIPURPOSE_OUTPUT_FROM_PTP_1588;
+        case 6:
+            return sensor::MULTIPURPOSE_OUTPUT_FROM_ENCODER_ANGLE;
+        default:
+            std::cerr << "Invalid mode value. Defaulting to MULTIPURPOSE_OFF." << std::endl;
+            return sensor::MULTIPURPOSE_OFF;
+    }
 }
 
 sensor::sensor_config OusterSensor::parse_config_from_staged_config_string() {

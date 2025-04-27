@@ -140,6 +140,8 @@ class OusterSensor : public OusterSensorNodeBase {
     void start_packet_processing_threads();
 
     void stop_packet_processing_threads();
+    
+    sensor::MultipurposeIOMode getMultipurposeIOMode(int mode_value);
 
    private:
     std::string sensor_hostname;
