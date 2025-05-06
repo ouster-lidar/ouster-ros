@@ -141,7 +141,7 @@ to learn how to enable **CycloneDDS** on your platform.
 Once the build succeeds, you must source the _install_ folder of your ros2 workspace to add launch
 commands to your environment:
 ```bash
-source ros2_ws/install/setup.bash
+source ros2_ws/src/install/setup.bash
 ```
 
 ## Usage
