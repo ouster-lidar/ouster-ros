@@ -6,9 +6,8 @@ ouster/os_driver:
     # udp_dest[optional]: hostname or multicast group IP where the sensor will
     # send UDP data packets.
     udp_dest: ""
-    # mtp_dest[optional]:
+    # mtp_dest[optional]:hostname IP address for receiving data packets via
 
-    # hostname IP address for receiving data packets via
     # multicast, by default it is INADDR_ANY, so packets will be received on
     # first available network interface.
     mtp_dest: ""
