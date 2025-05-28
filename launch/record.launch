@@ -106,6 +106,9 @@
   <arg name="v_reduction" default="1"
     doc="vertical beam reduction; available options: {1, 2, 4, 8, 16}"/>
 
+  <arg name="mask_path" default=""
+    doc="path to an image file that will be used to mask parts of the pointcloud"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true" args="manager"/>
@@ -162,6 +165,7 @@
     <arg name="min_range" value="$(arg min_range)"/>
     <arg name="max_range" value="$(arg max_range)"/>
     <arg name="v_reduction" value="$(arg v_reduction)"/>
+    <arg name="~/mask_path" value="$(arg mask_path)"/>
     <arg name="min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
   </include>

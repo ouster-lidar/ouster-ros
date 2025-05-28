@@ -159,11 +159,13 @@ class OusterDriver : public OusterSensor {
                 throw std::runtime_error("invalid v_reduction value!");
             }
 
+            auto mask_path = pnh.param("mask_path", std::string{});
+
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(
                     point_type, info, tf_bcast.point_cloud_frame_id(),
                     tf_bcast.apply_lidar_to_sensor_transform(), organized,
-                    destagger, min_range, max_range, v_reduction,
+                    destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
                             lidar_pubs[i].publish(*msgs[i]);
