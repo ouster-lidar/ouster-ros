@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>ouster_ros</name>
-  <version>0.13.6</version>
+  <version>0.13.7</version>
   <description>Ouster ROS driver</description>
   <maintainer email="oss@ouster.io">ouster developers</maintainer>
   <license file="LICENSE">BSD</license>
@@ -14,6 +14,7 @@
   <depend>tf2_ros</depend>
   <depend>pcl_ros</depend>
   <depend>pcl_conversions</depend>
+  <depend>cv_bridge</depend>
 
   <build_depend>boost</build_depend>
   <build_depend>nodelet</build_depend>
@@ -24,7 +25,6 @@
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>curl</build_depend>
   <build_depend>spdlog</build_depend>
-  <build_depend>opencv2</build_depend>
 
   <exec_depend>nodelet</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>
@@ -32,7 +32,6 @@
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
-  <exec_depend>opencv2</exec_depend>
 
   <test_depend>gtest</test_depend>
 
