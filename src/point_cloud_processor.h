@@ -78,6 +78,15 @@ class PointCloudProcessor {
             if (image.empty()) {
                 throw std::runtime_error("Failed to load mask image from path: " + mask_path);
             }
+            if (image.rows != static_cast<int>(info.format.pixels_per_column) ||
+                image.cols != static_cast<int>(info.format.columns_per_frame)) {
+                std::stringstream ss;
+                ss << "Mask image size (" << image.rows << "x" << image.cols
+                   << ") does not match the expected dimensions ("
+                   << info.format.pixels_per_column << "x" << info.format.columns_per_frame
+                   << ").";
+                throw std::runtime_error(ss.str());
+            }
             Eigen::MatrixXi eigen_img(image.rows, image.cols);
             cv::cv2eigen(image, eigen_img);
             mask = eigen_img.cast<uint32_t>() / 255;
