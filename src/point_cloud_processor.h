@@ -75,6 +75,9 @@ class PointCloudProcessor {
         if (!mask_path.empty()) {
             cv::Mat image = cv::imread(mask_path,
                                     cv::IMREAD_GRAYSCALE);
+            if (image.empty()) {
+                throw std::runtime_error("Failed to load mask image from path: " + mask_path);
+            }
             Eigen::MatrixXi eigen_img(image.rows, image.cols);
             cv::cv2eigen(image, eigen_img);
             mask = eigen_img.cast<uint32_t>() / 255;
