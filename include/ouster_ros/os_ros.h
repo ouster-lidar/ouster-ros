@@ -185,6 +185,9 @@ uint64_t ulround(T value) {
     return static_cast<uint64_t>(rounded_value);
 }
 
+void warn_mask_resized(int image_cols, int image_rows,
+                       int scan_height, int scan_width);
+
 template <typename pixel_type>
 ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
                                     size_t height, size_t width) {
@@ -196,6 +199,7 @@ ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
     }
 
     if (image.rows != static_cast<int>(height) || image.cols != static_cast<int>(width)) {
+        warn_mask_resized(image.cols, image.rows, static_cast<int>(height), static_cast<int>(width));
         cv::Mat resized;
         cv::resize(image, resized, cv::Size(width, height), 0, 0, cv::INTER_NEAREST);
         image = resized;
