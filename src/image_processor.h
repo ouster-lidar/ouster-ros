@@ -58,7 +58,7 @@ class ImageProcessor {
             init_image_msg(*it->second, H, W, frame);
         }
 
-        load_mask(mask_path, H, W);
+        mask = impl::load_mask<pixel_type>(mask_path, H, W);
     }
 
    private:
@@ -184,27 +184,6 @@ class ImageProcessor {
                          const ros::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };
-    }
-
-   private:
-    void load_mask(const std::string& mask_path, size_t height, size_t width) {
-        if (mask_path.empty()) return;
-
-        cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
-        if (image.empty()) {
-            throw std::runtime_error("Failed to load mask image from path: " + mask_path);
-        }
-        if (image.rows != static_cast<int>(height) ||
-            image.cols != static_cast<int>(width)) {
-            std::stringstream ss;
-            ss << "Mask image size (" << image.rows << "x" << image.cols
-               << ") does not match the expected dimensions ("
-               << height << "x" << width << ").";
-            throw std::runtime_error(ss.str());
-        }
-        Eigen::MatrixXi eigen_img(image.rows, image.cols);
-        cv::cv2eigen(image, eigen_img);
-        mask = eigen_img.cast<pixel_type>() / 255;
     }
 
    private:

@@ -18,8 +18,6 @@
 #include "lidar_packet_handler.h"
 #include "impl/cartesian.h"
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/eigen.hpp>
 
 
 namespace ouster_ros {
@@ -72,30 +70,10 @@ class PointCloudProcessor {
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
 
-        load_mask(mask_path,
-                  info.format.pixels_per_column / rows_step,
-                  info.format.columns_per_frame);
-    }
-
-   private:
-    void load_mask(const std::string& mask_path, size_t height, size_t width) {
-        if (mask_path.empty()) return;
-
-        cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
-        if (image.empty()) {
-            throw std::runtime_error("Failed to load mask image from path: " + mask_path);
-        }
-        if (image.rows != static_cast<int>(height) ||
-            image.cols != static_cast<int>(width)) {
-            std::stringstream ss;
-            ss << "Mask image size (" << image.rows << "x" << image.cols
-               << ") does not match the expected dimensions ("
-               << height << "x" << width << ").";
-            throw std::runtime_error(ss.str());
-        }
-        Eigen::MatrixXi eigen_img(image.rows, image.cols);
-        cv::cv2eigen(image, eigen_img);
-        mask = eigen_img.cast<uint32_t>() / 255;
+        mask = impl::load_mask<uint32_t>(
+            mask_path,
+            info.format.pixels_per_column / rows_step,
+            info.format.columns_per_frame);
     }
 
    private:

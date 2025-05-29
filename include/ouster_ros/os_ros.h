@@ -19,6 +19,8 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/eigen.hpp>
 
 #include <chrono>
 #include <string>
@@ -181,6 +183,26 @@ uint64_t ulround(T value) {
     if (rounded_value < 0) return 0ULL;
     if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
     return static_cast<uint64_t>(rounded_value);
+}
+
+template <typename pixel_type>
+ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
+                                    size_t height, size_t width) {
+    if (mask_path.empty()) return ouster::img_t<pixel_type>();
+
+    cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
+    if (image.empty()) {
+        throw std::runtime_error("Failed to load mask image from path: " + mask_path);
+    }
+
+    if (image.rows != static_cast<int>(height) || image.cols != static_cast<int>(width)) {
+        cv::Mat resized;
+        cv::resize(image, resized, cv::Size(width, height), 0, 0, cv::INTER_NEAREST);
+        image = resized;
+    }
+    Eigen::MatrixXi eigen_img(image.rows, image.cols);
+    cv::cv2eigen(image, eigen_img);
+    return eigen_img.cast<pixel_type>() / 255;
 }
 
 } // namespace impl
