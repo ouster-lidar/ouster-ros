@@ -12,6 +12,7 @@ find_package(PCL REQUIRED COMPONENTS common)
 find_package(tf2_eigen REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED)
+find_package(OpenCV REQUIRED)
 
 find_package(
   catkin REQUIRED
@@ -54,6 +55,7 @@ catkin_package(
     geometry_msgs
   DEPENDS
     EIGEN3
+    OpenCV
 )
 
 # ==== Libraries ====
@@ -71,7 +73,10 @@ find_package(OusterSDK REQUIRED)
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
 
 # catkin adds all include dirs to a single variable, don't try to use targets
-include_directories(${_ouster_ros_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
+include_directories(
+  ${_ouster_ros_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS})
 
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
@@ -100,7 +105,10 @@ add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
 add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
-target_link_libraries(${PROJECT_NAME}_nodelets ouster_ros ${catkin_LIBRARIES})
+target_link_libraries(
+  ${PROJECT_NAME}_nodelets ouster_ros
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES})
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
 # ==== Test ====

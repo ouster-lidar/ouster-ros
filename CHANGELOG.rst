@@ -18,6 +18,8 @@ Changelog
   version ``pcl::PointXYZI`` for bandwith sensitive applications.
 * Introduce a new param ``v_reduction`` that allows reducing the number of beams count of the published
   point cloud.
+* Introduce a new capability to suppress certain range measurements of the point cloud by providing
+  a mask image to the driver through the ``mask_path`` launch file argument.
 
 
 ouster_ros v0.13.0
