@@ -72,25 +72,30 @@ class PointCloudProcessor {
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
 
-        if (!mask_path.empty()) {
-            cv::Mat image = cv::imread(mask_path,
-                                    cv::IMREAD_GRAYSCALE);
-            if (image.empty()) {
-                throw std::runtime_error("Failed to load mask image from path: " + mask_path);
-            }
-            if (image.rows != static_cast<int>(info.format.pixels_per_column) ||
-                image.cols != static_cast<int>(info.format.columns_per_frame)) {
-                std::stringstream ss;
-                ss << "Mask image size (" << image.rows << "x" << image.cols
-                   << ") does not match the expected dimensions ("
-                   << info.format.pixels_per_column << "x" << info.format.columns_per_frame
-                   << ").";
-                throw std::runtime_error(ss.str());
-            }
-            Eigen::MatrixXi eigen_img(image.rows, image.cols);
-            cv::cv2eigen(image, eigen_img);
-            mask = eigen_img.cast<uint32_t>() / 255;
+        load_mask(mask_path,
+                  info.format.pixels_per_column / rows_step,
+                  info.format.columns_per_frame);
+    }
+
+   private:
+    void load_mask(const std::string& mask_path, size_t height, size_t width) {
+        if (mask_path.empty()) return;
+
+        cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
+        if (image.empty()) {
+            throw std::runtime_error("Failed to load mask image from path: " + mask_path);
         }
+        if (image.rows != static_cast<int>(height) ||
+            image.cols != static_cast<int>(width)) {
+            std::stringstream ss;
+            ss << "Mask image size (" << image.rows << "x" << image.cols
+               << ") does not match the expected dimensions ("
+               << height << "x" << width << ").";
+            throw std::runtime_error(ss.str());
+        }
+        Eigen::MatrixXi eigen_img(image.rows, image.cols);
+        cv::cv2eigen(image, eigen_img);
+        mask = eigen_img.cast<uint32_t>() / 255;
     }
 
    private:
@@ -107,13 +112,12 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_ch = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
             auto range = lidar_scan.field<uint32_t>(range_ch);
-            auto range_masked = mask.rows() == range.rows() && mask.cols() == range.cols() ? range * mask : range;
+            auto range_masked = mask.size() != 0 ? range * mask : range;
             ouster::cartesianT(points, range_masked, lut_direction, lut_offset,
                                min_range_, max_range_,
                                std::numeric_limits<float>::quiet_NaN());
 
-            scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
-                                        pixel_shift_by_row, i);
+            scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan, pixel_shift_by_row, i);
 
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;

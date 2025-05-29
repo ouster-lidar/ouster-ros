@@ -131,6 +131,8 @@ class OusterDriver : public OusterSensor {
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
 
+        auto mask_path = pnh.param("mask_path", std::string{});
+
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             auto point_type = pnh.param("point_type", std::string{"original"});
@@ -158,8 +160,6 @@ class OusterDriver : public OusterSensor {
                 NODELET_FATAL("v_reduction needs to be one of the values: {1, 2, 4, 8, 16}");
                 throw std::runtime_error("invalid v_reduction value!");
             }
-
-            auto mask_path = pnh.param("mask_path", std::string{});
 
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(
@@ -207,7 +207,7 @@ class OusterDriver : public OusterSensor {
 
         if (impl::check_token(tokens, "IMG")) {
             processors.push_back(ImageProcessor::create(
-                info, tf_bcast.point_cloud_frame_id(),
+                info, tf_bcast.point_cloud_frame_id(), mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);

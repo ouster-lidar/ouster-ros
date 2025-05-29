@@ -105,9 +105,12 @@ class OusterImage : public nodelet::Nodelet {
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
 
+        auto mask_path = pnh.param("mask_path", std::string{});
+
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
+                mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first].publish(*it->second);

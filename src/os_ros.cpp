@@ -95,7 +95,7 @@ sensor_msgs::Imu packet_to_imu_msg(const PacketMsg& pm,
 }
 
 namespace impl {
-sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
+sensor::ChanField scan_return(sensor::ChanField input_field, bool second) {
     switch (input_field) {
         case sensor::ChanField::RANGE:
         case sensor::ChanField::RANGE2:

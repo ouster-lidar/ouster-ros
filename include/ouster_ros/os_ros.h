@@ -132,7 +132,7 @@ Telemetry lidar_packet_to_telemetry_msg(
 
 
 namespace impl {
-sensor::ChanField suitable_return(sensor::ChanField input_field, bool second);
+sensor::ChanField scan_return(sensor::ChanField input_field, bool second);
 
 struct read_and_cast {
     template <typename T, typename U>

@@ -94,6 +94,7 @@
       output="screen" required="true"
       args="load ouster_ros/OusterImage os_nodelet_mgr $(arg _no_bond)">
       <param name="~/proc_mask" value="$(arg proc_mask)"/>
+      <param name="~/mask_path" value="$(arg mask_path)"/>
     </node>
   </group>
 
