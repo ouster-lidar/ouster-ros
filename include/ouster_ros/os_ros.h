@@ -206,7 +206,9 @@ ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
     }
     Eigen::MatrixXi eigen_img(image.rows, image.cols);
     cv::cv2eigen(image, eigen_img);
-    return eigen_img.cast<pixel_type>() / 255;
+    Eigen::MatrixXi zero_image = Eigen::MatrixXi::Zero(eigen_img.rows(), eigen_img.cols());
+    Eigen::MatrixXi ones_image = Eigen::MatrixXi::Ones(eigen_img.rows(), eigen_img.cols());
+    return (eigen_img.array() == 0.0).select(zero_image, ones_image).cast<pixel_type>();
 }
 
 } // namespace impl
