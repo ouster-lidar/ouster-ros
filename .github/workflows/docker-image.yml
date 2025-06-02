@@ -14,14 +14,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          - ros_distro: iron
+            rmw_imp: rmw_zenoh_cpp
         ros_distro:
           - rolling
           - humble
           - iron
           - jazzy
+          - kilted
         rmw_imp:
           - rmw_fastrtps_cpp
           - rmw_cyclonedds_cpp
+          - rmw_zenoh_cpp
     steps:
       - uses: actions/checkout@v4
         with:
