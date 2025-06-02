@@ -10,7 +10,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
 RUN set -xue && \
-    apt-get update && \
     apt-get install -y curl gnupg && \
     # Turn off installing extra packages globally to slim down rosdep install
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
