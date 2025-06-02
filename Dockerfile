@@ -10,8 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN set -xue && \
     # Turn off installing extra packages globally to slim down rosdep install
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
-    sudo apt-key del F42ED6FBAB17C654 || \
-    sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    apt-key del F42ED6FBAB17C654 || \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     apt-get update && \
     apt-get install -y \
         build-essential \
