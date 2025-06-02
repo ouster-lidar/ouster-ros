@@ -7,20 +7,21 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BUILD_HOME=/var/lib/build \
     OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
-RUN set -xue \
-# Turn off installing extra packages globally to slim down rosdep install
-&& echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend \
-&& apt-get update \
-&& apt-get install -y       \
-    build-essential         \
-    cmake                   \
-    fakeroot                \
-    dpkg-dev                \
-    debhelper               \
-    python3-rosdep          \
-    python3-rospkg          \
-    python3-bloom           \
-    python3-colcon-common-extensions
+RUN set -xue && \
+    # Turn off installing extra packages globally to slim down rosdep install
+    echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
+    apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key F42ED6FBAB17C654 || \
+    curl -sSL 'http://packages.ros.org/ros.key' | apt-key add - && \
+    apt-get update && \
+    apt-get install -y \
+        build-essential \
+        cmake \
+        fakeroot \
+        dpkg-dev \
+        python3-rosdep \
+        python3-rospkg \
+        python3-bloom \
+        python3-colcon-common-extensions
 
 RUN if [ "$RMW_IMPLEMENTATION" = "rmw_cyclonedds_cpp" ]; then \
         apt-get install -y ros-${ROS_DISTRO}-rmw-cyclonedds-cpp; \
