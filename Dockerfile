@@ -2,6 +2,8 @@ ARG ROS_DISTRO=rolling
 ARG RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 FROM ros:${ROS_DISTRO}-ros-core AS build-env
+ARG RMW_IMPLEMENTATION
+ARG ROS_DISTRO
 ENV DEBIAN_FRONTEND=noninteractive \
     RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION} \
     BUILD_HOME=/var/lib/build \
@@ -10,8 +12,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN set -xue && \
     # Turn off installing extra packages globally to slim down rosdep install
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
-    apt-key del F42ED6FBAB17C654 || \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    apt-key del F42ED6FBAB17C654 || true && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list && \
     apt-get update && \
     apt-get install -y \
         build-essential \
@@ -53,9 +56,8 @@ WORKDIR ${BUILD_HOME}
 RUN set -xe \
 && mkdir src \
 && cp -R $OUSTER_ROS_PATH ./src
-
-
 FROM build-env
+ARG ROS_DISTRO
 
 SHELL ["/bin/bash", "-c"]
 
