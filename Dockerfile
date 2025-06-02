@@ -16,6 +16,7 @@ RUN set -xue && \
     # Turn off installing extra packages globally to slim down rosdep install
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     apt-key del F42ED6FBAB17C654 || true && \
+    apt-key del AD19BAB3CBF125EA || true && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list && \
     apt-get update && \
