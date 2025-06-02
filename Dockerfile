@@ -24,6 +24,8 @@ RUN set -xue \
 
 RUN if [ "$RMW_IMPLEMENTATION" = "rmw_cyclonedds_cpp" ]; then \
         apt-get install -y ros-${ROS_DISTRO}-rmw-cyclonedds-cpp; \
+    elif [ "$RMW_IMPLEMENTATION" = "rmw_zenoh_cpp" ]; then \
+        apt-get install -y ros-${ROS_DISTRO}-rmw-zenoh-cpp; \
     fi
 
 # Set up non-root build user
