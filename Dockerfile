@@ -9,8 +9,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BUILD_HOME=/var/lib/build \
     OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
+RUN apt-get update || true && \
+    apt-get install -y curl gnupg || true
+
 RUN set -xue && \
-    apt-get install -y curl gnupg && \
     # Turn off installing extra packages globally to slim down rosdep install
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     apt-key del F42ED6FBAB17C654 || true && \
