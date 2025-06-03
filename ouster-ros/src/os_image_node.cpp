@@ -43,6 +43,7 @@ class OusterImage : public OusterProcessingNodeBase {
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("use_system_default_qos", false);
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
+        declare_parameter("mask_path", "");
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
@@ -101,9 +102,12 @@ class OusterImage : public OusterProcessingNodeBase {
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
 
+        auto mask_path = get_parameter("mask_path").as_string();
+
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
+                mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);

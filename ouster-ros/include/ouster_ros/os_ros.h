@@ -17,7 +17,8 @@
 #include <ouster/types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
@@ -135,7 +136,7 @@ ouster_sensor_msgs::msg::Telemetry lidar_packet_to_telemetry_msg(
 
 namespace impl {
 
-sensor::ChanField suitable_return(sensor::ChanField input_field, bool second);
+sensor::ChanField scan_return(sensor::ChanField input_field, bool second);
 
 struct read_and_cast {
     template <typename T, typename U>
@@ -178,6 +179,32 @@ uint64_t ulround(T value) {
     if (rounded_value < 0) return 0ULL;
     if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
     return static_cast<uint64_t>(rounded_value);
+}
+
+void warn_mask_resized(int image_cols, int image_rows,
+                       int scan_height, int scan_width);
+
+template <typename pixel_type>
+ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
+                                    size_t height, size_t width) {
+    if (mask_path.empty()) return ouster::img_t<pixel_type>();
+
+    cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
+    if (image.empty()) {
+        throw std::runtime_error("Failed to load mask image from path: " + mask_path);
+    }
+
+    if (image.rows != static_cast<int>(height) || image.cols != static_cast<int>(width)) {
+        warn_mask_resized(image.cols, image.rows, static_cast<int>(height), static_cast<int>(width));
+        cv::Mat resized;
+        cv::resize(image, resized, cv::Size(width, height), 0, 0, cv::INTER_NEAREST);
+        image = resized;
+    }
+    Eigen::MatrixXi eigen_img(image.rows, image.cols);
+    cv::cv2eigen(image, eigen_img);
+    Eigen::MatrixXi zero_image = Eigen::MatrixXi::Zero(eigen_img.rows(), eigen_img.cols());
+    Eigen::MatrixXi ones_image = Eigen::MatrixXi::Ones(eigen_img.rows(), eigen_img.cols());
+    return (eigen_img.array() == 0.0).select(zero_image, ones_image).cast<pixel_type>();
 }
 
 } // namespace impl

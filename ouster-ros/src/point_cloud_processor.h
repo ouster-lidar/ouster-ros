@@ -39,7 +39,8 @@ class PointCloudProcessor {
     PointCloudProcessor(const ouster::sensor::sensor_info& info,
                         const std::string& frame_id,
                         bool apply_lidar_to_sensor_transform,
-                        uint32_t min_range, uint32_t max_range, int rows_step,
+                        uint32_t min_range, uint32_t max_range,
+                        int rows_step, const std::string& mask_path,
                         ScanToCloudFn scan_to_cloud_fn_,
                         PointCloudProcessor_PostProcessingFn post_processing_fn_)
         : frame(frame_id),
@@ -66,6 +67,11 @@ class PointCloudProcessor {
         lut_direction = xyz_lut.direction.cast<float>();
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
+
+        mask = impl::load_mask<uint32_t>(
+                    mask_path,
+                    info.format.pixels_per_column / rows_step,
+                    info.format.columns_per_frame);
     }
 
    private:
@@ -82,7 +88,8 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = static_cast<sensor::ChanField>(sensor::ChanField::RANGE + i);
             auto range = lidar_scan.field<uint32_t>(range_channel);
-            ouster::cartesianT(points, range, lut_direction, lut_offset,
+            auto range_masked = mask.size() != 0 ? range * mask : range;
+            ouster::cartesianT(points, range_masked, lut_direction, lut_offset,
                                min_range_, max_range_,
                                std::numeric_limits<float>::quiet_NaN());
 
@@ -102,11 +109,12 @@ class PointCloudProcessor {
                                      const std::string& frame,
                                      bool apply_lidar_to_sensor_transform,
                                      uint32_t min_range, uint32_t max_range,
-                                     int rows_step, ScanToCloudFn scan_to_cloud_fn_,
+                                     int rows_step, const std::string& mask_path,
+                                     ScanToCloudFn scan_to_cloud_fn_,
                                      PointCloudProcessor_PostProcessingFn post_processing_fn) {
         auto handler = std::make_shared<PointCloudProcessor>(
             info, frame, apply_lidar_to_sensor_transform,
-            min_range, max_range, rows_step,
+            min_range, max_range, rows_step, mask_path,
             scan_to_cloud_fn_, post_processing_fn);
 
         return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
@@ -132,6 +140,8 @@ class PointCloudProcessor {
     PointCloudProcessor_OutputType pc_msgs;
     ScanToCloudFn scan_to_cloud_fn;
     PointCloudProcessor_PostProcessingFn post_processing_fn;
+
+    ouster::img_t<uint32_t> mask;
 };
 
 }  // namespace ouster_ros

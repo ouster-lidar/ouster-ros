@@ -114,6 +114,9 @@
   <arg name="v_reduction" default="1" description="vertical beam reduction;
    available options: {1, 2, 4, 8, 16}"/>
 
+  <arg name="mask_path" default="" description="path to an image file that will be used to
+   mask parts of the pointcloud}"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node pkg="ouster_ros" exec="os_driver" name="os_driver" output="screen">
@@ -151,6 +154,7 @@
       <param name="min_range" value="$(var min_range)"/>
       <param name="max_range" value="$(var max_range)"/>
       <param name="v_reduction" value="$(var v_reduction)"/>
+      <param name="mask_path" value="$(var mask_path)"/>
       <param name="min_scan_valid_columns_ratio"
              value="$(var min_scan_valid_columns_ratio)"/>
     </node>

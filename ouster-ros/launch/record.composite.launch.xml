@@ -118,6 +118,9 @@
   <arg name="v_reduction" default="1" description="vertical beam reduction;
    available options: {1, 2, 4, 8, 16}"/>
 
+  <arg name="mask_path" default="" description="path to an image file that will be used to
+   mask parts of the pointcloud}"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
@@ -160,11 +163,13 @@
         <param name="min_range" value="$(var min_range)"/>
         <param name="max_range" value="$(var max_range)"/>
         <param name="v_reduction" value="$(var v_reduction)"/>
+        <param name="mask_path" value="$(var mask_path)"/>
         <param name="min_scan_valid_columns_ratio" value="$(var min_scan_valid_columns_ratio)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
         <param name="proc_mask" value="$(var proc_mask)"/>
+        <param name="mask_path" value="$(var mask_path)"/>
       </composable_node>
     </node_container>
   </group>
