@@ -67,6 +67,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("max_range", 1000.0);
         declare_parameter("v_reduction", 1);
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
+        declare_parameter("mask_path", "");
     }
 
     void metadata_handler(
@@ -158,11 +159,13 @@ class OusterCloud : public OusterProcessingNodeBase {
                 throw std::runtime_error("invalid v_reduction value!");
             }
 
+            auto mask_path = get_parameter("mask_path").as_string();
+
             processors.push_back(
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type,
                     info, tf_bcast.point_cloud_frame_id(),
                     tf_bcast.apply_lidar_to_sensor_transform(),
-                    organized, destagger, min_range, max_range, v_reduction,
+                    organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
                             lidar_pubs[i]->publish(*msgs[i]);

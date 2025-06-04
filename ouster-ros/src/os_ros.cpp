@@ -98,7 +98,7 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
 }
 
 namespace impl {
-sensor::ChanField suitable_return(sensor::ChanField input_field, bool second) {
+sensor::ChanField scan_return(sensor::ChanField input_field, bool second) {
     switch (input_field) {
         case sensor::ChanField::RANGE:
         case sensor::ChanField::RANGE2:
@@ -151,6 +151,14 @@ version parse_version(const std::string& fw_rev) {
     } catch (const std::exception&) {
         return invalid_version;
     }
+}
+
+void warn_mask_resized(int image_cols, int image_rows,
+                       int scan_height, int scan_width) {
+    auto logger = rclcpp::get_logger("ouster_ros");
+    RCLCPP_WARN_STREAM(logger, "Mask image has size (" << image_cols << "x" << image_rows << ")"
+                       << " but incoming scans has size (" << scan_height << "x" << scan_width << ")."
+                       << " Resizing mask to match the scans size.");    
 }
 
 }  // namespace impl

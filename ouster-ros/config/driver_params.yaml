@@ -122,3 +122,6 @@ ouster/os_driver:
     # min_scan_valid_columns_ratio[optional]: The minimum ratio of valid columns for
     # processing the LidarScan [0, 1]. default is 0%
     min_scan_valid_columns_ratio: 0.0
+    # mask_path[optional]: path to an image file that will be used to mask parts of the
+    # pointcloud.
+    mask_path: ''

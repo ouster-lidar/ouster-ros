@@ -48,6 +48,7 @@ class OusterDriver : public OusterSensor {
         declare_parameter("max_range", 1000.0);
         declare_parameter("v_reduction", 1);
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
+        declare_parameter("mask_path", "");
     }
 
     ~OusterDriver() override {
@@ -90,6 +91,8 @@ class OusterDriver : public OusterSensor {
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
 
+        auto mask_path = get_parameter("mask_path").as_string();
+
         int num_returns = get_n_returns(info);
 
         std::vector<LidarScanProcessor> processors;
@@ -130,7 +133,7 @@ class OusterDriver : public OusterSensor {
                 PointCloudProcessorFactory::create_point_cloud_processor(point_type,
                     info, tf_bcast.point_cloud_frame_id(),
                     tf_bcast.apply_lidar_to_sensor_transform(),
-                    organized, destagger, min_range, max_range, v_reduction,
+                    organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
                             lidar_pubs[i]->publish(*msgs[i]);
@@ -205,7 +208,7 @@ class OusterDriver : public OusterSensor {
             }
 
             processors.push_back(ImageProcessor::create(
-                info, tf_bcast.point_cloud_frame_id(),
+                info, tf_bcast.point_cloud_frame_id(), mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);

@@ -21,6 +21,7 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # ==== Options ====
 add_compile_options(-Wall -Wextra)
@@ -52,7 +53,9 @@ find_package(OusterSDK REQUIRED)
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
 
 # catkin adds all include dirs to a single variable, don't try to use targets
-include_directories(${_ouster_ros_INCLUDE_DIRS})
+include_directories(
+  ${_ouster_ros_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS})
 
 # use only MPL-licensed parts of eigen
 add_definitions(-DEIGEN_MPL2_ONLY)
@@ -86,6 +89,7 @@ target_link_libraries(ouster_ros_library
     pcl_common
   # PRIVATE (unsupported)
   -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive
+  ${OpenCV_LIBRARIES}
 )
 
 # helper method to construct ouster-ros components
