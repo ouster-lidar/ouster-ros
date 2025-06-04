@@ -89,9 +89,9 @@ ouster/os_driver:
     # - ouster_ros/common_point_types.h.
     point_type: xyz
     # azimuth window start[optional]: values range [0, 360000] millidegrees
-    azimuth_window_start: 100000
+    azimuth_window_start: 115000
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
-    azimuth_window_end: 260000
+    azimuth_window_end: 245000
     # persist_config[optional]: request the sensor to persist settings
     persist_config: true
 
@@ -106,5 +106,5 @@ ouster/os_driver:
     multipurpose_io_mode: 6
 
     # Angle in degrees that sensor traverses between each SYNC_PULSE_OUT
-    # pulse. See senor docs for more details.
+    # pulse. See sensor docs for more details.
     sync_pulse_out_angle: 360
