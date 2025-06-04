@@ -16,7 +16,6 @@ jobs:
       matrix:
         exclude:
           - ros_distro: iron
-            rmw_imp: rmw_zenoh_cpp
         ros_distro:
           - rolling
           - humble
