@@ -9,15 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BUILD_HOME=/var/lib/build \
     OUSTER_ROS_PATH=/opt/ros2_ws/src/ouster-ros
 
-RUN apt-get update || true && \
-    apt-get install -y curl gnupg
-
 RUN set -xue && \
-    # Turn off installing extra packages globally to slim down rosdep install
-    echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
-    rm -f /etc/apt/sources.list.d/ros2-snapshots.list || true && \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list && \
     apt-get update && \
     apt-get install -y \
         build-essential \
