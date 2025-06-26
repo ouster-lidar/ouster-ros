@@ -22,6 +22,7 @@
   <depend>pcl_conversions</depend>
   <depend>std_srvs</depend>
   <depend>cv_bridge</depend>
+  <depend>point_cloud_transport</depend>
 
   <build_depend>libjsoncpp-dev</build_depend>
   <build_depend>eigen</build_depend>
@@ -38,6 +39,9 @@
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
   <exec_depend>libtins-dev</exec_depend>
+  <exec_depend>zstd_point_cloud_transport</exec_depend>
+  <exec_depend>zlib_point_cloud_transport</exec_depend>
+  <exec_depend>draco_point_cloud_transport</exec_depend>
 
   <test_depend>gtest</test_depend>
 

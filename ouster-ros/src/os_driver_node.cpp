@@ -98,9 +98,13 @@ class OusterDriver : public OusterSensor {
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
+
+            auto pct_node = std::make_shared<rclcpp::Node>("pct_helper_node");
+            point_cloud_transport::PointCloudTransport pct(pct_node);
+
             for (int i = 0; i < num_returns; ++i) {
-                lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                    topic_for_return("points", i), selected_qos);
+                std::string topic = topic_for_return("points", i);
+                lidar_pubs[i] = pct.advertise(topic, 1);
             }
 
             auto point_type = get_parameter("point_type").as_string();
@@ -136,7 +140,7 @@ class OusterDriver : public OusterSensor {
                     organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
-                            lidar_pubs[i]->publish(*msgs[i]);
+                            lidar_pubs[i].publish(*msgs[i]);
                     }
                 )
             );
@@ -262,7 +266,6 @@ class OusterDriver : public OusterSensor {
         imu_packet_handler = nullptr;
         lidar_packet_handler = nullptr;
         imu_pub.reset();
-        for (auto p : lidar_pubs) p.reset();
         for (auto p : scan_pubs) p.reset();
         for (auto p : image_pubs) p.second.reset();
         OusterSensor::cleanup();
@@ -272,7 +275,7 @@ class OusterDriver : public OusterSensor {
     OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode> tf_bcast;
 
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr>
+    std::vector<point_cloud_transport::Publisher>
         lidar_pubs;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
         scan_pubs;

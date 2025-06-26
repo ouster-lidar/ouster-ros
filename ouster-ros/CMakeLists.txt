@@ -22,6 +22,7 @@ find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(point_cloud_transport REQUIRED)
 
 # ==== Options ====
 add_compile_options(-Wall -Wextra)
@@ -114,6 +115,7 @@ function(create_ros2_component
     std_msgs
     sensor_msgs
     geometry_msgs
+    point_cloud_transport
     ${additonal_dependencies}
   )
 
