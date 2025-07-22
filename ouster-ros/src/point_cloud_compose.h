@@ -146,7 +146,8 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                 timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
 
             if (organized) {
-                cloud.is_dense &= xyz.isNaN().any();
+                // set is_dense to false if any of the xyz coordinates is NaN
+                cloud.is_dense &= !xyz.isNaN().any();
             } else {
                 if (xyz.isNaN().any())
                     continue;
