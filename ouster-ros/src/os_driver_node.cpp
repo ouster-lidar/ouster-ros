@@ -137,6 +137,14 @@ class OusterDriver : public OusterSensor {
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
                             lidar_pubs[i]->publish(*msgs[i]);
+                    },
+                    [this]() -> bool {
+                        for (const auto& pub: lidar_pubs) {
+                            if (pub->get_subscription_count() > 0) {
+                                return true;
+                            }
+                        }
+                        return false;
                     }
                 )
             );
