@@ -178,6 +178,14 @@ class OusterDriver : public OusterSensor {
                 info, tf_bcast.lidar_frame_id(), scan_ring,
                 [this](LaserScanProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) scan_pubs[i]->publish(*msgs[i]);
+                },
+                [this]() -> bool {
+                    for (const auto& pub: scan_pubs) {
+                        if (pub->get_subscription_count() > 0) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }));
         }
 
@@ -213,6 +221,14 @@ class OusterDriver : public OusterSensor {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);
                     }
+                },
+                [this]() -> bool {
+                    for (const auto& pub: image_pubs) {
+                        if (pub.second->get_subscription_count() > 0) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }));
         }
 
@@ -238,7 +254,7 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
-        if (telemetry_handler) {
+        if (telemetry_handler && telemetry_pub->get_subscription_count() > 0) {
             auto telemetry = telemetry_handler(lidar_packet);
             telemetry_pub->publish(telemetry);
         }
@@ -251,7 +267,7 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
-        if (imu_packet_handler)
+        if (imu_packet_handler && imu_pub->get_subscription_count() > 0)
             imu_pub->publish(imu_packet_handler(imu_packet));
 
         if (publish_raw)
