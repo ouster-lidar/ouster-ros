@@ -111,14 +111,18 @@ class PointCloudProcessor {
                                      uint32_t min_range, uint32_t max_range,
                                      int rows_step, const std::string& mask_path,
                                      ScanToCloudFn scan_to_cloud_fn_,
-                                     PointCloudProcessor_PostProcessingFn post_processing_fn) {
+                                     PointCloudProcessor_PostProcessingFn post_processing_fn,
+                                     std::function<bool()> should_process = []() { return true; }) {
         auto handler = std::make_shared<PointCloudProcessor>(
             info, frame, apply_lidar_to_sensor_transform,
             min_range, max_range, rows_step, mask_path,
             scan_to_cloud_fn_, post_processing_fn);
 
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler, should_process](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
+            if (!should_process()) {
+                return;
+            }
             handler->process(lidar_scan, scan_ts, msg_ts);
         };
     }
