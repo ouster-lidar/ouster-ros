@@ -23,6 +23,8 @@
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
+#include "new_parsing.h"
+#include "impl/cartesian.h"
 
 namespace ouster_ros {
 
@@ -158,6 +160,14 @@ class OusterDriver : public OusterSensor {
                     << "' is not compatible with the udp profile: "
                     << to_string(info.format.udp_profile_lidar));
             }
+            
+            auto xyz_lut = ouster::make_xyz_lut(info);
+        // The ouster_ros drive currently only uses single precision when it
+        // produces the point cloud. So it isn't of a benefit to compute point
+        // cloud xyz coordinates using double precision (for the time being).
+            lut_direction = xyz_lut.direction.cast<float>();
+            lut_offset = xyz_lut.offset.cast<float>();
+            pf = std::make_shared<ouster::sensor::packet_format>(info);
         }
 
         if (impl::check_token(tokens, "SCAN")) {
@@ -261,14 +271,40 @@ class OusterDriver : public OusterSensor {
             OusterSensor::create_publishers();
     }
 
+    pcl::PCLPointCloud2 staging_pcl_pc2;
+    ouster_ros::Cloud<ouster_ros::Point> cloud, cloud2;
+    std::vector<uint8_t> cloud_bytes, cloud2_bytes;
+    sensor_msgs::msg::PointCloud2 cloud_msg;
+    int64_t last_frame_id_ = -1;
     virtual void on_lidar_packet_msg(const LidarPacket& lidar_packet) override {
         if (telemetry_handler && telemetry_pub->get_subscription_count() > 0) {
             auto telemetry = telemetry_handler(lidar_packet);
             telemetry_pub->publish(telemetry);
         }
 
-        if (lidar_packet_handler)
-            lidar_packet_handler(lidar_packet);
+        //if (lidar_packet_handler)
+        //    lidar_packet_handler(lidar_packet);
+        
+        auto fid = pf->frame_id(lidar_packet.buf.data());
+        if (fid != last_frame_id_) {
+            last_frame_id_ = fid;
+            
+            // publish old!
+            pcl::toPCLPointCloud2(cloud, staging_pcl_pc2);
+            pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud_msg);
+            std::swap(cloud_msg.data, cloud_bytes);
+            lidar_pubs[0]->publish(cloud_msg);
+            cloud.points.clear();
+            cloud2.points.clear();
+        }
+        
+        //CopyReal<Single, ouster_ros::Point>(info.format.columns_per_packet, info.format.pixels_per_column, cloud, cloud2, lidar_packet.buf,
+        // lut_direction.data(), lut_offset.data());
+        CopyBytes<Single, ouster_ros::Point>(info.format.columns_per_packet, 
+        info.format.pixels_per_column, cloud_bytes, cloud2_bytes, lidar_packet.buf,
+         lut_direction.data(), lut_offset.data());
+        
+        // try the parsing
 
         if (publish_raw)
             OusterSensor::on_lidar_packet_msg(lidar_packet);
@@ -305,8 +341,11 @@ class OusterDriver : public OusterSensor {
         image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+    RealPointF lut_direction;
+    RealPointF lut_offset;
 
     bool publish_raw = false;
+    std::shared_ptr<ouster::sensor::packet_format> pf;
 
     rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
     TelemetryHandler::HandlerType telemetry_handler;
