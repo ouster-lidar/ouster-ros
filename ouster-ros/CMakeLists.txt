@@ -77,6 +77,7 @@ set(ouster_ros_library_deps
   pcl_conversions
   tf2
   tf2_eigen
+  OpenCV
 )
 
 ament_target_dependencies(ouster_ros_library
