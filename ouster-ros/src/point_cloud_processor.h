@@ -91,7 +91,7 @@ class PointCloudProcessor {
             auto range_masked = mask.size() != 0 ? range * mask : range;
             ouster::cartesianT(points, range_masked, lut_direction, lut_offset,
                                min_range_, max_range_,
-                               std::numeric_limits<float>::quiet_NaN());
+                               1.0f);
 
             scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
                                         pixel_shift_by_row, i);
