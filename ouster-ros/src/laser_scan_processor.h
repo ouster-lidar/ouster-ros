@@ -59,12 +59,16 @@ class LaserScanProcessor {
    public:
     static LidarScanProcessor create(const ouster::sensor::sensor_info& info,
                                      const std::string& frame, uint16_t ring,
-                                     PostProcessingFn func) {
+                                     PostProcessingFn func,
+                                     std::function<bool()> should_process = []() { return true; }) {
         auto handler =
             std::make_shared<LaserScanProcessor>(info, frame, ring, func);
 
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler, should_process](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
+            if (!should_process()) {
+                return;
+            }
             handler->process(lidar_scan, scan_ts, msg_ts);
         };
     }
