@@ -83,6 +83,10 @@ void OusterSensor::declare_parameters() {
     declare_parameter("dormant_period_between_reconnects", 1.0);
     declare_parameter("max_failed_reconnect_attempts", INT_MAX);
     declare_parameter("auto_start", false);
+    declare_parameter("use_diagnostics", false);
+    declare_parameter("diagnostics_period", 1.0);
+    declare_parameter("diagnostics_hardware_id", "");
+    declare_parameter("diagnostics_name", "");
 }
 
 bool OusterSensor::start() {
@@ -122,32 +126,66 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
     const rclcpp_lifecycle::State&) {
     RCLCPP_DEBUG(get_logger(), "on_configure() is called.");
 
+    // Initialize diagnostics
+    bool use_diagnostics = get_parameter("use_diagnostics").as_bool();
+    if (use_diagnostics) {
+      double diagnostics_period = get_parameter("diagnostics_period").as_double();
+      std::string diagnostics_name = get_parameter("diagnostics_name").as_string();
+
+      RCLCPP_INFO(
+        get_logger(), "Diagnostics \"%s\" enabled with period: %.2f seconds",
+        diagnostics_name.c_str(), diagnostics_period);
+      create_diagnostics_pub(diagnostics_period, diagnostics_name, get_diagnostics_hardware_id());
+
+      update_diagnostics_status("Configuring sensor", diagnostic_msgs::msg::DiagnosticStatus::OK);
+    }
+
     try {
         if (!start()) {
-            auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
-            reconnect_timer = create_wall_timer(sleep_duration, [this]() {
-                reconnect_timer->cancel();
-                if (attempt_reconnect && reconnect_attempts_available-- > 0) {
-                    RCLCPP_INFO_STREAM(get_logger(), "Attempting to communicate with the sensor, "
-                                        "remaining attempts: " << reconnect_attempts_available);
+          auto debug_ctx = get_debug_context();
+          debug_ctx["Failure Context"] = "Sensor initialization failed";
 
-                    auto request_transitions = std::vector<uint8_t>{
-                        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
-                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
-                    execute_transitions_sequence(request_transitions, 0);
-                }
-            });
-            return LifecycleNodeInterface::CallbackReturn::FAILURE;
+          update_diagnostics_status(
+            "Sensor start failed", diagnostic_msgs::msg::DiagnosticStatus::ERROR, debug_ctx);
+          auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
+          reconnect_timer = create_wall_timer(sleep_duration, [this]() {
+            reconnect_timer->cancel();
+            if (attempt_reconnect && reconnect_attempts_available-- > 0) {
+              RCLCPP_INFO_STREAM(
+                get_logger(),
+                "Attempting to communicate with the sensor, "
+                "remaining attempts: "
+                  << reconnect_attempts_available);
+
+              auto request_transitions = std::vector<uint8_t>{
+                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+              execute_transitions_sequence(request_transitions, 0);
+            }
+          });
+          return LifecycleNodeInterface::CallbackReturn::FAILURE;
         } else {
             // reset counter
             reconnect_attempts_available =
                 get_parameter("max_failed_reconnect_attempts").as_int();
+
+            update_diagnostics_status(
+              "Sensor configured successfully", diagnostic_msgs::msg::DiagnosticStatus::OK);
         }
     } catch (const std::exception& ex) {
         RCLCPP_ERROR_STREAM(
             get_logger(),
             "exception thrown while configuring the sensor, details: "
                 << ex.what());
+
+        auto debug_ctx = get_debug_context();
+        debug_ctx["Exception Details"] = std::string(ex.what());
+        debug_ctx["Failure Context"] = "Configuration exception occurred";
+
+        update_diagnostics_status(
+          "Configuration failed: " + std::string(ex.what()),
+          diagnostic_msgs::msg::DiagnosticStatus::ERROR, debug_ctx);
+
         // TODO: return ERROR on fatal errors, FAILURE otherwise
         return LifecycleNodeInterface::CallbackReturn::ERROR;
     }
@@ -163,7 +201,11 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
         update_metadata(*sensor_client);
     create_publishers();
     allocate_buffers();
+
     start_sensor_connection_thread();
+    update_diagnostics_status(
+      "Sensor activated and streaming data", diagnostic_msgs::msg::DiagnosticStatus::OK);
+
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -179,6 +221,10 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_deactivate(
     RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
     LifecycleNode::on_deactivate(state);
     stop_sensor_connection_thread();
+    cleanup();
+
+    update_diagnostics_status("Sensor deactivated", diagnostic_msgs::msg::DiagnosticStatus::WARN);
+
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -237,6 +283,34 @@ std::string OusterSensor::get_sensor_hostname() {
     }
 
     return hostname;
+}
+
+std::string OusterSensor::get_diagnostics_hardware_id()
+{
+  if (diagnostics_hardware_id_.empty()) {
+    std::string custom_hw_id = get_parameter("diagnostics_hardware_id").as_string();
+    if (!custom_hw_id.empty()) {
+      diagnostics_hardware_id_ = custom_hw_id;
+    } else {
+      // Default to sensor hostname if no custom hardware ID is provided
+      diagnostics_hardware_id_ = get_sensor_hostname();
+    }
+  }
+  return diagnostics_hardware_id_;
+}
+
+std::map<std::string, std::string> OusterSensor::get_debug_context() const
+{
+  if (!diagnostics_tracker_) {
+    return {};
+  }
+
+  // Get port configurations for context
+  int lidar_port = get_parameter("lidar_port").as_int();
+  int imu_port = get_parameter("imu_port").as_int();
+
+  return diagnostics_tracker_->get_debug_context(
+    sensor_hostname, sensor_connection_active, lidar_port, imu_port);
 }
 
 void OusterSensor::update_metadata(sensor::client& cli) {
@@ -672,7 +746,10 @@ void OusterSensor::populate_metadata_defaults(
     }
 }
 
-void OusterSensor::on_metadata_updated(const sensor::sensor_info&) {}
+void OusterSensor::on_metadata_updated(const sensor::sensor_info &)
+{
+  diagnostics_tracker_->update_metadata(info);
+}
 
 void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
     display_lidar_info(info);
@@ -837,11 +914,21 @@ void OusterSensor::stop_sensor_connection_thread() {
 void OusterSensor::on_lidar_packet_msg(const LidarPacket&) {
     lidar_packet_msg.buf.swap(lidar_packet.buf);
     lidar_packet_pub->publish(lidar_packet_msg);
+
+    // Update diagnostic tracking
+    if (diagnostics_tracker_) {
+      diagnostics_tracker_->record_lidar_packet();
+    }
 }
 
 void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
     imu_packet_msg.buf.swap(imu_packet.buf);
     imu_packet_pub->publish(imu_packet_msg);
+
+    // Update diagnostic tracking
+    if (diagnostics_tracker_) {
+      diagnostics_tracker_->record_imu_packet();
+    }
 }
 
 }  // namespace ouster_ros
