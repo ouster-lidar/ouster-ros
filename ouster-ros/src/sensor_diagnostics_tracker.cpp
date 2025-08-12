@@ -12,63 +12,69 @@
 namespace ouster_ros
 {
 
-void SensorDiagnosticsTracker::record_lidar_packet()
+void SensorDiagnosticsState::record_lidar_packet()
 {
   last_successful_lidar_frame_ = clock_->now();
   total_lidar_packets_received_++;
 }
 
-void SensorDiagnosticsTracker::record_imu_packet()
+void SensorDiagnosticsState::record_imu_packet()
 {
   last_successful_imu_frame_ = clock_->now();
   total_imu_packets_received_++;
 }
 
-void SensorDiagnosticsTracker::increment_poll_client_errors()
+void SensorDiagnosticsState::increment_poll_client_errors()
 {
   last_client_error_ = clock_->now();
   poll_client_error_count_++;
 }
 
-void SensorDiagnosticsTracker::increment_lidar_packet_errors()
+void SensorDiagnosticsState::increment_lidar_packet_errors()
 {
   last_unsuccessful_lidar_frame_ = clock_->now();
   read_lidar_packet_errors_++;
 }
 
-void SensorDiagnosticsTracker::increment_imu_packet_errors()
+void SensorDiagnosticsState::increment_imu_packet_errors()
 {
   last_unsuccessful_imu_frame_ = clock_->now();
   read_imu_packet_errors_++;
 }
 
-void SensorDiagnosticsTracker::notify_reset_sensor()
+void SensorDiagnosticsState::notify_reset_sensor()
 {
   last_sensor_reset_ = clock_->now();
   total_sensor_resets_++;
 }
 
-rclcpp::Time SensorDiagnosticsTracker::get_zero_time() const
+rclcpp::Time SensorDiagnosticsState::get_zero_time() const
 {
   return rclcpp::Time(0, 0, clock_->get_clock_type());
 }
 
-void SensorDiagnosticsTracker::update_status(
+void SensorDiagnosticsState::update_status(
   const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
   const std::map<std::string, std::string> & debug_context)
 {
   current_message_ = message;
   current_level_ = level;
   current_debug_context_ = debug_context;
+  message_history_.clear();
 }
 
-diagnostic_msgs::msg::DiagnosticStatus SensorDiagnosticsTracker::get_current_status() const
+diagnostic_msgs::msg::DiagnosticStatus SensorDiagnosticsState::get_current_status() const
 {
   return create_diagnostic_status(current_message_, current_level_, current_debug_context_);
 }
 
+void SensorDiagnosticsState::add_message_analysis(
+  const std::string & topic_name, const std::vector<diagnostic_msgs::msg::KeyValue> & analysis)
+{
+  message_history_[topic_name].push_back(analysis);
+}
 
-std::map<std::string, std::string> SensorDiagnosticsTracker::get_debug_context(
+std::map<std::string, std::string> SensorDiagnosticsState::get_debug_context(
   const std::string & sensor_hostname, bool sensor_connection_active) const
 {
   std::map<std::string, std::string> context;
@@ -96,7 +102,7 @@ std::map<std::string, std::string> SensorDiagnosticsTracker::get_debug_context(
   return context;
 }
 
-diagnostic_msgs::msg::DiagnosticStatus SensorDiagnosticsTracker::create_diagnostic_status(
+diagnostic_msgs::msg::DiagnosticStatus SensorDiagnosticsState::create_diagnostic_status(
   const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
   const std::map<std::string, std::string> & debug_context) const
 {
@@ -152,10 +158,34 @@ diagnostic_msgs::msg::DiagnosticStatus SensorDiagnosticsTracker::create_diagnost
     add_kv(status.values, context_pair.first, context_pair.second);
   }
 
+  std::vector<diagnostic_msgs::msg::KeyValue> message_history_kv;
+  for (const auto & [topic_name, analyses] : message_history_) {
+    for (const auto & analysis : analyses) {
+      for (const auto & kv : analysis) {
+        add_kv(message_history_kv, topic_name + " " + kv.key, kv.value);
+      }
+    }
+  }
+
+  // Sort and unique keys to avoid duplicates, leave the most recent ones
+  std::stable_sort(
+    message_history_kv.rbegin(), message_history_kv.rend(),
+    [](const diagnostic_msgs::msg::KeyValue & a, const diagnostic_msgs::msg::KeyValue & b) {
+      return a.key < b.key;
+    });
+
+  auto unique_end = std::unique(
+    message_history_kv.rbegin(), message_history_kv.rend(),
+    [](const diagnostic_msgs::msg::KeyValue & a, const diagnostic_msgs::msg::KeyValue & b) {
+      return a.key == b.key;
+    });
+
+  std::move(message_history_kv.rbegin(), unique_end, std::back_inserter(status.values));
+
   return status;
 }
 
-void SensorDiagnosticsTracker::update_metadata(const ouster::sensor::sensor_info & info)
+void SensorDiagnosticsState::update_metadata(const ouster::sensor::sensor_info & info)
 {
   sensor_info_.clear();
 

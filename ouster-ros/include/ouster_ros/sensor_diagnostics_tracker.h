@@ -9,6 +9,8 @@
 #pragma once
 
 #include <ouster/types.h>
+#include <ouster_ros/diagnostics_visitor_registry.h>
+#include <ouster_ros/ring_buffer.h>
 
 #include <cstdint>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
@@ -23,10 +25,10 @@
 namespace ouster_ros
 {
 
-class SensorDiagnosticsTracker final
+class SensorDiagnosticsState final
 {
 public:
-  SensorDiagnosticsTracker  (
+  SensorDiagnosticsState(
     const std::string & name, rclcpp::Clock::SharedPtr clock, const std::string & hardware_id = "")
   : name_{name},
     hardware_id_{hardware_id.empty() ? name : hardware_id},
@@ -34,6 +36,8 @@ public:
     sensor_start_time_{clock_->now()}
   {
   }
+
+  ~SensorDiagnosticsState() = default;
 
   void record_lidar_packet();
   void record_imu_packet();
@@ -97,6 +101,8 @@ protected:
   uint32_t read_imu_packet_errors_{0};
   std::map<std::string, std::string> sensor_info_;
 
+  std::map<std::string, RingBuffer<std::vector<diagnostic_msgs::msg::KeyValue>>> message_history_;
+
   std::string current_message_{"Not initialized"};
   diagnostic_msgs::msg::DiagnosticStatus::_level_type current_level_{
     diagnostic_msgs::msg::DiagnosticStatus::STALE};
@@ -105,5 +111,210 @@ protected:
 private:
   rclcpp::Time get_zero_time() const;
 };
+
+template <
+  typename DiagnosticsVisitorRegistryType>
+class SensorDiagnosticsTracker
+{
+public:
+  using DiagnosticsVisitorRegistryT = DiagnosticsVisitorRegistryType;
+
+  template <typename NodeT>
+  SensorDiagnosticsTracker(
+    const std::string & name, NodeT * node, const std::string & hardware_id = "",
+    const DiagnosticsVisitorRegistryType & msg_analyzer = DiagnosticsVisitorRegistryType{});
+
+  SensorDiagnosticsTracker(
+    const std::string & name, rclcpp::Clock::SharedPtr clock, const std::string & hardware_id = "",
+    const DiagnosticsVisitorRegistryType & msg_analyzer = DiagnosticsVisitorRegistryType{});
+
+  ~SensorDiagnosticsTracker() = default;
+
+  void record_lidar_packet() { base_.record_lidar_packet(); }
+  void record_imu_packet() { base_.record_imu_packet(); }
+  void increment_poll_client_errors() { base_.increment_poll_client_errors(); }
+  void increment_lidar_packet_errors() { base_.increment_lidar_packet_errors(); }
+  void increment_imu_packet_errors() { base_.increment_imu_packet_errors(); }
+  void notify_reset_sensor() { base_.notify_reset_sensor(); }
+  void update_metadata(const ouster::sensor::sensor_info & info) { base_.update_metadata(info); }
+
+  void force_update();
+
+  void update_status(
+    const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+    const std::map<std::string, std::string> & debug_context = {});
+
+  diagnostic_msgs::msg::DiagnosticStatus get_current_status() const;
+
+  std::map<std::string, std::string> get_debug_context(
+    const std::string & sensor_hostname, bool sensor_connection_active) const;
+
+  diagnostic_msgs::msg::DiagnosticStatus create_diagnostic_status(
+    const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+    const std::map<std::string, std::string> & debug_context = {}) const;
+
+  template <typename MsgT>
+  void record_msg(const std::string & topic_name, const MsgT & msgs);
+
+private:
+  void produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat);
+
+  double get_packet_rate(uint32_t packet_count, const rclcpp::Time & start_time) const;
+  bool is_sensor_healthy() const;
+
+  rclcpp::Logger logger_;
+  std::unique_ptr<diagnostic_updater::Updater> updater_;
+
+  // Current sensor status
+  std::string sensor_hostname_{"unknown"};
+  bool sensor_connection_active_{false};
+
+  SensorDiagnosticsState base_;
+  DiagnosticsVisitorRegistryType msg_analyzer_;
+};
+
+// Template implementation for ROS nodes
+template <typename DiagnosticsVisitorRegistryType>
+template <typename NodeT>
+SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::SensorDiagnosticsTracker(
+  const std::string & name, NodeT * node, const std::string & hardware_id,
+  const DiagnosticsVisitorRegistryType & msg_analyzer)
+: logger_(node->get_logger()),
+  updater_(nullptr),
+  base_(name, node->get_clock(), hardware_id),
+  msg_analyzer_(msg_analyzer)
+{
+  try {
+    updater_ = std::make_unique<diagnostic_updater::Updater>(node);
+    updater_->setHardwareID(base_.get_hardware_id());
+    updater_->add(name + " Status", this, &SensorDiagnosticsTracker::produce_diagnostics);
+    RCLCPP_INFO(logger_, "Diagnostic updater initialized for %s", name.c_str());
+  } catch (const std::exception & e) {
+    RCLCPP_WARN(logger_, "Failed to initialize diagnostic updater: %s", e.what());
+    updater_ = nullptr;
+  }
+}
+
+// Standalone constructor for testing
+template <typename DiagnosticsVisitorRegistryType>
+SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::SensorDiagnosticsTracker(
+  const std::string & name, rclcpp::Clock::SharedPtr clock, const std::string & hardware_id,
+  const DiagnosticsVisitorRegistryType & msg_analyzer)
+: logger_(rclcpp::get_logger("sensor_diagnostics_tracker")),
+  updater_(nullptr),
+  base_(name, clock, hardware_id),
+  msg_analyzer_(msg_analyzer)
+{
+  RCLCPP_INFO(logger_, "Standalone sensor diagnostics tracker initialized for %s", name.c_str());
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::force_update()
+{
+  if (updater_) {
+    updater_->force_update();
+  }
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::update_status(
+  const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+  const std::map<std::string, std::string> & debug_context)
+{
+  base_.update_status(message, level, debug_context);
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+diagnostic_msgs::msg::DiagnosticStatus
+SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_current_status() const
+{
+  return base_.get_current_status();
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+std::map<std::string, std::string>
+SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_debug_context(
+  const std::string & sensor_hostname, bool sensor_connection_active) const
+{
+  return base_.get_debug_context(sensor_hostname, sensor_connection_active);
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+diagnostic_msgs::msg::DiagnosticStatus
+SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::create_diagnostic_status(
+  const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+  const std::map<std::string, std::string> & debug_context) const
+{
+  return base_.create_diagnostic_status(message, level, debug_context);
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+template <typename MsgT>
+void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::record_msg(
+  const std::string & topic_name, const MsgT & msgs)
+{
+  auto analysis = msg_analyzer_(msgs);
+  base_.add_message_analysis(topic_name, analysis);
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::produce_diagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
+  bool is_healthy = is_sensor_healthy();
+
+  if (is_healthy) {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "Sensor operating normally");
+  } else {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Sensor health issues detected");
+  }
+
+  const auto & current_status = base_.get_current_status();
+  auto diag_status = create_diagnostic_status(
+    current_status.message, current_status.level,
+    base_.get_debug_context(sensor_hostname_, sensor_connection_active_));
+  std::move(diag_status.values.begin(), diag_status.values.end(), std::back_inserter(stat.values));
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+bool SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::is_sensor_healthy() const
+{
+  auto now = base_.get_clock()->now();
+
+  // Check if we've received recent packets
+  const auto timeout_threshold = rclcpp::Duration::from_seconds(5.0);
+
+  bool lidar_healthy = (now - base_.get_last_successful_lidar_frame()) < timeout_threshold;
+  bool imu_healthy = (now - base_.get_last_successful_imu_frame()) < timeout_threshold;
+
+  // Consider sensor healthy if we have recent data and low error rates
+  bool low_error_rate = (base_.get_poll_client_error_count() < 10) &&
+                        (base_.get_read_lidar_packet_errors() < 100) &&
+                        (base_.get_read_imu_packet_errors() < 100);
+
+  return (lidar_healthy || imu_healthy) && low_error_rate;
+}
+
+template <typename DiagnosticsVisitorRegistryType>
+double SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_packet_rate(
+  uint32_t packet_count, const rclcpp::Time & start_time) const
+{
+  auto now = base_.get_clock()->now();
+  auto duration = now - start_time;
+  if (duration.seconds() > 0) {
+    return static_cast<double>(packet_count) / duration.seconds();
+  }
+  return 0.0;
+}
+
+// Helper function to create trackers with message analyzers
+template <typename DiagnosticsVisitorRegistryType>
+auto make_sensor_diagnostics_tracker(
+  const std::string & name, rclcpp::Node * node, const std::string & hardware_id,
+  const DiagnosticsVisitorRegistryType & msg_analyzer)
+{
+  return SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>(
+    name, node, hardware_id, msg_analyzer);
+}
 
 }  // namespace ouster_ros
