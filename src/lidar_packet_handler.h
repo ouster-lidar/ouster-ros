@@ -15,6 +15,7 @@
 // clang-format on
 
 #include <pcl_conversions/pcl_conversions.h>
+#include <nodelet/nodelet.h>
 
 #include "lock_free_ring_buffer.h"
 #include <optional>
