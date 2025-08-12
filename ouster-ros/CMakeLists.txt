@@ -22,6 +22,8 @@ find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
 
 # ==== Options ====
 add_compile_options(-Wall -Wextra)
@@ -74,6 +76,8 @@ set(ouster_ros_library_deps
   pcl_conversions
   tf2
   tf2_eigen
+  diagnostic_msgs
+  diagnostic_updater
 )
 
 ament_target_dependencies(ouster_ros_library
@@ -111,6 +115,8 @@ function(create_ros2_component
     std_msgs
     sensor_msgs
     geometry_msgs
+    diagnostic_msgs
+    diagnostic_updater
     ${additonal_dependencies}
   )
 
@@ -124,7 +130,7 @@ endfunction()
 
 # ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
-  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp"
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/sensor_diagnostics_tracker.cpp"
   "std_srvs"
 )
 rclcpp_components_register_node(os_sensor_component
@@ -164,7 +170,7 @@ rclcpp_components_register_node(os_image_component
 
 # ==== os_driver_component ====
 create_ros2_component(os_driver_component
-  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp"
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp;src/sensor_diagnostics_tracker.cpp"
   "std_srvs"
 )
 rclcpp_components_register_node(os_driver_component
@@ -190,6 +196,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
+    src/sensor_diagnostics_tracker.cpp
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
