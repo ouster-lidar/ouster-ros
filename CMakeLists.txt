@@ -98,17 +98,35 @@ if (BUILD_PCAP)
 endif()
 
 add_library(ouster_ros src/os_ros.cpp)
-target_link_libraries(ouster_ros
-  PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common
-  PRIVATE -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
-add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
+if(APPLE)
+  target_link_libraries(ouster_ros
+    PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common
+    PRIVATE ${OUSTER_TARGET_LINKS})
+else()
+  target_link_libraries(ouster_ros
+    PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common
+    PRIVATE -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
+endif()
+
+  add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
 add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
-target_link_libraries(
-  ${PROJECT_NAME}_nodelets ouster_ros
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES})
+if(APPLE)
+  target_link_libraries(
+    ${PROJECT_NAME}_nodelets
+    ouster_ros
+    ${OUSTER_TARGET_LINKS}  # Add this to ensure ouster_client is linked
+    ${catkin_LIBRARIES}
+    ${OpenCV_LIBRARIES})
+else()
+  target_link_libraries(
+    ${PROJECT_NAME}_nodelets
+    ouster_ros
+    -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive
+    ${catkin_LIBRARIES}
+    ${OpenCV_LIBRARIES})
+endif()
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
 # ==== Test ====
@@ -121,8 +139,13 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_transform_test.cpp
     tests/point_cloud_compose_test.cpp
   )
+  if(APPLE)
+  target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
+    ouster_build pcl_common ${OUSTER_TARGET_LINKS})
+  else()
   target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
     ouster_build pcl_common -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
+  endif()
 endif()
 
 # ==== Install ====
