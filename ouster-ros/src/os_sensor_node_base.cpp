@@ -151,4 +151,46 @@ void OusterSensorNodeBase::execute_transitions_sequence(
     });
 }
 
+void OusterSensorNodeBase::create_diagnostics_pub(
+  double period, const std::string & name, const std::string & hardware_id)
+{
+  auto qos = rclcpp::QoS(1);
+  qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
+  diagnostics_pub_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", qos);
+
+  diagnostics_period_ = period;
+
+  // Create diagnostics tracker
+  diagnostics_tracker_ = std::make_unique<SensorDiagnosticsTracker>(name, get_clock(), hardware_id);
+
+  // Create timer for diagnostics publishing
+  const auto period_duration = std::chrono::duration<double>(diagnostics_period_);
+  diagnostics_timer_ =
+    create_wall_timer(period_duration, std::bind(&OusterSensorNodeBase::publish_diagnostics, this));
+}
+
+void OusterSensorNodeBase::publish_diagnostics()
+{
+  if (!diagnostics_tracker_ || !diagnostics_pub_) {
+    return;
+  }
+
+  auto msg = diagnostic_msgs::msg::DiagnosticArray();
+  msg.header.stamp = get_clock()->now();
+  msg.status.push_back(diagnostics_tracker_->get_current_status());
+
+  diagnostics_pub_->publish(msg);
+}
+
+void OusterSensorNodeBase::update_diagnostics_status(
+  const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+  const std::map<std::string, std::string> & debug_context)
+{
+  if (!diagnostics_tracker_) {
+    return;
+  }
+
+  diagnostics_tracker_->update_status(message, level, debug_context);
+}
+
 }  // namespace ouster_ros
