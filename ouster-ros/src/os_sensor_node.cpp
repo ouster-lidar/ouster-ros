@@ -804,6 +804,8 @@ void OusterSensor::handle_poll_client_error() {
                          "sensor::poll_client()) returned error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
+    if (diagnostics_tracker_)
+        diagnostics_tracker_->increment_poll_client_errors();
     if (++poll_client_error_count > max_poll_client_error_count) {
         RCLCPP_ERROR(
             get_logger(),
@@ -815,9 +817,10 @@ void OusterSensor::handle_poll_client_error() {
 }
 
 void OusterSensor::read_lidar_packet(sensor::client& cli,
-                                       const sensor::packet_format& pf) {
+                                     const sensor::packet_format& pf) {
     if (sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
+        if (diagnostics_tracker_) diagnostics_tracker_->record_lidar_packet();
         if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
             // TODO: short circut reset if no breaking changes occured?
             RCLCPP_WARN(get_logger(), "sensor init_id has changed! reactivating..");
@@ -825,6 +828,8 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
         }
         handle_lidar_packet(lidar_packet);
     } else {
+        if (diagnostics_tracker_)
+            diagnostics_tracker_->increment_lidar_packet_errors();
         if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),
@@ -841,10 +846,13 @@ void OusterSensor::handle_lidar_packet(const LidarPacket& lidar_packet) {
 }
 
 void OusterSensor::read_imu_packet(sensor::client& cli,
-                                     const sensor::packet_format&) {
+                                   const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
+        if (diagnostics_tracker_) diagnostics_tracker_->record_imu_packet();
     } else {
+        if (diagnostics_tracker_)
+            diagnostics_tracker_->increment_imu_packet_errors();
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),
