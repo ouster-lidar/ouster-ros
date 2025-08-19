@@ -197,10 +197,6 @@ void SensorDiagnosticsTracker::update_metadata(
     // Timing and operational settings
     sensor_info_["Columns Per Packet"] =
         std::to_string(info.format.columns_per_packet);
-    sensor_info_["Columns Per Frame"] =
-        std::to_string(info.format.columns_per_frame);
-    sensor_info_["Pixels Per Column"] =
-        std::to_string(info.format.pixels_per_column);
 
     // Column window information
     if (info.format.column_window.first != info.format.column_window.second) {
