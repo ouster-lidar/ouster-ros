@@ -160,7 +160,8 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
                     execute_transitions_sequence(request_transitions, 0);
                 }
             });
-            return LifecycleNodeInterface::CallbackReturn::FAILURE;        } else {
+            return LifecycleNodeInterface::CallbackReturn::FAILURE;
+        } else {
             // reset counter
             reconnect_attempts_available =
                 get_parameter("max_failed_reconnect_attempts").as_int();
