@@ -846,7 +846,7 @@ void OusterSensor::handle_lidar_packet(const LidarPacket& lidar_packet) {
 }
 
 void OusterSensor::read_imu_packet(sensor::client& cli,
-                                   const sensor::packet_format&) {
+                                     const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
         if (diagnostics_tracker_) diagnostics_tracker_->record_imu_packet();
