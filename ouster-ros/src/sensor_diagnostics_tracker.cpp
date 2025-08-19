@@ -115,57 +115,42 @@ SensorDiagnosticsTracker::create_diagnostic_status(
     status.values.clear();
 
     auto now = clock_->now();
-    diagnostic_msgs::msg::KeyValue timestamp_kv;
 
-    timestamp_kv.key = "Last Update";
-    timestamp_kv.value = std::to_string(now.seconds());
-    status.values.push_back(timestamp_kv);
+    // Helper function to add a key-value pair to status.values
+    auto add_kv = [](std::vector<diagnostic_msgs::msg::KeyValue>& values,
+                     const std::string& key, const std::string& value) {
+        diagnostic_msgs::msg::KeyValue kv;
+        kv.key = key;
+        kv.value = value;
+        values.push_back(kv);
+    };
 
-    timestamp_kv.key = "Sensor Uptime (s)";
-    timestamp_kv.value = std::to_string((now - sensor_start_time_).seconds());
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "Last successful LiDAR frame";
-    timestamp_kv.value = std::to_string(last_successful_lidar_frame_.seconds());
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "Last successful IMU frame";
-    timestamp_kv.value = std::to_string(last_successful_imu_frame_.seconds());
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "Total LIDAR Packets";
-    timestamp_kv.value = std::to_string(total_lidar_packets_received_);
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "Total IMU Packets";
-    timestamp_kv.value = std::to_string(total_imu_packets_received_);
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "Poll Client Error Count";
-    timestamp_kv.value = std::to_string(poll_client_error_count_);
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "LIDAR Packet Error Count";
-    timestamp_kv.value = std::to_string(read_lidar_packet_errors_);
-    status.values.push_back(timestamp_kv);
-
-    timestamp_kv.key = "IMU Packet Error Count";
-    timestamp_kv.value = std::to_string(read_imu_packet_errors_);
-    status.values.push_back(timestamp_kv);
+    add_kv(status.values, "Last Update", std::to_string(now.seconds()));
+    add_kv(status.values, "Sensor Uptime (s)",
+           std::to_string((now - sensor_start_time_).seconds()));
+    add_kv(status.values, "Last successful LiDAR frame",
+           std::to_string(last_successful_lidar_frame_.seconds()));
+    add_kv(status.values, "Last successful IMU frame",
+           std::to_string(last_successful_imu_frame_.seconds()));
+    add_kv(status.values, "Total LIDAR Packets",
+           std::to_string(total_lidar_packets_received_));
+    add_kv(status.values, "Total IMU Packets",
+           std::to_string(total_imu_packets_received_));
+    add_kv(status.values, "Poll Client Error Count",
+           std::to_string(poll_client_error_count_));
+    add_kv(status.values, "LIDAR Packet Error Count",
+           std::to_string(read_lidar_packet_errors_));
+    add_kv(status.values, "IMU Packet Error Count",
+           std::to_string(read_imu_packet_errors_));
 
     // Add sensor metadata if available
     for (const auto& metadata_pair : sensor_info_) {
-        diagnostic_msgs::msg::KeyValue metadata_kv;
-        metadata_kv.key = "Sensor " + metadata_pair.first;
-        metadata_kv.value = metadata_pair.second;
-        status.values.push_back(metadata_kv);
+        add_kv(status.values, "Sensor " + metadata_pair.first,
+               metadata_pair.second);
     }
 
     for (const auto& context_pair : debug_context) {
-        diagnostic_msgs::msg::KeyValue debug_kv;
-        debug_kv.key = context_pair.first;
-        debug_kv.value = context_pair.second;
-        status.values.push_back(debug_kv);
+        add_kv(status.values, context_pair.first, context_pair.second);
     }
 
     return status;
