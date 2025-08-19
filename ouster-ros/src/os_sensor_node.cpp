@@ -296,16 +296,12 @@ std::string OusterSensor::get_diagnostics_hardware_id()
 
 std::map<std::string, std::string> OusterSensor::get_debug_context() const
 {
-  if (!diagnostics_tracker_) {
+  if (!diagnostics_tracker) {
     return {};
   }
 
-  // Get port configurations for context
-  int lidar_port = get_parameter("lidar_port").as_int();
-  int imu_port = get_parameter("imu_port").as_int();
-
-  return diagnostics_tracker_->get_debug_context(
-    sensor_hostname, sensor_connection_active, lidar_port, imu_port);
+  return diagnostics_tracker->get_debug_context(
+    sensor_hostname, sensor_connection_active);
 }
 
 void OusterSensor::update_metadata(sensor::client& cli) {
@@ -741,9 +737,9 @@ void OusterSensor::populate_metadata_defaults(
     }
 }
 
-void OusterSensor::on_metadata_updated(const sensor::sensor_info &)
+void OusterSensor::on_metadata_updated(const sensor::sensor_info& updated_info)
 {
-  diagnostics_tracker_->update_metadata(info);
+  diagnostics_tracker->update_metadata(updated_info);
 }
 
 void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
@@ -799,8 +795,8 @@ void OusterSensor::handle_poll_client_error() {
                          "sensor::poll_client()) returned error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
-    if (diagnostics_tracker_)
-        diagnostics_tracker_->increment_poll_client_errors();
+    if (diagnostics_tracker)
+        diagnostics_tracker->increment_poll_client_errors();
     if (++poll_client_error_count > max_poll_client_error_count) {
         RCLCPP_ERROR(
             get_logger(),
@@ -815,7 +811,6 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
                                      const sensor::packet_format& pf) {
     if (sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
-        if (diagnostics_tracker_) diagnostics_tracker_->record_lidar_packet();
         if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
             // TODO: short circut reset if no breaking changes occured?
             RCLCPP_WARN(get_logger(), "sensor init_id has changed! reactivating..");
@@ -823,8 +818,8 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
         }
         handle_lidar_packet(lidar_packet);
     } else {
-        if (diagnostics_tracker_)
-            diagnostics_tracker_->increment_lidar_packet_errors();
+        if (diagnostics_tracker)
+            diagnostics_tracker->increment_lidar_packet_errors();
         if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),
@@ -844,10 +839,9 @@ void OusterSensor::read_imu_packet(sensor::client& cli,
                                      const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
-        if (diagnostics_tracker_) diagnostics_tracker_->record_imu_packet();
     } else {
-        if (diagnostics_tracker_)
-            diagnostics_tracker_->increment_imu_packet_errors();
+        if (diagnostics_tracker)
+            diagnostics_tracker->increment_imu_packet_errors();
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),
@@ -919,8 +913,8 @@ void OusterSensor::on_lidar_packet_msg(const LidarPacket&) {
     lidar_packet_pub->publish(lidar_packet_msg);
 
     // Update diagnostic tracking
-    if (diagnostics_tracker_) {
-      diagnostics_tracker_->record_lidar_packet();
+    if (diagnostics_tracker) {
+      diagnostics_tracker->record_lidar_packet();
     }
 }
 
@@ -929,8 +923,8 @@ void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
     imu_packet_pub->publish(imu_packet_msg);
 
     // Update diagnostic tracking
-    if (diagnostics_tracker_) {
-      diagnostics_tracker_->record_imu_packet();
+    if (diagnostics_tracker) {
+      diagnostics_tracker->record_imu_packet();
     }
 }
 

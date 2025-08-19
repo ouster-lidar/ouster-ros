@@ -75,10 +75,10 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     std::string cached_metadata;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
 
-    double diagnostics_period_{1.0};
-    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
-    rclcpp::TimerBase::SharedPtr diagnostics_timer_;
-    std::unique_ptr<SensorDiagnosticsTracker> diagnostics_tracker_;
+    double diagnostics_period{1.0};
+    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub;
+    rclcpp::TimerBase::SharedPtr diagnostics_timer;
+    std::unique_ptr<SensorDiagnosticsTracker> diagnostics_tracker;
 };
 
 }  // namespace ouster_ros
