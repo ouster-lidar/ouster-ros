@@ -801,8 +801,9 @@ void OusterSensor::handle_poll_client_error() {
                          "sensor::poll_client()) returned error or timed out");
     // in case error continues for a while attempt to recover by
     // performing sensor reset
-    if (diagnostics_tracker)
+    if (diagnostics_tracker) {
         diagnostics_tracker->increment_poll_client_errors();
+    }
     if (++poll_client_error_count > max_poll_client_error_count) {
         RCLCPP_ERROR(
             get_logger(),
@@ -827,8 +828,9 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
         }
         handle_lidar_packet(lidar_packet);
     } else {
-        if (diagnostics_tracker)
+        if (diagnostics_tracker) {
             diagnostics_tracker->increment_lidar_packet_errors();
+        }
         if (++read_lidar_packet_errors > max_read_lidar_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),
@@ -853,8 +855,9 @@ void OusterSensor::read_imu_packet(sensor::client& cli,
             diagnostics_tracker->record_imu_packet();
         }
     } else {
-        if (diagnostics_tracker)
+        if (diagnostics_tracker) {
             diagnostics_tracker->increment_imu_packet_errors();
+        }
         if (++read_imu_packet_errors > max_read_imu_packet_errors) {
             RCLCPP_ERROR(
                 get_logger(),

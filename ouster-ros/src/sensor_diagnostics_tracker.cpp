@@ -16,14 +16,8 @@ SensorDiagnosticsTracker::SensorDiagnosticsTracker(
     : name_{name},
       hardware_id_{hardware_id.empty() ? name : hardware_id},
       clock_{clock},
-      sensor_start_time_{clock_->now()},
-      last_successful_lidar_frame_{rclcpp::Time(0)},
-      last_successful_imu_frame_{rclcpp::Time(0)},
-      total_lidar_packets_received_{0},
-      total_imu_packets_received_{0},
-      poll_client_error_count_{0},
-      read_lidar_packet_errors_{0},
-      read_imu_packet_errors_{0} {}
+      sensor_start_time_{clock_->now()}
+{}
 
 void SensorDiagnosticsTracker::record_lidar_packet() {
     last_successful_lidar_frame_ = clock_->now();
@@ -65,8 +59,7 @@ std::map<std::string, std::string> SensorDiagnosticsTracker::get_debug_context(
 
     if (sensor_start_time_.nanoseconds() > 0) {
         auto uptime_duration = now - sensor_start_time_;
-        auto uptime_ms =
-            uptime_duration.nanoseconds() / 1000000;
+        auto uptime_ms = uptime_duration.nanoseconds() / 1000000;
         context["Sensor Uptime (ms)"] = std::to_string(uptime_ms);
     }
 
@@ -121,8 +114,10 @@ SensorDiagnosticsTracker::create_diagnostic_status(
     };
 
     add_kv(status.values, "Last Update", std::to_string(now.seconds()));
-    add_kv(status.values, "Last Sensor Reset", std::to_string(last_sensor_reset_.seconds()));
-    add_kv(status.values, "Total Sensor Resets", std::to_string(total_sensor_resets_));
+    add_kv(status.values, "Last Sensor Reset",
+           std::to_string(last_sensor_reset_.seconds()));
+    add_kv(status.values, "Total Sensor Resets",
+           std::to_string(total_sensor_resets_));
 
     add_kv(status.values, "Sensor Uptime (s)",
            std::to_string((now - sensor_start_time_).seconds()));
