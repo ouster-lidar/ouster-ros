@@ -179,6 +179,12 @@ class OusterSensor : public OusterSensorNodeBase {
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
     rclcpp::TimerBase::SharedPtr reconnect_timer;
+
+    std::string diagnostics_hardware_id_;
+    std::string diagnostics_name_;
+
+    std::string get_diagnostics_hardware_id();
+    std::map<std::string, std::string> get_debug_context() const;
 };
 
 }  // namespace ouster_ros

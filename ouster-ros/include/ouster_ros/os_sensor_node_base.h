@@ -8,13 +8,17 @@
  */
 
 #include <chrono>
+#include <map>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <lifecycle_msgs/srv/change_state.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
 #include "ouster_sensor_msgs/srv/get_metadata.hpp"
+#include "ouster_ros/sensor_diagnostics_tracker.h"
 
 #include <ouster/types.h>
 
@@ -35,6 +39,15 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     void create_metadata_pub();
 
     void publish_metadata();
+
+    void create_diagnostics_pub(
+        double period = 1.0, const std::string& name = "", const std::string& hardware_id = "");
+
+    void publish_diagnostics();
+
+    void update_diagnostics_status(
+        const std::string& message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+        const std::map<std::string, std::string>& debug_context = {});
 
     void display_lidar_info(const ouster::sensor::sensor_info& info);
 
@@ -61,6 +74,11 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
+
+    double diagnostics_period{1.0};
+    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub;
+    rclcpp::TimerBase::SharedPtr diagnostics_timer;
+    std::unique_ptr<SensorDiagnosticsTracker> diagnostics_tracker;
 };
 
 }  // namespace ouster_ros
