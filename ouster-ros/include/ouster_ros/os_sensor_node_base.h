@@ -22,62 +22,63 @@
 
 #include <ouster/types.h>
 
-namespace ouster_ros
-{
+namespace ouster_ros {
 
-class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode
-{
-protected:
-  explicit OusterSensorNodeBase(const std::string & name, const rclcpp::NodeOptions & options);
+class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
+   protected:
+    explicit OusterSensorNodeBase(const std::string& name,
+                                  const rclcpp::NodeOptions& options);
 
-protected:
-  bool is_arg_set(const std::string & arg) const
-  {
-    return arg.find_first_not_of(' ') != std::string::npos;
-  }
+   protected:
+    bool is_arg_set(const std::string& arg) const {
+        return arg.find_first_not_of(' ') != std::string::npos;
+    }
 
-  void create_get_metadata_service();
+    void create_get_metadata_service();
 
-  void create_metadata_pub();
+    void create_metadata_pub();
 
-  void publish_metadata();
+    void publish_metadata();
 
-  void create_diagnostics_pub(
-    double period = 1.0, const std::string & name = "", const std::string & hardware_id = "");
+    void create_diagnostics_pub(
+        double period = 1.0, const std::string& name = "", const std::string& hardware_id = "");
 
-  void publish_diagnostics();
+    void publish_diagnostics();
 
-  void update_diagnostics_status(
-    const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
-    const std::map<std::string, std::string> & debug_context = {});
+    void update_diagnostics_status(
+        const std::string& message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+        const std::map<std::string, std::string>& debug_context = {});
 
-  void display_lidar_info(const ouster::sensor::sensor_info & info);
+    void display_lidar_info(const ouster::sensor::sensor_info& info);
 
-  static std::string read_text_file(const std::string & text_file);
+    static std::string read_text_file(const std::string& text_file);
 
-  static bool write_text_to_file(const std::string & file_path, const std::string & text);
+    static bool write_text_to_file(const std::string& file_path,
+                                   const std::string& text);
 
-  static std::string transition_id_to_string(uint8_t transition_id);
+    static std::string transition_id_to_string(uint8_t transition_id);
 
-  template <typename CallbackT, typename... CallbackT_Args>
-  bool change_state(
-    std::uint8_t transition_id, CallbackT callback, CallbackT_Args... callback_args,
-    std::chrono::seconds time_out = std::chrono::seconds{3});
+    template <typename CallbackT, typename... CallbackT_Args>
+    bool change_state(std::uint8_t transition_id, CallbackT callback,
+                      CallbackT_Args... callback_args,
+                      std::chrono::seconds time_out = std::chrono::seconds{3});
 
-  void execute_transitions_sequence(std::vector<uint8_t> transitions_sequence, size_t at);
+    void execute_transitions_sequence(std::vector<uint8_t> transitions_sequence,
+                                      size_t at);
 
-protected:
-  std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> change_state_client;
 
-  ouster::sensor::sensor_info info;
-  rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
-  std::string cached_metadata;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
+   protected:
+    std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> change_state_client;
 
-  double diagnostics_period_{1.0};
-  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
-  rclcpp::TimerBase::SharedPtr diagnostics_timer_;
-  std::unique_ptr<SensorDiagnosticsTracker> diagnostics_tracker_;
+    ouster::sensor::sensor_info info;
+    rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
+    std::string cached_metadata;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
+
+    double diagnostics_period_{1.0};
+    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
+    rclcpp::TimerBase::SharedPtr diagnostics_timer_;
+    std::unique_ptr<SensorDiagnosticsTracker> diagnostics_tracker_;
 };
 
 }  // namespace ouster_ros
