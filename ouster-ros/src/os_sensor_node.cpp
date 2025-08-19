@@ -12,9 +12,9 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <chrono>
-
 #include "os_sensor_node.h"
+
+#include <chrono>
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
@@ -34,7 +34,7 @@ OusterSensor::OusterSensor(const std::string& name,
     declare_parameters();
     staged_config = parse_config_from_ros_parameters();
     attempt_reconnect = get_parameter("attempt_reconnect").as_bool();
-    dormant_period_between_reconnects = 
+    dormant_period_between_reconnects =
         get_parameter("dormant_period_between_reconnects").as_double();
     reconnect_attempts_available =
         get_parameter("max_failed_reconnect_attempts").as_int();
@@ -371,6 +371,10 @@ void OusterSensor::reset_sensor(bool force_reinit, bool init_id_reset) {
         lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
         lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
     execute_transitions_sequence(request_transitions, 0);
+
+    if (diagnostics_tracker) {
+        diagnostics_tracker->notify_reset_sensor();
+    }
 }
 
 // TODO: need to notify dependent node(s) of the update
@@ -818,6 +822,9 @@ void OusterSensor::read_lidar_packet(sensor::client& cli,
             RCLCPP_WARN(get_logger(), "sensor init_id has changed! reactivating..");
             reset_sensor(false);
         }
+        if (diagnostics_tracker) {
+            diagnostics_tracker->record_lidar_packet();
+        }
         handle_lidar_packet(lidar_packet);
     } else {
         if (diagnostics_tracker)
@@ -841,6 +848,10 @@ void OusterSensor::read_imu_packet(sensor::client& cli,
                                      const sensor::packet_format&) {
     if (sensor::read_imu_packet(cli, imu_packet)) {
         on_imu_packet_msg(imu_packet);
+        // Update diagnostic tracking
+        if (diagnostics_tracker) {
+            diagnostics_tracker->record_imu_packet();
+        }
     } else {
         if (diagnostics_tracker)
             diagnostics_tracker->increment_imu_packet_errors();
@@ -913,21 +924,11 @@ void OusterSensor::stop_sensor_connection_thread() {
 void OusterSensor::on_lidar_packet_msg(const LidarPacket&) {
     lidar_packet_msg.buf.swap(lidar_packet.buf);
     lidar_packet_pub->publish(lidar_packet_msg);
-
-    // Update diagnostic tracking
-    if (diagnostics_tracker) {
-      diagnostics_tracker->record_lidar_packet();
-    }
 }
 
 void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
     imu_packet_msg.buf.swap(imu_packet.buf);
     imu_packet_pub->publish(imu_packet_msg);
-
-    // Update diagnostic tracking
-    if (diagnostics_tracker) {
-      diagnostics_tracker->record_imu_packet();
-    }
 }
 
 }  // namespace ouster_ros

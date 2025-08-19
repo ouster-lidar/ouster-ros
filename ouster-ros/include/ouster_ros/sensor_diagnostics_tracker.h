@@ -36,11 +36,7 @@ class SensorDiagnosticsTracker {
 
     void increment_imu_packet_errors();
 
-    void reset_poll_client_errors();
-
-    void reset_lidar_packet_errors();
-
-    void reset_imu_packet_errors();
+    void notify_reset_sensor();
 
     std::map<std::string, std::string> get_debug_context(
         const std::string& sensor_hostname,
@@ -69,9 +65,14 @@ class SensorDiagnosticsTracker {
     rclcpp::Time sensor_start_time_;
     rclcpp::Time last_successful_lidar_frame_;
     rclcpp::Time last_successful_imu_frame_;
+    rclcpp::Time last_unsuccessful_lidar_frame_;
+    rclcpp::Time last_unsuccessful_imu_frame_;
+    rclcpp::Time last_client_error_;
+    rclcpp::Time last_sensor_reset_;
 
     uint32_t total_lidar_packets_received_{0};
     uint32_t total_imu_packets_received_{0};
+    uint32_t total_sensor_resets_{0};
 
     uint32_t poll_client_error_count_{0};
     uint32_t read_lidar_packet_errors_{0};
