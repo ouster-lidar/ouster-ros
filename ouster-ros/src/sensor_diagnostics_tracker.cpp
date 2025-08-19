@@ -125,11 +125,11 @@ SensorDiagnosticsTracker::create_diagnostic_status(
     timestamp_kv.value = std::to_string((now - sensor_start_time_).seconds());
     status.values.push_back(timestamp_kv);
 
-    timestamp_kv.key = "Last successful lidar frame";
+    timestamp_kv.key = "Last successful LiDAR frame";
     timestamp_kv.value = std::to_string(last_successful_lidar_frame_.seconds());
     status.values.push_back(timestamp_kv);
 
-    timestamp_kv.key = "Last successful imu frame";
+    timestamp_kv.key = "Last successful IMU frame";
     timestamp_kv.value = std::to_string(last_successful_imu_frame_.seconds());
     status.values.push_back(timestamp_kv);
 
