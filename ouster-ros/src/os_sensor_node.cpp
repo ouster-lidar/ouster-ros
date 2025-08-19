@@ -142,29 +142,25 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
 
     try {
         if (!start()) {
-          auto debug_ctx = get_debug_context();
-          debug_ctx["Failure Context"] = "Sensor initialization failed";
+            auto debug_ctx = get_debug_context();
+            debug_ctx["Failure Context"] = "Sensor initialization failed";
 
-          update_diagnostics_status(
+            update_diagnostics_status(
             "Sensor start failed", diagnostic_msgs::msg::DiagnosticStatus::ERROR, debug_ctx);
-          auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
-          reconnect_timer = create_wall_timer(sleep_duration, [this]() {
-            reconnect_timer->cancel();
-            if (attempt_reconnect && reconnect_attempts_available-- > 0) {
-              RCLCPP_INFO_STREAM(
-                get_logger(),
-                "Attempting to communicate with the sensor, "
-                "remaining attempts: "
-                  << reconnect_attempts_available);
+            auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
+            reconnect_timer = create_wall_timer(sleep_duration, [this]() {
+                reconnect_timer->cancel();
+                if (attempt_reconnect && reconnect_attempts_available-- > 0) {
+                    RCLCPP_INFO_STREAM(get_logger(), "Attempting to communicate with the sensor, "
+                                        "remaining attempts: " << reconnect_attempts_available);
 
-              auto request_transitions = std::vector<uint8_t>{
-                lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
-                lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
-              execute_transitions_sequence(request_transitions, 0);
-            }
-          });
-          return LifecycleNodeInterface::CallbackReturn::FAILURE;
-        } else {
+                    auto request_transitions = std::vector<uint8_t>{
+                        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
+                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
+                    execute_transitions_sequence(request_transitions, 0);
+                }
+            });
+            return LifecycleNodeInterface::CallbackReturn::FAILURE;        } else {
             // reset counter
             reconnect_attempts_available =
                 get_parameter("max_failed_reconnect_attempts").as_int();
@@ -201,7 +197,6 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
         update_metadata(*sensor_client);
     create_publishers();
     allocate_buffers();
-
     start_sensor_connection_thread();
     update_diagnostics_status(
       "Sensor activated and streaming data", diagnostic_msgs::msg::DiagnosticStatus::OK);
@@ -221,7 +216,6 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_deactivate(
     RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
     LifecycleNode::on_deactivate(state);
     stop_sensor_connection_thread();
-    cleanup();
 
     update_diagnostics_status("Sensor deactivated", diagnostic_msgs::msg::DiagnosticStatus::WARN);
 
