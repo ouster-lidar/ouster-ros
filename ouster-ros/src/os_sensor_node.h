@@ -23,8 +23,6 @@
 #include "ouster_sensor_msgs/srv/set_config.hpp"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_sensor_node_base.h"
-#include <point_cloud_transport/point_cloud_transport.hpp>
-
 
 
 namespace sensor = ouster::sensor;

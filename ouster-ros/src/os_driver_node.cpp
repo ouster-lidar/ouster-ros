@@ -24,6 +24,8 @@
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
 
+#include <point_cloud_transport/point_cloud_transport.hpp>
+
 namespace ouster_ros {
 
 namespace sensor = ouster::sensor;
@@ -99,12 +101,14 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
 
-            auto pct_node = std::make_shared<rclcpp::Node>("pct_helper_node");
+            // extra node until point_cloud_transport supports LifecycleNode
+            // https://github.com/ros-perception/point_cloud_transport/pull/109
+            auto pct_node = std::make_shared<rclcpp::Node>("os_driver_point_cloud_transport");
             point_cloud_transport::PointCloudTransport pct(pct_node);
 
             for (int i = 0; i < num_returns; ++i) {
                 std::string topic = topic_for_return("points", i);
-                lidar_pubs[i] = pct.advertise(topic, 1);
+                lidar_pubs[i] = std::make_shared<point_cloud_transport::Publisher>(pct.advertise(topic, 1));
             }
 
             auto point_type = get_parameter("point_type").as_string();
@@ -140,7 +144,7 @@ class OusterDriver : public OusterSensor {
                     organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i)
-                            lidar_pubs[i].publish(*msgs[i]);
+                            lidar_pubs[i]->publish(*msgs[i]);
                     }
                 )
             );
@@ -266,6 +270,7 @@ class OusterDriver : public OusterSensor {
         imu_packet_handler = nullptr;
         lidar_packet_handler = nullptr;
         imu_pub.reset();
+        for (auto p : lidar_pubs) p.reset();
         for (auto p : scan_pubs) p.reset();
         for (auto p : image_pubs) p.second.reset();
         OusterSensor::cleanup();
@@ -275,7 +280,7 @@ class OusterDriver : public OusterSensor {
     OusterStaticTransformsBroadcaster<rclcpp_lifecycle::LifecycleNode> tf_bcast;
 
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
-    std::vector<point_cloud_transport::Publisher>
+    std::vector<std::shared_ptr<point_cloud_transport::Publisher>>
         lidar_pubs;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
         scan_pubs;

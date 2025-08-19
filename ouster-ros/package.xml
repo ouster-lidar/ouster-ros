@@ -39,9 +39,7 @@
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
   <exec_depend>libtins-dev</exec_depend>
-  <exec_depend>zstd_point_cloud_transport</exec_depend>
-  <exec_depend>zlib_point_cloud_transport</exec_depend>
-  <exec_depend>draco_point_cloud_transport</exec_depend>
+  <exec_depend>point_cloud_transport_plugins</exec_depend>
 
   <test_depend>gtest</test_depend>
 
