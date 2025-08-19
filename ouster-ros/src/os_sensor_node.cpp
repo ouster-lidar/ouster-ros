@@ -739,7 +739,9 @@ void OusterSensor::populate_metadata_defaults(
 
 void OusterSensor::on_metadata_updated(const sensor::sensor_info& updated_info)
 {
-  diagnostics_tracker->update_metadata(updated_info);
+  if (diagnostics_tracker) {
+    diagnostics_tracker->update_metadata(updated_info);
+  }
 }
 
 void OusterSensor::metadata_updated(const sensor::sensor_info& info) {
