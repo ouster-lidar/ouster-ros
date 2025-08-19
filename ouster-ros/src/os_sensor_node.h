@@ -24,6 +24,7 @@
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_sensor_node_base.h"
 
+
 namespace sensor = ouster::sensor;
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
