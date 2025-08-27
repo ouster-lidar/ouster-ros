@@ -108,7 +108,7 @@ class OusterDriver : public OusterSensor {
 
             for (int i = 0; i < num_returns; ++i) {
                 std::string topic = topic_for_return("points", i);
-                lidar_pubs[i] = std::make_shared<point_cloud_transport::Publisher>(pct.advertise(topic, 1));
+                lidar_pubs[i] = std::make_shared<point_cloud_transport::Publisher>(pct.advertise(topic, selected_qos));
             }
 
             auto point_type = get_parameter("point_type").as_string();
