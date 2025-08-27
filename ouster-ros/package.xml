@@ -39,7 +39,6 @@
   <exec_depend>curl</exec_depend>
   <exec_depend>spdlog</exec_depend>
   <exec_depend>libtins-dev</exec_depend>
-  <exec_depend>point_cloud_transport_plugins</exec_depend>
 
   <test_depend>gtest</test_depend>
 
