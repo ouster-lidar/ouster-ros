@@ -667,8 +667,8 @@ void OusterSensor::populate_metadata_defaults(
     if (info.beam_azimuth_angles.empty() || info.beam_altitude_angles.empty()) {
         RCLCPP_ERROR(get_logger(),
                      "Beam angles not found in metadata; using design values");
-        info.beam_azimuth_angles = sensor::gen1_azimuth_angles;
-        info.beam_altitude_angles = sensor::gen1_altitude_angles;
+        info.beam_azimuth_angles = sensor::get_gen1_azimuth_angles();
+        info.beam_altitude_angles = sensor::get_gen1_altitude_angles();
     }
 }
 
