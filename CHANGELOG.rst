@@ -25,6 +25,7 @@ Changelog
 * Introduce a new capability to suppress certain range measurements of the point cloud by providing
   a mask image to the driver through the ``mask_path`` launch file argument.
 * [BUGFIX]: Correct the computation of ``pointcloud.is_dense`` flag.
+* [BUGFIX]: Drop whole archive linkage which is causing double free corruption.
 
 
 ouster_ros v0.13.2

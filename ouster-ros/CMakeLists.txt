@@ -39,9 +39,6 @@ set(_ouster_ros_INCLUDE_DIRS
 )
 
 # ==== Libraries ====
-# Build static libraries and bundle them into ouster_ros using the `--whole-archive` flag. This is
-# necessary because catkin doesn't interoperate easily with target-based cmake builds. Object
-# libraries are the recommended way to do this, but require >=3.13 to propagate usage requirements.
 set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
@@ -88,7 +85,7 @@ target_link_libraries(ouster_ros_library
     ouster_build
     pcl_common
   # PRIVATE (unsupported)
-  -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive
+  ${OUSTER_TARGET_LINKS}
   ${OpenCV_LIBRARIES}
 )
 
