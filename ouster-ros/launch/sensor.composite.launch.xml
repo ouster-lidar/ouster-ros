@@ -64,6 +64,7 @@
         <param name="lidar_frame" value="$(var lidar_frame)"/>
         <param name="imu_frame" value="$(var imu_frame)"/>
         <param name="timestamp_mode" value="$(var timestamp_mode)"/>
+        <param name="publish_sensor_frames" value="false" />
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image"/>
     </node_container>
