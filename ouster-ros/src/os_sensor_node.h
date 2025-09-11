@@ -158,17 +158,22 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::SetConfig>::SharedPtr set_config_srv;
+
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;
+
     std::atomic<bool> imu_packets_processing_thread_active = {false};
     std::unique_ptr<std::thread> imu_packets_processing_thread;
+
     std::atomic<bool> lidar_packets_processing_thread_active = {false};
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
+
     bool persist_config = false;
     bool force_sensor_reinit = false;
     bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
     std::optional<uint32_t> last_init_id;
+
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
     int poll_client_error_count = 0;
@@ -178,8 +183,10 @@ class OusterSensor : public OusterSensorNodeBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+
     const int MIN_AZW = 0;
     const int MAX_AZW = 360000;
+
     bool attempt_reconnect;
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
