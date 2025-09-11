@@ -135,7 +135,7 @@ class OusterDriver : public OusterSensor {
                     tf_bcast.apply_lidar_to_sensor_transform(),
                     organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i){
+                        for (size_t i = 0; i < msgs.size(); ++i) {
                             lidar_pubs[i]->publish(*msgs[i]);
                         }
                     }
