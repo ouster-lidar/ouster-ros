@@ -20,15 +20,21 @@ namespace test {
 
 class MsgAnalyzersTest : public ::testing::Test {
   protected:
-    void SetUp() override {
+    static void SetUpTestSuite() {
         rclcpp::init(0, nullptr);
+    }
+
+    static void TearDownTestSuite() {
+        rclcpp::shutdown();
+    }
+
+    void SetUp() override {
         node_ = std::make_shared<rclcpp::Node>("test_msg_analyzers");
         clock_ = node_->get_clock();
     }
 
     void TearDown() override {
         node_.reset();
-        rclcpp::shutdown();
     }
 
     rclcpp::Node::SharedPtr node_;
