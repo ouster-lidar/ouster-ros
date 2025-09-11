@@ -67,17 +67,6 @@ class RingBuffer {
         return buffer_.end();
     }
 
-    void set_capacity(std::size_t new_capacity) {
-        capacity_ = new_capacity;
-        while(buffer_.size() > capacity_) {
-            buffer_.pop_front();
-        }
-    }
-
-    std::size_t capacity() const {
-        return capacity_;
-    }
-
   private:
     std::deque<T> buffer_;
     std::size_t capacity_;

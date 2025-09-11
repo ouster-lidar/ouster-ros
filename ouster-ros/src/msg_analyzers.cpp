@@ -29,7 +29,7 @@ auto to_sec(const MsgWithHeaderT& time) {
 }
 
 inline std::string to_string(const builtin_interfaces::msg::Time& header) {
-    auto time = to_sec(header);
+    const auto time = to_sec(header);
     return std::to_string(time.count());
 }
 

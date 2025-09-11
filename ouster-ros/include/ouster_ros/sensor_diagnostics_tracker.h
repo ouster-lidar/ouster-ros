@@ -184,15 +184,10 @@ SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::SensorDiagnosticsTrack
   base_(name, node->get_clock(), hardware_id),
   msg_analyzer_(msg_analyzer)
 {
-  try {
     updater_ = std::make_unique<diagnostic_updater::Updater>(node);
     updater_->setHardwareID(base_.get_hardware_id());
     updater_->add(name + " Status", this, &SensorDiagnosticsTracker::produce_diagnostics);
     RCLCPP_INFO(logger_, "Diagnostic updater initialized for %s", name.c_str());
-  } catch (const std::exception & e) {
-    RCLCPP_WARN(logger_, "Failed to initialize diagnostic updater: %s", e.what());
-    updater_ = nullptr;
-  }
 }
 
 // Standalone constructor for testing
