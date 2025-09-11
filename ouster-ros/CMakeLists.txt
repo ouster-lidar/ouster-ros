@@ -130,7 +130,7 @@ endfunction()
 
 # ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
-  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/sensor_diagnostics_tracker.cpp"
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/sensor_diagnostics_tracker.cpp;src/msg_analyzers.cpp"
   "std_srvs"
 )
 rclcpp_components_register_node(os_sensor_component
@@ -170,7 +170,7 @@ rclcpp_components_register_node(os_image_component
 
 # ==== os_driver_component ====
 create_ros2_component(os_driver_component
-  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp;src/sensor_diagnostics_tracker.cpp"
+  "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp;src/sensor_diagnostics_tracker.cpp;src/msg_analyzers.cpp"
   "std_srvs"
 )
 rclcpp_components_register_node(os_driver_component
@@ -197,11 +197,13 @@ if(BUILD_TESTING)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
     src/sensor_diagnostics_tracker.cpp
+    src/msg_analyzers.cpp
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
+    test/test_msg_analyzers.cpp
     test/test_sensor_diagnostics_tracker.cpp
   )
   ament_target_dependencies(${PROJECT_NAME}_test

@@ -26,6 +26,9 @@
 
 namespace ouster_ros {
 
+using DiagnosticsMsgAnalyzer =
+  ouster_ros::DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>;
+
 namespace sensor = ouster::sensor;
 using ouster::sensor::LidarPacket;
 using ouster::sensor::ImuPacket;

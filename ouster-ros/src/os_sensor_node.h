@@ -188,6 +188,7 @@ class OusterSensor : public OusterSensorNodeBase {
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
     rclcpp::TimerBase::SharedPtr reconnect_timer;
+
     std::string diagnostics_hardware_id_;
     std::string diagnostics_name_;
     // PIMPL for diagnostics tracker to hide template specialization

@@ -13,6 +13,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <string>
 
+#include "ouster_ros/diagnostics_visitor_registry.h"
 #include "ouster_ros/sensor_diagnostics_tracker.h"
 
 namespace ouster_ros
@@ -26,13 +27,15 @@ protected:
   void SetUp() override
   {
     clock_ = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
-    tracker_ = std::make_unique<ouster_ros::SensorDiagnosticsTracker>(
+    tracker_ = std::make_unique<ouster_ros::SensorDiagnosticsTracker<
+      DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>>>(
       "test_sensor", clock_, "test_hardware_id");
   }
 
   rclcpp::Clock::SharedPtr clock_;
-  std::unique_ptr<ouster_ros::SensorDiagnosticsTracker> tracker_;
-
+  std::unique_ptr<ouster_ros::SensorDiagnosticsTracker<
+    DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>>>
+    tracker_;
 };
 
 TEST_F(SensorDiagnosticsTrackerTest, InitialState)
@@ -153,6 +156,66 @@ TEST_F(SensorDiagnosticsTrackerTest, CreateDiagnosticStatus)
   EXPECT_TRUE(found_key2);
 }
 
+TEST_F(SensorDiagnosticsTrackerTest, RecordMsgWithAnalyzer)
+{
+  auto analyzer = DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2>(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "height";
+      kv.value = std::to_string(msg.height);
+      return {kv};
+    });
+
+  auto tracker = SensorDiagnosticsTracker("test_sensor", clock_, "test_hardware_id", analyzer);
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  cloud_msg.height = 10;
+
+  tracker.record_msg("point_cloud", cloud_msg);
+  auto status = tracker.get_current_status();
+  EXPECT_EQ(find_key_value(status.values, "point_cloud height"), std::to_string(cloud_msg.height));
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, RecordMultipleMessagesWithAnalyzer)
+{
+  auto analyzer =
+    DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>(
+      [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+        diagnostic_msgs::msg::KeyValue kv;
+        kv.key = "size";
+        kv.value = std::to_string(msg.height * msg.width);
+        return {kv};
+      },
+      [](const sensor_msgs::msg::Image & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+        diagnostic_msgs::msg::KeyValue kv;
+        kv.key = "size";
+        kv.value = std::to_string(msg.height * msg.width);
+        return {kv};
+      });
+
+  auto tracker = SensorDiagnosticsTracker("test_sensor", clock_, "test_hardware_id", analyzer);
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  cloud_msg.height = 10;
+  cloud_msg.width = 20;
+
+  sensor_msgs::msg::Image image_msg;
+  image_msg.height = 30;
+  image_msg.width = 40;
+
+  tracker.record_msg("point_cloud", cloud_msg);
+  tracker.record_msg("image", image_msg);
+
+  auto status = tracker.get_current_status();
+  EXPECT_EQ(
+    find_key_value(status.values, "point_cloud size"),
+    std::to_string(cloud_msg.height * cloud_msg.width));
+
+  EXPECT_EQ(
+    find_key_value(status.values, "image size"),
+    std::to_string(image_msg.height * image_msg.width));
+}
+
 TEST_F(SensorDiagnosticsTrackerTest, UpdateMetadata)
 {
   ouster::sensor::sensor_info info;
@@ -181,6 +244,200 @@ TEST_F(SensorDiagnosticsTrackerTest, UpdateMetadata)
   }
   EXPECT_TRUE(found_serial);
   EXPECT_TRUE(found_firmware);
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, VisitorRegistration)
+{
+  auto registry =
+    DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>();
+
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "explicit_registration";
+      kv.value = std::to_string(msg.height);
+      return {kv};
+    });
+
+  EXPECT_TRUE(registry.has_visitor<sensor_msgs::msg::PointCloud2>());
+  EXPECT_FALSE(registry.has_visitor<sensor_msgs::msg::Image>());
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  cloud_msg.height = 42;
+
+  auto result = registry(cloud_msg);
+  ASSERT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0].key, "explicit_registration");
+  EXPECT_EQ(result[0].value, "42");
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, VisitorOverwrite)
+{
+  auto registry = DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2>();
+
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      (void)msg;
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "first_visitor";
+      kv.value = "first";
+      return {kv};
+    });
+
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      (void)msg;
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "second_visitor";
+      kv.value = "second";
+      return {kv};
+    });
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  auto result = registry(cloud_msg);
+  ASSERT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0].key, "second_visitor");
+  EXPECT_EQ(result[0].value, "second");
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, VisitorMixedRegistration)
+{
+  auto registry =
+    DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>(
+      [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+        (void)msg;
+        diagnostic_msgs::msg::KeyValue kv;
+        kv.key = "constructor_visitor";
+        kv.value = "constructor";
+        return {kv};
+      });
+  registry.register_visitor(
+    [](const sensor_msgs::msg::Image & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      (void)msg;
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "public_visitor";
+      kv.value = "public";
+      return {kv};
+    });
+
+  EXPECT_TRUE(registry.has_visitor<sensor_msgs::msg::PointCloud2>());
+  EXPECT_TRUE(registry.has_visitor<sensor_msgs::msg::Image>());
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  auto cloud_result = registry(cloud_msg);
+  ASSERT_EQ(cloud_result.size(), 1);
+  EXPECT_EQ(cloud_result[0].key, "constructor_visitor");
+
+  sensor_msgs::msg::Image image_msg;
+  auto image_result = registry(image_msg);
+  ASSERT_EQ(image_result.size(), 1);
+  EXPECT_EQ(image_result[0].key, "public_visitor");
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, VisitorMixedRegistrationFunc)
+{
+  DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> registry;
+
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      (void)msg;
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "constructor_visitor";
+      kv.value = "constructor";
+      return {kv};
+    });
+
+  registry.register_visitor(
+    [](const sensor_msgs::msg::Image & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      (void)msg;
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "public_visitor";
+      kv.value = "public";
+      return {kv};
+    });
+
+  // Test both visitors work
+  EXPECT_TRUE(registry.has_visitor<sensor_msgs::msg::PointCloud2>());
+  EXPECT_TRUE(registry.has_visitor<sensor_msgs::msg::Image>());
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  auto cloud_result = registry(cloud_msg);
+  ASSERT_EQ(cloud_result.size(), 1);
+  EXPECT_EQ(cloud_result[0].key, "constructor_visitor");
+
+  sensor_msgs::msg::Image image_msg;
+  auto image_result = registry(image_msg);
+  ASSERT_EQ(image_result.size(), 1);
+  EXPECT_EQ(image_result[0].key, "public_visitor");
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, TestMessageHistorySorting)
+{
+  auto registry = DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2>();
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "height";
+      kv.value = std::to_string(msg.height);
+      return {kv};
+    });
+  auto tracker = SensorDiagnosticsTracker("test_sensor", clock_, "test_hardware_id", registry);
+
+  sensor_msgs::msg::PointCloud2 msg;
+  msg.height = 10;
+  msg.width = 20;
+
+  tracker.record_msg("topic1 height", msg);
+  tracker.record_msg("topic2 height", msg);
+  tracker.record_msg("topic3 height", msg);
+
+  auto status = tracker.get_current_status();
+
+  bool found_topic1 = false, found_topic2 = false, found_topic3 = false;
+  for (const auto & kv : status.values) {
+    if (kv.key.find("topic1") != std::string::npos) found_topic1 = true;
+    if (kv.key.find("topic2") != std::string::npos) found_topic2 = true;
+    if (kv.key.find("topic3") != std::string::npos) found_topic3 = true;
+  }
+
+  EXPECT_TRUE(found_topic1);
+  EXPECT_TRUE(found_topic2);
+  EXPECT_TRUE(found_topic3);
+}
+
+TEST_F(SensorDiagnosticsTrackerTest, TestMessageHistoryUniqueness)
+{
+  auto registry = DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2>();
+  registry.register_visitor(
+    [](const sensor_msgs::msg::PointCloud2 & msg) -> std::vector<diagnostic_msgs::msg::KeyValue> {
+      diagnostic_msgs::msg::KeyValue kv;
+      kv.key = "duplicate_key";
+      kv.value = std::to_string(msg.height);
+      return {kv};
+    });
+
+  auto tracker = SensorDiagnosticsTracker("test_sensor", clock_, "test_hardware_id", registry);
+
+  sensor_msgs::msg::PointCloud2 msg;
+  msg.height = 10;
+  tracker.record_msg("topic_name", msg);
+
+  msg.height = 20;
+  tracker.record_msg("topic_name", msg);
+
+  auto status = tracker.get_current_status();
+
+  int count = 0;
+  std::string last_value;
+  for (const auto & kv : status.values) {
+    if (kv.key == "topic_name duplicate_key") {
+      count++;
+      last_value = kv.value;
+    }
+  }
+
+  EXPECT_EQ(count, 1);
+  EXPECT_EQ(last_value, "20");
 }
 
 TEST_F(SensorDiagnosticsTrackerTest, TestDiagnosticStatusFormat)

@@ -14,8 +14,11 @@
 
 #include "os_sensor_node.h"
 #include "ouster_ros/sensor_diagnostics_tracker.h"
+#include "msg_analyzers.h"
 
 #include <chrono>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/image.hpp>
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
@@ -32,13 +35,14 @@ namespace ouster_ros {
 // PIMPL implementation class for diagnostics tracker
 class OusterSensor::DiagnosticsImpl {
 public:
-    using TrackerType = SensorDiagnosticsTracker;
+    using RegistryType = DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>;
+    using TrackerType = SensorDiagnosticsTracker<RegistryType>;
 
     std::unique_ptr<TrackerType> tracker;
 
-    DiagnosticsImpl(const std::string& name, OusterSensor* node,
-                   const std::string& hardware_id) {
-        tracker = std::make_unique<TrackerType>(name, node->get_clock(), hardware_id);
+    DiagnosticsImpl(const std::string& name, OusterSensor* node, 
+                   const std::string& hardware_id, const RegistryType& registry) {
+        tracker = std::make_unique<TrackerType>(name, node, hardware_id, registry);
     }
 
     void record_lidar_packet() { tracker->record_lidar_packet(); }
@@ -48,17 +52,21 @@ public:
     void increment_imu_packet_errors() { tracker->increment_imu_packet_errors(); }
     void notify_reset_sensor() { tracker->notify_reset_sensor(); }
     void update_metadata(const ouster::sensor::sensor_info& info) { tracker->update_metadata(info); }
-    void update_status(const std::string& message,
+    void update_status(const std::string& message, 
                       diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
                       const std::map<std::string, std::string>& debug_context) {
         tracker->update_status(message, level, debug_context);
     }
 
-    std::map<std::string, std::string> get_debug_context(const std::string& sensor_hostname,
+    std::map<std::string, std::string> get_debug_context(const std::string& sensor_hostname, 
                                                         bool sensor_connection_active) const {
         return tracker->get_debug_context(sensor_hostname, sensor_connection_active);
     }
 
+    template<typename T>
+    void record_msg(const std::string& topic, const T& msg) {
+        tracker->record_msg(topic, msg);
+    }
 };
 
 OusterSensor::OusterSensor(const std::string& name,
@@ -119,6 +127,8 @@ void OusterSensor::declare_parameters() {
     declare_parameter("use_diagnostics", false);
     declare_parameter("diagnostics.hardware_id", "");
     declare_parameter("diagnostics.name", "");
+    declare_parameter("diagnostics.analyze_pointcloud_msg", false);
+    declare_parameter("diagnostics.analyze_image_msg", false);
 }
 
 bool OusterSensor::start() {
@@ -974,12 +984,46 @@ void OusterSensor::create_diagnostics_pub(const std::string & hardware_id)
 {
   std::string diagnostics_name = get_parameter("diagnostics.name").as_string();
 
+  // Create message analyzer with delay tracking
+  auto analyzer =
+    DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>();
+  auto ros_msg_analyzer =
+    std::make_shared<RosMsgAggregateTimeAnalyzer<sensor_msgs::msg::PointCloud2>>(get_clock());
+  auto ros_msg_image_analyzer =
+    std::make_shared<RosMsgAggregateTimeAnalyzer<sensor_msgs::msg::Image>>(get_clock());
+
+  if (get_parameter("diagnostics.analyze_pointcloud_msg").as_bool()) {
+    analyzer.register_visitor([ros_msg_analyzer](const sensor_msgs::msg::PointCloud2 & msg) {
+      return (*ros_msg_analyzer)(msg);
+    });
+    RCLCPP_INFO(get_logger(), "Point cloud message delay analysis enabled");
+  }
+
+  if (get_parameter("diagnostics.analyze_image_msg").as_bool()) {
+    analyzer.register_visitor([ros_msg_image_analyzer](const sensor_msgs::msg::Image & msg) {
+      return (*ros_msg_image_analyzer)(msg);
+    });
+    RCLCPP_INFO(get_logger(), "Image message delay analysis enabled");
+  }
+
   // Create diagnostics tracker with message analysis capabilities
   diagnostics_tracker = std::make_unique<DiagnosticsImpl>(
-    diagnostics_name, this, hardware_id);
+    diagnostics_name, this, hardware_id, analyzer);
 
   RCLCPP_INFO(get_logger(), "Diagnostics \"%s\" enabled for sensor: %s", diagnostics_name.c_str(), hardware_id.c_str());
 }
+
+template<typename T>
+void OusterSensor::record_diagnostics_msg(const std::string& topic, const T& msg) {
+  if (diagnostics_tracker) {
+    diagnostics_tracker->record_msg(topic, msg);
+  }
+}
+
+// Explicit template instantiations
+template void OusterSensor::record_diagnostics_msg<sensor_msgs::msg::PointCloud2>(const std::string&, const sensor_msgs::msg::PointCloud2&);
+template void OusterSensor::record_diagnostics_msg<sensor_msgs::msg::Image>(const std::string&, const sensor_msgs::msg::Image&);
+
 
 }  // namespace ouster_ros
 
