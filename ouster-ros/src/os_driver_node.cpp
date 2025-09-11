@@ -137,7 +137,6 @@ class OusterDriver : public OusterSensor {
                     [this](PointCloudProcessor_OutputType msgs) {
                         for (size_t i = 0; i < msgs.size(); ++i){
                             lidar_pubs[i]->publish(*msgs[i]);
-                            record_diagnostics_msg(lidar_pubs[i]->get_topic_name(), *msgs[i]);
                         }
                     }
                 )
@@ -214,7 +213,6 @@ class OusterDriver : public OusterSensor {
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);
-                        record_diagnostics_msg(image_pubs[it->first]->get_topic_name(), *it->second);
                     }
                 }));
         }

@@ -65,9 +65,6 @@ class OusterSensor : public OusterSensorNodeBase {
 
     bool start();
 
-    template<typename T>
-    void record_diagnostics_msg(const std::string& topic, const T& msg);
-
    private:
     void declare_parameters();
 

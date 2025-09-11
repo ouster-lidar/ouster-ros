@@ -56,9 +56,6 @@ public:
 
   diagnostic_msgs::msg::DiagnosticStatus get_current_status() const;
 
-  void add_message_analysis(
-    const std::string & topic_name, const std::vector<diagnostic_msgs::msg::KeyValue> & analysis);
-
   const std::string & get_hardware_id() const { return hardware_id_; }
   rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
   const rclcpp::Time & get_sensor_start_time() const { return sensor_start_time_; }
