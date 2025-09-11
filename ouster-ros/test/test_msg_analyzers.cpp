@@ -72,6 +72,7 @@ TEST_F(MsgAnalyzersTest, RosMsgAggregateTimeAnalyzer) {
     for(int i = 0; i < 10; ++i) {
         sensor_msgs::msg::PointCloud2 msg;
         msg.header.stamp = now + rclcpp::Duration::from_seconds(i * 100);
+        msgs.push_back(msg);
     }
 
     std::vector<diagnostic_msgs::msg::KeyValue> last_results;
@@ -88,7 +89,7 @@ TEST_F(MsgAnalyzersTest, AggregateFunction) {
     for(int i = 0; i < 5; ++i) {
         detail::MsgTimeInfo info;
         info.msg_timestamp = now + rclcpp::Duration::from_nanoseconds(i * 100000);
-        info.received_msg = now + rclcpp::Duration::from_nanoseconds((i * 100 + 10) * 100000);
+         info.received_msg = now + rclcpp::Duration::from_nanoseconds(i * 100000 + 10000);
         buffer.push_back(info);
     }
 

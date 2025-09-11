@@ -29,7 +29,8 @@ auto to_sec(const MsgWithHeaderT& time) {
 }
 
 inline std::string to_string(const builtin_interfaces::msg::Time& header) {
-    return std::to_string(header.sec) + "." + std::to_string(header.nanosec);
+    auto time = to_sec(header);
+    return std::to_string(time.count());
 }
 
 template <typename MsgT>
