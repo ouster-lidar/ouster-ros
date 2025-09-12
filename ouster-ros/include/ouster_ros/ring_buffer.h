@@ -2,8 +2,8 @@
  * Copyright (c) 2023-2025, Autonomous Systems sp. z o.o.
  * All rights reserved.
  *
- * @file os_sensor_node_base.h
- * @brief Base class for ouster_ros sensor and replay nodes
+ * @file ring_buffer.h
+ * @brief Generic ring buffer template class implementation
  *
  */
 
