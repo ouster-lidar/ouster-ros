@@ -87,7 +87,7 @@ aggregate(const RingBuffer<MsgTimeInfo> time_info_buffer_) {
             to_kv("time_diff_max", std::to_string(time_diff(*time_diff_max).seconds())));
     }
     const auto time_diff_sum =
-        std::accumulate(time_info_buffer_.begin(), time_info_buffer_.end(), rclcpp::Duration{0, 0},
+        std::accumulate(time_info_buffer_.begin(), time_info_buffer_.end(), rclcpp::Duration::from_seconds(0),
                         [](const auto& sum, const auto& info) { return sum + time_diff(info); });
 
     const auto time_diff_avg = time_diff_sum.seconds() / time_info_buffer_.size();
