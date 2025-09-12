@@ -65,10 +65,19 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_DUAL pt;
 
     for (auto src_idx = 0U; src_idx < SAMPLES; ++src_idx) {
+        // Convert linear index to 2D coordinates
+        auto row = src_idx / WIDTH;
+        auto col = src_idx % WIDTH;
+
         copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
-        EXPECT_EQ(point::get<5>(pt), range(0, src_idx));
-        EXPECT_EQ(point::get<6>(pt), signal(0, src_idx));
-        EXPECT_EQ(point::get<7>(pt), reflect(0, src_idx));
-        EXPECT_EQ(point::get<8>(pt), near_ir(0, src_idx));
+
+        EXPECT_EQ(point::get<5>(pt), range(row, col))
+            << "Range mismatch at index " << src_idx << " (row=" << row << ", col=" << col << ")";
+        EXPECT_EQ(point::get<6>(pt), signal(row, col))
+            << "Signal mismatch at index " << src_idx << " (row=" << row << ", col=" << col << ")";
+        EXPECT_EQ(point::get<7>(pt), reflect(row, col))
+            << "Reflectivity mismatch at index " << src_idx << " (row=" << row << ", col=" << col << ")";
+        EXPECT_EQ(point::get<8>(pt), near_ir(row, col))
+            << "Near IR mismatch at index " << src_idx << " (row=" << row << ", col=" << col << ")";
     }
 }
