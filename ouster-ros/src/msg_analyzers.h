@@ -20,40 +20,42 @@
 
 #include <vector>
 
-namespace ouster_ros {
+namespace ouster_ros
+{
 
-std::vector<diagnostic_msgs::msg::KeyValue> analyze_msg(const sensor_msgs::msg::PointCloud2& msg);
-std::vector<diagnostic_msgs::msg::KeyValue> analyze_msg(const sensor_msgs::msg::Image& msg);
+std::vector<diagnostic_msgs::msg::KeyValue> analyze_msg(const sensor_msgs::msg::PointCloud2 & msg);
+std::vector<diagnostic_msgs::msg::KeyValue> analyze_msg(const sensor_msgs::msg::Image & msg);
 
-
-namespace detail {
-struct MsgTimeInfo {
-    rclcpp::Time msg_timestamp;
-    rclcpp::Time received_msg;
+namespace detail
+{
+struct MsgTimeInfo
+{
+  rclcpp::Time msg_timestamp;
+  rclcpp::Time received_msg;
 };
 
-std::vector<diagnostic_msgs::msg::KeyValue>
-aggregate(const RingBuffer<MsgTimeInfo> time_info_buffer);
-} //namespace detail
+std::vector<diagnostic_msgs::msg::KeyValue> aggregate(
+  const RingBuffer<MsgTimeInfo> time_info_buffer);
+}  //namespace detail
 
 template <typename MsgT>
-class RosMsgAggregateTimeAnalyzer {
-  public:
-    RosMsgAggregateTimeAnalyzer() = default;
-    RosMsgAggregateTimeAnalyzer(rclcpp::Clock::SharedPtr clock) : clock_(clock) {}
+class RosMsgAggregateTimeAnalyzer
+{
+public:
+  RosMsgAggregateTimeAnalyzer() = default;
+  RosMsgAggregateTimeAnalyzer(rclcpp::Clock::SharedPtr clock) : clock_(clock) {}
 
-    std::vector<diagnostic_msgs::msg::KeyValue>
-    operator()(const MsgT& msg) {
-        detail::MsgTimeInfo time_info{msg.header.stamp, clock_->now()};
-        time_info_buffer_.push_back(time_info);
-        return detail::aggregate(time_info_buffer_);
-    }
+  std::vector<diagnostic_msgs::msg::KeyValue> operator()(const MsgT & msg)
+  {
+    detail::MsgTimeInfo time_info{msg.header.stamp, clock_->now()};
+    time_info_buffer_.push_back(time_info);
+    return detail::aggregate(time_info_buffer_);
+  }
 
-  private:
-    rclcpp::Clock::SharedPtr clock_;
+private:
+  rclcpp::Clock::SharedPtr clock_;
 
-    RingBuffer<detail::MsgTimeInfo> time_info_buffer_;
+  RingBuffer<detail::MsgTimeInfo> time_info_buffer_;
 };
 
-
-} // namespace ouster_ros
+}  // namespace ouster_ros
