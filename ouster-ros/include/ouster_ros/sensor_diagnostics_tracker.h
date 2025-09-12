@@ -60,6 +60,9 @@ public:
 
   diagnostic_msgs::msg::DiagnosticStatus get_current_status() const;
 
+  void add_message_analysis(
+    const std::string & topic_name, const std::vector<diagnostic_msgs::msg::KeyValue> & analysis);
+
   const std::string & get_hardware_id() const { return hardware_id_; }
   rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
   const rclcpp::Time & get_sensor_start_time() const { return sensor_start_time_; }
@@ -109,8 +112,7 @@ private:
   rclcpp::Time get_zero_time() const;
 };
 
-template <
-  typename DiagnosticsVisitorRegistryType>
+template <typename DiagnosticsVisitorRegistryType>
 class SensorDiagnosticsTracker
 {
 public:
@@ -154,6 +156,9 @@ public:
   void record_msg(const std::string & topic_name, const MsgT & msgs);
 
 private:
+  void add_message_analysis(
+    const std::string & topic_name, const std::vector<diagnostic_msgs::msg::KeyValue> & analysis);
+
   void produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat);
 
   double get_packet_rate(uint32_t packet_count, const rclcpp::Time & start_time) const;
@@ -181,10 +186,10 @@ SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::SensorDiagnosticsTrack
   base_(name, node->get_clock(), hardware_id),
   msg_analyzer_(msg_analyzer)
 {
-    updater_ = std::make_unique<diagnostic_updater::Updater>(node);
-    updater_->setHardwareID(base_.get_hardware_id());
-    updater_->add(name + " Status", this, &SensorDiagnosticsTracker::produce_diagnostics);
-    RCLCPP_INFO(logger_, "Diagnostic updater initialized for %s", name.c_str());
+  updater_ = std::make_unique<diagnostic_updater::Updater>(node);
+  updater_->setHardwareID(base_.get_hardware_id());
+  updater_->add(name + " Status", this, &SensorDiagnosticsTracker::produce_diagnostics);
+  RCLCPP_INFO(logger_, "Diagnostic updater initialized for %s", name.c_str());
 }
 
 // Standalone constructor for testing
