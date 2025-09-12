@@ -65,6 +65,9 @@ class OusterSensor : public OusterSensorNodeBase {
 
     bool start();
 
+    template<typename T>
+    void record_diagnostics_msg(const std::string& topic, const T& msg);
+
    private:
     void declare_parameters();
 
@@ -131,7 +134,16 @@ class OusterSensor : public OusterSensorNodeBase {
     bool get_active_config_no_throw(const std::string& sensor_hostname,
                                     sensor::sensor_config& config);
 
-   private:
+    void update_diagnostics_status(
+      const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
+      const std::map<std::string, std::string> & debug_context = {});
+
+    void create_diagnostics_pub(const std::string & hardware_id = "");
+
+    std::string get_diagnostics_hardware_id();
+
+    std::map<std::string, std::string> get_debug_context() const;
+
     std::string sensor_hostname;
     std::optional<sensor::sensor_config> staged_config;
     std::string mtp_dest;
@@ -179,6 +191,12 @@ class OusterSensor : public OusterSensorNodeBase {
     double dormant_period_between_reconnects;
     int reconnect_attempts_available;
     rclcpp::TimerBase::SharedPtr reconnect_timer;
+
+    std::string diagnostics_hardware_id_;
+    std::string diagnostics_name_;
+    // PIMPL for diagnostics tracker to hide template specialization
+    class DiagnosticsImpl;
+    std::unique_ptr<DiagnosticsImpl> diagnostics_tracker;
 };
 
 }  // namespace ouster_ros

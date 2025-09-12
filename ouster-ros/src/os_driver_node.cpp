@@ -26,6 +26,9 @@
 
 namespace ouster_ros {
 
+using DiagnosticsMsgAnalyzer =
+  ouster_ros::DiagnosticsVisitorRegistry<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image>;
+
 namespace sensor = ouster::sensor;
 using ouster::sensor::LidarPacket;
 using ouster::sensor::ImuPacket;
@@ -135,8 +138,10 @@ class OusterDriver : public OusterSensor {
                     tf_bcast.apply_lidar_to_sensor_transform(),
                     organized, destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i)
+                        for (size_t i = 0; i < msgs.size(); ++i){
                             lidar_pubs[i]->publish(*msgs[i]);
+                            record_diagnostics_msg(lidar_pubs[i]->get_topic_name(), *msgs[i]);
+                        }
                     }
                 )
             );
@@ -212,6 +217,7 @@ class OusterDriver : public OusterSensor {
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);
+                        record_diagnostics_msg(image_pubs[it->first]->get_topic_name(), *it->second);
                     }
                 }));
         }

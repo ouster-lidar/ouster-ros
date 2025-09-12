@@ -8,13 +8,17 @@
  */
 
 #include <chrono>
+#include <map>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <lifecycle_msgs/srv/change_state.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
 #include "ouster_sensor_msgs/srv/get_metadata.hpp"
+#include "ouster_ros/sensor_diagnostics_tracker.h"
 
 #include <ouster/types.h>
 
@@ -35,6 +39,8 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     void create_metadata_pub();
 
     void publish_metadata();
+
+    void publish_diagnostics();
 
     void display_lidar_info(const ouster::sensor::sensor_info& info);
 
