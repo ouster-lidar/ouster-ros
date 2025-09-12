@@ -151,4 +151,5 @@ void OusterSensorNodeBase::execute_transitions_sequence(
     });
 }
 
+
 }  // namespace ouster_ros

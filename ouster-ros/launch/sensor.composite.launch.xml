@@ -60,7 +60,7 @@
 
   <arg name="use_system_default_qos" default="false"
     description="Use the default system QoS settings"/>
-  
+
   <arg name="proc_mask" default="IMG|PCL|IMU|SCAN|TLM" description="
     use any combination of the 4 flags to enable or disable specific processors"/>
 
@@ -97,6 +97,9 @@
 
   <arg name="auto_start" default="true"
     description="automatically configure and activate the node"/>
+
+  <arg name="use_diagnostics" default="false"
+    description="enable publishing diagnostic messages on /diagnostics topic"/>
 
   <arg name="organized" default="true"
     description="generate an organzied point cloud"/>
@@ -149,6 +152,7 @@
       <param name="max_failed_reconnect_attempts"
              value="$(var max_failed_reconnect_attempts)"/>
       <param name="auto_start" value="$(var auto_start)"/>
+      <param name="use_diagnostics" value="$(var use_diagnostics)"/>
       <param name="organized" value="$(var organized)"/>
       <param name="destagger" value="$(var destagger)"/>
       <param name="min_range" value="$(var min_range)"/>
