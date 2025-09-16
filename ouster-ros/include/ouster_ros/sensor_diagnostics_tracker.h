@@ -278,18 +278,12 @@ bool SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::is_sensor_healthy
 {
   auto now = base_.get_clock()->now();
 
-  // Check if we've received recent packets
   const auto timeout_threshold = rclcpp::Duration::from_seconds(5.0);
 
   bool lidar_healthy = (now - base_.get_last_successful_lidar_frame()) < timeout_threshold;
   bool imu_healthy = (now - base_.get_last_successful_imu_frame()) < timeout_threshold;
 
-  // Consider sensor healthy if we have recent data and low error rates
-  bool low_error_rate = (base_.get_poll_client_error_count() < 10) &&
-                        (base_.get_read_lidar_packet_errors() < 100) &&
-                        (base_.get_read_imu_packet_errors() < 100);
-
-  return (lidar_healthy || imu_healthy) && low_error_rate;
+  return (lidar_healthy && imu_healthy);
 }
 
 template <typename DiagnosticsVisitorRegistryType>
