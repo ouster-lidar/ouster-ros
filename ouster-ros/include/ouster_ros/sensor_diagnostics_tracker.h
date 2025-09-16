@@ -106,9 +106,6 @@ protected:
   diagnostic_msgs::msg::DiagnosticStatus::_level_type current_level_{
     diagnostic_msgs::msg::DiagnosticStatus::STALE};
   std::map<std::string, std::string> current_debug_context_;
-
-private:
-  rclcpp::Time get_zero_time() const;
 };
 
 template <typename DiagnosticsVisitorRegistryType>
@@ -266,8 +263,7 @@ void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::produce_diagnosti
 
   const auto & current_status = base_.get_current_status();
   auto diag_status = create_diagnostic_status(
-    current_status.message, current_status.level,
-    base_.get_debug_context(sensor_hostname_));
+    current_status.message, current_status.level, base_.get_debug_context(sensor_hostname_));
   std::move(diag_status.values.begin(), diag_status.values.end(), std::back_inserter(stat.values));
 }
 

@@ -48,11 +48,6 @@ void SensorDiagnosticsState::notify_reset_sensor()
   total_sensor_resets_++;
 }
 
-rclcpp::Time SensorDiagnosticsState::get_zero_time() const
-{
-  return rclcpp::Time(0, 0, clock_->get_clock_type());
-}
-
 void SensorDiagnosticsState::update_status(
   const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
   const std::map<std::string, std::string> & debug_context)
