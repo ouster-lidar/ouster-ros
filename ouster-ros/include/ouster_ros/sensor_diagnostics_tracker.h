@@ -47,8 +47,7 @@ public:
   void notify_reset_sensor();
   void update_metadata(const ouster::sensor::sensor_info & info);
 
-  std::map<std::string, std::string> get_debug_context(
-    const std::string & sensor_hostname, bool sensor_connection_active) const;
+  std::map<std::string, std::string> get_debug_context(const std::string & sensor_hostname) const;
 
   diagnostic_msgs::msg::DiagnosticStatus create_diagnostic_status(
     const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
@@ -145,8 +144,7 @@ public:
 
   diagnostic_msgs::msg::DiagnosticStatus get_current_status() const;
 
-  std::map<std::string, std::string> get_debug_context(
-    const std::string & sensor_hostname, bool sensor_connection_active) const;
+  std::map<std::string, std::string> get_debug_context(const std::string & sensor_hostname) const;
 
   diagnostic_msgs::msg::DiagnosticStatus create_diagnostic_status(
     const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
@@ -231,9 +229,9 @@ SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_current_status() c
 template <typename DiagnosticsVisitorRegistryType>
 std::map<std::string, std::string>
 SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_debug_context(
-  const std::string & sensor_hostname, bool sensor_connection_active) const
+  const std::string & sensor_hostname) const
 {
-  return base_.get_debug_context(sensor_hostname, sensor_connection_active);
+  return base_.get_debug_context(sensor_hostname);
 }
 
 template <typename DiagnosticsVisitorRegistryType>
@@ -269,7 +267,7 @@ void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::produce_diagnosti
   const auto & current_status = base_.get_current_status();
   auto diag_status = create_diagnostic_status(
     current_status.message, current_status.level,
-    base_.get_debug_context(sensor_hostname_, sensor_connection_active_));
+    base_.get_debug_context(sensor_hostname_));
   std::move(diag_status.values.begin(), diag_status.values.end(), std::back_inserter(stat.values));
 }
 

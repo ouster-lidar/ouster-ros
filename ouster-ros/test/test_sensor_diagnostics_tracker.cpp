@@ -111,15 +111,6 @@ TEST_F(SensorDiagnosticsTrackerTest, IncrementImuPacketErrors)
   EXPECT_EQ(find_key_value(status.values, "IMU Packet Errors"), std::to_string(1));
 }
 
-TEST_F(SensorDiagnosticsTrackerTest, NotifyResetSensor)
-{
-  tracker_->notify_reset_sensor();
-  auto debug_context = tracker_->get_debug_context("test_host", true);
-
-  EXPECT_EQ(debug_context["Sensor Hostname"], "test_host");
-  EXPECT_EQ(debug_context["Sensor Connection Active"], "true");
-}
-
 TEST_F(SensorDiagnosticsTrackerTest, UpdateStatus)
 {
   tracker_->update_status("OK", diagnostic_msgs::msg::DiagnosticStatus::OK);

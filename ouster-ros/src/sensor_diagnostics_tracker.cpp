@@ -75,12 +75,11 @@ void SensorDiagnosticsState::add_message_analysis(
 }
 
 std::map<std::string, std::string> SensorDiagnosticsState::get_debug_context(
-  const std::string & sensor_hostname, bool sensor_connection_active) const
+  const std::string & sensor_hostname) const
 {
   std::map<std::string, std::string> context;
 
   context["Sensor Hostname"] = sensor_hostname;
-  context["Sensor Connection Active"] = sensor_connection_active ? "true" : "false";
 
   auto now = clock_->now();
   if (last_successful_lidar_frame_.nanoseconds() > 0) {

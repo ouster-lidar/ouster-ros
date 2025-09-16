@@ -58,9 +58,9 @@ public:
         tracker->update_status(message, level, debug_context);
     }
 
-    std::map<std::string, std::string> get_debug_context(const std::string& sensor_hostname, 
-                                                        bool sensor_connection_active) const {
-        return tracker->get_debug_context(sensor_hostname, sensor_connection_active);
+    std::map<std::string, std::string> get_debug_context(const std::string & sensor_hostname) const
+    {
+      return tracker->get_debug_context(sensor_hostname);
     }
 
     template<typename T>
@@ -336,7 +336,7 @@ std::map<std::string, std::string> OusterSensor::get_debug_context() const
     return {};
   }
 
-  return diagnostics_tracker->get_debug_context(sensor_hostname, sensor_connection_active);
+  return diagnostics_tracker->get_debug_context(sensor_hostname);
 }
 
 void OusterSensor::update_metadata(sensor::client& cli) {
