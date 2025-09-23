@@ -2,8 +2,8 @@
 Changelog for package ouster_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.13.13 (2025-09-22)
+--------------------
 * Add ouster-sdk directly
 * Drop whole archive linkage (#489)
 * fix-rolling build (#483)
