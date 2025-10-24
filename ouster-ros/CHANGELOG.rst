@@ -2,7 +2,7 @@
 Changelog for package ouster_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
+0.13.15 (2025-10-24)
 --------------------
 * Drop whole archive linkage (#489)
 * fix-rolling build (#483)
