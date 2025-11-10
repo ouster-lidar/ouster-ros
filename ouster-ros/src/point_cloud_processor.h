@@ -33,6 +33,7 @@ class PointCloudProcessor {
                                         const ouster::PointsF& points,
                                         uint64_t scan_ts, const ouster::LidarScan& ls,
                                         const std::vector<int>& pixel_shift_by_row,
+                                        double scan_col_ts_spacing_ns,
                                         int return_index)>;
 
    public:
@@ -67,6 +68,8 @@ class PointCloudProcessor {
         lut_direction = xyz_lut.direction.cast<float>();
         lut_offset = xyz_lut.offset.cast<float>();
         points = ouster::PointsF(lut_direction.rows(), lut_offset.cols());
+        
+        scan_col_ts_spacing_ns = LidarPacketHandler::compute_scan_col_ts_spacing_ns(info.mode);
 
         mask = impl::load_mask<uint32_t>(
                     mask_path,
@@ -94,7 +97,7 @@ class PointCloudProcessor {
                                std::numeric_limits<float>::quiet_NaN());
 
             scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
-                                        pixel_shift_by_row, i);
+                                        pixel_shift_by_row, scan_col_ts_spacing_ns, i);
 
             pcl_toROSMsg(cloud, *pc_msgs[i]);
             pc_msgs[i]->header.stamp = msg_ts;
@@ -140,6 +143,7 @@ class PointCloudProcessor {
     PointCloudProcessor_OutputType pc_msgs;
     ScanToCloudFn scan_to_cloud_fn;
     PointCloudProcessor_PostProcessingFn post_processing_fn;
+    double scan_col_ts_spacing_ns;
 
     ouster::img_t<uint32_t> mask;
 };
