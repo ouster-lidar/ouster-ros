@@ -121,6 +121,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                      const ouster::PointsF& points, uint64_t scan_ts,
                      const ouster::LidarScan& ls,
                      const std::vector<int>& pixel_shift_by_row,
+                     double scan_col_ts_spacing_ns,
                      bool organized = false, bool destagger = true,
                      int rows_step = 1) {
     auto ls_tuple = make_lidar_scan_tuple<0, N, PROFILE>(ls);
@@ -143,7 +144,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             auto ts_idx =
                 destagger ? v : (v + ls.w + pixel_shift_by_row[u]) % ls.w;
             auto ts =
-                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
+                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : scan_col_ts_spacing_ns*v;
 
             if (organized) {
                 // set is_dense to false if any of the xyz coordinates is NaN
