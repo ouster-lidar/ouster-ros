@@ -66,6 +66,16 @@ struct Point : public _Point {
     inline auto& get() {
         return std::get<I>(as_tuple());
     }
+    
+    template<class A, int ret>
+    void fill(A& src, int row, uint32_t ts) {
+        reflectivity = src.template get_refl<ret>();
+        intensity = src.template get_sig<ret>();
+        range = src.template get_range<ret>();
+        ambient = src.get_nir();
+        ring = row;
+        t = ts;
+    }
 };
 
 }   // namespace ouster_ros
