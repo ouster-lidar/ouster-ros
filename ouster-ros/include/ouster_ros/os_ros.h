@@ -31,21 +31,12 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-
 /**
  * Checks sensor_info if it currently represents a legacy udp lidar profile
  * @param[in] info sensor_info
  * @return whether sensor_info represents the legacy udp lidar profile
  */
-bool is_legacy_lidar_profile(const sensor::sensor_info& info);
-
-/**
- * Gets the number of point cloud returns that this sensor_info object represents
- * @param[in] info sensor_info
- * @return number of returns
- */
-int get_n_returns(const sensor::sensor_info& info);
+bool is_legacy_lidar_profile(const ouster::sdk::core::SensorInfo& info);
 
 
 /**
@@ -53,7 +44,7 @@ int get_n_returns(const sensor::sensor_info& info);
  * @param[in] info sensor_info
  * @return number of beams a sensor has
  */
-size_t get_beams_count(const sensor::sensor_info& info);
+size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
 
 /**
  * Adds a suffix to the topic base name based on the return index
@@ -71,7 +62,7 @@ std::string topic_for_return(const std::string& topic_base, int return_idx);
  * @param[in] buf the raw packet message populated by read_imu_packet
  * @return ROS sensor message with fields populated from the packet
  */
-sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
+sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sdk::core::PacketFormat& pf,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
                                         const uint8_t* buf);
@@ -87,7 +78,7 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
 sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_sensor_msgs::msg::PacketMsg& pm,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
-                                        const sensor::packet_format& pf);
+                                        const ouster::sdk::core::PacketFormat& pf);
 
 /**
  * Convert transformation matrix return by sensor to ROS transform
@@ -99,7 +90,7 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_sensor_msgs::msg::PacketMsg
  * @return ROS message suitable for publishing as a transform
  */
 geometry_msgs::msg::TransformStamped transform_to_tf_msg(
-    const ouster::mat4d& mat, const std::string& frame,
+    const ouster::sdk::core::mat4d& mat, const std::string& frame,
     const std::string& child_frame, rclcpp::Time timestamp);
 
 
@@ -115,10 +106,10 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
  * @return ROS message suitable for publishing as a LaserScan
  */
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::LidarScan& ls,
+    const ouster::sdk::core::LidarScan& ls,
     const rclcpp::Time& timestamp,
     const std::string &frame,
-    const ouster::sensor::lidar_mode lidar_mode,
+    const ouster::sdk::core::LidarMode lidar_mode,
     const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
     const int return_index);
 
@@ -130,28 +121,30 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
  * @return ROS sensor message with fields populated from the packet
  */
 ouster_sensor_msgs::msg::Telemetry lidar_packet_to_telemetry_msg(
-    const ouster::sensor::LidarPacket& lidar_packet,
+    const ouster::sdk::core::LidarPacket& lidar_packet,
     const rclcpp::Time& timestamp,
-    const ouster::sensor::packet_format& pf);
+    const ouster::sdk::core::PacketFormat& pf);
 
 namespace impl {
 
-sensor::ChanField scan_return(sensor::ChanField input_field, bool second);
+std::string scan_return(const std::string& input_field, bool second);
 
 struct read_and_cast {
     template <typename T, typename U>
-    void operator()(Eigen::Ref<const ouster::img_t<T>> field,
-                    ouster::img_t<U>& dest) {
+    void operator()(Eigen::Ref<const ouster::sdk::core::img_t<T>> field,
+                    ouster::sdk::core::img_t<U>& dest) {
         dest = field.template cast<U>();
     }
 };
 
 template <typename T>
-inline ouster::img_t<T> get_or_fill_zero(sensor::ChanField field,
-                                         const ouster::LidarScan& ls) {
-    if (!ls.field_type(field)) return ouster::img_t<T>::Zero(ls.h, ls.w);
-    ouster::img_t<T> result{ls.h, ls.w};
-    ouster::impl::visit_field(ls, field, read_and_cast(), result);
+inline ouster::sdk::core::img_t<T> get_or_fill_zero(const std::string& field,
+                                 const ouster::sdk::core::LidarScan& ls) {
+    if (!ls.has_field(field)) {
+        return ouster::sdk::core::img_t<T>::Zero(ls.h, ls.w);
+    }
+    ouster::sdk::core::img_t<T> result{ls.h, ls.w};
+    ouster::sdk::core::impl::visit_field(ls, field, read_and_cast(), result);
     return result;
 }
 
@@ -171,7 +164,7 @@ inline bool check_token(const std::set<std::string>& tokens,
     return tokens.find(token) != tokens.end();
 }
 
-ouster::util::version parse_version(const std::string& fw_rev);
+ouster::sdk::core::Version parse_version(const std::string& fw_rev);
 
 template <typename T>
 uint64_t ulround(T value) {
@@ -185,9 +178,9 @@ void warn_mask_resized(int image_cols, int image_rows,
                        int scan_height, int scan_width);
 
 template <typename pixel_type>
-ouster::img_t<pixel_type> load_mask(const std::string& mask_path,
+ouster::sdk::core::img_t<pixel_type> load_mask(const std::string& mask_path,
                                     size_t height, size_t width) {
-    if (mask_path.empty()) return ouster::img_t<pixel_type>();
+    if (mask_path.empty()) return ouster::sdk::core::img_t<pixel_type>();
 
     cv::Mat image = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
     if (image.empty()) {

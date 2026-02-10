@@ -25,10 +25,11 @@ namespace ouster_ros {
 template <typename K, typename V, size_t N>
 using Table = std::array<std::pair<K, V>, N>;
 
-namespace sensor = ouster::sensor;
+namespace ChanField = ouster::sdk::core::ChanField;
+using ouster::sdk::core::ChanFieldType;
 
 template <size_t N>
-using ChanFieldTable = Table<sensor::ChanField, sensor::ChanFieldType, N>;
+using ChanFieldTable = Table<const char*, ChanFieldType, N>;
 
 }
 
@@ -37,10 +38,10 @@ namespace ouster_ros {
 
 // Profile_LEGACY
 static constexpr ChanFieldTable<4> Profile_LEGACY{{
-    {sensor::ChanField::RANGE, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::SIGNAL, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::REFLECTIVITY, sensor::ChanFieldType::UINT32}}
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::SIGNAL, ChanFieldType::UINT32},
+    {ChanField::NEAR_IR, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT32}}
 };
 
 // auto=LEGACY
@@ -114,20 +115,20 @@ namespace ouster_ros {
 // representation which combines parts of the the two or more returns. This isn't
 // something that the current framework could deal with as of now.
 static constexpr ChanFieldTable<4> Profile_RNG19_RFL8_SIG16_NIR16_DUAL {{
-    {sensor::ChanField::RANGE, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::SIGNAL, sensor::ChanFieldType::UINT16},
-    {sensor::ChanField::REFLECTIVITY, sensor::ChanFieldType::UINT8},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::SIGNAL, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // Note: this is one way to implement the processing of 2nd return
 // This should be an exact copy of Profile_RNG19_RFL8_SIG16_NIR16_DUAL with the
 // exception of ChanField values for the first three fields. NEAR_IR is same for both
 static constexpr ChanFieldTable<4> Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN {{
-    {sensor::ChanField::RANGE2, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::SIGNAL2, sensor::ChanFieldType::UINT16},
-    {sensor::ChanField::REFLECTIVITY2, sensor::ChanFieldType::UINT8},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE2, ChanFieldType::UINT32},
+    {ChanField::SIGNAL2, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_DUAL
@@ -196,10 +197,10 @@ namespace ouster_ros {
 
 // Profile_RNG19_RFL8_SIG16_NIR16 aka single return
 static constexpr ChanFieldTable<4> Profile_RNG19_RFL8_SIG16_NIR16{{
-    {sensor::ChanField::RANGE, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::SIGNAL, sensor::ChanFieldType::UINT16},
-    {sensor::ChanField::REFLECTIVITY, sensor::ChanFieldType::UINT16},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::SIGNAL, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16
@@ -209,7 +210,7 @@ struct EIGEN_ALIGN16 _Point_RNG19_RFL8_SIG16_NIR16 {
     uint16_t ring;          // equivalent channel
     uint32_t range;
     uint16_t signal;        // equivalent to intensity
-    uint16_t reflectivity;
+    uint8_t reflectivity;
     uint16_t near_ir;       // equivalent to ambient
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -258,7 +259,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG19_RFL8_SIG16_NIR16,
     (std::uint16_t, ring, ring)
     (std::uint32_t, range, range)
     (std::uint16_t, signal, signal)
-    (std::uint16_t, reflectivity, reflectivity)
+    (std::uint8_t, reflectivity, reflectivity)
     (std::uint16_t, near_ir, near_ir)
 )
 
@@ -268,9 +269,9 @@ namespace ouster_ros {
 
 // Profile_RNG15_RFL8_NIR8 aka LOW_DATA
 static constexpr ChanFieldTable<3> Profile_RNG15_RFL8_NIR8{{
-    {sensor::ChanField::RANGE, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::REFLECTIVITY, sensor::ChanFieldType::UINT16},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // auto=RNG15_RFL8_NIR8 aka LOW_DATA profile
@@ -280,7 +281,7 @@ struct EIGEN_ALIGN16 _Point_RNG15_RFL8_NIR8 {
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
     uint32_t range;
-    uint16_t reflectivity;
+    uint8_t reflectivity;
     uint16_t near_ir;       // equivalent to ambient
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -329,7 +330,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG15_RFL8_NIR8,
     (std::uint32_t, t, t)
     (std::uint16_t, ring, ring)
     (std::uint32_t, range, range)
-    (std::uint16_t, reflectivity, reflectivity)
+    (std::uint8_t, reflectivity, reflectivity)
     (std::uint16_t, near_ir, near_ir)
 )
 
@@ -347,18 +348,18 @@ namespace ouster_ros {
 // representation which combines parts of the the two or more returns. This isn't
 // something that the current framework could deal with as of now.
 static constexpr ChanFieldTable<3> Profile_FUSA_RNG15_RFL8_NIR8_DUAL {{
-    {sensor::ChanField::RANGE, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::REFLECTIVITY, sensor::ChanFieldType::UINT8},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // Note: this is one way to implement the processing of 2nd return
 // This should be an exact copy of Profile_FUSA_RNG15_RFL8_NIR8_DUAL with the
 // exception of ChanField values for the first three fields. NEAR_IR is same for both
 static constexpr ChanFieldTable<3> Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN {{
-    {sensor::ChanField::RANGE2, sensor::ChanFieldType::UINT32},
-    {sensor::ChanField::REFLECTIVITY2, sensor::ChanFieldType::UINT8},
-    {sensor::ChanField::NEAR_IR, sensor::ChanFieldType::UINT16},
+    {ChanField::RANGE2, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_DUAL

@@ -25,8 +25,9 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
 using ouster_sensor_msgs::msg::PacketMsg;
+namespace ChanField = ouster::sdk::core::ChanField;
+using ouster::sdk::core::LidarPacket;
 
 
 class OusterImage : public OusterProcessingNodeBase {
@@ -52,8 +53,8 @@ class OusterImage : public OusterProcessingNodeBase {
     void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
-        info = sensor::parse_metadata(metadata_msg->data);
-        create_publishers_subscribers(get_n_returns(info));
+        info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        create_publishers_subscribers(info.num_returns());
     }
 
     void create_publishers_subscribers(int n_returns) {
@@ -71,22 +72,22 @@ class OusterImage : public OusterProcessingNodeBase {
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
 
-        const std::map<sensor::ChanField, std::string>
+        const std::map<std::string, std::string>
             channel_field_topic_map_1 {
-                {sensor::ChanField::RANGE, "range_image"},
-                {sensor::ChanField::SIGNAL, "signal_image"},
-                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                {sensor::ChanField::NEAR_IR, "nearir_image"}};
+                {ChanField::RANGE, "range_image"},
+                {ChanField::SIGNAL, "signal_image"},
+                {ChanField::REFLECTIVITY, "reflec_image"},
+                {ChanField::NEAR_IR, "nearir_image"}};
 
-        const std::map<sensor::ChanField, std::string>
+        const std::map<std::string, std::string>
             channel_field_topic_map_2 {
-                {sensor::ChanField::RANGE, "range_image"},
-                {sensor::ChanField::SIGNAL, "signal_image"},
-                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                {sensor::ChanField::NEAR_IR, "nearir_image"},
-                {sensor::ChanField::RANGE2, "range_image2"},
-                {sensor::ChanField::SIGNAL2, "signal_image2"},
-                {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+                {ChanField::RANGE, "range_image"},
+                {ChanField::SIGNAL, "signal_image"},
+                {ChanField::REFLECTIVITY, "reflec_image"},
+                {ChanField::NEAR_IR, "nearir_image"},
+                {ChanField::RANGE2, "range_image2"},
+                {ChanField::SIGNAL2, "signal_image2"},
+                {ChanField::REFLECTIVITY2, "reflec_image2"}};
 
         auto which_map = n_returns == 1 ? &channel_field_topic_map_1
                                         : &channel_field_topic_map_2;
@@ -125,7 +126,7 @@ class OusterImage : public OusterProcessingNodeBase {
                     if (lidar_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
-                        sensor::LidarPacket lidar_packet(msg->buf.size());
+                        LidarPacket lidar_packet(msg->buf.size());
                         memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         lidar_packet_handler(lidar_packet);
@@ -135,7 +136,7 @@ class OusterImage : public OusterProcessingNodeBase {
 
    private:
     rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
-    std::map<sensor::ChanField,
+    std::map<std::string,
              rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
         image_pubs;
 

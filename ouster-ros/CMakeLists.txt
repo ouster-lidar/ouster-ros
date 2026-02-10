@@ -33,7 +33,7 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 set(_ouster_ros_INCLUDE_DIRS
   "include;"
-  "ouster-sdk/ouster_client/include;"
+  "ouster-sdk/ouster_sensor/include;"
   "ouster-sdk/ouster_client/include/optional-lite;"
   "ouster-sdk/ouster_pcap/include"
 )
@@ -84,6 +84,7 @@ ament_target_dependencies(ouster_ros_library
 target_link_libraries(ouster_ros_library
   # PUBLIC (unsupported)
     ouster_build
+    OusterSDK::ouster_sensor
     pcl_common
   # PRIVATE (unsupported)
   ${OUSTER_TARGET_LINKS}

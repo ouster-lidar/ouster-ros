@@ -27,7 +27,7 @@ class OusterProcessingNodeBase : public rclcpp::Node {
 
    protected:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr metadata_sub;
-    ouster::sensor::sensor_info info;
+    ouster::sdk::core::SensorInfo info;
 };
 
 }  // namespace ouster_ros

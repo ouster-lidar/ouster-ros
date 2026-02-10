@@ -4,20 +4,19 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-using sensor::UDPProfileLidar;
+using ouster::sdk::core::UDPProfileLidar;
 
 class PointCloudProcessorFactory {
     template <typename PointT>
     static typename PointCloudProcessor<PointT>::ScanToCloudFn
-    make_scan_to_cloud_fn(const sensor::sensor_info& info,
+    make_scan_to_cloud_fn(const ouster::sdk::core::SensorInfo& info,
                           bool organized, bool destagger, int rows_step) {
         switch (info.format.udp_profile_lidar) {
             case UDPProfileLidar::PROFILE_LIDAR_LEGACY:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
-                    const ouster::PointsF& points, uint64_t scan_ts,
-                    const ouster::LidarScan& ls,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -30,8 +29,8 @@ class PointCloudProcessorFactory {
             case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
-                    const ouster::PointsF& points, uint64_t scan_ts,
-                    const ouster::LidarScan& ls,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
@@ -54,8 +53,8 @@ class PointCloudProcessorFactory {
             case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
-                    const ouster::PointsF& points, uint64_t scan_ts,
-                    const ouster::LidarScan& ls,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -70,8 +69,8 @@ class PointCloudProcessorFactory {
             case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
-                    const ouster::PointsF& points, uint64_t scan_ts,
-                    const ouster::LidarScan& ls,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -86,8 +85,8 @@ class PointCloudProcessorFactory {
             case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
-                    const ouster::PointsF& points, uint64_t scan_ts,
-                    const ouster::LidarScan& ls,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
@@ -114,7 +113,7 @@ class PointCloudProcessorFactory {
 
     template <typename PointT>
     static LidarScanProcessor make_point_cloud_processor(
-        const sensor::sensor_info& info, const std::string& frame,
+        const ouster::sdk::core::SensorInfo& info, const std::string& frame,
         bool apply_lidar_to_sensor_transform,
         bool organized, bool destagger,
         uint32_t min_range, uint32_t max_range, int rows_step,
@@ -141,7 +140,7 @@ class PointCloudProcessorFactory {
     }
 
     static LidarScanProcessor create_point_cloud_processor(
-        const std::string& point_type, const sensor::sensor_info& info,
+        const std::string& point_type, const ouster::sdk::core::SensorInfo& info,
         const std::string& frame, bool apply_lidar_to_sensor_transform,
         bool organized, bool destagger,
         uint32_t min_range, uint32_t max_range, int rows_step,

@@ -29,29 +29,25 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-using namespace ouster::util;
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::msg::Telemetry;
-using ouster::sensor::LidarPacket;
+using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::LidarScan;
+using ouster::sdk::core::LidarMode;
+using ouster::sdk::core::cf_type;
+using ouster::sdk::core::PacketFormat;
+using ouster::sdk::core::SensorInfo;
+using ouster::sdk::core::mat4d;
+using ouster::sdk::core::Version;
+namespace ChanField = ouster::sdk::core::ChanField;
 
-
-bool is_legacy_lidar_profile(const sensor::sensor_info& info) {
-    using sensor::UDPProfileLidar;
+bool is_legacy_lidar_profile(const SensorInfo& info) {
+    using ouster::sdk::core::UDPProfileLidar;
     return info.format.udp_profile_lidar ==
            UDPProfileLidar::PROFILE_LIDAR_LEGACY;
 }
 
-int get_n_returns(const sensor::sensor_info& info) {
-    using sensor::UDPProfileLidar;
-    if (info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL ||
-        info.format.udp_profile_lidar == UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL)
-        return 2;
-
-    return 1;
-}
-
-size_t get_beams_count(const sensor::sensor_info& info) {
+size_t get_beams_count(const SensorInfo& info) {
     return info.beam_azimuth_angles.size();
 }
 
@@ -59,7 +55,7 @@ std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }
 
-sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
+sensor_msgs::msg::Imu packet_to_imu_msg(const PacketFormat& pf,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
                                         const uint8_t* buf) {
@@ -98,29 +94,22 @@ sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sensor::packet_format& pf,
 sensor_msgs::msg::Imu packet_to_imu_msg(const PacketMsg& pm,
                                         const rclcpp::Time& timestamp,
                                         const std::string& frame,
-                                        const sensor::packet_format& pf) {
+                                        const PacketFormat& pf) {
     return packet_to_imu_msg(pf, timestamp, frame, pm.buf.data());
 }
 
 namespace impl {
-sensor::ChanField scan_return(sensor::ChanField input_field, bool second) {
-    switch (input_field) {
-        case sensor::ChanField::RANGE:
-        case sensor::ChanField::RANGE2:
-            return second ? sensor::ChanField::RANGE2
-                          : sensor::ChanField::RANGE;
-        case sensor::ChanField::SIGNAL:
-        case sensor::ChanField::SIGNAL2:
-            return second ? sensor::ChanField::SIGNAL2
-                          : sensor::ChanField::SIGNAL;
-        case sensor::ChanField::REFLECTIVITY:
-        case sensor::ChanField::REFLECTIVITY2:
-            return second ? sensor::ChanField::REFLECTIVITY2
-                          : sensor::ChanField::REFLECTIVITY;
-        case sensor::ChanField::NEAR_IR:
-            return sensor::ChanField::NEAR_IR;
-        default:
-            throw std::runtime_error("Unreachable");
+std::string scan_return(const std::string& field, bool second) {
+    if (field == ChanField::RANGE || field == ChanField::RANGE2) {
+        return second ? ChanField::RANGE2 : ChanField::RANGE;
+    } else if (field == ChanField::SIGNAL || field == ChanField::SIGNAL2) {
+        return second ? ChanField::SIGNAL2 : ChanField::SIGNAL;
+    } else if (field == ChanField::REFLECTIVITY || field == ChanField::REFLECTIVITY2) {
+        return second ? ChanField::REFLECTIVITY2 : ChanField::REFLECTIVITY;
+    } else if (field == ChanField::NEAR_IR) {
+        return ChanField::NEAR_IR;
+    } else {
+        throw std::runtime_error("Unreachable");
     }
 }
 
@@ -142,19 +131,19 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
     return tokens;
 }
 
-version parse_version(const std::string& fw_rev) {
+Version parse_version(const std::string& fw_rev) {
     auto rgx = std::regex(R"(v(\d+).(\d+)\.(\d+))");
     std::smatch matches;
     std::regex_search(fw_rev, matches, rgx);
 
-    if (matches.size() < 4) return invalid_version;
+    if (matches.size() < 4) return ouster::sdk::core::INVALID_VERSION;
 
     try {
-        return version{static_cast<uint16_t>(stoul(matches[1])),
+        return Version{static_cast<uint16_t>(stoul(matches[1])),
                     static_cast<uint16_t>(stoul(matches[2])),
                     static_cast<uint16_t>(stoul(matches[3]))};
     } catch (const std::exception&) {
-        return invalid_version;
+        return ouster::sdk::core::INVALID_VERSION;
     }
 }
 
@@ -169,7 +158,7 @@ void warn_mask_resized(int image_cols, int image_rows,
 }  // namespace impl
 
 geometry_msgs::msg::TransformStamped transform_to_tf_msg(
-    const ouster::mat4d& mat, const std::string& frame,
+    const mat4d& mat, const std::string& frame,
     const std::string& child_frame, rclcpp::Time timestamp) {
     Eigen::Affine3d aff;
     aff.linear() = mat.block<3, 3>(0, 0);
@@ -185,8 +174,8 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 
 // TODO: provide a method that accepts sensor_msgs::msg::LaserScan object
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::LidarScan& ls, const rclcpp::Time& timestamp,
-    const std::string& frame, const ouster::sensor::lidar_mode ld_mode,
+    const LidarScan& ls, const rclcpp::Time& timestamp,
+    const std::string& frame, const LidarMode ld_mode,
     const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
     const int return_index) {
     sensor_msgs::msg::LaserScan msg;
@@ -197,18 +186,18 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     msg.range_min = 0.1f;    // TODO: fill per product type
     msg.range_max = 120.0f;  // TODO: fill per product type
 
-    const auto scan_width = sensor::n_cols_of_lidar_mode(ld_mode);
-    const auto scan_frequency = sensor::frequency_of_lidar_mode(ld_mode);
+    const auto scan_width = ouster::sdk::core::n_cols_of_lidar_mode(ld_mode);
+    const auto scan_frequency = ouster::sdk::core::frequency_of_lidar_mode(ld_mode);
     msg.scan_time = 1.0f / scan_frequency;
     msg.time_increment = 1.0f / (scan_width * scan_frequency);
     msg.angle_increment = 2 * M_PI / scan_width;
 
-    auto which_range = return_index == 0 ? sensor::ChanField::RANGE
-                                         : sensor::ChanField::RANGE2;
-    ouster::img_t<uint32_t> range = ls.field<uint32_t>(which_range);
-    auto which_signal = return_index == 0 ? sensor::ChanField::SIGNAL
-                                          : sensor::ChanField::SIGNAL2;
-    ouster::img_t<uint32_t> signal =
+    auto which_range = return_index == 0 ? ChanField::RANGE
+                                         : ChanField::RANGE2;
+    ouster::sdk::core::img_t<uint32_t> range = ls.field<uint32_t>(which_range);
+    auto which_signal = return_index == 0 ? ChanField::SIGNAL
+                                          : ChanField::SIGNAL2;
+    ouster::sdk::core::img_t<uint32_t> signal =
         impl::get_or_fill_zero<uint32_t>(which_signal, ls);
     const auto rg = range.data();
     const auto sg = signal.data();
@@ -216,11 +205,11 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     msg.intensities.resize(ls.w);
 
     uint16_t u = ring;
-    for (auto v =  0; v < ls.w; ++v) {
+    for (int v =  0; v < static_cast<int>(ls.w); ++v) {
         auto v_shift = (v + ls.w - pixel_shift_by_row[u] + ls.w / 2) % ls.w;
         auto src_idx = u * ls.w + v_shift;
         auto tgt_idx = ls.w - 1 - v;
-        msg.ranges[tgt_idx] = rg[src_idx] * ouster::sensor::range_unit;
+        msg.ranges[tgt_idx] = rg[src_idx] * ouster::sdk::core::RANGE_UNIT;
         msg.intensities[tgt_idx] = static_cast<float>(sg[src_idx]);
     }
 
@@ -229,7 +218,7 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
 
 Telemetry lidar_packet_to_telemetry_msg(
     const LidarPacket& lidar_packet, const rclcpp::Time& timestamp,
-    const sensor::packet_format& pf) {
+    const PacketFormat& pf) {
     Telemetry telemetry;
     telemetry.header.stamp = timestamp;
     telemetry.countdown_thermal_shutdown = pf.countdown_thermal_shutdown(lidar_packet.buf.data());
