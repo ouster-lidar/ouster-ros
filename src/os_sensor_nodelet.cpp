@@ -313,6 +313,9 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     const int MIN_AZW = 0, MAX_AZW = 360000;
     auto azimuth_window_start = nh.param("azimuth_window_start", MIN_AZW);
     auto azimuth_window_end = nh.param("azimuth_window_end", MAX_AZW);
+    auto signal_multiplier = nh.param("signal_multiplier", 1.0);
+    auto phase_lock_enable = nh.param("phase_lock_enable", false);
+    auto phase_lock_offset = nh.param("phase_lock_offset", 0);
 
     if (lidar_port < 0 || lidar_port > 65535) {
         auto error_msg =
@@ -426,6 +429,12 @@ sensor::sensor_config OusterSensor::parse_config_from_ros_parameters() {
     }
 
     config.azimuth_window = {azimuth_window_start, azimuth_window_end};
+    
+    sensor::check_signal_multiplier(signal_multiplier);
+    config.signal_multiplier = signal_multiplier;
+    
+    config.phase_lock_enable = phase_lock_enable;
+    config.phase_lock_offset = phase_lock_offset;
 
     return config;
 }
