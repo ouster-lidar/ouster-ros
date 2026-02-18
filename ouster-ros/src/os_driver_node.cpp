@@ -252,8 +252,12 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
-        if (imu_packet_handler)
-            imu_pub->publish(imu_packet_handler(imu_packet));
+        if (imu_packet_handler) {
+            auto imu_msgs = imu_packet_handler(imu_packet);
+            for (const auto& imu_msg : imu_msgs) {
+                imu_pub->publish(imu_msg);
+            }
+        }
 
         if (publish_raw)
             OusterSensor::on_imu_packet_msg(imu_packet);

@@ -54,6 +54,7 @@ void OusterSensorNodeBase::publish_metadata() {
 
 void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
     auto lidar_profile = info.format.udp_profile_lidar;
+    auto imu_profile = info.format.udp_profile_imu;
     RCLCPP_INFO_STREAM(
         get_logger(),
         "ouster client version: "
@@ -61,7 +62,8 @@ void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
             << "product: " << info.prod_line << ", sn: " << info.sn << ", "
             << "firmware rev: " << info.fw_rev << "\n"
             << "lidar mode: " << ouster::sdk::core::to_string(info.config.lidar_mode.value()) << ", "
-            << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile));
+            << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
+            << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
 }
 
 std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {

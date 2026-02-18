@@ -36,6 +36,19 @@ ouster/os_driver:
     # - RNG19_RFL8_SIG16_NIR16_DUAL
     # - FUSA_RNG15_RFL8_NIR8_DUAL
     udp_profile_lidar: ''
+    # udp_profile_imu[optional]: imu packet profile; possible values:
+    # - LEGACY: not recommended
+    # - ACCEL32_GYRO32_NMEA
+    udp_profile_imu: ''
+    # imu_packets_per_frame[optional]: number of IMU packets per frame;
+    # possible values: {1, 2, 4, 8}, default is 8.
+    imu_packets_per_frame: 8
+    # gyro_fsr[optional]: gyroscope full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is NORMAL.
+    gyro_fsr: 'NORMAL'
+    # accel_fsr[optional]: accelerometer full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is NORMAL.
+    accel_fsr: 'NORMAL'
     # metadata[optional]: path to save metadata file to, if left empty a file
     # with the sensor hostname or ip will be crearted in ~/.ros folder.
     metadata: ''

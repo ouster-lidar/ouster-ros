@@ -24,6 +24,7 @@
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/msg/telemetry.hpp"
@@ -56,29 +57,17 @@ std::string topic_for_return(const std::string& topic_base, int return_idx);
 
 /**
  * Parse an imu packet message into a ROS imu message
- * @param[in] pf the packet format
+ * @param[in] imu_packet the raw IMU packet populated by read_imu_packet
  * @param[in] timestamp the timestamp to give the resulting ROS message
  * @param[in] frame the frame to set in the resulting ROS message
- * @param[in] buf the raw packet message populated by read_imu_packet
+ * @param[in] sensor_info the sensor information
  * @return ROS sensor message with fields populated from the packet
  */
-sensor_msgs::msg::Imu packet_to_imu_msg(const ouster::sdk::core::PacketFormat& pf,
-                                        const rclcpp::Time& timestamp,
-                                        const std::string& frame,
-                                        const uint8_t* buf);
-
-/**
- * Parse an imu packet message into a ROS imu message
- * @param[in] pm packet message populated by read_imu_packet
- * @param[in] timestamp the timestamp to give the resulting ROS message
- * @param[in] frame the frame to set in the resulting ROS message
- * @param[in] pf the packet format
- * @return ROS sensor message with fields populated from the packet
- */
-sensor_msgs::msg::Imu packet_to_imu_msg(const ouster_sensor_msgs::msg::PacketMsg& pm,
-                                        const rclcpp::Time& timestamp,
-                                        const std::string& frame,
-                                        const ouster::sdk::core::PacketFormat& pf);
+std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
+    const ouster::sdk::core::ImuPacket& imu_packet,
+    const std::string& frame,
+    const rclcpp::Time& timestamp,
+    const ouster::sdk::core::SensorInfo& sensor_info);
 
 /**
  * Convert transformation matrix return by sensor to ROS transform

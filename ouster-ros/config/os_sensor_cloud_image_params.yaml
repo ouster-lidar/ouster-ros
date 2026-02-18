@@ -11,6 +11,10 @@ ouster/os_sensor:
     lidar_mode: ''
     timestamp_mode: ''
     udp_profile_lidar: ''
+    udp_profile_imu: ''
+    imu_packets_per_frame: 8
+    gyro_fsr: 'NORMAL'
+    accel_fsr: 'NORMAL'
     metadata: ''
     lidar_port: 0
     imu_port: 0
