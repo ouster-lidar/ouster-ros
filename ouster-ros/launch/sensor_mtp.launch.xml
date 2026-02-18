@@ -31,6 +31,18 @@
     LEGACY,
     ACCEL32_GYRO32_NMEA
     }"/>
+  <arg name="imu_packets_per_frame" default="8"
+    description="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
+  <arg name="gyro_fsr" default="NORMAL"
+    description="gyro full scale range; possible values: {
+    NORMAL,
+    EXTENDED
+    }"/>
+  <arg name="accel_fsr" default="NORMAL"
+    description="accel full scale range; possible values: {
+    NORMAL,
+    EXTENDED
+    }"/>
   <arg name="lidar_mode" default=""
     description="resolution and rate; possible values: {
     512x10,
@@ -122,6 +134,9 @@
       <param name="imu_port" value="$(var imu_port)"/>
       <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
       <param name="udp_profile_imu" value="$(var udp_profile_imu)"/>
+      <param name="imu_packets_per_frame" value="$(var imu_packets_per_frame)"/>
+      <param name="gyro_fsr" value="$(var gyro_fsr)"/>
+      <param name="accel_fsr" value="$(var accel_fsr)"/>
       <param name="lidar_mode" value="$(var lidar_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
       <param name="sensor_frame" value="$(var sensor_frame)"/>
