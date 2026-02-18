@@ -17,28 +17,26 @@
   <depend>ouster_sensor_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>tf2_ros</depend>
   <depend>pcl_ros</depend>
-  <depend>std_srvs</depend>
-  <depend>libzip-dev</depend>
+  <depend>pcl_conversions</depend>
+  <depend>cv_bridge</depend>
+  <depend>curl</depend>
+  <depend>spdlog</depend>
 
   <build_depend>libjsoncpp-dev</build_depend>
   <build_depend>eigen</build_depend>
   <build_depend>tf2_eigen</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
-  <build_depend>curl</build_depend>
   <build_depend>libtins-dev</build_depend>
-  <build_depend>spdlog</build_depend>
-  <build_depend>cv_bridge</build_depend>
-  <build_depend>pcl_conversions</build_depend>
+  <build_depend>libzip-dev</build_depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>
-  <exec_depend>curl</exec_depend>
-  <exec_depend>spdlog</exec_depend>
-  <exec_depend>libtins-dev</exec_depend>
+  <exec_depend>libzip</exec_depend>
 
   <test_depend>gtest</test_depend>
 
