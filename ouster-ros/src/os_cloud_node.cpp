@@ -105,15 +105,20 @@ class OusterCloud : public OusterProcessingNodeBase {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             imu_packet_sub = create_subscription<PacketMsg>(
                 "imu_packets", selected_qos,
-                [this](const PacketMsg::ConstSharedPtr msg) {
+                [this, info](const PacketMsg::ConstSharedPtr msg) {
                     if (imu_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
                         ImuPacket imu_packet(msg->buf.size());
-                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        using ouster::sdk::core::PacketFormat;
+                        auto& pf = ouster::sdk::core::get_format(info);
+                        imu_packet.format = std::make_shared<PacketFormat>(pf);
+                       memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
-                        auto imu_msg = imu_packet_handler(imu_packet);
-                        imu_pub->publish(imu_msg);
+                        auto imu_msgs = imu_packet_handler(imu_packet);
+                        for (const auto& imu_msg : imu_msgs) {
+                            imu_pub->publish(imu_msg);
+                        }
                     }
                 });
         }

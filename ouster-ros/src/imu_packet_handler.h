@@ -18,7 +18,7 @@ namespace ouster_ros {
 
 class ImuPacketHandler {
    public:
-    using HandlerOutput = sensor_msgs::msg::Imu;
+    using HandlerOutput = std::vector<sensor_msgs::msg::Imu>;
     using HandlerType = std::function<HandlerOutput(const ouster::sdk::core::ImuPacket&)>;
 
    public:
@@ -49,9 +49,8 @@ class ImuPacketHandler {
                 }};
         }
 
-        return [&pf, &frame, timestamper](const ouster::sdk::core::ImuPacket& imu_packet) {
-            return packet_to_imu_msg(pf, timestamper(imu_packet), frame,
-                                     imu_packet.buf.data());
+        return [&pf, &frame, timestamper, &info](const ouster::sdk::core::ImuPacket& imu_packet) {
+            return packet_to_imu_msgs(imu_packet, frame, timestamper(imu_packet), info);
         };
     }
 };
