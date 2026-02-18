@@ -20,6 +20,11 @@
     RNG19_RFL8_SIG16_NIR16_DUAL,
     FUSA_RNG15_RFL8_NIR8_DUAL
     }"/>
+  <arg name="udp_profile_imu" default=""
+    description="imu packet profile; possible values: {
+    LEGACY,
+    ACCEL32_GYRO32_NMEA
+    }"/>
   <arg name="lidar_mode" default=""
     description="resolution and rate; possible values: {
     512x10,
@@ -132,6 +137,7 @@
         <param name="lidar_port" value="$(var lidar_port)"/>
         <param name="imu_port" value="$(var imu_port)"/>
         <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
+        <param name="udp_profile_imu" value="$(var udp_profile_imu)"/>
         <param name="lidar_mode" value="$(var lidar_mode)"/>
         <param name="timestamp_mode" value="$(var timestamp_mode)"/>
         <param name="metadata" value="$(var metadata)"/>

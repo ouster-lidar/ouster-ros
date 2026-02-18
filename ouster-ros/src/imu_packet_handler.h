@@ -49,7 +49,7 @@ class ImuPacketHandler {
                 }};
         }
 
-        return [&pf, &frame, timestamper, &info](const ouster::sdk::core::ImuPacket& imu_packet) {
+        return [pf, frame, timestamper, info](const ouster::sdk::core::ImuPacket& imu_packet) {
             return packet_to_imu_msgs(imu_packet, frame, timestamper(imu_packet), info);
         };
     }

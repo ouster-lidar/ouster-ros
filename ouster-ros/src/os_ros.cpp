@@ -61,23 +61,18 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
     const rclcpp::Time& timestamp,
     const ouster::sdk::core::SensorInfo& sensor_info) {
 
-    std::vector<sensor_msgs::msg::Imu> msgs;
     Eigen::ArrayX<uint16_t> imu_status = imu_packet.status();
-
-    // count valid measurements:
-    int valid_count = imu_status.count();
-    std::cout << "valid imu_measuremets: " << valid_count << std::endl;
-    msgs.reserve(valid_count);
 
     Eigen::ArrayX<uint64_t> imu_timestamps = imu_packet.timestamp();
     if (imu_packet.format->imu_measurements_per_packet == 0) {  // Handle the LEGACY IMU profile (it would be better if the imu_packet handles this internally).
         imu_timestamps[0] = imu_packet.format->imu_gyro_ts(imu_packet.buf.data());
-    } else  if (imu_timestamps[0] == 0) {   // HANDLE the case when the first imu_timestamp is unknown.
-        int total_frame_imu_measurements = imu_packet.format->imu_measurements_per_packet * imu_packet.format->imu_packets_per_frame;
-        double frame_ts = 1e9 / sensor_info.format.fps;
-        double imu_measurement_interval = frame_ts / total_frame_imu_measurements;
+    } else if ((imu_status[0] & 0x1) == 0) {   // HANDLE the case when the first imu_timestamp is unknown.
+        auto& format = *imu_packet.format;
+        int imu_measurements_per_frame = format.imu_measurements_per_packet * format.imu_packets_per_frame;
+        double frame_ts_ns = 1e9 / sensor_info.format.fps;
+        double imu_measurement_interval = frame_ts_ns / imu_measurements_per_frame;
         for (int i = 0; i < imu_timestamps.size(); ++i) {
-            imu_timestamps[i] = imu_timestamps[0] + static_cast<uint64_t>(i * imu_measurement_interval);
+            imu_timestamps[i] = static_cast<uint64_t>(i * imu_measurement_interval);
         }
     }
 
@@ -92,6 +87,10 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
     m.orientation.y = 0;
     m.orientation.z = 0;
     m.orientation.w = 1;
+
+    std::vector<sensor_msgs::msg::Imu> msgs;
+    // only reserve space for valid measurements
+    msgs.reserve(imu_status.count());
 
     for (int i = 0; i < imu_status.size(); ++i) {
         if ((imu_status[i] & 0x1) == 0) {

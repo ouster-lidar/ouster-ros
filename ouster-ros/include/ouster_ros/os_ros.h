@@ -57,10 +57,9 @@ std::string topic_for_return(const std::string& topic_base, int return_idx);
 
 /**
  * Parse an imu packet message into a ROS imu message
- * @param[in] pf the packet format
+ * @param[in] imu_packet the raw IMU packet populated by read_imu_packet
  * @param[in] timestamp the timestamp to give the resulting ROS message
  * @param[in] frame the frame to set in the resulting ROS message
- * @param[in] imu_packet the raw IMU packet populated by read_imu_packet
  * @param[in] sensor_info the sensor information
  * @return ROS sensor message with fields populated from the packet
  */

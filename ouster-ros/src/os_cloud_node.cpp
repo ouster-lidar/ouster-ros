@@ -113,7 +113,7 @@ class OusterCloud : public OusterProcessingNodeBase {
                         using ouster::sdk::core::PacketFormat;
                         auto& pf = ouster::sdk::core::get_format(info);
                         imu_packet.format = std::make_shared<PacketFormat>(pf);
-                       memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         auto imu_msgs = imu_packet_handler(imu_packet);
                         for (const auto& imu_msg : imu_msgs) {

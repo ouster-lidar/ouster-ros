@@ -36,6 +36,10 @@ ouster/os_driver:
     # - RNG19_RFL8_SIG16_NIR16_DUAL
     # - FUSA_RNG15_RFL8_NIR8_DUAL
     udp_profile_lidar: ''
+    # udp_profile_imu[optional]: imu packet profile; possible values:
+    # - LEGACY: not recommended
+    # - ACCEL32_GYRO32_NMEA
+    udp_profile_imu: ''
     # metadata[optional]: path to save metadata file to, if left empty a file
     # with the sensor hostname or ip will be crearted in ~/.ros folder.
     metadata: ''
