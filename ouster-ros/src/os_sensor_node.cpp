@@ -84,7 +84,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("timestamp_mode", "");
     declare_parameter("udp_profile_lidar", "");
     declare_parameter("udp_profile_imu", "");
-    declare_parameter("imu_packets_per_frame", 8);
+    declare_parameter("imu_packets_per_frame", 0);
     declare_parameter("gyro_fsr", "");
     declare_parameter("accel_fsr", "");
     declare_parameter("use_system_default_qos", false);
@@ -579,14 +579,16 @@ ouster::sdk::core::SensorConfig OusterSensor::parse_config_from_ros_parameters()
     config.udp_profile_imu = udp_profile_imu;
 
     auto imu_packets_per_frame = get_parameter("imu_packets_per_frame").as_int();
-    auto valid_values = std::vector<int>{1, 2, 4, 8};
-    if (std::find(valid_values.begin(), valid_values.end(),
-                    imu_packets_per_frame) == valid_values.end()) {
-        RCLCPP_FATAL(get_logger(),
-            "imu_packets_per_frame needs to be one of the values: {1, 2, 4, 8}");
-        throw std::runtime_error("invalid imu_packets_per_frame value!");
+    if (imu_packets_per_frame != 0) {
+        auto valid_values = std::vector<int>{1, 2, 4, 8};
+        if (std::find(valid_values.begin(), valid_values.end(),
+                        imu_packets_per_frame) == valid_values.end()) {
+            RCLCPP_FATAL(get_logger(),
+                "imu_packets_per_frame needs to be one of the values: {1, 2, 4, 8}");
+            throw std::runtime_error("invalid imu_packets_per_frame value!");
+        }
+        config.imu_packets_per_frame = imu_packets_per_frame;
     }
-    config.imu_packets_per_frame = imu_packets_per_frame;
 
     auto gyro_fsr_arg = get_parameter("gyro_fsr").as_string();
     if (is_arg_set(gyro_fsr_arg)) {
