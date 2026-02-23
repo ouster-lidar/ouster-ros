@@ -12,7 +12,7 @@ class PointCloudProcessorFactory {
     make_scan_to_cloud_fn(const ouster::sdk::core::SensorInfo& info,
                           bool organized, bool destagger, int rows_step) {
         switch (info.format.udp_profile_lidar) {
-            case UDPProfileLidar::PROFILE_LIDAR_LEGACY:
+            case UDPProfileLidar::LEGACY:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -26,7 +26,7 @@ class PointCloudProcessorFactory {
                         pixel_shift_by_row, organized, destagger, rows_step);
                 };
 
-            case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL:
+            case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -50,7 +50,7 @@ class PointCloudProcessorFactory {
                     }
                 };
 
-            case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16:
+            case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -66,7 +66,7 @@ class PointCloudProcessorFactory {
                             pixel_shift_by_row, organized, destagger, rows_step);
                 };
 
-            case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
+            case UDPProfileLidar::RNG15_RFL8_NIR8:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -82,7 +82,8 @@ class PointCloudProcessorFactory {
                         pixel_shift_by_row, organized, destagger, rows_step);
                 };
 
-            case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
+            case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
+            case UDPProfileLidar::RNG15_RFL8_NIR8_DUAL:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -90,20 +91,84 @@ class PointCloudProcessorFactory {
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
-                    Point_FUSA_RNG15_RFL8_NIR8_DUAL staging_pt;
+                    Point_RNG15_RFL8_NIR8_DUAL staging_pt;
                     if (return_index == 0) {
                         scan_to_cloud_f<
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL.size(),
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                            Profile_RNG15_RFL8_NIR8_DUAL.size(),
+                            Profile_RNG15_RFL8_NIR8_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
                     } else {
                         scan_to_cloud_f<
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
+                            Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
+                            Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
                     }
+                };
+
+            case UDPProfileLidar::RNG15_RFL8_WIN8:
+                return [organized, destagger, rows_step](
+                    ouster_ros::Cloud<PointT>& cloud,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
+                    const std::vector<int>& pixel_shift_by_row,
+                    int /*return_index*/) {
+
+                    Point_RNG15_RFL8_WIN8 staging_pt;
+                    scan_to_cloud_f<
+                        Profile_RNG15_RFL8_WIN8.size(),
+                        Profile_RNG15_RFL8_WIN8>(
+                        cloud, staging_pt, points, scan_ts, ls,
+                        pixel_shift_by_row, organized, destagger, rows_step);
+                };
+
+            case UDPProfileLidar::FIVE_WORD_PIXEL:
+                return [organized, destagger, rows_step](
+                    ouster_ros::Cloud<PointT>& cloud,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
+                    const std::vector<int>& pixel_shift_by_row,
+                    int /*return_index*/) {
+
+                    Point_FIVE_WORD_PIXEL staging_pt;
+                    scan_to_cloud_f<
+                        Profile_FIVE_WORD_PIXEL.size(),
+                        Profile_FIVE_WORD_PIXEL>(
+                        cloud, staging_pt, points, scan_ts, ls,
+                        pixel_shift_by_row, organized, destagger, rows_step);
+                };
+
+            case UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16:
+                return [organized, destagger, rows_step](
+                    ouster_ros::Cloud<PointT>& cloud,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
+                    const std::vector<int>& pixel_shift_by_row,
+                    int /*return_index*/) {
+
+                    Point_RNG15_RFL8_NIR8_ZONE16 staging_pt;
+                    scan_to_cloud_f<
+                        Profile_RNG15_RFL8_NIR8_ZONE16.size(),
+                        Profile_RNG15_RFL8_NIR8_ZONE16>(
+                        cloud, staging_pt, points, scan_ts, ls,
+                        pixel_shift_by_row, organized, destagger, rows_step);
+                };
+
+            case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16:
+                return [organized, destagger, rows_step](
+                    ouster_ros::Cloud<PointT>& cloud,
+                    const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                    const ouster::sdk::core::LidarScan& ls,
+                    const std::vector<int>& pixel_shift_by_row,
+                    int /*return_index*/) {
+
+                    Point_RNG19_RFL8_SIG16_NIR16_ZONE16 staging_pt;
+                    scan_to_cloud_f<
+                        Profile_RNG19_RFL8_SIG16_NIR16_ZONE16.size(),
+                        Profile_RNG19_RFL8_SIG16_NIR16_ZONE16>(
+                        cloud, staging_pt, points, scan_ts, ls,
+                        pixel_shift_by_row, organized, destagger, rows_step);
                 };
 
             default:
@@ -134,9 +199,9 @@ class PointCloudProcessorFactory {
     }
 
     static bool profile_has_intensity(UDPProfileLidar profile) {
-        return profile == UDPProfileLidar::PROFILE_LIDAR_LEGACY ||
-               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL ||
-               profile == UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16;
+        return profile == UDPProfileLidar::LEGACY ||
+               profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL ||
+               profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16;
     }
 
     static LidarScanProcessor create_point_cloud_processor(
@@ -148,31 +213,52 @@ class PointCloudProcessorFactory {
         PointCloudProcessor_PostProcessingFn post_processing_fn) {
         if (point_type == "native") {
             switch (info.format.udp_profile_lidar) {
-                case UDPProfileLidar::PROFILE_LIDAR_LEGACY:
+                case UDPProfileLidar::LEGACY:
                     return make_point_cloud_processor<Point_LEGACY>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
-                case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL:
+                case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL:
                     return make_point_cloud_processor<
                         Point_RNG19_RFL8_SIG16_NIR16_DUAL>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
-                case UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16:
+                case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16:
                     return make_point_cloud_processor<
                         Point_RNG19_RFL8_SIG16_NIR16>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
-                case UDPProfileLidar::PROFILE_RNG15_RFL8_NIR8:
+                case UDPProfileLidar::RNG15_RFL8_NIR8:
                     return make_point_cloud_processor<Point_RNG15_RFL8_NIR8>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
-                case UDPProfileLidar::PROFILE_FUSA_RNG15_RFL8_NIR8_DUAL:
+                case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
+                case UDPProfileLidar::RNG15_RFL8_NIR8_DUAL:
                     return make_point_cloud_processor<
-                        Point_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                        Point_RNG15_RFL8_NIR8_DUAL>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        organized, destagger, min_range, max_range, rows_step,
+                        mask_path, post_processing_fn);
+                case UDPProfileLidar::RNG15_RFL8_WIN8:
+                    return make_point_cloud_processor<Point_RNG15_RFL8_WIN8>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        organized, destagger, min_range, max_range, rows_step,
+                        mask_path, post_processing_fn);
+                case UDPProfileLidar::FIVE_WORD_PIXEL:
+                    return make_point_cloud_processor<Point_FIVE_WORD_PIXEL>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        organized, destagger, min_range, max_range, rows_step,
+                        mask_path, post_processing_fn);
+                case UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16:
+                    return make_point_cloud_processor<Point_RNG15_RFL8_NIR8_ZONE16>(
+                        info, frame, apply_lidar_to_sensor_transform,
+                        organized, destagger, min_range, max_range, rows_step,
+                        mask_path, post_processing_fn);
+                case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16:
+                    return make_point_cloud_processor<Point_RNG19_RFL8_SIG16_NIR16_ZONE16>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
