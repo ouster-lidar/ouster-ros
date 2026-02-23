@@ -83,6 +83,7 @@ class PointCloudProcessorFactory {
                 };
 
             case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
+            case UDPProfileLidar::RNG15_RFL8_NIR8_DUAL:
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
@@ -90,17 +91,17 @@ class PointCloudProcessorFactory {
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
-                    Point_FUSA_RNG15_RFL8_NIR8_DUAL staging_pt;
+                    Point_RNG15_RFL8_NIR8_DUAL staging_pt;
                     if (return_index == 0) {
                         scan_to_cloud_f<
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL.size(),
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                            Profile_RNG15_RFL8_NIR8_DUAL.size(),
+                            Profile_RNG15_RFL8_NIR8_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
                     } else {
                         scan_to_cloud_f<
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
-                            Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
+                            Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
+                            Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
                     }
@@ -235,8 +236,9 @@ class PointCloudProcessorFactory {
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);
                 case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
+                case UDPProfileLidar::RNG15_RFL8_NIR8_DUAL:
                     return make_point_cloud_processor<
-                        Point_FUSA_RNG15_RFL8_NIR8_DUAL>(
+                        Point_RNG15_RFL8_NIR8_DUAL>(
                         info, frame, apply_lidar_to_sensor_transform,
                         organized, destagger, min_range, max_range, rows_step,
                         mask_path, post_processing_fn);

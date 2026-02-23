@@ -12,27 +12,41 @@
     description="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0"
     description="port to which the sensor should send imu data"/>
+  <!-- The following profiles are only available with FW3.2:
+    RNG15_RFL8_NIR8_DUAL
+    RNG15_RFL8_WIN8,
+    RNG15_RFL8_NIR8_ZONE16,
+    RNG19_RFL8_SIG16_NIR16_ZONE16
+   -->
   <arg name="udp_profile_lidar" default=""
     description="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8,
     RNG19_RFL8_SIG16_NIR16_DUAL,
-    FUSA_RNG15_RFL8_NIR8_DUAL
+    FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL),
+    RNG15_RFL8_NIR8_DUAL,
+    RNG15_RFL8_WIN8,
+    RNG15_RFL8_NIR8_ZONE16,
+    RNG19_RFL8_SIG16_NIR16_ZONE16
     }"/>
+  <!-- ACCEL32_GYRO32_NMEA is only available with FW3.2 -->
   <arg name="udp_profile_imu" default=""
     description="imu packet profile; possible values: {
     LEGACY,
     ACCEL32_GYRO32_NMEA
     }"/>
-  <arg name="imu_packets_per_frame" default="8"
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="imu_packets_per_frame" default="0"
     description="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
-  <arg name="gyro_fsr" default="NORMAL"
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="gyro_fsr" default=""
     description="gyro full scale range; possible values: {
     NORMAL,
     EXTENDED
     }"/>
-  <arg name="accel_fsr" default="NORMAL"
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="accel_fsr" default=""
     description="accel full scale range; possible values: {
     NORMAL,
     EXTENDED

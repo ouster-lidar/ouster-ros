@@ -106,6 +106,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_LEGACY,
     (std::uint16_t, signal, signal)
     (std::uint8_t, reflectivity, reflectivity)
     (std::uint16_t, near_ir, near_ir)
+    (std::uint8_t, flags, flags)
 )
 
 namespace ouster_ros {
@@ -387,7 +388,7 @@ namespace ouster_ros {
 // might be desireable to some of the users to choose a point cloud
 // representation which combines parts of the the two or more returns. This isn't
 // something that the current framework could deal with as of now.
-static constexpr ChanFieldTable<5> Profile_FUSA_RNG15_RFL8_NIR8_DUAL {{
+static constexpr ChanFieldTable<5> Profile_RNG15_RFL8_NIR8_DUAL {{
     {ChanField::RANGE, ChanFieldType::UINT32},
     {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
@@ -398,7 +399,7 @@ static constexpr ChanFieldTable<5> Profile_FUSA_RNG15_RFL8_NIR8_DUAL {{
 // Note: this is one way to implement the processing of 2nd return
 // This should be an exact copy of Profile_FUSA_RNG15_RFL8_NIR8_DUAL with the
 // exception of ChanField values for the first three fields. NEAR_IR is same for both
-static constexpr ChanFieldTable<5> Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN {{
+static constexpr ChanFieldTable<5> Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN {{
     {ChanField::RANGE2, ChanFieldType::UINT32},
     {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
@@ -407,7 +408,7 @@ static constexpr ChanFieldTable<5> Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN 
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_DUAL
-struct EIGEN_ALIGN16 _Point_FUSA_RNG15_RFL8_NIR8_DUAL {
+struct EIGEN_ALIGN16 _Point_RNG15_RFL8_NIR8_DUAL {
     PCL_ADD_POINT4D;
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
@@ -419,9 +420,9 @@ struct EIGEN_ALIGN16 _Point_FUSA_RNG15_RFL8_NIR8_DUAL {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-struct Point_FUSA_RNG15_RFL8_NIR8_DUAL : public _Point_FUSA_RNG15_RFL8_NIR8_DUAL {
+struct Point_RNG15_RFL8_NIR8_DUAL : public _Point_RNG15_RFL8_NIR8_DUAL {
 
-    inline Point_FUSA_RNG15_RFL8_NIR8_DUAL(const _Point_FUSA_RNG15_RFL8_NIR8_DUAL& pt)
+    inline Point_RNG15_RFL8_NIR8_DUAL(const _Point_RNG15_RFL8_NIR8_DUAL& pt)
     {
       x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
       t = pt.t; ring = pt.ring;
@@ -432,7 +433,7 @@ struct Point_FUSA_RNG15_RFL8_NIR8_DUAL : public _Point_FUSA_RNG15_RFL8_NIR8_DUAL
       window = pt.window;
     }
 
-    inline Point_FUSA_RNG15_RFL8_NIR8_DUAL()
+    inline Point_RNG15_RFL8_NIR8_DUAL()
     {
       x = y = z = 0.0f; data[3] = 1.0f;
       t = 0; ring = 0;
@@ -457,11 +458,11 @@ struct Point_FUSA_RNG15_RFL8_NIR8_DUAL : public _Point_FUSA_RNG15_RFL8_NIR8_DUAL
     }
 };
 
-}   // namespce ouster_ros
+}   // namespace ouster_ros
 
 // clang-format off
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_FUSA_RNG15_RFL8_NIR8_DUAL,
+POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG15_RFL8_NIR8_DUAL,
     (float, x, x)
     (float, y, y)
     (float, z, z)
@@ -475,6 +476,21 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_FUSA_RNG15_RFL8_NIR8_DUAL,
 )
 
 // clang-format on
+
+// The one deprecated FUSA type
+namespace ouster_ros {
+
+[[deprecated("Profile_FUSA_RNG15_RFL8_NIR8_DUAL is renamed to Profile_RNG15_RFL8_NIR8_DUAL")]]
+static constexpr auto Profile_FUSA_RNG15_RFL8_NIR8_DUAL = Profile_RNG15_RFL8_NIR8_DUAL;
+
+[[deprecated("Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN is renamed to Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN")]]
+static constexpr auto Profile_FUSA_RNG15_RFL8_NIR8_DUAL_2ND_RETURN = Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN;
+
+using _Point_FUSA_RNG15_RFL8_NIR8_DUAL [[deprecated("Point_FUSA_RNG15_RFL8_NIR8_DUAL is renamed to Point_RNG15_RFL8_NIR8_DUAL")]] = _Point_RNG15_RFL8_NIR8_DUAL;
+
+using Point_FUSA_RNG15_RFL8_NIR8_DUAL [[deprecated("Point_FUSA_RNG15_RFL8_NIR8_DUAL is renamed to Point_RNG15_RFL8_NIR8_DUAL")]] = Point_RNG15_RFL8_NIR8_DUAL;
+
+}   // namespace ouster_ros
 
 namespace ouster_ros {
 
@@ -726,7 +742,6 @@ static constexpr ChanFieldTable<6> Profile_RNG19_RFL8_SIG16_NIR16_ZONE16{{
 // auto=RNG19_RFL8_SIG16_NIR16_ZONE16
 struct EIGEN_ALIGN16 _Point_RNG19_RFL8_SIG16_NIR16_ZONE16 {
     PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
     uint32_t range;
