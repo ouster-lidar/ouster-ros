@@ -453,8 +453,8 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, ouster::sdk::core::MODE_UNSPEC,
-                                  ouster::sdk::core::TIME_FROM_UNSPEC, lidar_port, imu_port);
+        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, LidarMode::UNSPECIFIED,
+                                  TimestampMode::UNSPECIFIED, lidar_port, imu_port);
     }
 
     if (!cli) {
@@ -876,11 +876,12 @@ void OusterSensor::create_publishers() {
 
 void OusterSensor::allocate_buffers() {
     auto& pf = ouster::sdk::core::get_format(info);
+    auto packet_format = std::make_shared<PacketFormat>(pf);
     lidar_packet.buf.resize(pf.lidar_packet_size);
-    lidar_packet.format = std::make_shared<PacketFormat>(pf);
+    lidar_packet.format = packet_format;
     lidar_packet_msg.buf.resize(pf.lidar_packet_size);
     imu_packet.buf.resize(pf.imu_packet_size);
-    imu_packet.format = std::make_shared<PacketFormat>(pf);
+    imu_packet.format = packet_format;
     imu_packet_msg.buf.resize(pf.imu_packet_size);
 }
 

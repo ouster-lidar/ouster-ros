@@ -76,6 +76,8 @@ class OusterCloud : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
+            ouster::sdk::core::get_format(info));
         if (tf_bcast.publish_static_tf()) {
             tf_bcast.broadcast_transforms(info);
         }
@@ -105,14 +107,12 @@ class OusterCloud : public OusterProcessingNodeBase {
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             imu_packet_sub = create_subscription<PacketMsg>(
                 "imu_packets", selected_qos,
-                [this, info](const PacketMsg::ConstSharedPtr msg) {
+                [this](const PacketMsg::ConstSharedPtr msg) {
                     if (imu_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
                         ImuPacket imu_packet(msg->buf.size());
-                        using ouster::sdk::core::PacketFormat;
-                        auto& pf = ouster::sdk::core::get_format(info);
-                        imu_packet.format = std::make_shared<PacketFormat>(pf);
+                        imu_packet.format = packet_format;
                         memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         auto imu_msgs = imu_packet_handler(imu_packet);
@@ -235,13 +235,11 @@ class OusterCloud : public OusterProcessingNodeBase {
             impl::check_token(tokens, "TLM")) {
             lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets", selected_qos,
-                [this, info](const PacketMsg::ConstSharedPtr msg) {
+                [this](const PacketMsg::ConstSharedPtr msg) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                     // Need to redefine the Packet object and allow use of array_views
                     LidarPacket lidar_packet(msg->buf.size());
-                    using ouster::sdk::core::PacketFormat;
-                    auto& pf = ouster::sdk::core::get_format(info);
-                    lidar_packet.format = std::make_shared<PacketFormat>(pf);
+                    lidar_packet.format = packet_format;
                     memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                     lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
 

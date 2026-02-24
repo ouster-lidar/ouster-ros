@@ -54,6 +54,8 @@ class OusterImage : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
+            ouster::sdk::core::get_format(info));
         create_publishers_subscribers(info.num_returns());
     }
 
@@ -127,9 +129,7 @@ class OusterImage : public OusterProcessingNodeBase {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
                         LidarPacket lidar_packet(msg->buf.size());
-                        using ouster::sdk::core::PacketFormat;
-                        auto& pf = ouster::sdk::core::get_format(info);
-                        lidar_packet.format = std::make_shared<PacketFormat>(pf);
+                        lidar_packet.format = packet_format;
                         memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
                         lidar_packet_handler(lidar_packet);
