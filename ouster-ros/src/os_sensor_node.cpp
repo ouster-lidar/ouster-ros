@@ -682,6 +682,14 @@ void OusterSensor::parse_phase_lock_and_offset(SensorConfig& config) {
     config.phase_lock_offset = phase_lock_offset;
 }
 
+void OusterSensor::parse_lidar_frame_azimuth_offset(SensorConfig& config) {
+    auto azimuth_offset = get_parameter("lidar_frame_azimuth_offset").as_int();
+    if (azimuth_offset < 0) {
+        return;
+    }
+    config.lidar_frame_azimuth_offset = azimuth_offset;
+}
+
 void OusterSensor::parse_persist_config_flag() {
     auto lidar_port = get_parameter("lidar_port").as_int();
     auto imu_port = get_parameter("imu_port").as_int();
@@ -704,6 +712,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_operating_mode(config);
     parse_signal_multiplier(config);
     parse_phase_lock_and_offset(config);
+    parse_lidar_frame_azimuth_offset(config);
     parse_persist_config_flag();
     return config;
 }

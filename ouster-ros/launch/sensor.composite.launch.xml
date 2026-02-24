@@ -128,6 +128,11 @@
   <arg name="phase_lock_offset" default="0"
     description="Angle that sensors are locked to in millidegrees, values range [0, 360000]"/>
 
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="lidar_frame_azimuth_offset" default="-1"
+    description="The lidar frame azimuth offset for the sensor to use in millidegrees;
+    values range [0, 360000], -1 is unset"/>
+
   <arg name="persist_config" default="false"
     description="request the sensor to persist settings"/>
 
@@ -195,6 +200,7 @@
       <param name="signal_multiplier" value="$(var signal_multiplier)"/>
       <param name="phase_lock_enable" value="$(var phase_lock_enable)"/>
       <param name="phase_lock_offset" value="$(var phase_lock_offset)"/>
+      <param name="lidar_frame_azimuth_offset" value="$(var lidar_frame_azimuth_offset)"/>
       <param name="persist_config" value="$(var persist_config)"/>
       <param name="attempt_reconnect" value="$(var attempt_reconnect)"/>
       <param name="dormant_period_between_reconnects"

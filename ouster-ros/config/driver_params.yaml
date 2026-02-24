@@ -35,23 +35,23 @@ ouster/os_driver:
     # - RNG15_RFL8_NIR8
     # - RNG19_RFL8_SIG16_NIR16_DUAL
     # - FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL)
-    # - RNG15_RFL8_NIR8_DUAL (requires FW3.2 or later)
-    # - RNG15_RFL8_WIN8 (requires FW3.2 or later)
-    # - RNG15_RFL8_NIR8_ZONE16 (requires FW3.2 or later)
-    # - RNG19_RFL8_SIG16_NIR16_ZONE16 (requires FW3.2 or later)
+    # - RNG15_RFL8_NIR8_DUAL (requires FW3.2+)
+    # - RNG15_RFL8_WIN8 (requires FW3.2+)
+    # - RNG15_RFL8_NIR8_ZONE16 (requires FW3.2+)
+    # - RNG19_RFL8_SIG16_NIR16_ZONE16 (requires FW3.2+)
     udp_profile_lidar: ''
     # udp_profile_imu[optional]: imu packet profile; possible values:
     # - LEGACY: not recommended
-    # - ACCEL32_GYRO32_NMEA (requires FW3.2 or later)
+    # - ACCEL32_GYRO32_NMEA (requires FW3.2+)
     udp_profile_imu: ''
     # imu_packets_per_frame[optional]: number of IMU packets per frame;
-    # possible values: {1, 2, 4, 8}, default is 0 (disabled, requires FW3.2 or later to use).
+    # possible values: {1, 2, 4, 8}, default is 0 (unset; requires FW3.2+).
     imu_packets_per_frame: 0
     # gyro_fsr[optional]: gyroscope full-scale range; possible values: {NORMAL, EXTENDED},
-    # default is unset (disabled, requires FW3.2 or later to use).
+    # default is '' (unset; requires FW 3.1+).
     gyro_fsr: ''
     # accel_fsr[optional]: accelerometer full-scale range; possible values: {NORMAL, EXTENDED},
-    # default is unset (disabled, requires FW3.2 or later to use).
+    # default is '' (unset; requires FW 3.1+).
     accel_fsr: ''
     # metadata[optional]: path to save metadata file to, if left empty a file
     # with the sensor hostname or ip will be created in ~/.ros folder.
@@ -125,6 +125,9 @@ ouster/os_driver:
     phase_lock_enable: false
     # phase_lock_offset[optional]: angle that sensors are locked to in millidegrees, values range [0, 360000].
     phase_lock_offset: 0
+    # lidar_frame_azimuth_offset[optional]: The lidar frame azimuth offset for the sensor to use in millidegrees;
+    # values range [0, 360000], default -1 (unset; requires FW 3.2+).
+    lidar_frame_azimuth_offset: -1
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
     # attempt_reconnect[optional]: attempting to reconnect to the sensor after
