@@ -634,7 +634,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG15_RFL8_NIR8_ZONE16,
 
 namespace ouster_ros {
 
-// Profile_RNG15_RFL8_NIR8_ZONE16
+// Profile_RNG19_RFL8_SIG16_NIR16_ZONE16
 static constexpr ChanFieldTable<6> Profile_RNG19_RFL8_SIG16_NIR16_ZONE16{{
     {ChanField::RANGE, ChanFieldType::UINT32},
     {ChanField::SIGNAL, ChanFieldType::UINT16},
