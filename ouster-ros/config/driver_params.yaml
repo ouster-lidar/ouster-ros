@@ -114,9 +114,20 @@ ouster/os_driver:
     azimuth_window_start: 0
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
     azimuth_window_end: 360000
+    # operating_mode[optional]: sensor operating mode; possible values:
+    # - NORMAL
+    # - STANDBY
+    operating_mode: NORMAL
+    # signal_multiplier[optional]: multiplier for signal strength of sensor; possible values: {0.25, 0.5, 1, 2, 3}
+    # default is 1.0.
+    signal_multiplier: 1.0
+    # phase_lock_enable[optional]: enable or disable phase lock.
+    phase_lock_enable: false
+    # phase_lock_offset[optional]: angle that sensors are locked to in millidegrees, values range [0, 360000].
+    phase_lock_offset: 0
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
-    # attempt_config[optional]: attempting to reconnect to the sensor after
+    # attempt_reconnect[optional]: attempting to reconnect to the sensor after
     # connection loss or sensor powered down
     attempt_reconnect: false
     # dormant_period_between_reconnects[optional]: wait time in seconds between

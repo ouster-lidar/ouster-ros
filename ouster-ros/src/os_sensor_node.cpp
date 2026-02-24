@@ -99,7 +99,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("operating_mode", "");
     declare_parameter("signal_multiplier", 1.0);
     declare_parameter("phase_lock_enable", false);
-    declare_parameter("phase_lock_offset", 0.0);
+    declare_parameter("phase_lock_offset", 0);
 }
 
 bool OusterSensor::start() {
@@ -672,10 +672,14 @@ void OusterSensor::parse_signal_multiplier(SensorConfig& config) {
 }
 
 void OusterSensor::parse_phase_lock_and_offset(SensorConfig& config) {
-    auto phase_lock = get_parameter("phase_lock_enable").as_bool();
-    config.phase_lock_enable = phase_lock;
-    auto phase_offset = get_parameter("phase_lock_offset").as_double();
-    config.phase_lock_offset = phase_offset;
+    config.phase_lock_enable = get_parameter("phase_lock_enable").as_bool();
+    auto phase_lock_offset = get_parameter("phase_lock_offset").as_int();
+    if (phase_lock_offset < 0 || phase_lock_offset > 360000) {
+        auto error_msg = "phase_lock_offset must be between 0 and 360000 millidegrees";
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.phase_lock_offset = phase_lock_offset;
 }
 
 void OusterSensor::parse_persist_config_flag() {
