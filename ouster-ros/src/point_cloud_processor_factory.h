@@ -186,11 +186,6 @@ class PointCloudProcessorFactory {
         return profile == UDPProfileLidar::LEGACY ||
                profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL ||
                profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16 ||
-               profile == UDPProfileLidar::RNG15_RFL8_NIR8 ||
-               profile == UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL ||
-               profile == UDPProfileLidar::RNG15_RFL8_NIR8_DUAL ||
-               profile == UDPProfileLidar::RNG15_RFL8_WIN8 ||
-               profile == UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16 ||
                profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16;
     }
 

@@ -147,6 +147,23 @@
     description="The lidar frame azimuth offset for the sensor to use in millidegrees;
     values range [0, 360000], -1 is unset"/>
 
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="lidar_frame_azimuth_offset" default="-1"
+    description="The lidar frame azimuth offset for the sensor to use in millidegrees;
+    values range [0, 360000], -1 is unset"/>
+
+  <arg name ="return_order" default="" description="order of returns to use for generating point cloud; possible values:
+    STRONGEST_TO_WEAKEST,
+    FARTHEST_TO_NEAREST,
+    NEAREST_TO_FARTHEST
+    "/>
+
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="bloom_reduction_optimization" default="" description="level of bloom reduction optimization to apply on the sensor; possible values:
+    BALANCED,
+    MINIMIZE_FALSE_POSITIVES
+    "/>
+
   <arg name="persist_config" default="false"
     description="request the sensor to persist settings"/>
 
@@ -197,6 +214,8 @@
         <param name="phase_lock_enable" value="$(var phase_lock_enable)"/>
         <param name="phase_lock_offset" value="$(var phase_lock_offset)"/>
         <param name="lidar_frame_azimuth_offset" value="$(var lidar_frame_azimuth_offset)"/>
+        <param name="return_order" value="$(var return_order)"/>
+        <param name="bloom_reduction_optimization" value="$(var bloom_reduction_optimization)"/>
         <param name="persist_config" value="$(var persist_config)"/>
         <param name="attempt_reconnect" value="$(var attempt_reconnect)"/>
         <param name="dormant_period_between_reconnects"

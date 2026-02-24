@@ -128,6 +128,17 @@ ouster/os_driver:
     # lidar_frame_azimuth_offset[optional]: The lidar frame azimuth offset for the sensor to use in millidegrees;
     # values range [0, 360000], default -1 (unset; requires FW 3.2+).
     lidar_frame_azimuth_offset: -1
+    # return_order[optional]: order of returns to use for generating point cloud; possible values:
+    # - STRONGEST_TO_WEAKEST
+    # - FARTHEST_TO_NEAREST
+    # - NEAREST_TO_FARTHEST
+    # default is '' (unset).
+    return_order: ''
+    # bloom_reduction_optimization[optional]: level of bloom reduction optimization to apply on the sensor; possible values:
+    # - BALANCED
+    # - MINIMIZE_FALSE_POSITIVES
+    # default is '' (unset; requires FW 3.2+).
+    bloom_reduction_optimization: ''
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
     # attempt_reconnect[optional]: attempting to reconnect to the sensor after

@@ -101,6 +101,8 @@ void OusterSensor::declare_parameters() {
     declare_parameter("phase_lock_enable", false);
     declare_parameter("phase_lock_offset", 0);
     declare_parameter("lidar_frame_azimuth_offset", -1);
+    declare_parameter("return_order", "");
+    declare_parameter("bloom_reduction_optimization", "");
 }
 
 bool OusterSensor::start() {
@@ -691,6 +693,35 @@ void OusterSensor::parse_lidar_frame_azimuth_offset(SensorConfig& config) {
     config.lidar_frame_azimuth_offset = azimuth_offset;
 }
 
+void OusterSensor::parse_return_order(SensorConfig& config) {
+    auto return_order_arg = get_parameter("return_order").as_string();
+    if (!is_arg_set(return_order_arg)) {
+        return;
+    }
+
+    auto return_order = ouster::sdk::core::return_order_of_string(return_order_arg);
+    if (!return_order) {
+        auto error_msg = "Invalid return order: " + return_order_arg;
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.return_order = return_order.value();
+}
+
+void OusterSensor::parse_bloom_reduction_optimization(SensorConfig& config) {
+    auto bloom_reduction_arg = get_parameter("bloom_reduction_optimization").as_string();
+    if (!is_arg_set(bloom_reduction_arg)) {
+        return;
+    }
+    auto bloom_reduction = ouster::sdk::core::bloom_reduction_optimization_of_string(bloom_reduction_arg);
+    if (!bloom_reduction) {
+        auto error_msg = "Invalid bloom reduction optimization: " + bloom_reduction_arg;
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.bloom_reduction_optimization = bloom_reduction.value();
+}
+
 void OusterSensor::parse_persist_config_flag() {
     auto lidar_port = get_parameter("lidar_port").as_int();
     auto imu_port = get_parameter("imu_port").as_int();
@@ -714,6 +745,8 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_signal_multiplier(config);
     parse_phase_lock_and_offset(config);
     parse_lidar_frame_azimuth_offset(config);
+    parse_return_order(config);
+    parse_bloom_reduction_optimization(config);
     parse_persist_config_flag();
     return config;
 }
