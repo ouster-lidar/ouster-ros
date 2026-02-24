@@ -52,8 +52,8 @@ struct EIGEN_ALIGN16 _Point_LEGACY {
     uint16_t ring;          // equivalent to channel
     uint32_t range;
     uint16_t signal;        // equivalent to intensity
-    uint8_t reflectivity;
     uint16_t near_ir;       // equivalent to ambient
+    uint8_t reflectivity;
     uint8_t flags;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -65,7 +65,7 @@ struct Point_LEGACY : public _Point_LEGACY {
       x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
       t = pt.t; ring = pt.ring;
       range = pt.range; signal = pt.signal;
-      reflectivity = pt.reflectivity; near_ir = pt.near_ir;
+      near_ir = pt.near_ir; reflectivity = pt.reflectivity;
       flags = pt.flags;
     }
 
@@ -74,16 +74,16 @@ struct Point_LEGACY : public _Point_LEGACY {
       x = y = z = 0.0f; data[3] = 1.0f;
       t = 0; ring = 0;
       range = 0; signal = 0;
-      reflectivity = 0; near_ir = 0;
+      near_ir = 0; reflectivity = 0;
       flags = 0;
     }
 
     inline const auto as_tuple() const {
-        return std::tie(x, y, z, t, ring, range, signal, reflectivity, near_ir, flags);
+        return std::tie(x, y, z, t, ring, range, signal, near_ir, reflectivity, flags);
     }
 
     inline auto as_tuple() {
-        return std::tie(x, y, z, t, ring, range, signal, reflectivity, near_ir, flags);
+        return std::tie(x, y, z, t, ring, range, signal, near_ir, reflectivity, flags);
     }
 
     template<size_t I>
@@ -104,25 +104,12 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_LEGACY,
     (std::uint16_t, ring, ring)
     (std::uint32_t, range, range)
     (std::uint16_t, signal, signal)
-    (std::uint8_t, reflectivity, reflectivity)
     (std::uint16_t, near_ir, near_ir)
+    (std::uint8_t, reflectivity, reflectivity)
     (std::uint8_t, flags, flags)
 )
 
 namespace ouster_ros {
-
-static const Table<std::string, ChanFieldType, 10> DUAL_FIELD_SLOTS{{
-    {ChanField::RANGE, ChanFieldType::UINT32},
-    {ChanField::RANGE2, ChanFieldType::UINT32},
-    {ChanField::SIGNAL, ChanFieldType::UINT16},
-    {ChanField::SIGNAL2, ChanFieldType::UINT16},
-    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
-    {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
-    {ChanField::FLAGS, ChanFieldType::UINT8},
-    {ChanField::FLAGS2, ChanFieldType::UINT8},
-    {ChanField::NEAR_IR, ChanFieldType::UINT16},
-    {ChanField::WINDOW, ChanFieldType::UINT8},
-}};
 
 // Profile_RNG19_RFL8_SIG16_NIR16_DUAL: aka dual returns
 // This profile is definied differently from RNG19_RFL8_SIG16_NIR16_DUAL of how
@@ -568,87 +555,6 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG15_RFL8_WIN8,
 
 // clang-format on
 
-
-namespace ouster_ros {
-
-// Profile_FIVE_WORD_PIXEL
-static constexpr ChanFieldTable<5> Profile_FIVE_WORD_PIXEL{{
-    {ChanField::RAW32_WORD1, ChanFieldType::UINT32},
-    {ChanField::RAW32_WORD2, ChanFieldType::UINT32},
-    {ChanField::RAW32_WORD3, ChanFieldType::UINT32},
-    {ChanField::RAW32_WORD4, ChanFieldType::UINT32},
-    {ChanField::RAW32_WORD5, ChanFieldType::UINT32},
-}};
-
-// auto=FIVE_WORD_PIXEL
-struct EIGEN_ALIGN16 _Point_FIVE_WORD_PIXEL {
-    PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
-    uint32_t t;             // timestamp in nanoseconds relative to frame start
-    uint16_t ring;          // equivalent to channel
-    uint32_t word1;
-    uint32_t word2;
-    uint32_t word3;
-    uint32_t word4;
-    uint32_t word5;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-
-struct Point_FIVE_WORD_PIXEL : public _Point_FIVE_WORD_PIXEL {
-
-    inline Point_FIVE_WORD_PIXEL(const _Point_FIVE_WORD_PIXEL& pt) {
-      x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
-      t = pt.t; ring = pt.ring;
-      word1 = pt.word1;
-      word2 = pt.word2;
-      word3 = pt.word3;
-      word4 = pt.word4;
-      word5 = pt.word5;
-    }
-
-    inline Point_FIVE_WORD_PIXEL()
-    {
-      x = y = z = 0.0f; data[3] = 1.0f;
-      t = 0; ring = 0;
-      word1 = 0; word2 = 0;
-      word3 = 0; word4 = 0;
-      word5 = 0;
-    }
-
-    inline const auto as_tuple() const {
-        return std::tie(x, y, z, t, ring, word1, word2, word3, word4, word5);
-    }
-
-    inline auto as_tuple() {
-        return std::tie(x, y, z, t, ring, word1, word2, word3, word4, word5);
-    }
-
-    template<size_t I>
-    inline auto& get() {
-        return std::get<I>(as_tuple());
-    }
-};
-
-}   // namespace ouster_ros
-
-// clang-format off
-
-// Default=FIVE_WORD_PIXEL aka LOW_DATA profile
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_FIVE_WORD_PIXEL,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (std::uint32_t, t, t)
-    (std::uint16_t, ring, ring)
-    (std::uint32_t, word1, word1)
-    (std::uint32_t, word2, word2)
-    (std::uint32_t, word3, word3)
-    (std::uint32_t, word4, word4)
-    (std::uint32_t, word5, word5)
-)
-
-// clang-format on
 
 namespace ouster_ros {
 

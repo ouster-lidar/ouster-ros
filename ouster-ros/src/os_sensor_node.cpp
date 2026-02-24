@@ -100,7 +100,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("signal_multiplier", 1.0);
     declare_parameter("phase_lock_enable", false);
     declare_parameter("phase_lock_offset", 0);
-    declare_parameters("lidar_frame_azimuth_offset", -1);
+    declare_parameter("lidar_frame_azimuth_offset", -1);
 }
 
 bool OusterSensor::start() {

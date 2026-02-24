@@ -131,9 +131,23 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         }
     );
 
+    // flags
+    CondBinaryOp<has_flags_v<PointTGT> && has_flags_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.flags = src_pt.flags;
+        }
+    );
+
     CondBinaryOp<has_flags_v<PointTGT> && !has_flags_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto&) {
             tgt_pt.flags = static_cast<decltype(tgt_pt.flags)>(0);
+        }
+    );
+
+    // window
+    CondBinaryOp<has_window_v<PointTGT> && has_window_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.window = src_pt.window;
         }
     );
 
@@ -143,39 +157,16 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         }
     );
 
+    // zone_mask
+    CondBinaryOp<has_zone_mask_v<PointTGT> && has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.zone_mask = src_pt.zone_mask;
+        }
+    );
+
     CondBinaryOp<has_zone_mask_v<PointTGT> && !has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto&) {
             tgt_pt.zone_mask = static_cast<decltype(tgt_pt.zone_mask)>(0);
-        }
-    );
-
-    CondBinaryOp<has_word1_v<PointTGT> && !has_word1_v<PointSRC>>::run(tgt_pt, src_pt,
-        [](auto& tgt_pt, const auto&) {
-            tgt_pt.word1 = static_cast<decltype(tgt_pt.word1)>(0);
-        }
-    );
-
-    CondBinaryOp<has_word2_v<PointTGT> && !has_word2_v<PointSRC>>::run(tgt_pt, src_pt,
-        [](auto& tgt_pt, const auto&) {
-            tgt_pt.word2 = static_cast<decltype(tgt_pt.word2)>(0);
-        }
-    );
-
-    CondBinaryOp<has_word3_v<PointTGT> && !has_word3_v<PointSRC>>::run(tgt_pt, src_pt,
-        [](auto& tgt_pt, const auto&) {
-            tgt_pt.word3 = static_cast<decltype(tgt_pt.word3)>(0);
-        }
-    );
-
-    CondBinaryOp<has_word4_v<PointTGT> && !has_word4_v<PointSRC>>::run(tgt_pt, src_pt,
-        [](auto& tgt_pt, const auto&) {
-            tgt_pt.word4 = static_cast<decltype(tgt_pt.word4)>(0);
-        }
-    );
-
-    CondBinaryOp<has_word5_v<PointTGT> && !has_word5_v<PointSRC>>::run(tgt_pt, src_pt,
-        [](auto& tgt_pt, const auto&) {
-            tgt_pt.word5 = static_cast<decltype(tgt_pt.word5)>(0);
         }
     );
 }
