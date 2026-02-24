@@ -26,6 +26,8 @@ ouster_ros v0.14.0
   - ``signal_multiplier``
   - ``phase_lock_enable`` and ``phase_lock_offset``
   - ``lidar_frame_azimuth_offset``
+  - ``return_order``
+  - ``bloom_reduction_optimization``
 * [BUGFIX]: NEAR_IR data is not populated with data for organized point clouds that have no range.
 * Add support to enable **loop** for pcap replay + other replay config.
 * Add a new launch file parameter ``pub_static_tf`` that allows users to turn off the braodcast
