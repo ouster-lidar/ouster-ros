@@ -30,7 +30,7 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     const auto HEIGHT = 3U;
     const auto SAMPLES = WIDTH * HEIGHT;
     UDPProfileLidar lidar_udp_profile =
-        UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL;
+        UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL;
 
     LidarScan ls(WIDTH, HEIGHT, lidar_udp_profile);
 

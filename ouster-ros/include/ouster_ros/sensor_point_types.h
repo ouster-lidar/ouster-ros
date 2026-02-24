@@ -188,7 +188,7 @@ struct Point_RNG19_RFL8_SIG16_NIR16_DUAL : public _Point_RNG19_RFL8_SIG16_NIR16_
     }
 };
 
-}   // namespce ouster_ros
+}   // namespace ouster_ros
 
 // clang-format off
 
@@ -301,7 +301,6 @@ static constexpr ChanFieldTable<4> Profile_RNG15_RFL8_NIR8{{
 // auto=RNG15_RFL8_NIR8 aka LOW_DATA profile
 struct EIGEN_ALIGN16 _Point_RNG15_RFL8_NIR8 {
     PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
     uint32_t range;
@@ -492,7 +491,6 @@ static constexpr ChanFieldTable<4> Profile_RNG15_RFL8_WIN8{{
 // auto=RNG15_RFL8_WIN8 aka LOW_DATA profile
 struct EIGEN_ALIGN16 _Point_RNG15_RFL8_WIN8 {
     PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
     uint32_t range;
@@ -570,7 +568,6 @@ static constexpr ChanFieldTable<4> Profile_RNG15_RFL8_NIR8_ZONE16{{
 // auto=RNG15_RFL8_NIR8_ZONE16
 struct EIGEN_ALIGN16 _Point_RNG15_RFL8_NIR8_ZONE16 {
     PCL_ADD_POINT4D;
-    // No signal/intensity in low data mode
     uint32_t t;             // timestamp in nanoseconds relative to frame start
     uint16_t ring;          // equivalent to channel
     uint32_t range;

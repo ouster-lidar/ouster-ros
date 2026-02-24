@@ -29,12 +29,6 @@ DEFINE_MEMBER_CHECKER(near_ir);
 DEFINE_MEMBER_CHECKER(flags);
 DEFINE_MEMBER_CHECKER(window);
 DEFINE_MEMBER_CHECKER(zone_mask);
-DEFINE_MEMBER_CHECKER(word1);
-DEFINE_MEMBER_CHECKER(word2);
-DEFINE_MEMBER_CHECKER(word3);
-DEFINE_MEMBER_CHECKER(word4);
-DEFINE_MEMBER_CHECKER(word5);
-
 
 template <typename PointTGT, typename PointSRC>
 void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {

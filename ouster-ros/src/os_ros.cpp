@@ -43,8 +43,7 @@ namespace ChanField = ouster::sdk::core::ChanField;
 
 bool is_legacy_lidar_profile(const SensorInfo& info) {
     using ouster::sdk::core::UDPProfileLidar;
-    return info.format.udp_profile_lidar ==
-           UDPProfileLidar::PROFILE_LIDAR_LEGACY;
+    return info.format.udp_profile_lidar == UDPProfileLidar::LEGACY;
 }
 
 size_t get_beams_count(const SensorInfo& info) {
@@ -88,9 +87,18 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
     m.orientation.z = 0;
     m.orientation.w = 1;
 
-    std::vector<sensor_msgs::msg::Imu> msgs;
     // only reserve space for valid measurements
-    msgs.reserve(imu_status.count());
+    size_t valid_count = 0;
+    for (int i = 0; i < imu_status.size(); ++i) {
+        if ((imu_status[i] & 0x1) != 0) {
+            ++valid_count;
+        }
+    }
+    if (valid_count == 0) {
+        return {};
+    }
+    std::vector<sensor_msgs::msg::Imu> msgs;
+    msgs.reserve(valid_count);
 
     for (int i = 0; i < imu_status.size(); ++i) {
         if ((imu_status[i] & 0x1) == 0) {
