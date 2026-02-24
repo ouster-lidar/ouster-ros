@@ -21,6 +21,11 @@ ouster/os_sensor:
     use_system_default_qos: false
     azimuth_window_start: 0
     azimuth_window_end: 360000
+    operating_mode: NORMAL
+    signal_multiplier: 1.0
+    phase_lock_enable: false
+    phase_lock_offset: 0
+    lidar_frame_azimuth_offset: -1
     persist_config: false
     attempt_reconnect: false
     dormant_period_between_reconnects: 1.0

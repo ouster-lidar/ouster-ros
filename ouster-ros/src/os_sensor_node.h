@@ -92,6 +92,19 @@ class OusterSensor : public OusterSensorNodeBase {
 
     ouster::sdk::core::SensorConfig parse_config_from_ros_parameters();
 
+    // helper methods for parsing individual config fields from ros parameters
+    void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
+    void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
+    void parse_udp_profile_imu_and_settings(ouster::sdk::core::SensorConfig& config);
+    void parse_lidar_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_timestamp_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_azimuth_window(ouster::sdk::core::SensorConfig& config);
+    void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
+    void parse_phase_lock_and_offset(ouster::sdk::core::SensorConfig& config);
+    void parse_lidar_frame_azimuth_offset(ouster::sdk::core::SensorConfig& config);
+    void parse_persist_config_flag();
+
     uint8_t compose_config_flags(const ouster::sdk::core::SensorConfig& config);
 
     bool configure_sensor(const std::string& hostname,
