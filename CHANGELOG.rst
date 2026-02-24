@@ -26,6 +26,8 @@ Changelog
   a mask image to the driver through the ``mask_path`` launch file argument.
 * [BUGFIX]: Correct the computation of ``pointcloud.is_dense`` flag.
 * [BUGFIX]: Drop whole archive linkage which is causing double free corruption.
+* [BUGFIX]: Correct the logic of the ``scan_to_cloud_f`` when copying point timestamps to the generated
+point cloud.
 
 
 ouster_ros v0.13.2

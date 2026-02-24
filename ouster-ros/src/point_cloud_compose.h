@@ -141,12 +141,9 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             const auto tgt_idx =
                 organized ? (u / rows_step) * w + v : cloud.size();
 
-            // as opposed to the point cloud destaggering if it is disabled
-            // then timestamps needs to be staggered.
-            auto ts_idx =
-                destagger ? v : (v + w + pixel_shift_by_row[u]) % w;
+            // copy the timestamp of associated point
             auto ts =
-                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
+                timestamp[v_shift] > scan_ts ? timestamp[v_shift] - scan_ts : 0UL;
 
             if (organized) {
                 // set is_dense to false if any of the xyz coordinates is NaN
