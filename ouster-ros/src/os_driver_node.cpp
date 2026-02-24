@@ -29,7 +29,6 @@ namespace ouster_ros {
 namespace ChanField = ouster::sdk::core::ChanField;
 using ouster::sdk::core::LidarPacket;
 using ouster::sdk::core::ImuPacket;
-using ouster::sdk::core::LidarPacket;
 using ouster::sdk::core::SensorInfo;
 
 class OusterDriver : public OusterSensor {

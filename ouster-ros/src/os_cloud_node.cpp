@@ -235,10 +235,13 @@ class OusterCloud : public OusterProcessingNodeBase {
             impl::check_token(tokens, "TLM")) {
             lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets", selected_qos,
-                [this](const PacketMsg::ConstSharedPtr msg) {
+                [this, info](const PacketMsg::ConstSharedPtr msg) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                     // Need to redefine the Packet object and allow use of array_views
                     LidarPacket lidar_packet(msg->buf.size());
+                    using ouster::sdk::core::PacketFormat;
+                    auto& pf = ouster::sdk::core::get_format(info);
+                    lidar_packet.format = std::make_shared<PacketFormat>(pf);
                     memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                     lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
 
