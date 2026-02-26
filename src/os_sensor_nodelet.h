@@ -16,6 +16,7 @@
 
 #include <string>
 #include <thread>
+#include <atomic>
 #include <optional>
 
 #include "ouster_ros/GetConfig.h"
