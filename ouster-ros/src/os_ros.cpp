@@ -62,12 +62,12 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
 
     Eigen::ArrayX<uint16_t> imu_status = imu_packet.status();
 
+    auto& pf = *imu_packet.format;
     Eigen::ArrayX<uint64_t> imu_timestamps = imu_packet.timestamp();
-    if (imu_packet.format->imu_measurements_per_packet == 0) {  // Handle the LEGACY IMU profile (it would be better if the imu_packet handles this internally).
-        imu_timestamps[0] = imu_packet.format->imu_gyro_ts(imu_packet.buf.data());
-    } else if ((imu_status[0] & 0x1) == 0) {   // HANDLE the case when the first imu_timestamp is unknown.
-        auto& format = *imu_packet.format;
-        int imu_measurements_per_frame = format.imu_measurements_per_packet * format.imu_packets_per_frame;
+    if (pf.imu_measurements_per_packet == 0) {  // Handle the LEGACY IMU profile (it would be better if the imu_packet handles this internally).
+        imu_timestamps[0] = pf.imu_gyro_ts(imu_packet.buf.data());
+    } else if ((imu_status[0] & 0x1) == 0) {    // HANDLE the case when the first imu_timestamp is unknown.
+        int imu_measurements_per_frame = pf.imu_measurements_per_packet * pf.imu_packets_per_frame;
         double frame_ts_ns = 1e9 / sensor_info.format.fps;
         double imu_measurement_interval = frame_ts_ns / imu_measurements_per_frame;
         for (int i = 0; i < imu_timestamps.size(); ++i) {
@@ -122,6 +122,7 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
 }
 
 namespace impl {
+
 std::string scan_return(const std::string& field, bool second) {
     if (field == ChanField::RANGE || field == ChanField::RANGE2) {
         return second ? ChanField::RANGE2 : ChanField::RANGE;
@@ -129,8 +130,12 @@ std::string scan_return(const std::string& field, bool second) {
         return second ? ChanField::SIGNAL2 : ChanField::SIGNAL;
     } else if (field == ChanField::REFLECTIVITY || field == ChanField::REFLECTIVITY2) {
         return second ? ChanField::REFLECTIVITY2 : ChanField::REFLECTIVITY;
+    } else if (field == ChanField::FLAGS || field == ChanField::FLAGS2) {
+        return second ? ChanField::FLAGS : ChanField::FLAGS2;
     } else if (field == ChanField::NEAR_IR) {
         return ChanField::NEAR_IR;
+    } else if (field == ChanField::WINDOW) {
+        return ChanField::WINDOW;
     } else {
         throw std::runtime_error("Unreachable");
     }

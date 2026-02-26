@@ -15,7 +15,9 @@
 // clang-format on
 
 #include <string>
-#include <vector>
+#include <thread>
+#include <atomic>
+#include <optional>
 
 #include <std_srvs/srv/empty.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
