@@ -11,7 +11,6 @@
 
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
-namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
 
@@ -39,7 +38,7 @@ class OusterReplay : public OusterSensorNodeletBase {
     void load_metadata_from_file(const std::string& meta_file) {
         try {
             cached_metadata = read_text_file(meta_file);
-            info = sensor::parse_metadata(cached_metadata);
+            info = ouster::sdk::core::SensorInfo(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
             cached_metadata.clear();

@@ -26,9 +26,9 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-using ouster_ros::PacketMsg;
-
+namespace ChanField = ouster::sdk::core::ChanField;
+using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::PacketFormat;
 
 class OusterImage : public nodelet::Nodelet {
    private:
@@ -55,7 +55,8 @@ class OusterImage : public nodelet::Nodelet {
                 if (lidar_packet_handler) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                     // Need to redefine the Packet object and allow use of array_views
-                    sensor::LidarPacket lidar_packet(msg->buf.size());
+                    LidarPacket lidar_packet(msg->buf.size());
+                    lidar_packet.format = packet_format;
                     memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                     lidar_packet.host_timestamp = static_cast<uint64_t>(ros::Time::now().toNSec());
                     lidar_packet_handler(lidar_packet);
@@ -65,15 +66,15 @@ class OusterImage : public nodelet::Nodelet {
 
     void create_image_publishers() {
         // NOTE: always create the 2nd topics
-        const std::map<sensor::ChanField, std::string>
+        const std::map<std::string, std::string>
             channel_field_topic_map {
-                {sensor::ChanField::RANGE, "range_image"},
-                {sensor::ChanField::SIGNAL, "signal_image"},
-                {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                {sensor::ChanField::NEAR_IR, "nearir_image"},
-                {sensor::ChanField::RANGE2, "range_image2"},
-                {sensor::ChanField::SIGNAL2, "signal_image2"},
-                {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+                {ChanField::RANGE, "range_image"},
+                {ChanField::SIGNAL, "signal_image"},
+                {ChanField::REFLECTIVITY, "reflec_image"},
+                {ChanField::NEAR_IR, "nearir_image"},
+                {ChanField::RANGE2, "range_image2"},
+                {ChanField::SIGNAL2, "signal_image2"},
+                {ChanField::REFLECTIVITY2, "reflec_image2"}};
 
         for (auto it : channel_field_topic_map) {
             image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);
@@ -82,8 +83,9 @@ class OusterImage : public nodelet::Nodelet {
 
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
         NODELET_INFO("OusterImage: retrieved new sensor metadata!");
-        auto info = sensor::parse_metadata(metadata_msg->data);
-
+        auto info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        packet_format = std::make_shared<PacketFormat>(
+            ouster::sdk::core::get_format(info));
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMG"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
@@ -91,7 +93,7 @@ class OusterImage : public nodelet::Nodelet {
             create_handlers(info);
     }
 
-    void create_handlers(const sensor::sensor_info& info) {
+    void create_handlers(const ouster::sdk::core::SensorInfo& info) {
         // TODO: avoid having to replicate the parameters: 
         // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
         // another node.
@@ -125,9 +127,11 @@ class OusterImage : public nodelet::Nodelet {
     }
 
    private:
+    std::shared_ptr<PacketFormat> packet_format;
+
     ros::Subscriber metadata_sub;
     ros::Subscriber lidar_packet_sub;
-    std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    std::map<std::string, ros::Publisher> image_pubs;
 
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };

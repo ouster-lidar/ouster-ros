@@ -5,12 +5,44 @@
   <arg name="udp_dest" default=" " doc="hostname or IP where the sensor will send data packets"/>
   <arg name="lidar_port" default="0" doc="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0" doc="port to which the sensor should send imu data"/>
-  <arg name="udp_profile_lidar" default=" " doc="lidar packet profile; possible values: {
+  <!-- The following profiles are only available with FW3.2:
+    RNG15_RFL8_NIR8_DUAL
+    RNG15_RFL8_WIN8,
+    RNG15_RFL8_NIR8_ZONE16,
+    RNG19_RFL8_SIG16_NIR16_ZONE16
+   -->
+  <arg name="udp_profile_lidar" default=" "
+    doc="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8
     RNG19_RFL8_SIG16_NIR16_DUAL,
-    FUSA_RNG15_RFL8_NIR8_DUAL
+    FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL),
+    RNG15_RFL8_NIR8_DUAL (FW3.2+),
+    RNG15_RFL8_WIN8 (FW3.2+),
+    RNG15_RFL8_NIR8_ZONE16 (FW3.2+),
+    RNG19_RFL8_SIG16_NIR16_ZONE16 (FW3.2+)
+    }"/>
+  <!-- ACCEL32_GYRO32_NMEA is only available with FW 3.2+ -->
+  <arg name="udp_profile_imu" default=""
+    doc="imu packet profile; possible values: {
+    LEGACY,
+    ACCEL32_GYRO32_NMEA (FW3.2+)
+    }"/>
+  <!-- Only set this parameter when working with FW 3.2+ -->
+  <arg name="imu_packets_per_frame" default="0"
+    doc="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
+  <!-- Only set this parameter when working with FW 3.1+ -->
+  <arg name="gyro_fsr" default=" "
+    doc="gyro full scale range (FW3.1+); possible values: {
+    NORMAL,
+    EXTENDED
+    }"/>
+  <!-- Only set this parameter when working with FW 3.1+ -->
+  <arg name="accel_fsr" default=" "
+    doc="accel full scale range (FW3.1+); possible values: {
+    NORMAL,
+    EXTENDED
     }"/>
   <arg name="lidar_mode" default=" " doc="resolution and rate; possible values: {
     512x10,
@@ -88,6 +120,40 @@
   <arg name="azimuth_window_end" default="360000" doc="azimuth window end,
     values range [0, 360000] millidegrees"/>
 
+  <arg name="operating_mode" default="NORMAL"
+    doc="operating mode of the sensor; possible values: {
+    NORMAL,
+    STANDBY
+    }"/>
+
+  <arg name="signal_multiplier" default="1.0"
+    doc="Multiplier for signal strength of sensor; possible values: {0.25, 0.5, 1, 2, 3}"/>
+
+  <arg name="phase_lock_enable" default="false"
+    doc="enable or disable phase lock"/>
+  <arg name="phase_lock_offset" default="0"
+    doc="Angle that sensors are locked to in millidegrees, values range [0, 360000]"/>
+
+  <!-- Only set this parameter when working with FW 3.2+ -->
+  <arg name="lidar_frame_azimuth_offset" default="-1"
+    doc="The lidar frame azimuth offset for the sensor to use in millidegrees (FW3.2+);
+    values range [0, 360000], -1 is unset"/>
+
+  <!-- Only set this parameter when working with FW 3.1+ -->
+  <arg name ="return_order" default=" "
+    doc="order of returns to use for generating point cloud (FW3.1+); possible values:
+    STRONGEST_TO_WEAKEST,
+    FARTHEST_TO_NEAREST,
+    NEAREST_TO_FARTHEST
+    "/>
+
+  <!-- Only set this parameter when working with FW 3.2+ -->
+  <arg name="bloom_reduction_optimization" default=" "
+    doc="level of bloom reduction optimization to apply on the sensor (FW3.2+); possible values:
+    BALANCED,
+    MINIMIZE_FALSE_POSITIVES
+    "/>
+
   <arg name="persist_config" default="false"
     doc="request the sensor to persist settings"/>
 
@@ -124,6 +190,10 @@
       <param name="~/lidar_port" type="int" value="$(arg lidar_port)"/>
       <param name="~/imu_port" type="int" value="$(arg imu_port)"/>
       <param name="~/udp_profile_lidar" type="str" value="$(arg udp_profile_lidar)"/>
+      <param name="~/udp_profile_imu" type="str" value="$(arg udp_profile_imu)"/>
+      <param name="~/imu_packets_per_frame" type="int" value="$(arg imu_packets_per_frame)"/>
+      <param name="~/gyro_fsr" type="str" value="$(arg gyro_fsr)"/>
+      <param name="~/accel_fsr" type="str" value="$(arg accel_fsr)"/>
       <param name="~/lidar_mode" type="str" value="$(arg lidar_mode)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
       <param name="~/ptp_utc_tai_offset" type="double"
@@ -132,6 +202,13 @@
       <param name="~/proc_mask" type="str" value="$(arg proc_mask)"/>
       <param name="~/azimuth_window_start" value="$(arg azimuth_window_start)"/>
       <param name="~/azimuth_window_end" value="$(arg azimuth_window_end)"/>
+      <param name="~/operating_mode" value="$(arg operating_mode)"/>
+      <param name="~/signal_multiplier" value="$(arg signal_multiplier)"/>
+      <param name="~/phase_lock_enable" value="$(arg phase_lock_enable)"/>
+      <param name="~/phase_lock_offset" value="$(arg phase_lock_offset)"/>
+      <param name="~/lidar_frame_azimuth_offset" value="$(arg lidar_frame_azimuth_offset)"/>
+      <param name="~/return_order" value="$(arg return_order)"/>
+      <param name="~/bloom_reduction_optimization" value="$(arg bloom_reduction_optimization)"/>
       <param name="~/persist_config" value="$(arg persist_config)"/>
       <param name="~/attempt_reconnect" value="$(arg attempt_reconnect)"/>
       <param name="~/dormant_period_between_reconnects"
@@ -165,7 +242,7 @@
     <arg name="min_range" value="$(arg min_range)"/>
     <arg name="max_range" value="$(arg max_range)"/>
     <arg name="v_reduction" value="$(arg v_reduction)"/>
-    <arg name="~/mask_path" value="$(arg mask_path)"/>
+    <arg name="mask_path" value="$(arg mask_path)"/>
     <arg name="min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
   </include>

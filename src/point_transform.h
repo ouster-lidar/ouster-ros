@@ -26,6 +26,10 @@ DEFINE_MEMBER_CHECKER(range);
 DEFINE_MEMBER_CHECKER(signal);
 DEFINE_MEMBER_CHECKER(reflectivity);
 DEFINE_MEMBER_CHECKER(near_ir);
+DEFINE_MEMBER_CHECKER(flags);
+DEFINE_MEMBER_CHECKER(window);
+DEFINE_MEMBER_CHECKER(zone_mask);
+
 
 template <typename PointTGT, typename PointSRC>
 void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
@@ -119,6 +123,45 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
     CondBinaryOp<has_ambient_v<PointTGT> && !has_near_ir_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto&) {
             tgt_pt.ambient = static_cast<decltype(tgt_pt.ambient)>(0);
+        }
+    );
+
+    // flags
+    CondBinaryOp<has_flags_v<PointTGT> && has_flags_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.flags = src_pt.flags;
+        }
+    );
+
+    CondBinaryOp<has_flags_v<PointTGT> && !has_flags_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.flags = static_cast<decltype(tgt_pt.flags)>(0);
+        }
+    );
+
+    // window
+    CondBinaryOp<has_window_v<PointTGT> && has_window_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.window = src_pt.window;
+        }
+    );
+
+    CondBinaryOp<has_window_v<PointTGT> && !has_window_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.window = static_cast<decltype(tgt_pt.window)>(0);
+        }
+    );
+
+    // zone_mask
+    CondBinaryOp<has_zone_mask_v<PointTGT> && has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.zone_mask = src_pt.zone_mask;
+        }
+    );
+
+    CondBinaryOp<has_zone_mask_v<PointTGT> && !has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.zone_mask = static_cast<decltype(tgt_pt.zone_mask)>(0);
         }
     );
 }

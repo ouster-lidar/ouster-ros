@@ -2,8 +2,8 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file imu_packet_handler.h
- * @brief ...
+ * @file telemetry_handler.h
+ * @brief Handles telemetry data from the Ouster sensor
  */
 
 #pragma once
@@ -19,10 +19,10 @@ namespace ouster_ros {
 class TelemetryHandler {
    public:
     using HandlerOutput = Telemetry;
-    using HandlerType = std::function<HandlerOutput(const sensor::LidarPacket&)>;
+    using HandlerType = std::function<HandlerOutput(const ouster::sdk::core::LidarPacket&)>;
 
-    static uint64_t first_valid_ts(const sensor::LidarPacket& lidar_packet,
-                                   const sensor::packet_format& pf) {
+    static uint64_t first_valid_ts(const ouster::sdk::core::LidarPacket& lidar_packet,
+                                   const ouster::sdk::core::PacketFormat& pf) {
         // scan for the first non-zero column ts
         uint64_t ts = 0;
         for (int icol = 0; icol < pf.columns_per_packet; ++icol) {
@@ -34,21 +34,21 @@ class TelemetryHandler {
     }
 
    public:
-    static HandlerType create(const sensor::sensor_info& info,
-                                      const std::string& timestamp_mode,
-                                      int64_t ptp_utc_tai_offset) {
-        const auto& pf = sensor::get_format(info);
-        using Timestamper = std::function<ros::Time(const sensor::LidarPacket&)>;
+    static HandlerType create(const ouster::sdk::core::SensorInfo& info,
+                              const std::string& timestamp_mode,
+                              int64_t ptp_utc_tai_offset) {
+        const auto& pf = ouster::sdk::core::get_format(info);
+        using Timestamper = std::function<ros::Time(const ouster::sdk::core::LidarPacket&)>;
 
         Timestamper timestamper;
         if (timestamp_mode == "TIME_FROM_ROS_TIME") {
             timestamper = Timestamper{
-                [](const sensor::LidarPacket& lidar_packet) {
+                [](const ouster::sdk::core::LidarPacket& lidar_packet) {
                     return impl::ts_to_ros_time(lidar_packet.host_timestamp);
                 }};
         } else if (timestamp_mode == "TIME_FROM_PTP_1588") {
             timestamper = Timestamper{
-                [pf, ptp_utc_tai_offset](const sensor::LidarPacket& lidar_packet) {
+                [pf, ptp_utc_tai_offset](const ouster::sdk::core::LidarPacket& lidar_packet) {
                     uint64_t ts = TelemetryHandler::first_valid_ts(lidar_packet, pf);
                     ts = impl::ts_safe_offset_add(ts, ptp_utc_tai_offset);
                     return impl::ts_to_ros_time(ts);
@@ -56,13 +56,13 @@ class TelemetryHandler {
                 }};
         } else {
             timestamper = Timestamper{
-                [pf](const sensor::LidarPacket& lidar_packet) {
+                [pf](const ouster::sdk::core::LidarPacket& lidar_packet) {
                     uint64_t ts = TelemetryHandler::first_valid_ts(lidar_packet, pf);
                     return impl::ts_to_ros_time(ts);
                 }};
         }
 
-        return [pf, timestamper](const sensor::LidarPacket& lidar_packet) {
+        return [pf, timestamper](const ouster::sdk::core::LidarPacket& lidar_packet) {
             return lidar_packet_to_telemetry_msg(lidar_packet, timestamper(lidar_packet), pf);
         };
     }

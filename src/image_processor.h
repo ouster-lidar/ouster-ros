@@ -15,25 +15,21 @@
 // clang-format on
 
 #include <sensor_msgs/image_encodings.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/eigen.hpp>
 
 #include "ouster/image_processing.h"
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-namespace viz = ouster::viz;
-using sensor::ChanField;
+namespace ChanField = ouster::sdk::core::ChanField;
 
 class ImageProcessor {
    public:
     using OutputType =
-        std::map<ChanField, std::shared_ptr<sensor_msgs::Image>>;
+        std::map<std::string, std::shared_ptr<sensor_msgs::Image>>;
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
-    ImageProcessor(const ouster::sensor::sensor_info& info,
+    ImageProcessor(const ouster::sdk::core::SensorInfo& info,
                    const std::string& frame_id,
                    const std::string& mask_path,
                    PostProcessingFn func)
@@ -45,7 +41,7 @@ class ImageProcessor {
         image_msgs[ChanField::SIGNAL] = std::make_shared<sensor_msgs::Image>();
         image_msgs[ChanField::REFLECTIVITY] = std::make_shared<sensor_msgs::Image>();
         image_msgs[ChanField::NEAR_IR] = std::make_shared<sensor_msgs::Image>();
-        if (get_n_returns(info) == 2) {
+        if (info.num_returns() == 2) {
             image_msgs[ChanField::RANGE2] =
                 std::make_shared<sensor_msgs::Image>();
             image_msgs[ChanField::SIGNAL2] =
@@ -77,10 +73,10 @@ class ImageProcessor {
     }
 
    private:
-    void process(const ouster::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
                  const ros::Time& msg_ts) {
         process_return(lidar_scan, 0);
-        if (get_n_returns(info_) == 2) process_return(lidar_scan, 1);
+        if (info_.num_returns() == 2) process_return(lidar_scan, 1);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
@@ -88,48 +84,48 @@ class ImageProcessor {
     }
 
     // TODO: this functin could be benefit of some refactor
-    void process_return(const ouster::LidarScan& lidar_scan, int return_index) {
+    void process_return(const ouster::sdk::core::LidarScan& lidar_scan, int return_index) {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
         auto range_channel = first ? ChanField::RANGE : ChanField::RANGE2;
-        ouster::img_t<uint32_t> range =
+        ouster::sdk::core::img_t<uint32_t> range =
             lidar_scan.field<uint32_t>(range_channel);
 
-        ouster::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
-            impl::scan_return(ChanField::REFLECTIVITY, !first), lidar_scan);
+        ouster::sdk::core::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
+            impl::scan_return(ChanField::REFLECTIVITY, !first),
+            lidar_scan);
 
-        ouster::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
+        ouster::sdk::core::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
             impl::scan_return(ChanField::SIGNAL, !first), lidar_scan);
 
         // TODO: note that near_ir will be processed twice for DUAL return
         // sensor
-        ouster::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
-            impl::scan_return(ChanField::NEAR_IR, !first), lidar_scan);
+        ouster::sdk::core::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
+            impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
 
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
 
-        // create views into message data
-        auto range_msg = image_msgs[impl::scan_return(ChanField::RANGE, !first)];
-        auto range_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
+        // views into message data
+        auto range_msg = image_msgs[impl::scan_return(ouster::sdk::core::ChanField::RANGE, !first)];
+        auto range_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)range_msg->data.data(), H, W);
-        auto signal_msg = image_msgs[impl::scan_return(ChanField::SIGNAL, !first)];
-        auto signal_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
+        auto signal_msg = image_msgs[impl::scan_return(ouster::sdk::core::ChanField::SIGNAL, !first)];
+        auto signal_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)signal_msg->data.data(), H, W);
-        auto reflectivity_msg = image_msgs[impl::scan_return(ChanField::REFLECTIVITY, !first)];
-        auto reflec_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
+        auto reflectivity_msg = image_msgs[impl::scan_return(ouster::sdk::core::ChanField::REFLECTIVITY, !first)];
+        auto reflec_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)reflectivity_msg->data.data(), H, W);
-        auto near_ir_msg = image_msgs[impl::scan_return(ChanField::NEAR_IR, !first)];
-            auto nearir_image_map = Eigen::Map<ouster::img_t<pixel_type>>(
+        auto near_ir_msg = image_msgs[impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first)];
+        auto nearir_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)near_ir_msg->data.data(), H, W);
 
         const auto& px_offset = info_.format.pixel_shift_by_row;
 
-        ouster::img_t<float> signal_image_eigen(H, W);
-        ouster::img_t<float> reflec_image_eigen(H, W);
-        ouster::img_t<float> nearir_image_eigen(H, W);
-
+        ouster::sdk::core::img_t<float> signal_image_eigen(H, W);
+        ouster::sdk::core::img_t<float> reflec_image_eigen(H, W);
+        ouster::sdk::core::img_t<float> nearir_image_eigen(H, W);
 
         const auto rg = range.data();
         const auto sg = signal.data();
@@ -175,12 +171,12 @@ class ImageProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sensor::sensor_info& info,
+    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame,
                                      const std::string& mask_path,
                                      PostProcessingFn func) {
         auto handler = std::make_shared<ImageProcessor>(info, frame, mask_path, func);
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
                          const ros::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };
@@ -190,12 +186,12 @@ class ImageProcessor {
     std::string frame;
     OutputType image_msgs;
     PostProcessingFn post_processing_fn;
-    sensor::sensor_info info_;
+    ouster::sdk::core::SensorInfo info_;
 
-    viz::AutoExposure nearir_ae, signal_ae, reflec_ae;
-    viz::BeamUniformityCorrector nearir_buc;
+    ouster::sdk::core::AutoExposure nearir_ae, signal_ae, reflec_ae;
+    ouster::sdk::core::BeamUniformityCorrector nearir_buc;
 
-    ouster::img_t<pixel_type> mask;
+    ouster::sdk::core::img_t<pixel_type> mask;
 };
 
 }  // namespace ouster_ros

@@ -38,7 +38,7 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
 set(_ouster_ros_INCLUDE_DIRS
   "include;"
-  "ouster-sdk/ouster_client/include;"
+  "ouster-sdk/ouster_sensor/include;"
   "ouster-sdk/ouster_client/include/optional-lite;"
   "ouster-sdk/ouster_pcap/include")
 
@@ -68,6 +68,7 @@ set(BUILD_SHARED_LIBS OFF)
 option(BUILD_VIZ "Enabled for Python build" OFF)
 option(BUILD_PCAP "Enabled for Python build" OFF)
 option(BUILD_OSF "Build OSF library." OFF)
+option(BUILD_MAPPING "Turn off building MAPPING" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -99,7 +100,7 @@ endif()
 
 add_library(ouster_ros src/os_ros.cpp)
 target_link_libraries(ouster_ros
-  PUBLIC ${catkin_LIBRARIES} ouster_build pcl_common
+  PUBLIC ${catkin_LIBRARIES} ouster_build OusterSDK::ouster_sensor pcl_common
   PRIVATE ${OUSTER_TARGET_LINKS}
 )
 

@@ -74,7 +74,7 @@ class OusterTransformsBroadcaster {
         }
     }
 
-    void broadcast_transforms(const sensor::sensor_info& info) {
+    void broadcast_transforms(const ouster::sdk::core::SensorInfo& info) {
         auto now = ros::Time::now();
         static_tf_bcast.sendTransform(transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now));
@@ -82,7 +82,7 @@ class OusterTransformsBroadcaster {
             info.imu_to_sensor_transform, sensor_frame, imu_frame, now));
     }
 
-    void broadcast_transforms(const sensor::sensor_info& info,
+    void broadcast_transforms(const ouster::sdk::core::SensorInfo& info,
                               const ros::Time& ts) {
         tf_bcast.sendTransform(transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, ts));
