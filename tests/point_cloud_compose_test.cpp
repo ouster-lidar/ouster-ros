@@ -20,7 +20,6 @@ class PointCloudComposeTest : public ::testing::Test {
 };
 
 using namespace std;
-using namespace ouster::sensor;
 using namespace ouster_ros;
 
 // TODO: generalize the test case!
@@ -30,7 +29,7 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     const auto HEIGHT = 3U;
     const auto SAMPLES = WIDTH * HEIGHT;
     UDPProfileLidar lidar_udp_profile =
-        UDPProfileLidar::PROFILE_RNG19_RFL8_SIG16_NIR16_DUAL;
+        UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL;
 
     ouster::LidarScan ls(WIDTH, HEIGHT, lidar_udp_profile);
 
@@ -41,10 +40,10 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
                 static_cast<std::remove_reference_t<decltype(p[0])>>(base + i);
     };
 
-    auto range = ls.field<uint32_t>(RANGE);
-    auto signal = ls.field<uint16_t>(SIGNAL);
-    auto reflect = ls.field<uint8_t>(REFLECTIVITY);
-    auto near_ir = ls.field<uint16_t>(NEAR_IR);
+    auto range = ls.field<uint32_t>(ChanField::RANGE);
+    auto signal = ls.field<uint16_t>(ChanField::SIGNAL);
+    auto reflect = ls.field<uint8_t>(ChanField::REFLECTIVITY);
+    auto near_ir = ls.field<uint16_t>(ChanField::NEAR_IR);
 
     // choose a base value that could ultimately wrap around
     fill_data(range, static_cast<uint32_t>(1 + (1ULL << 32) - SAMPLES / 2),
