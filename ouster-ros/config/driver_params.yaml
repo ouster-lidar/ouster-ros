@@ -132,7 +132,7 @@ ouster/os_driver:
     # - STRONGEST_TO_WEAKEST
     # - FARTHEST_TO_NEAREST
     # - NEAREST_TO_FARTHEST
-    # default is '' (unset).
+    # default is '' (unset; requires FW 3.1+).
     return_order: ''
     # bloom_reduction_optimization[optional]: level of bloom reduction optimization to apply on the sensor; possible values:
     # - BALANCED

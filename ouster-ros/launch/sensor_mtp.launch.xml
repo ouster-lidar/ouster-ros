@@ -31,29 +31,29 @@
     RNG15_RFL8_NIR8,
     RNG19_RFL8_SIG16_NIR16_DUAL,
     FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL),
-    RNG15_RFL8_NIR8_DUAL,
-    RNG15_RFL8_WIN8,
-    RNG15_RFL8_NIR8_ZONE16,
-    RNG19_RFL8_SIG16_NIR16_ZONE16
+    RNG15_RFL8_NIR8_DUAL (FW3.2+),
+    RNG15_RFL8_WIN8 (FW3.2+),
+    RNG15_RFL8_NIR8_ZONE16 (FW3.2+),
+    RNG19_RFL8_SIG16_NIR16_ZONE16 (FW3.2+)
     }"/>
   <!-- ACCEL32_GYRO32_NMEA is only available with FW3.2 -->
   <arg name="udp_profile_imu" default=""
     description="imu packet profile; possible values: {
     LEGACY,
-    ACCEL32_GYRO32_NMEA
+    ACCEL32_GYRO32_NMEA (FW3.2+)
     }"/>
   <!-- Only set this parameter when working with FW3.2 -->
   <arg name="imu_packets_per_frame" default="0"
     description="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
-  <!-- Only set this parameter when working with FW3.2 -->
+  <!-- Only set this parameter when working with FW3.1 -->
   <arg name="gyro_fsr" default=""
-    description="gyro full scale range; possible values: {
+    description="gyro full scale range (requires FW3.1+); possible values: {
     NORMAL,
     EXTENDED
     }"/>
-  <!-- Only set this parameter when working with FW3.2 -->
+  <!-- Only set this parameter when working with FW3.1 -->
   <arg name="accel_fsr" default=""
-    description="accel full scale range; possible values: {
+    description="accel full scale range (requires FW3.1+); possible values: {
     NORMAL,
     EXTENDED
     }"/>
@@ -138,17 +138,20 @@
 
   <!-- Only set this parameter when working with FW3.2 -->
   <arg name="lidar_frame_azimuth_offset" default="-1"
-    description="The lidar frame azimuth offset for the sensor to use in millidegrees;
+    description="The lidar frame azimuth offset for the sensor to use in millidegrees (FW3.2+);
     values range [0, 360000], -1 is unset"/>
 
-  <arg name ="return_order" default="" description="order of returns to use for generating point cloud; possible values:
+  <!-- Only set this parameter when working with FW3.1 -->
+  <arg name ="return_order" default="" description="order of returns to use for generating point cloud (FW3.1+);
+    possible values:
     STRONGEST_TO_WEAKEST,
     FARTHEST_TO_NEAREST,
     NEAREST_TO_FARTHEST
     "/>
 
   <!-- Only set this parameter when working with FW3.2 -->
-  <arg name="bloom_reduction_optimization" default="" description="level of bloom reduction optimization to apply on the sensor; possible values:
+  <arg name="bloom_reduction_optimization" default=""
+    description="level of bloom reduction optimization to apply on the sensor (FW3.2+); possible values:
     BALANCED,
     MINIMIZE_FALSE_POSITIVES
     "/>

@@ -691,7 +691,7 @@ void OusterSensor::parse_signal_multiplier(SensorConfig& config) {
 void OusterSensor::parse_phase_lock_and_offset(SensorConfig& config) {
     config.phase_lock_enable = get_parameter("phase_lock_enable").as_bool();
     auto phase_lock_offset = get_parameter("phase_lock_offset").as_int();
-    if (phase_lock_offset < 0 || phase_lock_offset > 360000) {
+    if (phase_lock_offset < MIN_AZW || phase_lock_offset > MAX_AZW) {
         auto error_msg = "phase_lock_offset must be between 0 and 360000 millidegrees";
         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
