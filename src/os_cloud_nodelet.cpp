@@ -117,8 +117,10 @@ class OusterCloud : public nodelet::Nodelet {
                     memcpy(imu_packet.buf.data(), msg->buf.data(),
                            msg->buf.size());
                     auto imu_msgs = imu_packet_handler(imu_packet);
-                    for (const auto& imu_msg : imu_msgs) {
-                        imu_pub.publish(imu_msg);
+                    for (const auto& msg : imu_msgs) {
+                        if (msg.header.stamp > last_msg_ts)
+                            last_msg_ts = msg.header.stamp;
+                        imu_pub.publish(msg);
                     }
                 }
             });
