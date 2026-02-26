@@ -22,7 +22,6 @@
 #include "ouster_ros/PacketMsg.h"
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
-namespace sensor = ouster::sensor;
 
 namespace ouster_ros {
 
@@ -33,15 +32,15 @@ class OusterSensor : public OusterSensorNodeletBase {
    protected:
     virtual void onInit() override;
 
-    virtual void on_metadata_updated(const sensor::sensor_info& info);
+    virtual void on_metadata_updated(const ouster::sdk::core::SensorInfo& info);
 
     virtual void create_services();
 
     virtual void create_publishers();
 
-    virtual void on_lidar_packet_msg(const sensor::LidarPacket& lidar_packet);
+    virtual void on_lidar_packet_msg(const ouster::sdk::core::LidarPacket& lidar_packet);
 
-    virtual void on_imu_packet_msg(const sensor::ImuPacket& imu_packet);
+    virtual void on_imu_packet_msg(const ouster::sdk::core::ImuPacket& imu_packet);
 
     bool start();
 
@@ -58,9 +57,9 @@ class OusterSensor : public OusterSensorNodeletBase {
    private:
     std::string get_sensor_hostname();
 
-    void update_metadata(sensor::client& client);
+    void update_metadata(ouster::sdk::sensor::Client& cli);
 
-    void metadata_updated(const sensor::sensor_info& info);
+    void metadata_updated(const ouster::sdk::core::SensorInfo& info);
 
     void save_metadata();
 
@@ -75,57 +74,72 @@ class OusterSensor : public OusterSensorNodeletBase {
 
     void create_set_config_service();
 
-    std::shared_ptr<sensor::client> create_sensor_client(
-        const std::string& hostname, const sensor::sensor_config& config);
+    std::shared_ptr<ouster::sdk::sensor::Client> create_sensor_client(
+        const std::string& hostname, const ouster::sdk::core::SensorConfig& config);
 
-    sensor::sensor_config parse_config_from_ros_parameters();
+    ouster::sdk::core::SensorConfig parse_config_from_ros_parameters();
 
-    uint8_t compose_config_flags(const sensor::sensor_config& config);
+// helper methods for parsing individual config fields from ros parameters
+    void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
+    void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
+    void parse_udp_profile_imu_and_settings(ouster::sdk::core::SensorConfig& config);
+    void parse_lidar_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_timestamp_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_azimuth_window(ouster::sdk::core::SensorConfig& config);
+    void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
+    void parse_phase_lock_and_offset(ouster::sdk::core::SensorConfig& config);
+    void parse_lidar_frame_azimuth_offset(ouster::sdk::core::SensorConfig& config);
+    void parse_bloom_reduction_optimization(ouster::sdk::core::SensorConfig& config);
+    void parse_return_order(ouster::sdk::core::SensorConfig& config);
+    void parse_persist_config_flag();
+
+    uint8_t compose_config_flags(const ouster::sdk::core::SensorConfig& config);
 
     bool configure_sensor(const std::string& hostname,
-                          sensor::sensor_config& config);
+                          ouster::sdk::core::SensorConfig& config);
 
     std::string load_config_file(const std::string& config_file);
 
     // fill in values that could not be parsed from metadata
-    void populate_metadata_defaults(sensor::sensor_info& info,
-                                    sensor::lidar_mode specified_lidar_mode);
+    void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info,
+                                    ouster::sdk::core::LidarMode specified_lidar_mode);
 
     void allocate_buffers();
 
-    bool init_id_changed(const sensor::packet_format& pf,
-                         const sensor::LidarPacket& lidar_packet);
+    bool init_id_changed(const ouster::sdk::core::PacketFormat& pf,
+                         const ouster::sdk::core::LidarPacket& lidar_packet);
 
     void handle_poll_client_error();
 
-    void read_lidar_packet(sensor::client& client,
-                           const sensor::packet_format& pf);
+    void read_lidar_packet(ouster::sdk::sensor::Client& client,
+                           const ouster::sdk::core::PacketFormat& pf);
 
-    void handle_lidar_packet(const sensor::LidarPacket& lidar_packet);
+    void handle_lidar_packet(const ouster::sdk::core::LidarPacket& lidar_packet);
 
-    void read_imu_packet(sensor::client& client,
-                         const sensor::packet_format& pf);
+    void read_imu_packet(ouster::sdk::sensor::Client& client,
+                         const ouster::sdk::core::PacketFormat& pf);
 
-    void handle_imu_packet(const sensor::ImuPacket& imu_packet);
+    void handle_imu_packet(const ouster::sdk::core::ImuPacket& imu_packet);
 
     void cleanup();
 
-    void connection_loop(sensor::client& client,
-                         const sensor::packet_format& pf);
+    void connection_loop(ouster::sdk::sensor::Client& client,
+                         const ouster::sdk::core::PacketFormat& pf);
 
     bool get_active_config_no_throw(const std::string& sensor_hostname,
-                                    sensor::sensor_config& config);
+                                    ouster::sdk::core::SensorConfig& config);
 
    private:
     std::string sensor_hostname;
-    std::optional<sensor::sensor_config> staged_config;
+    std::optional<ouster::sdk::core::SensorConfig> staged_config;
     std::string mtp_dest;
     bool mtp_main;
-    std::shared_ptr<sensor::client> sensor_client;
+    std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
     PacketMsg lidar_packet_msg;
     PacketMsg imu_packet_msg;
-    ouster::sensor::LidarPacket lidar_packet;
-    ouster::sensor::ImuPacket imu_packet;
+    ouster::sdk::core::LidarPacket lidar_packet;
+    ouster::sdk::core::ImuPacket imu_packet;
     ros::Publisher lidar_packet_pub;
     ros::Publisher imu_packet_pub;
     ros::ServiceServer reset_srv;
@@ -156,6 +170,9 @@ class OusterSensor : public OusterSensorNodeletBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+
+    const int MIN_AZW = 0;
+    const int MAX_AZW = 360000;
 
     bool attempt_reconnect;
     double dormant_period_between_reconnects;

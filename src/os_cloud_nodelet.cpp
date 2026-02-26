@@ -31,8 +31,10 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
 using ouster_ros::PacketMsg;
+using ouster::sdk::core::ImuPacket;
+using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::PacketFormat;
 
 class OusterCloud : public nodelet::Nodelet {
    public:
@@ -62,7 +64,9 @@ class OusterCloud : public nodelet::Nodelet {
 
     void metadata_handler(const std_msgs::String::ConstPtr& metadata_msg) {
         NODELET_INFO("OusterCloud: retrieved new sensor metadata!");
-        auto info = sensor::parse_metadata(metadata_msg->data);
+        auto info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
+            ouster::sdk::core::get_format(info));
 
         auto pnh = getPrivateNodeHandle();
         tf_bcast.parse_parameters(pnh);
@@ -106,15 +110,16 @@ class OusterCloud : public nodelet::Nodelet {
                     // TODO[UN]: this is not ideal since we can't reuse the msg
                     // buffer Need to redefine the Packet object and allow use
                     // of array_views
-                    sensor::ImuPacket imu_packet(msg->buf.size());
-                    memcpy(imu_packet.buf.data(), msg->buf.data(),
-                           msg->buf.size());
+                    ImuPacket imu_packet(msg->buf.size());
+                    imu_packet.format = packet_format;
                     imu_packet.host_timestamp =
                         static_cast<uint64_t>(ros::Time::now().toNSec());
-                    auto imu_msg = imu_packet_handler(imu_packet);
-                    if (imu_msg.header.stamp > last_msg_ts)
-                        last_msg_ts = imu_msg.header.stamp;
-                    imu_pub.publish(imu_msg);
+                    memcpy(imu_packet.buf.data(), msg->buf.data(),
+                           msg->buf.size());
+                    auto imu_msgs = imu_packet_handler(imu_packet);
+                    for (const auto& imu_msg : imu_msgs) {
+                        imu_pub.publish(imu_msg);
+                    }
                 }
             });
     }
@@ -145,11 +150,12 @@ class OusterCloud : public nodelet::Nodelet {
     void create_lidar_packets_sub() {
         lidar_packet_sub = getNodeHandle().subscribe<PacketMsg>(
             "lidar_packets", 100, [this](const PacketMsg::ConstPtr msg) {
-                sensor::LidarPacket lidar_packet(msg->buf.size());
-                memcpy(lidar_packet.buf.data(), msg->buf.data(),
-                       msg->buf.size());
+                LidarPacket lidar_packet(msg->buf.size());
+                lidar_packet.format = packet_format;
                 lidar_packet.host_timestamp =
                     static_cast<uint64_t>(ros::Time::now().toNSec());
+                memcpy(lidar_packet.buf.data(), msg->buf.data(),
+                       msg->buf.size());
 
                 if (telemetry_handler) {
                     auto telemetry = telemetry_handler(lidar_packet);
@@ -165,7 +171,7 @@ class OusterCloud : public nodelet::Nodelet {
             });
     }
 
-    void create_handlers(const sensor::sensor_info& info) {
+    void create_handlers(const ouster::sdk::core::SensorInfo& info) {
         auto& pnh = getPrivateNodeHandle();
         auto proc_mask = pnh.param("proc_mask", std::string{"IMU|PCL|SCAN"});
         auto tokens = impl::parse_tokens(proc_mask, '|');
@@ -281,6 +287,8 @@ class OusterCloud : public nodelet::Nodelet {
     }
 
    private:
+    std::shared_ptr<PacketFormat> packet_format;
+
     ros::Subscriber metadata_sub;
     ros::Subscriber imu_packet_sub;
     ros::Publisher imu_pub;

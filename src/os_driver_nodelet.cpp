@@ -27,9 +27,8 @@
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
 
-namespace sensor = ouster::sensor;
-using ouster::sensor::ImuPacket;
-using ouster::sensor::LidarPacket;
+using ouster::sdk::core::ImuPacket;
+using ouster::sdk::core::LidarPacket;
 
 namespace ouster_ros {
 
@@ -56,7 +55,7 @@ class OusterDriver : public OusterSensor {
     }
 
    private:
-    void on_metadata_updated(const sensor::sensor_info& info) override {
+    void on_metadata_updated(const ouster::sdk::core::SensorInfo& info) override {
         // for OusterDriver we are going to always assume static broadcast
         // at least for now
         tf_bcast.parse_parameters(getPrivateNodeHandle());
@@ -95,14 +94,14 @@ class OusterDriver : public OusterSensor {
 
     void create_image_pubs() {
         // NOTE: always create the 2nd topics
-        const std::map<sensor::ChanField, std::string> channel_field_topic_map{
-            {sensor::ChanField::RANGE, "range_image"},
-            {sensor::ChanField::SIGNAL, "signal_image"},
-            {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-            {sensor::ChanField::NEAR_IR, "nearir_image"},
-            {sensor::ChanField::RANGE2, "range_image2"},
-            {sensor::ChanField::SIGNAL2, "signal_image2"},
-            {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+        const std::map<std::string, std::string> channel_field_topic_map{
+            {ChanField::RANGE, "range_image"},
+            {ChanField::SIGNAL, "signal_image"},
+            {ChanField::REFLECTIVITY, "reflec_image"},
+            {ChanField::NEAR_IR, "nearir_image"},
+            {ChanField::RANGE2, "range_image2"},
+            {ChanField::SIGNAL2, "signal_image2"},
+            {ChanField::REFLECTIVITY2, "reflec_image2"}};
 
         for (auto it : channel_field_topic_map) {
             image_pubs[it.first] =
@@ -246,8 +245,10 @@ class OusterDriver : public OusterSensor {
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
         if (imu_packet_handler) {
-            auto imu_msg = imu_packet_handler(imu_packet);
-            imu_pub.publish(imu_msg);
+            auto imu_msgs = imu_packet_handler(imu_packet);
+            for (const auto& imu_msg : imu_msgs) {
+                imu_pub.publish(imu_msg);
+            }
         }
 
         if (publish_raw) OusterSensor::on_imu_packet_msg(imu_packet);
@@ -257,7 +258,7 @@ class OusterDriver : public OusterSensor {
     ros::Publisher imu_pub;
     std::vector<ros::Publisher> lidar_pubs;
     std::vector<ros::Publisher> scan_pubs;
-    std::map<sensor::ChanField, ros::Publisher> image_pubs;
+    std::map<std::string, ros::Publisher> image_pubs;
 
     OusterTransformsBroadcaster tf_bcast;
 

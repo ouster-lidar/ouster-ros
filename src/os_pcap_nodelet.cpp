@@ -24,9 +24,9 @@
 #include "ouster_ros/PacketMsg.h"
 #include <ouster/os_pcap.h>
 
-namespace sensor = ouster::sensor;
-using ouster::sensor_utils::PcapReader;
 using namespace std::chrono;
+using ouster::sdk::pcap::PcapReader;
+using ouster::sdk::core::PacketFormat;
 
 namespace ouster_ros {
 
@@ -79,7 +79,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     void load_metadata_from_file(const std::string& meta_file) {
         try {
             cached_metadata = read_text_file(meta_file);
-            info = sensor::parse_metadata(cached_metadata);
+            info = ouster::sdk::core::SensorInfo(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
             cached_metadata.clear();
@@ -89,7 +89,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     }
 
     void allocate_buffers() {
-        auto& pf = sensor::get_format(info);
+        auto& pf = ouster::sdk::core::get_format(info);
         lidar_packet.buf.resize(pf.lidar_packet_size);
         imu_packet.buf.resize(pf.imu_packet_size);
     }
@@ -107,7 +107,7 @@ class OusterPcap : public OusterSensorNodeletBase {
     void start_packet_read_thread() {
         packet_read_active = true;
         packet_read_thread = std::make_unique<std::thread>([this]() {
-            auto& pf = sensor::get_format(info);
+            auto& pf = ouster::sdk::core::get_format(info);
             do {
                 read_packets(*pcap, pf);
                 pcap->reset();
@@ -125,7 +125,7 @@ class OusterPcap : public OusterSensorNodeletBase {
         }
     }
 
-    void read_packets(PcapReader& pcap, const sensor::packet_format& pf) {
+    void read_packets(PcapReader& pcap, const PacketFormat& pf) {
         size_t payload_size = pcap.next_packet();
         auto packet_info = pcap.current_info();
         auto file_start = packet_info.timestamp;

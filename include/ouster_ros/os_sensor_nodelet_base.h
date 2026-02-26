@@ -26,7 +26,7 @@ class OusterSensorNodeletBase : public nodelet::Nodelet {
 
     void publish_metadata();
 
-    void display_lidar_info(const ouster::sensor::sensor_info& info);
+    void display_lidar_info(const ouster::sdk::core::SensorInfo& info);
 
     std::string read_text_file(const std::string& text_file);
 
@@ -34,7 +34,7 @@ class OusterSensorNodeletBase : public nodelet::Nodelet {
                             const std::string& text);
 
    protected:
-    ouster::sensor::sensor_info info;
+    ouster::sdk::core::SensorInfo info;
     ros::ServiceServer get_metadata_srv;
     std::string cached_metadata;
     ros::Publisher metadata_pub;
