@@ -21,6 +21,7 @@ class PointCloudComposeTest : public ::testing::Test {
 
 using namespace std;
 using namespace ouster_ros;
+using namespace ouster::sdk::core;
 
 // TODO: generalize the test case!
 
@@ -31,7 +32,7 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     UDPProfileLidar lidar_udp_profile =
         UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL;
 
-    ouster::LidarScan ls(WIDTH, HEIGHT, lidar_udp_profile);
+    LidarScan ls(WIDTH, HEIGHT, lidar_udp_profile);
 
     auto fill_data = [](auto& img, auto base, auto count) {
         auto* p = img.data();
