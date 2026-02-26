@@ -544,7 +544,7 @@ void OusterSensor::parse_phase_lock_and_offset(SensorConfig& config) {
     auto& nh = getPrivateNodeHandle();
     config.phase_lock_enable = nh.param("phase_lock_enable", false);
     auto phase_lock_offset = nh.param("phase_lock_offset", 0);
-    if (phase_lock_offset < 0 || phase_lock_offset > 360000) {
+    if (phase_lock_offset < MIN_AZW || phase_lock_offset > MAX_AZW) {
         auto error_msg = "phase_lock_offset must be between 0 and 360000 millidegrees";
         NODELET_FATAL_STREAM(error_msg);
         throw std::runtime_error(error_msg);
