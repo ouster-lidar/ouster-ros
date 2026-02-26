@@ -12,7 +12,7 @@
 
 namespace ouster_ros {
 
-using ouster::sensor::ChanFieldType;
+using ouster::sdk::core::ChanFieldType;
 
 template <ChanFieldType T>
 struct TypeSelector { /*undefined*/
@@ -61,7 +61,7 @@ constexpr auto make_lidar_scan_tuple() {
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table,
           typename Tuple>
-void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::LidarScan& ls) {
+void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarScan& ls) {
     static_assert(
         std::tuple_size_v<Tuple> == N,
         "target tuple size has a different size from the channel field table");
@@ -85,7 +85,7 @@ void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::LidarScan& ls) {
  * @param[in] ls LidarScan
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table>
-constexpr auto make_lidar_scan_tuple(const ouster::LidarScan& ls) {
+constexpr auto make_lidar_scan_tuple(const ouster::sdk::core::LidarScan& ls) {
     auto tp = make_lidar_scan_tuple<0, N, Table>();
     map_lidar_scan_fields_to_tuple<0, N, Table>(tp, ls);
     return tp;
@@ -118,8 +118,8 @@ using Cloud = pcl::PointCloud<T>;
 template <std::size_t N, const ChanFieldTable<N>& PROFILE, typename PointT,
           typename PointS>
 void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
-                     const ouster::PointsF& points, uint64_t scan_ts,
-                     const ouster::LidarScan& ls,
+                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
+                     const ouster::sdk::core::LidarScan& ls,
                      const std::vector<int>& pixel_shift_by_row,
                      bool organized = false, bool destagger = true,
                      int rows_step = 1) {
@@ -129,27 +129,27 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
     if (!organized) cloud.clear();
     cloud.is_dense = true;
 
-    for (auto u = 0; u < ls.h; u += rows_step) {
-        for (auto v = 0; v < ls.w; ++v) {   // TODO[UN]: consider cols_step in future
+    int h = static_cast<int>(ls.h);
+    int w = static_cast<int>(ls.w);
+
+    for (auto u = 0; u < h; u += rows_step) {
+        for (auto v = 0; v < w; ++v) {   // TODO[UN]: consider cols_step in future
             const auto v_shift =
-                destagger ? (v + ls.w - pixel_shift_by_row[u]) % ls.w : v;
-            const auto src_idx = u * ls.w + v_shift;
+                destagger ? (v + w - pixel_shift_by_row[u]) % w : v;
+            const auto src_idx = u * w + v_shift;
             const auto xyz = points.row(src_idx);
             const auto tgt_idx =
-                organized ? (u / rows_step) * ls.w + v : cloud.size();
+                organized ? (u / rows_step) * w + v : cloud.size();
 
-            // as opposed to the point cloud destaggering if it is disabled
-            // then timestamps needs to be staggered.
-            auto ts_idx =
-                destagger ? v : (v + ls.w + pixel_shift_by_row[u]) % ls.w;
+            // copy the timestamp of associated point
             auto ts =
-                timestamp[ts_idx] > scan_ts ? timestamp[ts_idx] - scan_ts : 0UL;
+                timestamp[v_shift] > scan_ts ? timestamp[v_shift] - scan_ts : 0UL;
 
             if (organized) {
                 // set is_dense to false if any of the xyz coordinates is NaN
-                cloud.is_dense &= !xyz.isNaN().any();
+                cloud.is_dense &= !xyz.hasNaN();
             } else {
-                if (xyz.isNaN().any())
+                if (xyz.hasNaN())
                     continue;
                 else
                     cloud.points.emplace_back();

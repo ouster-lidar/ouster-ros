@@ -18,13 +18,44 @@
     description="port to which the sensor should send lidar data"/>
   <arg name="imu_port" default="0"
     description="port to which the sensor should send imu data"/>
+  <!-- The following profiles are only available with FW3.2:
+    RNG15_RFL8_NIR8_DUAL
+    RNG15_RFL8_WIN8,
+    RNG15_RFL8_NIR8_ZONE16,
+    RNG19_RFL8_SIG16_NIR16_ZONE16
+   -->
   <arg name="udp_profile_lidar" default=""
     description="lidar packet profile; possible values: {
     LEGACY,
     RNG19_RFL8_SIG16_NIR16,
     RNG15_RFL8_NIR8,
     RNG19_RFL8_SIG16_NIR16_DUAL,
-    FUSA_RNG15_RFL8_NIR8_DUAL    
+    FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL),
+    RNG15_RFL8_NIR8_DUAL (FW3.2+),
+    RNG15_RFL8_WIN8 (FW3.2+),
+    RNG15_RFL8_NIR8_ZONE16 (FW3.2+),
+    RNG19_RFL8_SIG16_NIR16_ZONE16 (FW3.2+)
+    }"/>
+  <!-- ACCEL32_GYRO32_NMEA is only available with FW3.2 -->
+  <arg name="udp_profile_imu" default=""
+    description="imu packet profile; possible values: {
+    LEGACY,
+    ACCEL32_GYRO32_NMEA (FW3.2+)
+    }"/>
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="imu_packets_per_frame" default="0"
+    description="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
+  <!-- Only set this parameter when working with FW3.1 -->
+  <arg name="gyro_fsr" default=""
+    description="gyro full scale range (requires FW3.1+); possible values: {
+    NORMAL,
+    EXTENDED
+    }"/>
+  <!-- Only set this parameter when working with FW3.1 -->
+  <arg name="accel_fsr" default=""
+    description="accel full scale range (requires FW3.1+); possible values: {
+    NORMAL,
+    EXTENDED
     }"/>
   <arg name="lidar_mode" default=""
     description="resolution and rate; possible values: {
@@ -91,6 +122,40 @@
   <arg name="azimuth_window_end" default="360000" description="azimuth window end;
     values range [0, 360000] millidegrees"/>
 
+  <arg name="operating_mode" default="NORMAL"
+    description="operating mode of the sensor; possible values: {
+    NORMAL,
+    STANDBY
+    }"/>
+
+  <arg name="signal_multiplier" default="1.0"
+    description="Multiplier for signal strength of sensor; possible values: {0.25, 0.5, 1, 2, 3}"/>
+
+  <arg name="phase_lock_enable" default="false"
+    description="enable or disable phase lock"/>
+  <arg name="phase_lock_offset" default="0"
+    description="Angle that sensors are locked to in millidegrees, values range [0, 360000]"/>
+
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="lidar_frame_azimuth_offset" default="-1"
+    description="The lidar frame azimuth offset for the sensor to use in millidegrees (FW3.2+);
+    values range [0, 360000], -1 is unset"/>
+
+  <!-- Only set this parameter when working with FW3.1 -->
+  <arg name ="return_order" default="" description="order of returns to use for generating point cloud (FW3.1+);
+    possible values:
+    STRONGEST_TO_WEAKEST,
+    FARTHEST_TO_NEAREST,
+    NEAREST_TO_FARTHEST
+    "/>
+
+  <!-- Only set this parameter when working with FW3.2 -->
+  <arg name="bloom_reduction_optimization" default=""
+    description="level of bloom reduction optimization to apply on the sensor (FW3.2+); possible values:
+    BALANCED,
+    MINIMIZE_FALSE_POSITIVES
+    "/>
+
   <arg name="persist_config" default="false"
     description="request the sensor to persist settings"/>
 
@@ -116,6 +181,10 @@
       <param name="lidar_port" value="$(var lidar_port)"/>
       <param name="imu_port" value="$(var imu_port)"/>
       <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
+      <param name="udp_profile_imu" value="$(var udp_profile_imu)"/>
+      <param name="imu_packets_per_frame" value="$(var imu_packets_per_frame)"/>
+      <param name="gyro_fsr" value="$(var gyro_fsr)"/>
+      <param name="accel_fsr" value="$(var accel_fsr)"/>
       <param name="lidar_mode" value="$(var lidar_mode)"/>
       <param name="metadata" value="$(var metadata)"/>
       <param name="sensor_frame" value="$(var sensor_frame)"/>
@@ -131,6 +200,13 @@
       <param name="point_type" value="$(var point_type)"/>
       <param name="azimuth_window_start" value="$(var azimuth_window_start)"/>
       <param name="azimuth_window_end" value="$(var azimuth_window_end)"/>
+      <param name="operating_mode" value="$(var operating_mode)"/>
+      <param name="signal_multiplier" value="$(var signal_multiplier)"/>
+      <param name="phase_lock_enable" value="$(var phase_lock_enable)"/>
+      <param name="phase_lock_offset" value="$(var phase_lock_offset)"/>
+      <param name="lidar_frame_azimuth_offset" value="$(var lidar_frame_azimuth_offset)"/>
+      <param name="return_order" value="$(var return_order)"/>
+      <param name="bloom_reduction_optimization" value="$(var bloom_reduction_optimization)"/>
       <param name="persist_config" value="$(var persist_config)"/>
       <param name="attempt_reconnect" value="$(var attempt_reconnect)"/>
       <param name="dormant_period_between_reconnects"

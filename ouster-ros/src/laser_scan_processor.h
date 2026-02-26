@@ -2,8 +2,8 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file point_cloud_producer.h
- * @brief takes in a lidar scan object and produces a PointCloud2 message
+ * @file laser_scan_processor.h
+ * @brief takes in a lidar scan object and produces a LaserScan message
  */
 
 #pragma once
@@ -23,14 +23,14 @@ class LaserScanProcessor {
     using PostProcessingFn = std::function<void(OutputType)>;
 
    public:
-    LaserScanProcessor(const ouster::sensor::sensor_info& info,
+    LaserScanProcessor(const ouster::sdk::core::SensorInfo& info,
                        const std::string& frame_id, uint16_t ring,
                        PostProcessingFn func)
         : frame(frame_id),
-          ld_mode(info.mode),
+          ld_mode(info.config.lidar_mode.value()),
           ring_(ring),
           pixel_shift_by_row(info.format.pixel_shift_by_row),
-          scan_msgs(get_n_returns(info)),
+          scan_msgs(info.num_returns()),
           post_processing_fn(func) {
         for (size_t i = 0; i < scan_msgs.size(); ++i)
             scan_msgs[i] = std::make_shared<sensor_msgs::msg::LaserScan>();
@@ -45,7 +45,7 @@ class LaserScanProcessor {
     }
 
    private:
-    void process(const ouster::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] =
@@ -57,13 +57,13 @@ class LaserScanProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sensor::sensor_info& info,
+    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame, uint16_t ring,
                                      PostProcessingFn func) {
         auto handler =
             std::make_shared<LaserScanProcessor>(info, frame, ring, func);
 
-        return [handler](const ouster::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };
@@ -71,7 +71,7 @@ class LaserScanProcessor {
 
    private:
     std::string frame;
-    sensor::lidar_mode ld_mode;
+    ouster::sdk::core::LidarMode ld_mode;
     uint16_t ring_;
     std::vector<int> pixel_shift_by_row;
     OutputType scan_msgs;

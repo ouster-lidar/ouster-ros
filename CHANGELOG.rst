@@ -2,9 +2,32 @@
 Changelog
 =========
 
-[unreleased]
-============
-* [BUGFIX]: correctly align timestamps to the generated point cloud.
+
+ouster_ros v0.14.0
+==================
+* Add support for ``ACCEL32_GYRO32_NMEA`` imu profile (part of FW 3.2).
+  - Add related sensor parameters to the launch file
+    - ``udp_profile_imu``
+    - ``imu_packets_per_frame``
+    - ``gyro_fsr`` and ``accel_fsr``
+* Add support for the following lidar profiles (part of FW 3.2)
+  - ``RNG15_RFL8_NIR8``
+  - ``RNG15_RFL8_NIR8_DUAL``
+  - ``RNG15_RFL8_WIN8``
+  - ``RNG15_RFL8_NIR8_ZONE16``
+  - ``RNG19_RFL8_SIG16_NIR16_ZONE16``
+* [BREAKING]: Several sensor point types had some narrowed field sizes:
+  - The Point_LEGACY has narrowed signal and near_ir fields from uint16_t to uint8_t. while
+  the reflectivity has changed from uint32_t to uint8_t.
+  - The Point_RNG19_RFL8_SIG16_NIR16 has narrowed reflectivity from uint16_t to uint8_t.
+  - The RNG15_RFL8_NIR8 has narrowed reflectivity and near_ir from uint16_t to uint8_t.
+* Add launch file config options to following sensor parameters:
+  - ``operating_mode``
+  - ``signal_multiplier``
+  - ``phase_lock_enable`` and ``phase_lock_offset``
+  - ``lidar_frame_azimuth_offset``
+  - ``return_order``
+  - ``bloom_reduction_optimization``
 * [BUGFIX]: NEAR_IR data is not populated with data for organized point clouds that have no range.
 * Add support to enable **loop** for pcap replay + other replay config.
 * Add a new launch file parameter ``pub_static_tf`` that allows users to turn off the braodcast

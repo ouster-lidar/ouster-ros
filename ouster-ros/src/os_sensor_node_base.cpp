@@ -13,9 +13,10 @@
 
 using namespace std::string_literals;
 using lifecycle_msgs::srv::ChangeState;
-namespace sensor = ouster::sensor;
 using ouster_sensor_msgs::srv::GetMetadata;
-using sensor::UDPProfileLidar;
+using ouster::sdk::core::UDPProfileLidar;
+using ouster::sdk::core::SensorInfo;
+using ouster::sdk::core::LidarMode;
 
 namespace ouster_ros {
 
@@ -52,16 +53,20 @@ void OusterSensorNodeBase::publish_metadata() {
     metadata_pub->publish(metadata_msg);
 }
 
-void OusterSensorNodeBase::display_lidar_info(const sensor::sensor_info& info) {
+void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
+    auto fw_ver = ouster::sdk::core::version_from_string(info.image_rev);
     auto lidar_profile = info.format.udp_profile_lidar;
+    auto imu_profile = info.format.udp_profile_imu;
+    auto lidar_mode = info.config.lidar_mode.value_or(LidarMode::MODE_UNSPEC);
     RCLCPP_INFO_STREAM(
         get_logger(),
         "ouster client version: "
-            << ouster::SDK_VERSION_FULL << "\n"
+            << ouster::sdk::SDK_VERSION_FULL << "\n"
             << "product: " << info.prod_line << ", sn: " << info.sn << ", "
-            << "firmware rev: " << info.fw_rev << "\n"
-            << "lidar mode: " << sensor::to_string(info.mode) << ", "
-            << "lidar udp profile: " << sensor::to_string(lidar_profile));
+            << "firmware ver: " << fw_ver.simple_version_string() << "\n"
+            << "lidar mode: " << ouster::sdk::core::to_string(lidar_mode) << ", "
+            << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
+            << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
 }
 
 std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {

@@ -26,10 +26,10 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
-using ouster::sensor::LidarPacket;
-using ouster::sensor::ImuPacket;
-using ouster::sensor::LidarPacket;
+namespace ChanField = ouster::sdk::core::ChanField;
+using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::ImuPacket;
+using ouster::sdk::core::SensorInfo;
 
 class OusterDriver : public OusterSensor {
    public:
@@ -55,7 +55,7 @@ class OusterDriver : public OusterSensor {
         RCLCPP_DEBUG(get_logger(), "OusterDriver::~OusterDriver() called");
     }
 
-    virtual void on_metadata_updated(const sensor::sensor_info& info) override {
+    virtual void on_metadata_updated(const SensorInfo& info) override {
         OusterSensor::on_metadata_updated(info);
         if (tf_bcast.publish_static_tf()) {
           tf_bcast.broadcast_transforms(info);
@@ -93,7 +93,7 @@ class OusterDriver : public OusterSensor {
 
         auto mask_path = get_parameter("mask_path").as_string();
 
-        int num_returns = get_n_returns(info);
+        int num_returns = info.num_returns();
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
@@ -182,22 +182,22 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "IMG")) {
-            const std::map<sensor::ChanField, std::string>
+            const std::map<std::string, std::string>
                 channel_field_topic_map_1{
-                    {sensor::ChanField::RANGE, "range_image"},
-                    {sensor::ChanField::SIGNAL, "signal_image"},
-                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                    {sensor::ChanField::NEAR_IR, "nearir_image"}};
+                    {ChanField::RANGE, "range_image"},
+                    {ChanField::SIGNAL, "signal_image"},
+                    {ChanField::REFLECTIVITY, "reflec_image"},
+                    {ChanField::NEAR_IR, "nearir_image"}};
 
-            const std::map<sensor::ChanField, std::string>
+            const std::map<std::string, std::string>
                 channel_field_topic_map_2{
-                    {sensor::ChanField::RANGE, "range_image"},
-                    {sensor::ChanField::SIGNAL, "signal_image"},
-                    {sensor::ChanField::REFLECTIVITY, "reflec_image"},
-                    {sensor::ChanField::NEAR_IR, "nearir_image"},
-                    {sensor::ChanField::RANGE2, "range_image2"},
-                    {sensor::ChanField::SIGNAL2, "signal_image2"},
-                    {sensor::ChanField::REFLECTIVITY2, "reflec_image2"}};
+                    {ChanField::RANGE, "range_image"},
+                    {ChanField::SIGNAL, "signal_image"},
+                    {ChanField::REFLECTIVITY, "reflec_image"},
+                    {ChanField::NEAR_IR, "nearir_image"},
+                    {ChanField::RANGE2, "range_image2"},
+                    {ChanField::SIGNAL2, "signal_image2"},
+                    {ChanField::REFLECTIVITY2, "reflec_image2"}};
 
             auto which_map = num_returns == 1 ? &channel_field_topic_map_1
                                               : &channel_field_topic_map_2;
@@ -251,8 +251,12 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void on_imu_packet_msg(const ImuPacket& imu_packet) override {
-        if (imu_packet_handler)
-            imu_pub->publish(imu_packet_handler(imu_packet));
+        if (imu_packet_handler) {
+            auto imu_msgs = imu_packet_handler(imu_packet);
+            for (const auto& imu_msg : imu_msgs) {
+                imu_pub->publish(imu_msg);
+            }
+        }
 
         if (publish_raw)
             OusterSensor::on_imu_packet_msg(imu_packet);
@@ -276,7 +280,7 @@ class OusterDriver : public OusterSensor {
         lidar_pubs;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr>
         scan_pubs;
-    std::map<sensor::ChanField,
+    std::map<std::string,
              rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
         image_pubs;
     ImuPacketHandler::HandlerType imu_packet_handler;
