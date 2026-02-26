@@ -276,7 +276,7 @@ void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
 
     info = ouster::sdk::core::SensorInfo(cached_metadata);
     // TODO: revist when *min_version* is changed
-    populate_metadata_defaults(info, LidarMode::MODE_UNSPEC);
+    populate_metadata_defaults(info, LidarMode::UNSPECIFIED);
 
     publish_metadata();
     save_metadata();
@@ -441,6 +441,14 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
                        "Starting sensor " << hostname << " initialization..."
                        " Using ports: " << lidar_port << "/" << imu_port);
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
     std::shared_ptr<ouster::sdk::sensor::Client> cli;
     if (ouster::sdk::sensor::in_multicast(udp_dest)) {
         // use the mtp_init_client to receive data via multicast
@@ -462,6 +470,12 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
         RCLCPP_ERROR_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
     return cli;
 }

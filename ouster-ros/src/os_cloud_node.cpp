@@ -113,8 +113,8 @@ class OusterCloud : public OusterProcessingNodeBase {
                         // Need to redefine the Packet object and allow use of array_views
                         ImuPacket imu_packet(msg->buf.size());
                         imu_packet.format = packet_format;
-                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
+                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         auto imu_msgs = imu_packet_handler(imu_packet);
                         for (const auto& imu_msg : imu_msgs) {
                             imu_pub->publish(imu_msg);
@@ -240,8 +240,8 @@ class OusterCloud : public OusterProcessingNodeBase {
                     // Need to redefine the Packet object and allow use of array_views
                     LidarPacket lidar_packet(msg->buf.size());
                     lidar_packet.format = packet_format;
-                    memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                     lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
+                    memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
 
                     if (telemetry_handler) {
                         auto telemetry = telemetry_handler(lidar_packet);

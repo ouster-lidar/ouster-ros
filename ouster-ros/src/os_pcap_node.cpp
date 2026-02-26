@@ -30,6 +30,7 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster::sdk::pcap::PcapReader;
+using ouster::sdk::core::PacketFormat;
 
 namespace ouster_ros {
 
@@ -252,7 +253,7 @@ class OusterPcap : public OusterSensorNodeBase {
         imu_packet_pub->publish(imu_packet);
     }
 
-    void read_packets(PcapReader& pcap, const ouster::sdk::core::PacketFormat& pf) {
+    void read_packets(PcapReader& pcap, const PacketFormat& pf) {
         size_t payload_size = pcap.next_packet();
         auto packet_info = pcap.current_info();
         auto file_start = packet_info.timestamp;

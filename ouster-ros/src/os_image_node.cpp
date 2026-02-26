@@ -130,8 +130,8 @@ class OusterImage : public OusterProcessingNodeBase {
                         // Need to redefine the Packet object and allow use of array_views
                         LidarPacket lidar_packet(msg->buf.size());
                         lidar_packet.format = packet_format;
-                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
+                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
                         lidar_packet_handler(lidar_packet);
                     }
                 });
