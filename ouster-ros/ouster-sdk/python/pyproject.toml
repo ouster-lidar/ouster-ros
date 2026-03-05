@@ -1,0 +1,6 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools==69.2.0", "wheel==0.45.1", "flufl.lock", "pip"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

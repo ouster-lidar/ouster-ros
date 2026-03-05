@@ -1,0 +1,43 @@
+{
+    "name": "ouster-sdk",
+    "dependencies": [
+        { "name": "curl", "default-features": false },
+        "eigen3",
+        "libtins",
+        "flatbuffers",
+        "glfw3",
+        "libpng",
+        "gtest",
+        "zlib",
+        "openssl",
+        "tbb",
+        "robin-map",
+        "zstd",
+        "libzip",
+        { "name": "ceres", "features": ["eigensparse"] }
+    ],
+    "overrides": [
+        {
+            "name": "robin-map",
+            "version": "1.3.0"
+        },
+        {
+            "name": "flatbuffers",
+            "version": "24.3.25"
+        },
+        {
+            "name": "ceres",
+            "version": "2.0.0"
+        },
+        {
+            "name": "gtest",
+            "version": "1.16.0"
+        },
+        {
+            "name": "eigen3",
+            "version": "3.4.1#1"
+        }
+    ],
+    "builtin-baseline": "66c0373dc7fca549e5803087b9487edfe3aca0a1",
+    "version": "0.16.1"
+}

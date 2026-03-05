@@ -1,0 +1,250 @@
+"""
+Copyright (c) 2021, Ouster, Inc.
+All rights reserved.
+"""
+
+from contextlib import closing
+from os import path, environ
+from typing import Iterator
+from pathlib import Path
+
+from more_itertools import partition
+import pytest
+from ouster.sdk import core, pcap
+from ouster.sdk.viz import Cloud
+
+pytest.register_assert_rewrite('ouster.sdk.core._digest')
+import ouster.sdk.core._digest as digest  # noqa
+
+_has_mapping = False
+try:
+    from ouster.cli.plugins import cli_mapping  # type: ignore # noqa: F401 # yes... it has to be in this order.
+
+    _has_mapping = False  # NOTE: temporarily disabled due to CLI chaining -- Tim T.
+except ImportError:
+    pass
+
+
+# boilerplate for selecting / deslecting interactive tests
+def pytest_addoption(parser):
+    parser.addoption("--interactive",
+                     action="store_true",
+                     required=False,
+                     default=False,
+                     help="Run interactive tests")
+    default_performance = environ.get("OUSTER_PERFORMANCE", "0") == "1"
+    parser.addoption("--performance",
+                     action="store_true",
+                     required=False,
+                     default=default_performance,
+                     help="""Run longer performance tests.
+                     Can also be set using the OUSTER_PERFORMANCE environment variable.""")
+    parser.addoption("--num-iterations",
+                     required=False,
+                     default=0,
+                     help="Number of iterations to run for each performance test.")
+
+
+def pytest_configure(config):
+    """Register custom "interactive" marker."""
+    config.addinivalue_line("markers", "interactive: run interactive tests")
+    config.addinivalue_line("markers", "performance: perform longer versions of performance tests")
+
+
+def pytest_collection_modifyitems(items, config) -> None:
+    """Deselect any items marked "interactive" unless the --interactive flag is set."""
+
+    normal, interactive = partition(
+        lambda item: bool(item.get_closest_marker("interactive")), items)
+
+    select, deselect = (interactive,
+                        normal) if config.option.interactive else (normal,
+                                                                   interactive)
+
+    config.hook.pytest_deselected(items=deselect)
+    items[:] = select
+
+
+# test data
+# TODO: add OS-DOME-32/64 in 1024x10 mode pcap with digest
+CURRENT_DIR = path.dirname(path.abspath(__file__))
+PCAPS_DATA_DIR = path.join(CURRENT_DIR, "..", "..", "tests", "pcaps")
+BAGS_DATA_DIR = path.join(CURRENT_DIR, "..", "..", "tests", "bags")
+METADATA_DATA_DIR = path.join(CURRENT_DIR, "..", "..", "tests", "metadata")
+OSFS_DATA_DIR = path.join(CURRENT_DIR, "..", "..", "tests", "osfs")
+
+TESTS = {
+    'legacy-2.0': 'OS-2-32-U0_v2.0.0_1024x10',
+    'legacy-2.1': 'OS-1-32-G_v2.1.1_1024x10',
+    'dual-2.2': 'OS-0-32-U1_v2.2.0_1024x10',
+    'single-2.3': 'OS-2-128-U1_v2.3.0_1024x10',
+    'low-data-rate-2.3': 'OS-0-128-U1_v2.3.0_1024x10',
+}
+
+
+@pytest.fixture(scope='module', params=TESTS.keys())
+def test_key(request) -> str:
+    return request.param
+
+
+@pytest.fixture
+def base_name(test_key: str) -> str:
+    return TESTS[test_key]
+
+
+@pytest.fixture
+def stream_digest(base_name: str):
+    digest_path = path.join(PCAPS_DATA_DIR, f"{base_name}_digest.json")
+    with open(digest_path, 'r') as f:
+        return digest.StreamDigest.from_json(f.read())
+
+
+@pytest.fixture
+def meta(base_name: str):
+    meta_path = path.join(PCAPS_DATA_DIR, f"{base_name}.json")
+    with open(meta_path, 'r') as f:
+        return core.SensorInfo(f.read())
+
+
+@pytest.fixture
+def meta_2_0():
+    meta_path = path.join(PCAPS_DATA_DIR, f"{TESTS['legacy-2.0']}.json")
+    with open(meta_path, 'r') as f:
+        return core.SensorInfo(f.read())
+
+
+@pytest.fixture
+def real_pcap_path(base_name: str, meta: core.SensorInfo) -> str:
+    return path.join(PCAPS_DATA_DIR, f"{base_name}.pcap")
+
+
+@pytest.fixture
+def real_pcap(real_pcap_path: str,
+              meta: core.SensorInfo) -> Iterator[pcap.PcapPacketSource]:
+    pcap_obj = pcap.PcapPacketSource(real_pcap_path, sensor_info=[meta])
+    yield pcap_obj
+    pcap_obj.close()
+
+
+@pytest.fixture
+def packet(real_pcap_path: str, meta: core.SensorInfo) -> core.LidarPacket:
+    # note: don't want to depend on the pcap fixture, since this consumes the
+    # iterator and it can be shared
+    with closing(pcap.PcapPacketSource(real_pcap_path, sensor_info=[meta])) as real_pcap:
+        for idx, p in real_pcap:
+            if isinstance(p, core.LidarPacket):
+                return p
+        raise RuntimeError("Failed to find lidar packet in test fixture")
+
+
+@pytest.fixture
+def packets(real_pcap_path: str,
+            meta: core.SensorInfo) -> core.PacketSource:
+    with closing(pcap.PcapPacketSource(real_pcap_path, sensor_info=[meta])) as real_pcap:
+        ps = list(real_pcap)
+        list2 = []
+        for idx, p in ps:
+            list2.append(p)
+        return core.Packets(list2, meta)
+
+
+@pytest.fixture
+def scan(packets: core.PacketSource) -> core.LidarScan:
+    batcher = core.ScanBatcher(packets.sensor_info[0])
+    scan = core.LidarScan(packets.sensor_info[0])
+
+    def batch():
+        nonlocal scan
+        new_scan = True
+        for idx, p in packets:
+            new_scan = False
+            if isinstance(p, core.LidarPacket) and batcher(p, scan):
+                yield scan
+                scan = core.LidarScan(packets.sensor_info[0])
+                new_scan = True
+        if not new_scan:
+            yield scan
+    return next(iter(batch()))
+
+
+@pytest.fixture(scope="package")
+def test_data_dir():
+    return Path(path.dirname(path.abspath(__file__))) / ".." / ".." / "tests"
+
+
+METADATAS = {
+        '1_12': '1_12_os1-991913000010-64.json',
+        '1_12_legacy': '1_12_os1-991937000062-64_legacy.json',
+        '1_13': '1_13_os1-991913000010-64.json',
+        '1_13_legacy': '1_13_os1-991937000062-32A02_legacy.json',
+        '1_14_128_legacy': '1_14_6cccd_os-882002000138-128_legacy.json',
+        '2_0': '2_0_0_os1-991913000010-64.json',
+        '2_0_legacy': '2_0_0_os1-992008000494-128_col_win_legacy.json',
+        '2_1': '2_1_2_os1-991913000010-64.json',
+        '2_1_legacy': '2_1_2_os1-991913000010-64_legacy.json',
+        '2_2': '2_2_os-992119000444-128.json',
+        '2_2_legacy': '2_2_os-992119000444-128_legacy.json',
+        '2_3': '2_3_1_os-992146000760-128.json',
+        '2_3_legacy': '2_3_1_os-992146000760-128_legacy.json',
+        '2_4': '2_4_0_os-992146000760-128.json',
+        '2_4_legacy': '2_4_0_os-992146000760-128_legacy.json',
+        '2_5': '2_5_0_os-992146000760-128.json',
+        '2_5_legacy': '2_5_0_os-992146000760-128_legacy.json',
+        '3_0': '3_0_1_os-122246000293-128.json',
+        '3_0_legacy': '3_0_1_os-122246000293-128_legacy.json',
+        'ouster-studio-reduced': 'ouster-studio-reduced-config-v1.json',
+}
+
+
+@pytest.fixture(scope='module', params=METADATAS.keys())
+def metadata_key(request) -> str:
+    return request.param
+
+
+@pytest.fixture
+def metadata_base_name(metadata_key: str) -> str:
+    return METADATAS[metadata_key]
+
+
+@pytest.fixture
+def has_mapping() -> bool:
+    return _has_mapping
+
+
+class MockPointViz():
+
+    class MockTargetDisplay:
+        def enable_rings(*args, **kwargs):
+            pass
+
+        def set_ring_size(*args, **kwargs):
+            pass
+
+        def set_ring_line_width(*args, **kwargs):
+            pass
+
+    def __init__(self):
+        self.items = set()
+
+    def add(self, cloud: Cloud):
+        assert cloud not in self.items
+        self.items.add(cloud)
+
+    def remove(self, cloud: Cloud) -> bool:
+        if cloud not in self.items:
+            return False
+        self.items.remove(cloud)
+        return True
+
+    def push_key_handler(*args, **kwargs):
+        pass
+
+    def add_default_controls(*args, **kwargs):
+        pass
+
+    @property
+    def target_display(*args, **kwargs):
+        return MockPointViz.MockTargetDisplay()
+
+    def set_notification(*args, **kwargs):
+        pass

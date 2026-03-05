@@ -33,7 +33,7 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 set(_ouster_ros_INCLUDE_DIRS
   "include;"
-  "ouster-sdk/ouster_client/include;"
+  "ouster-sdk/ouster_sensor/include;"
   "ouster-sdk/ouster_client/include/optional-lite;"
   "ouster-sdk/ouster_pcap/include"
 )
@@ -45,6 +45,7 @@ set(BUILD_SHARED_LIBS OFF)
 option(BUILD_VIZ "Turn off building VIZ" OFF)
 option(BUILD_PCAP "Turn off building PCAP" OFF)
 option(BUILD_OSF "Turn off building OSF" OFF)
+option(BUILD_MAPPING "Turn off building MAPPING" OFF)
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
@@ -74,6 +75,7 @@ set(ouster_ros_library_deps
   pcl_conversions
   tf2
   tf2_eigen
+  OpenCV
 )
 
 ament_target_dependencies(ouster_ros_library
@@ -83,6 +85,7 @@ ament_target_dependencies(ouster_ros_library
 target_link_libraries(ouster_ros_library
   # PUBLIC (unsupported)
     ouster_build
+    OusterSDK::ouster_sensor
     pcl_common
   # PRIVATE (unsupported)
   ${OUSTER_TARGET_LINKS}

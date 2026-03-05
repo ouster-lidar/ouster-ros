@@ -1,0 +1,10 @@
+Checks: 'readability-identifier-length'
+CheckOptions:
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '1'
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: 'i|j|k|w|h|x|y|z|it|ip'
+  - key: readability-identifier-length.IgnoredLoopCounterNames
+    value: 'i|j|k|w|h|x|y|z|it|ip|u|v'
+  - key: readability-identifier-length.IgnoredParameterNames
+    value: 'a|b|w|h|x|y|z|ip'

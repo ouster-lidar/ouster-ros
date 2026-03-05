@@ -1,0 +1,190 @@
+/**
+ * Copyright (c) 2021, Ouster, Inc.
+ * All rights reserved.
+ */
+
+#pragma once
+
+#include <array>
+
+#include "camera.h"
+#include "glfw.h"
+#include "gltext.h"
+#include "ouster/point_viz.h"
+
+namespace ouster {
+namespace sdk {
+namespace viz {
+namespace impl {
+
+/*
+ * Render a set of rings on the ground as markers to helpvisualize lidar range.
+ */
+class GLRings {
+    static bool initialized;
+    static GLuint ring_vao;
+    static GLuint ring_program_id;
+    static GLuint ring_xyz_id;
+    static GLuint ring_proj_view_id;
+    static GLuint ring_range_id;
+    static GLuint ring_thickness_id;
+    static GLuint xyz_buffer;
+
+    int ring_size_;
+    int ring_line_width_;
+    bool rings_enabled_;
+
+   public:
+    /*
+     * Instantiate the rings
+     */
+    GLRings();
+
+    void update(const TargetDisplay& target);
+
+    /*
+     * Draws the rings from the point of view of the camera. The rings are
+     * always centered on the camera's target.
+     */
+    void draw(const WindowCtx& ctx, const CameraData& camera);
+
+    /*
+     * Initializes shader program, vertex buffers and handles after OpenGL
+     * context has been created
+     */
+    static void initialize();
+
+    static void uninitialize();
+};
+
+/*
+ * Manages opengl state for drawing a cuboid
+ */
+class GLCuboid {
+    static bool initialized;
+    static GLuint cuboid_vao;
+    static GLuint cuboid_program_id;
+    static GLuint cuboid_xyz_id;
+    static GLuint cuboid_proj_view_id;
+    static GLuint cuboid_rgba_id;
+
+    const std::array<GLfloat, 24> xyz_;
+    const std::array<GLubyte, 36> indices_;
+    const std::array<GLubyte, 24> edge_indices_;
+
+    GLuint xyz_buffer_{0};
+    GLuint indices_buffer_{0};
+    GLuint edge_indices_buffer_{0};
+    Eigen::Matrix4d transform_;
+    vec4f rgba_;
+
+   public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    GLCuboid();
+
+    /*
+     * For Indexed<T, U>, arg ignored
+     */
+    GLCuboid(const Cuboid&);
+
+    ~GLCuboid();
+
+    /*
+     * Draws the cuboids from the point of view of the camera
+     */
+    void draw(const WindowCtx& ctx, const CameraData& camera, Cuboid& cuboid);
+
+    /*
+     * Initializes shader program and handles
+     */
+    static void initialize();
+
+    static void uninitialize();
+
+    static void beginDraw();
+
+    static void endDraw();
+};
+
+/*
+ * Manages opengl state for drawing lines
+ */
+class GLLines {
+    static bool initialized;
+    static GLuint lines_vao;
+    static GLuint lines_program_id;
+    static GLuint lines_xyz_id;
+    static GLuint lines_proj_view_id;
+    static GLuint lines_rgba_id;
+
+    GLuint xyz_buffer_{0};
+    Eigen::Matrix4d transform_;
+    vec4f rgba_;
+
+   public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    GLLines();
+
+    /*
+     * For Indexed<T, U>, arg ignored
+     */
+    GLLines(const Lines&);
+
+    ~GLLines();
+
+    /*
+     * Draws the cuboids from the point of view of the camera
+     */
+    void draw(const WindowCtx& ctx, const CameraData& camera, Lines& lines);
+
+    /*
+     * Initializes shader program and handles
+     */
+    static void initialize();
+
+    static void uninitialize();
+
+    static void beginDraw();
+
+    static void endDraw();
+};
+
+class GLLabel {
+    GLTtext* gltext_;
+    Eigen::Vector3d text_position_;
+    bool is_3d_;
+    float scale_;
+    int halign_;
+    int valign_;
+
+    vec4f rgba_;
+
+   public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    GLLabel();
+
+    // for Indexed<T, U>
+    GLLabel(const Label&);
+
+    GLLabel(const GLLabel&) = delete;
+
+    ~GLLabel();
+
+    GLLabel& operator=(const GLLabel&) = delete;
+
+    void draw(const WindowCtx& ctx, const CameraData& camera, Label& label);
+
+    static void beginDraw();
+
+    static void endDraw();
+
+    static float get_text_height(const Label& label);
+};
+
+}  // namespace impl
+}  // namespace viz
+}  // namespace sdk
+}  // namespace ouster

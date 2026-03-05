@@ -1,0 +1,339 @@
+"""
+Copyright (c) 2021, Ouster, Inc.
+All rights reserved.
+"""
+
+from copy import copy
+
+import json
+import numpy
+import pytest
+import inspect
+from pathlib import Path
+
+from ouster.sdk import core
+from tests.conftest import METADATA_DATA_DIR
+
+
+@pytest.mark.parametrize("mode, string", [
+    (core.TimestampMode.UNSPECIFIED, "UNKNOWN"),
+    (core.TimestampMode.TIME_FROM_INTERNAL_OSC, "TIME_FROM_INTERNAL_OSC"),
+    (core.TimestampMode.TIME_FROM_SYNC_PULSE_IN, "TIME_FROM_SYNC_PULSE_IN"),
+    (core.TimestampMode.TIME_FROM_PTP_1588, "TIME_FROM_PTP_1588"),
+])
+def test_timestamp_mode(mode, string) -> None:
+    """Check timestamp mode (un)parsing."""
+    int(mode)  # make sure nothing is raised
+    assert str(mode) == string
+    assert core.TimestampMode.from_string(string) == mode
+
+
+def test_timestamp_mode_misc() -> None:
+    """Check some misc properties of timestamp modes."""
+    assert len(
+        core.TimestampMode.__members__) == 4, "Don't forget to update tests!"
+    core.TimestampMode.from_string(
+        "foo") == core.TimestampMode.UNSPECIFIED
+    core.TimestampMode(0) == core.TimestampMode.UNSPECIFIED
+
+
+def test_lidar_mode_misc() -> None:
+    """Check some misc properties of lidar mode."""
+    # the number of LidarMode members is set to 14 because we are keeping
+    # the deprecated constants for the time being.
+    assert len(
+        core.LidarMode.__members__) == 14, "Don't forget to update tests!"
+    assert core.LidarMode.from_string('foo') == core.LidarMode.UNSPECIFIED
+    assert core.LidarMode(0) == core.LidarMode.UNSPECIFIED
+    assert str(core.LidarMode.UNSPECIFIED) == "UNKNOWN"
+
+
+@pytest.mark.parametrize('test_key', ['legacy-2.0'])
+def test_read_info(meta: core.SensorInfo) -> None:
+    """Check the particular values in the test data."""
+    assert meta.sn == 992029000352
+    assert meta.fw_rev == "v2.0.0-rc.2"
+    assert meta.config.lidar_mode == core.LidarMode._1024x20
+    assert meta.prod_line == "OS-2-32-U0"
+    assert meta.format.columns_per_frame == 1024
+    assert meta.format.columns_per_packet == 16
+    assert meta.w == meta.format.columns_per_frame
+    assert meta.h == meta.format.pixels_per_column
+    assert meta.format.column_window[0] == 0
+    assert meta.format.column_window[1] == meta.format.columns_per_frame - 1
+    assert len(meta.format.pixel_shift_by_row) == 32
+    assert meta.format.pixels_per_column == 32
+    assert len(meta.beam_azimuth_angles) == 32
+    assert len(meta.beam_altitude_angles) == 32
+    assert meta.format.udp_profile_lidar == core.UDPProfileLidar.LEGACY
+    assert meta.format.udp_profile_imu == core.UDPProfileIMU.LEGACY
+    assert meta.imu_to_sensor_transform.shape == (4, 4)
+    assert meta.lidar_to_sensor_transform.shape == (4, 4)
+    assert meta.lidar_origin_to_beam_origin_mm == 13.762
+
+    beam_to_lidar_transform = numpy.identity(4)
+    beam_to_lidar_transform[0, 3] = meta.lidar_origin_to_beam_origin_mm
+    assert numpy.array_equal(meta.beam_to_lidar_transform, beam_to_lidar_transform)
+
+    assert numpy.array_equal(meta.extrinsic, numpy.identity(4))
+    assert meta.init_id == 0
+    assert meta.config.udp_port_lidar is None
+    assert meta.config.udp_port_imu is None
+
+    assert meta.build_date == "2020-10-23T14:05:18Z"
+    assert meta.prod_pn == "840-102146-C"
+    assert meta.image_rev == "ousteros-image-prod-aries-v2.0.0-rc.2+20201023140416.staging"
+    assert meta.status == "RUNNING"
+    assert meta.cal == core.CalibrationStatus()
+
+    ref_config = core.SensorConfig()
+    ref_config.lidar_mode = core.LidarMode._1024x20
+    assert meta.config == ref_config
+    assert meta.get_version().major == 2
+
+    product_info = meta.get_product_info()
+    assert product_info.full_product_info == meta.prod_line
+    assert product_info.form_factor == "OS2"
+    assert product_info.short_range is False
+    assert product_info.beam_config == "U0"
+    assert product_info.beam_count == 32
+
+
+def test_write_info(meta: core.SensorInfo) -> None:
+    """Check modifying metadata."""
+    meta.sn = 0
+    meta.fw_rev = ""
+    meta.prod_line = ""
+    meta.format.columns_per_frame = 0
+    meta.format.columns_per_packet = 0
+    meta.format.pixels_per_column = 0
+    meta.format.column_window = (0, 0)
+    meta.format.pixel_shift_by_row = []
+    meta.format.udp_profile_lidar = core.UDPProfileLidar(0)
+    meta.format.udp_profile_imu = core.UDPProfileIMU(0)
+    meta.format.header_type = core.HeaderType(0)
+    meta.format.fps = 0
+    meta.beam_azimuth_angles = []
+    meta.beam_altitude_angles = []
+    meta.imu_to_sensor_transform = numpy.zeros((4, 4))
+    meta.lidar_to_sensor_transform = numpy.zeros((4, 4))
+    meta.extrinsic = numpy.zeros((4, 4))
+    meta.lidar_origin_to_beam_origin_mm = 0.0
+    meta.beam_to_lidar_transform = numpy.zeros((4, 4))
+    meta.init_id = 0
+    meta.build_date = ""
+    meta.image_rev = ""
+    meta.prod_pn = ""
+    meta.status = ""
+    meta.user_data = ""
+    meta.cal = core.CalibrationStatus()
+    meta.config = core.SensorConfig()
+    meta.config.udp_port_lidar = None
+    meta.config.udp_port_imu = None
+    meta.config.lidar_mode = None
+
+    assert meta == core.SensorInfo()
+    assert meta.has_fields_equal(core.SensorInfo())
+    core.SensorInfo().to_json_string()
+    assert meta.to_json_string() == core.SensorInfo().to_json_string()
+
+    with pytest.raises(TypeError):
+        meta.config.lidar_mode = 1  # type: ignore
+    with pytest.raises(TypeError):
+        meta.imu_to_sensor_transform = numpy.zeros((4, 5))
+    with pytest.raises(TypeError):
+        meta.lidar_to_sensor_transform = numpy.zeros((3, 4))
+    with pytest.raises(TypeError):
+        meta.extrinsic = numpy.zeros(16)
+    with pytest.raises(TypeError):
+        meta.beam_altitude_angles = 1  # type: ignore
+    with pytest.raises(TypeError):
+        meta.beam_azimuth_angles = ["foo"]  # type: ignore
+
+    product_info = meta.get_product_info()
+    # assert that product info fields are readonly
+    # type ignored because my doesnt want you to set readonly vars
+    with pytest.raises(AttributeError):
+        product_info.full_product_info = ""  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        product_info.form_factor = ""  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        product_info.short_range = True  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        product_info.beam_config = ""  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        product_info.beam_count = 1  # type: ignore[misc]
+
+
+def test_copy_info(meta: core.SensorInfo) -> None:
+    """Check that copy() works."""
+    meta1 = copy(meta)
+
+    assert meta1 is not meta
+    assert meta1 == meta
+
+    meta1.format.columns_per_packet = 42
+    assert meta1 != meta
+
+    meta2 = copy(meta)
+    meta2.sn = 1234
+    assert meta2 != meta
+
+
+def test_userdata(meta: core.SensorInfo) -> None:
+    meta.user_data = "test"
+
+    meta2 = core.SensorInfo(meta.to_json_string())
+
+    assert meta2.user_data == meta.user_data
+
+
+def test_extrinsics(meta: core.SensorInfo) -> None:
+    copy = numpy.eye(4)
+    copy[0, 0] = 5
+    copy[1, 0] = 3
+    meta.extrinsic = copy
+
+    meta2 = core.SensorInfo(meta.to_json_string())
+
+    assert (meta2.extrinsic == meta.extrinsic).all()
+
+
+def test_parse_info() -> None:
+    """Sanity check parsing from json."""
+    with pytest.raises(RuntimeError):
+        core.SensorInfo('/')
+    with pytest.raises(RuntimeError):
+        core.SensorInfo('')
+    with pytest.raises(RuntimeError):
+        core.SensorInfo('{  }')
+    with pytest.raises(RuntimeError):
+        core.SensorInfo('{ "lidar_mode": "1024x10" }')
+
+    # TODO: this should actually fail unless *all* parameters needed to
+    # unambiguously interpret a sensor data stream are present
+    metadata = {
+        'lidar_mode': '1024x10',
+        'beam_altitude_angles': [1] * 64,
+        'beam_azimuth_angles': [1] * 64,
+        'lidar_to_sensor_transform': list(range(16))
+    }
+    info = core.SensorInfo(json.dumps(metadata))
+
+    # check that data format defaults are populated
+    assert info.format.pixels_per_column == 64
+    assert info.format.columns_per_frame == 1024
+    assert info.format.columns_per_packet > 0
+    assert info.format.column_window[0] == 0
+    assert info.format.column_window[1] == 1023
+    assert len(info.format.pixel_shift_by_row) == 64
+
+    # the lidar_to_sensor_transform json is interpreted as a 4x4 matrix in
+    # row-major order. Numpy also uses row-major storage order.
+    assert numpy.array_equal(info.lidar_to_sensor_transform,
+                             numpy.array(range(16)).reshape(4, 4))
+    assert numpy.array_equal(info.extrinsic, numpy.identity(4))
+
+
+def test_info_length() -> None:
+    """Check length of info to ensure we've added appropriately to the == operator"""
+
+    info_attributes = inspect.getmembers(core.SensorInfo, lambda a: not inspect.isroutine(a))
+    info_properties = [a for a in info_attributes if not (a[0].startswith('__') and a[0].endswith('__'))]
+
+    assert len(info_properties) == 22, "Don't forget to update tests and the sensor_info == operator!"
+
+
+def test_equality_format() -> None:
+    """Check length of data format to ensure we've added appropriately to the == operator"""
+
+    data_format_attributes = inspect.getmembers(core.DataFormat, lambda a: not inspect.isroutine(a))
+    data_format_properties = [a for a in data_format_attributes if not (a[0].startswith('__') and a[0].endswith('__'))]
+
+    assert len(data_format_properties) == 12, "Don't forget to update tests and the data_format == operator!"
+
+
+def test_skip_metadata_beam_validation() -> None:
+    """Check that skipping beam validation works"""
+
+    all_zeros_metadata = str(Path(METADATA_DATA_DIR) / "malformed/complete_but_all_zeros_legacy.json")
+
+    # test that you can simply initialize without any metadata specified
+    core.SensorInfo()
+
+    with open(all_zeros_metadata, 'r') as f:
+        # test that specifying skip doesn't raise error
+        core.SensorInfo(f.read())
+
+
+@pytest.mark.parametrize('metadata_key', [
+    '1_12',
+    '1_12_legacy',
+    '1_13',
+    '1_14_128_legacy',
+    '2_0',
+    '2_0_legacy',
+    '2_1',
+    '2_1_legacy', '2_2', '2_2_legacy', '2_3',
+    '2_3_legacy', '2_4', '2_4_legacy', '2_5', '2_5_legacy', '3_0'])
+def test_updated_string(metadata_base_name) -> None:
+    meta_path = str(Path(METADATA_DATA_DIR) / f"{metadata_base_name}")
+    original_string = ""
+    with open(meta_path, 'r') as f:
+        original_string = f.read()
+        meta = core.SensorInfo(original_string)
+
+    meta.format.columns_per_packet = 40
+    meta.format.fps = 50  # crucial check - fps is a value that is filled in with a default value at parsing time
+    updated_metadata_string = meta.to_json_string()
+
+    assert updated_metadata_string != original_string
+
+    meta2 = core.SensorInfo(updated_metadata_string)
+    assert meta2.format.columns_per_packet == 40
+    assert meta2.format.fps == 50
+
+
+def test_zone_monitoring_enabled():
+    """sensor_info.format.zone_monitoring_enabled should reflect whether
+    zone monitoring is enabled based on sensor_info.config.udp_zm settings
+    when loading the sensor info from JSON."""
+    # TWS 20251204 this would be better as a property or method, since
+    # its value is derived from other fields.
+
+    sensor_info = core.SensorInfo.from_default(core.LidarMode._1024x20)
+    assert sensor_info.config.udp_port_zm is None
+    assert sensor_info.config.udp_dest_zm is None
+    assert sensor_info.format.zone_monitoring_enabled is False
+
+    # destination is empty -> false
+    sensor_info.config.udp_dest_zm = ""
+    sensor_info.config.udp_port_zm = 7504
+    sensor_info_json = json.loads(sensor_info.to_json_string())
+    sensor_info_new = core.SensorInfo(json.dumps(sensor_info_json))
+    assert sensor_info_new.format.zone_monitoring_enabled is False
+
+    # port is 0 -> false
+    sensor_info.config.udp_dest_zm = "127.0.0.1"
+    sensor_info.config.udp_port_zm = 0
+    sensor_info_json = json.loads(sensor_info.to_json_string())
+    sensor_info_new = core.SensorInfo(json.dumps(sensor_info_json))
+    assert sensor_info_new.format.zone_monitoring_enabled is False
+
+    # both addr and port set -> true
+    sensor_info.config.udp_dest_zm = "127.0.0.1"
+    sensor_info.config.udp_port_zm = 7504
+    sensor_info_json = json.loads(sensor_info.to_json_string())
+    sensor_info_new = core.SensorInfo(json.dumps(sensor_info_json))
+    assert sensor_info_new.format.zone_monitoring_enabled is True
+
+
+def test_extrinsic_mutability(meta: core.SensorInfo) -> None:
+    """Check that extrinsic is mutable and can be set to a new value."""
+    new_extrinsic = numpy.eye(4)
+    new_extrinsic[0, 3] = 1.0
+    meta.extrinsic = new_extrinsic
+    assert (meta.extrinsic == new_extrinsic).all()
+
+    meta.extrinsic[0, 3] = 2.0
+    assert meta.extrinsic[0, 3] == 2.0

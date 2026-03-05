@@ -7,20 +7,35 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <string>
 
+#include "ouster/deprecation.h"
+#include "ouster/visibility.h"
+
 namespace ouster {
-namespace sensor_utils {
+namespace sdk {
+namespace pcap {
 
 struct pcap_impl;
 struct pcap_writer_impl;
 
 static constexpr int IANA_UDP = 17;
 
-struct packet_info {
+/**
+ * @brief Metadata describing a packet read from or written to a PCAP file.
+ *
+ * This structure contains information about a single UDP packet, including
+ * source and destination addresses, ports, payload and packet sizes,
+ * timestamps, encapsulation, and positioning within a PCAP file.
+ *
+ * It is used both by `PcapReader` when extracting packet metadata and by
+ * `PcapWriter` when writing packets to disk.
+ */
+struct OUSTER_API_CLASS PacketInfo {
+    /** Type alias for timestamp, in microseconds */
     using ts = std::chrono::microseconds;
 
     // TODO: use numerical IPs for efficient filtering
@@ -39,20 +54,53 @@ struct packet_info {
     int network_protocol;  ///< IANA protocol number. Always 17 (UDP)
 };
 
+OUSTER_DEPRECATED_TYPE(packet_info, PacketInfo,
+                       OUSTER_DEPRECATED_LAST_SUPPORTED_0_16);
 /**
  * Class for dealing with reading pcap files
  */
-class PcapReader {
-    std::unique_ptr<pcap_impl> impl;    ///< Private implementation pointer
-    packet_info info;                   ///< Cached packet info
-    std::map<int, int> fragment_count;  ///< Map to count fragments per packet
-    uint8_t* data;                      ///< Cached packet data
+class OUSTER_API_CLASS PcapReader {
+   protected:
+    std::unique_ptr<pcap_impl> impl_;  ///< Private implementation pointer
+    PacketInfo info_;                  ///< Cached packet info
+    uint8_t* data_;                    ///< Cached packet data
 
    public:
     /**
      * @param[in] file A filepath of the pcap to read
      */
-    PcapReader(const std::string& file);
+    explicit OUSTER_API_FUNCTION PcapReader(const std::string& file);
+
+    // Deleted due to the unique pointer not working with
+    // the following
+    OUSTER_API_FUNCTION
+    PcapReader(const PcapReader& other) = delete;
+
+    /**
+     * Move construct from one PcapReader to a new PcapReader.
+     *
+     * @param[in] other The other PcapReader to move from.
+     */
+    OUSTER_API_FUNCTION
+    PcapReader(PcapReader&& other);
+
+    // Deleted due to the unique pointer not working with
+    // the following
+    OUSTER_API_FUNCTION
+    PcapReader& operator=(PcapReader& other) = delete;
+
+    /**
+     * Assign move resources from one PcapReader to another.
+     *
+     * @param[in] other The other PcapReader to move from.
+     */
+    OUSTER_API_FUNCTION
+    PcapReader& operator=(PcapReader&& other);
+
+    /**
+     * Destructor for cleaning up after PcapReader.
+     */
+    OUSTER_API_FUNCTION
     virtual ~PcapReader();
 
     /**
@@ -62,6 +110,7 @@ class PcapReader {
      *
      * @return The size of the packet payload
      */
+    OUSTER_API_FUNCTION
     size_t next_packet();
 
     /**
@@ -71,6 +120,7 @@ class PcapReader {
      *
      * @return A pointer to a byte array containing the packet data
      */
+    OUSTER_API_FUNCTION
     const uint8_t* current_data() const;
 
     /**
@@ -79,6 +129,7 @@ class PcapReader {
      *
      * @return The size of the byte array
      */
+    OUSTER_API_FUNCTION
     size_t current_length() const;
 
     /**
@@ -87,16 +138,19 @@ class PcapReader {
      *
      * @return A packet_info object on the current packet
      */
-    const packet_info& current_info() const;
+    OUSTER_API_FUNCTION
+    const PacketInfo& current_info() const;
 
     /**
      * @return The size of the PCAP file in bytes
      */
+    OUSTER_API_FUNCTION
     int64_t file_size() const;
 
     /**
      * Return the read position to the start of the PCAP file
      */
+    OUSTER_API_FUNCTION
     void reset();
 
     /**
@@ -111,8 +165,14 @@ class PcapReader {
      * subsequent packet reads from this PcapReader will be
      * invalid until PcapReader::reset is called.
      */
+    OUSTER_API_FUNCTION
     void seek(uint64_t offset);
 
+    /**
+     * @return The current read position (in bytes) within the PCAP file stream.
+     * @throws std::runtime_error if `ftell()` or `fclose()` fails.
+     */
+    OUSTER_API_FUNCTION
     int64_t current_offset() const;
 
    private:
@@ -123,7 +183,7 @@ class PcapReader {
 /**
  * Class for dealing with writing udp pcap files
  */
-class PcapWriter {
+class OUSTER_API_CLASS PcapWriter {
    public:
     /**
      * Enum to describe the current encapsulation for a pcap file
@@ -139,8 +199,40 @@ class PcapWriter {
      * @param[in] encap The encapsulation to use for the pcap
      * @param[in] frag_size The fragmentation size to use (Currently broken)
      */
+    OUSTER_API_FUNCTION
     PcapWriter(const std::string& file, PacketEncapsulation encap,
                uint16_t frag_size);
+
+    // Deleted due to the unique pointer not working with
+    // the following
+    OUSTER_API_FUNCTION
+    PcapWriter(const PcapWriter& other) = delete;
+
+    /**
+     * Move construct from one PcapWriter to a new PcapWriter.
+     *
+     * @param[in] other The other PcapWriter to move from.
+     */
+    OUSTER_API_FUNCTION
+    PcapWriter(PcapWriter&& other);
+
+    // Deleted due to the unique pointer not working with
+    // the following
+    OUSTER_API_FUNCTION
+    PcapWriter& operator=(PcapWriter& other) = delete;
+
+    /**
+     * Assign move resources from one PcapWriter to another.
+     *
+     * @param[in] other The other PcapWriter to move from.
+     */
+    OUSTER_API_FUNCTION
+    PcapWriter& operator=(PcapWriter&& other);
+
+    /**
+     * Destructor for cleaning up after PcapWriter.
+     */
+    OUSTER_API_FUNCTION
     virtual ~PcapWriter();
 
     /**
@@ -156,10 +248,11 @@ class PcapWriter {
      * @note The timestamp parameter does not affect the order of packets being
      * recorded, it is strictly recorded FIFO.
      */
+    OUSTER_API_FUNCTION
     void write_packet(const uint8_t* buf, size_t buf_size,
                       const std::string& src_ip, const std::string& dst_ip,
                       uint16_t src_port, uint16_t dst_port,
-                      packet_info::ts timestamp);
+                      PacketInfo::ts timestamp);
 
     /**
      * Write a packet using a buffer to the pcap
@@ -171,36 +264,31 @@ class PcapWriter {
      * @note The timestamp parameter in info does not affect the order of
      * packets being recorded, it is strictly recorded FIFO.
      */
+    OUSTER_API_FUNCTION
     void write_packet(const uint8_t* buf, size_t buf_size,
-                      const packet_info& info);
+                      const PacketInfo& info);
 
     /**
      * Write all pending data to the pcap file
      */
+    OUSTER_API_FUNCTION
     void flush();
 
     /**
      * Flushes and cleans up all memory in use by the pap writer
      */
+    OUSTER_API_FUNCTION
     void close();
 
    protected:
-    std::unique_ptr<pcap_writer_impl> impl;  ///< Internal data
+    std::unique_ptr<pcap_writer_impl> impl_;  ///< Internal data
 
-    uint16_t id;                ///< An incrementing id to record packets with
-    PacketEncapsulation encap;  ///< Encapsulation to record with
-    uint16_t frag_size;         ///< Fragmentation size(not currently used)
-    bool closed;
+    /// @todo figure out if some of these are still needed
+    uint16_t id_;                ///< An incrementing id to record packets with
+    PacketEncapsulation encap_;  ///< Encapsulation to record with
+    uint16_t frag_size_;         ///< Fragmentation size(not currently used)
+    bool closed_;
 };
-
-/**
- * To string method for packet info structs.
- *
- * @param[inout] stream_in The pre-existing ostream to concat with data.
- * @param[in] data The packet_info to output.
- *
- * @return The new output stream containing concatted stream_in and data.
- */
-std::ostream& operator<<(std::ostream& stream_in, const packet_info& data);
-}  // namespace sensor_utils
+}  // namespace pcap
+}  // namespace sdk
 }  // namespace ouster

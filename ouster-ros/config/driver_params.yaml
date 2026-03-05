@@ -34,17 +34,34 @@ ouster/os_driver:
     # - RNG19_RFL8_SIG16_NIR16
     # - RNG15_RFL8_NIR8
     # - RNG19_RFL8_SIG16_NIR16_DUAL
-    # - FUSA_RNG15_RFL8_NIR8_DUAL
+    # - FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL)
+    # - RNG15_RFL8_NIR8_DUAL (requires FW3.2+)
+    # - RNG15_RFL8_WIN8 (requires FW3.2+)
+    # - RNG15_RFL8_NIR8_ZONE16 (requires FW3.2+)
+    # - RNG19_RFL8_SIG16_NIR16_ZONE16 (requires FW3.2+)
     udp_profile_lidar: ''
+    # udp_profile_imu[optional]: imu packet profile; possible values:
+    # - LEGACY: not recommended
+    # - ACCEL32_GYRO32_NMEA (requires FW3.2+)
+    udp_profile_imu: ''
+    # imu_packets_per_frame[optional]: number of IMU packets per frame;
+    # possible values: {1, 2, 4, 8}, default is 0 (unset; requires FW3.2+).
+    imu_packets_per_frame: 0
+    # gyro_fsr[optional]: gyroscope full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is '' (unset; requires FW 3.1+).
+    gyro_fsr: ''
+    # accel_fsr[optional]: accelerometer full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is '' (unset; requires FW 3.1+).
+    accel_fsr: ''
     # metadata[optional]: path to save metadata file to, if left empty a file
-    # with the sensor hostname or ip will be crearted in ~/.ros folder.
+    # with the sensor hostname or ip will be created in ~/.ros folder.
     metadata: ''
     # lidar_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     lidar_port: 0
     # imu_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     imu_port: 0
     # sensor_frame[optional]: name to use when referring to the sensor frame.
@@ -97,9 +114,34 @@ ouster/os_driver:
     azimuth_window_start: 0
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
     azimuth_window_end: 360000
+    # operating_mode[optional]: sensor operating mode; possible values:
+    # - NORMAL
+    # - STANDBY
+    operating_mode: NORMAL
+    # signal_multiplier[optional]: multiplier for signal strength of sensor; possible values: {0.25, 0.5, 1, 2, 3}
+    # default is 1.0.
+    signal_multiplier: 1.0
+    # phase_lock_enable[optional]: enable or disable phase lock.
+    phase_lock_enable: false
+    # phase_lock_offset[optional]: angle that sensors are locked to in millidegrees, values range [0, 360000].
+    phase_lock_offset: 0
+    # lidar_frame_azimuth_offset[optional]: The lidar frame azimuth offset for the sensor to use in millidegrees;
+    # values range [0, 360000], default -1 (unset; requires FW 3.2+).
+    lidar_frame_azimuth_offset: -1
+    # return_order[optional]: order of returns to use for generating point cloud; possible values:
+    # - STRONGEST_TO_WEAKEST
+    # - FARTHEST_TO_NEAREST
+    # - NEAREST_TO_FARTHEST
+    # default is '' (unset; requires FW 3.1+).
+    return_order: ''
+    # bloom_reduction_optimization[optional]: level of bloom reduction optimization to apply on the sensor; possible values:
+    # - BALANCED
+    # - MINIMIZE_FALSE_POSITIVES
+    # default is '' (unset; requires FW 3.2+).
+    bloom_reduction_optimization: ''
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
-    # attempt_config[optional]: attempting to reconnect to the sensor after
+    # attempt_reconnect[optional]: attempting to reconnect to the sensor after
     # connection loss or sensor powered down
     attempt_reconnect: false
     # dormant_period_between_reconnects[optional]: wait time in seconds between

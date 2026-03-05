@@ -1,0 +1,735 @@
+#  type: ignore
+import os
+import inspect
+from glob import glob
+from pathlib import Path
+import click
+import pytest
+import sys
+import json
+import tempfile
+from typing import List
+from click.testing import CliRunner
+
+from ouster.cli import core
+from ouster.cli.core.cli_args import CliArgs
+from ouster.cli.plugins import source, source_osf  # noqa: F401
+from ouster.sdk.core import io_type_from_extension, OusterIoType
+
+from tests.conftest import PCAPS_DATA_DIR, OSFS_DATA_DIR
+import ouster.sdk._bindings.osf as osf
+import numpy as np
+
+
+class set_directory(object):
+    """Sets the cwd within the context
+
+    Args:
+      path (Path): The path to the cwd
+    """
+    def __init__(self, path: Path):
+        self.path = path
+        self.origin = Path().absolute()
+
+    def __enter__(self):
+        os.chdir(self.path)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        os.chdir(self.origin)
+
+
+@pytest.fixture
+def test_osf_file() -> str:
+    return str(Path(OSFS_DATA_DIR) / 'OS-1-128_v2.3.0_1024x10_lb_n3.osf')
+
+
+@pytest.fixture
+def test_pcap_file() -> str:
+    return str(Path(PCAPS_DATA_DIR) / 'OS-0-128-U1_v2.3.0_1024x10.pcap')
+
+
+@pytest.fixture
+def test_pcap_file2() -> str:
+    return str(Path(PCAPS_DATA_DIR) / 'OS-1-128_v2.3.0_1024x10_lb_n3.pcap')
+
+
+@pytest.fixture
+def test_metadata_file() -> str:
+    return str(Path(PCAPS_DATA_DIR) / 'OS-0-128-U1_v2.3.0_1024x10.json')
+
+
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+
+def read_commands_from_help_text(help_text: str) -> List[str]:
+    """Reads the command names (but not their help text)
+    from help text that Click generates for click.MultiCommand"""
+    command_help_lines = help_text.split("Commands:")[1].splitlines()[1:]
+    return set(line.split()[0].strip() for line in command_help_lines)
+
+
+def test_16x1_extrinsics(test_osf_file, tmp_path):
+
+    runner = CliRunner()
+    extrinsics_16x1 = (
+        "0.000001,-0.999991,0.004236,-0.080000,-0.999987,-0.000023,-0.005052,-0.200000,"
+        "0.005052,-0.004236,-0.999978,0.689000,0.000000,0.000000,0.000000,1.000000"
+    )
+
+    tmp_osf_file = str(Path(tmp_path) / "tmp_file.osf")
+
+    result = runner.invoke(core.cli, ['source', '-e', extrinsics_16x1,
+                                      test_osf_file, 'save', '--ts', 'lidar', tmp_osf_file])
+    expected_extrinsics = np.array([
+        0.000001, -0.999991, 0.004236, -0.080000,
+        -0.999987, -0.000023, -0.005052, -0.200000,
+        0.005052, -0.004236, -0.999978, 0.689000,
+        0.000000, 0.000000, 0.000000, 1.000000
+    ])
+
+    tmp_osf = osf.OsfScanSource(tmp_osf_file)
+
+    extrinsic_from_osf = np.array(tmp_osf.sensor_info[0].extrinsic).flatten()
+
+    assert np.allclose(extrinsic_from_osf, expected_extrinsics, atol=0.0001)
+    assert result.exit_code == 0
+
+
+def test_join_with_conjunction():
+    assert source._join_with_conjunction([]) == ''
+    assert source._join_with_conjunction(['one thing']) == 'one thing'
+    assert source._join_with_conjunction([1, 2, 3]) == '1, 2, or 3'
+    assert source._join_with_conjunction([1, 2, 3], conjunction='and') == '1, 2, and 3'
+    assert source._join_with_conjunction(['foo', 'bar']) == 'foo or bar'
+    assert source._join_with_conjunction(['foo', 'bar', 'baz'], separator='; ') == 'foo; bar; or baz'
+
+
+def test_cli_args_borg() -> None:
+    """If no args are provided to the constructor,
+    the `args` attribute of new instances should contain sys.argv[1:]
+
+    Note: see the definition for CliArgs to understand how it works.
+    It is used to provide access to all cli args regardless of whether
+    the command is run from the command line, or whether the command
+    is invoked via click.testing.CliRunner.
+
+    This is necessary because click provides no method to get all cli args
+    from the context, which means it's sometimes difficult to determine
+    when the user has invoked --help.
+    """
+    del CliArgs().args
+    assert CliArgs().args == sys.argv[1:]
+    assert CliArgs().args == sys.argv[1:]
+
+
+def test_cli_args_borg_2() -> None:
+    """If a list of args is provided to the constructor,
+    the `args` attribute of new instances should the list."""
+    del CliArgs().args
+    CliArgs(['a', 'b', 'c'])
+    assert CliArgs().args == ['a', 'b', 'c']
+    assert CliArgs().has_any_of(['a', 'b'])
+    assert not CliArgs().has_any_of(['d', 'e'])
+
+    CliArgs(['d', 'e', 'f'])
+    assert CliArgs().args == ['d', 'e', 'f']
+    assert CliArgs().has_any_of(['d', 'e'])
+    assert not CliArgs().has_any_of(['a', 'b'])
+
+
+def test_io_type_from_extension() -> None:
+    test_osf_name = 'OS1-inters-n5.osf'
+    assert io_type_from_extension(test_osf_name) == OusterIoType.OSF
+    test_pcap_name = 'data-inters-24784-OS1_128_fw23_legacy_n3.pcap'
+    assert io_type_from_extension(test_pcap_name) == OusterIoType.PCAP
+    test_bag_name = 'OS1_128_sample_fw23_lb_n3.bag'
+    assert io_type_from_extension(test_bag_name) == OusterIoType.BAG
+
+
+def test_version(runner) -> None:
+    result = runner.invoke(core.cli, ['--version'])
+    assert "cli, version " in result.output
+    assert result.exit_code == 0
+
+
+def test_help(runner) -> None:
+    result = runner.invoke(core.cli, ['--help'])
+    assert result.exit_code == 0
+
+    result = runner.invoke(core.cli, CliArgs(['util', '--help']).args)
+    assert "Usage: cli util [OPTIONS] COMMAND [ARGS]" in result.output
+    assert result.exit_code == 0
+
+    result = runner.invoke(core.cli, ['--traceback', 'util'])
+    assert result.exit_code == 0
+
+    result = runner.invoke(core.cli, ['--sdk-log-level', 'debug', 'util'])
+    assert result.exit_code == 0
+
+
+def test_mapping_help(runner, has_mapping):
+    result = runner.invoke(core.cli, ['mapping', '--help'])
+    if has_mapping:
+        assert result.exit_code == 0
+
+
+def test_source_help(runner) -> None:
+    """It should return 0 if --help is specified."""
+    result = runner.invoke(core.cli, CliArgs(['source', '--help']).args)
+
+    # check that a variety of SOURCE commands are in the output
+    assert "PCAP|OSF|BAG|MCAP info" in result.output
+    assert "SENSOR config" in result.output
+
+    # check that general message is there
+    assert "Run a command with the specified source" in result.output
+    assert result.exit_code == 0
+
+
+def test_source_no_args(runner) -> None:
+    """It should return a usage error if no command is specified."""
+    result = runner.invoke(core.cli, CliArgs(['source']).args)
+    assert "Error: Missing argument 'SOURCE'." in result.output
+    assert result.exit_code == 2
+
+
+def test_source_sensor(runner, has_mapping) -> None:
+    """It should list the correct commands
+    in the help depending on source type."""
+
+    # sensor
+    result = runner.invoke(core.cli, ['source', '127.0.0.1'])
+    assert result.exit_code == 0
+    expected_commands = {'config', 'metadata', 'viz', 'slice', 'save'}
+    if has_mapping:
+        expected_commands.add('slam')
+    assert set(read_commands_from_help_text(result.output)) >= expected_commands
+
+
+def test_source_pcap(runner, has_mapping) -> None:
+    # pcap
+    expected_commands = {'info', 'slice', 'viz'}
+    if has_mapping:
+        expected_commands.add('slam')
+    with tempfile.NamedTemporaryFile(suffix='.pcap') as temp_pcap:
+        result = runner.invoke(core.cli, ['source', temp_pcap.name])
+        assert result.exit_code == 0
+        assert read_commands_from_help_text(result.output) >= expected_commands
+
+
+@pytest.mark.skip
+def test_source_rosbag() -> None:
+    # TODO FLEETSW-4407: not MVP
+    # rosbag
+    # with tempfile.NamedTemporaryFile(suffix='.bag') as temp_pcap:
+    #    result = runner.invoke(core.cli, ['source', temp_pcap.name])
+    #    assert result.exit_code == 0
+    #    commands = result.output.split("Commands:")[1].split()
+    #    assert commands == ['convert']
+    pass
+
+
+def test_source_invald(runner) -> None:
+    # invalid file type
+    with tempfile.NamedTemporaryFile(suffix='.invalid') as temp_pcap:
+        result = runner.invoke(core.cli, ['source', temp_pcap.name])
+        assert "Source type expected to be a sensor hostname, ip address,"
+        "or a .bag, .osf, or .pcap file" in result.output
+        assert result.exit_code == 2
+
+
+def test_source_bad_command(runner):
+    """It should exit 2 (see click.exceptions.UsageError) if a bad command
+    for the given source was provided."""
+    result = runner.invoke(core.cli, ['source', '127.0.0.1', 'badcommand'])
+    assert "Error: No such command 'badcommand'." in result.output
+    assert result.exit_code == 2
+
+
+def test_source_good_command(runner):
+    """It should not exit 2 (see click.exceptions.UsageError) if a valid command
+    for the given source was provided."""
+    # note - for now any path not considered a file is expected to be a sensor
+    # we don't expect this to succeed because there is no such sensor
+    # so we should see exit code 1
+    result = runner.invoke(core.cli, ['source', '127.0.0.1', 'config'])
+    assert "Error: CurlClient::execute_request failed" in result.output
+    assert result.exit_code == 1
+
+
+def test_source_could_not_resolve(runner):
+    """It should not exit 2 (see click.exceptions.UsageError) if a valid command
+    for the given source was provided."""
+    # note - for now any path not considered a file is expected to be a sensor
+    # we don't expect this to succeed because there is no such sensor
+    # so we should see exit code 1
+    result = runner.invoke(core.cli, ['source', 'badhostname', 'config'])
+    # TODO: uncomment when bag is possible source
+    # assert ("Error: Source type expected to be a sensor hostname, ip address, "
+    # "or a .bag, .osf, or .pcap file.") in result.output
+    assert ("Error: Source type expected to be") in result.output
+    assert result.exit_code == 2
+
+
+def test_source_config(runner):
+    """It should not exit 2 (see click.exceptions.UsageError) if a valid command
+    for the given source was provided."""
+    # note - for now any path not considered a file is expected to be a sensor
+    # we don't expect this to succeed because there is no such sensor
+    # so we should see exit code 1
+    result = runner.invoke(core.cli, ['source', '127.0.0.1', 'config'])
+    assert "Error: CurlClient::execute_request failed" in result.output
+    assert result.exit_code == 1
+
+
+def test_source_metadata(runner):
+    """It should attempt to get metadata (and fail when there is no sensor)"""
+    result = runner.invoke(core.cli, ['source', '127.0.0.1', 'metadata'])
+    assert "Error: CurlClient::execute_request failed" in result.output
+    assert result.exit_code == 1
+
+
+def test_source_config_help(runner):
+    """It should not exit 2 (see click.exceptions.UsageError) if a valid command
+    for the given source was provided."""
+    # note - for now any path not considered a file is expected to be a sensor
+    # we don't expect this to succeed because there is no such sensor
+    # so we should see exit code 1
+    result = runner.invoke(core.cli, ['source', '127.0.0.1', 'config', '--help'])
+    assert "Usage: cli source SOURCE config [OPTIONS] [KEY VAL]..." in result.output
+    assert result.exit_code == 0
+
+
+def test_source_pcap_info(test_pcap_file, runner):
+    """source <pcap> info should work as expected."""
+    result = runner.invoke(core.cli, ['source', test_pcap_file, 'info', '-n', 10])
+    assert "Packets read:  10" in result.output
+    assert result.exit_code == 0
+
+
+def test_source_pcap_slice_help(test_pcap_file, runner):
+    """ouster-cli source <src> slice --help
+    should display help"""
+    result = runner.invoke(core.cli, ['source', test_pcap_file, 'slice', '--help'])
+    assert "Usage: cli source SOURCE slice [OPTIONS] INDICES" in result.output
+    assert result.exit_code == 0
+
+
+def test_source_pcap_slice_no_arguments(test_pcap_file, runner):
+    # help option not provided, but no output file provided
+    result = runner.invoke(core.cli, ['source', test_pcap_file, 'slice'])
+    assert "Usage: cli source SOURCE slice [OPTIONS] INDICES" in result.output
+    assert "Missing argument 'INDICES'." in result.output
+    assert result.exit_code == 2
+
+
+def test_source_pcap_slice_help_2(test_pcap_file, runner):
+    """ouster-cli source <src> slice <output> --help
+    should display help"""
+    result = runner.invoke(core.cli, ['source', test_pcap_file, 'slice', 'outputfile.pcap', '--help'])
+    assert result.exit_code == 2
+    assert "Error: Invalid value for 'INDICES'" in result.output
+
+
+def source_pcap_slice_impl(test_pcap_file, runner, command, packets, should_fail=False):
+    try:
+        pcap_filename = None
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            pass
+        result = runner.invoke(core.cli, ['source', test_pcap_file, 'slice',
+                                          command, 'save', '-p', f.name, ".pcap"])
+        # FIXME! Written file paths should be logged in output.
+        # assert f'Writing: {f.name}' in result.output
+        print(result.output)
+        if should_fail:
+            assert result.exit_code != 0
+            return
+        assert result.exit_code == 0
+        pcaps_generated = glob(f'{f.name}_*.pcap')
+        assert len(pcaps_generated) == 1
+        pcap_filename = pcaps_generated[0]
+        result2 = runner.invoke(core.cli, ['source', pcap_filename, 'info'])
+        print(result2.output)
+        assert result2.exit_code == 0
+        assert "Packets read:  " + packets in result2.output
+    finally:
+        os.unlink(f'{f.name}')
+        if pcap_filename is not None:
+            json_filename = pcap_filename[:-5] + '_0.json'
+            os.unlink(pcap_filename)
+            os.unlink(json_filename)
+
+
+def test_source_pcap_slice(test_pcap_file, runner):
+    """Slicing a pcap should succeed with exit code 0."""
+    source_pcap_slice_impl(test_pcap_file, runner, "0:1:1", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "0:1:2", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "0:1:3", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "0:2", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "0:", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "2:", "0")
+    source_pcap_slice_impl(test_pcap_file, runner, "1::", "0")
+    source_pcap_slice_impl(test_pcap_file, runner, "1::1", "0")
+    source_pcap_slice_impl(test_pcap_file, runner, "0s::1", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "0min:1h:1", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "10ms:", "0")
+    source_pcap_slice_impl(test_pcap_file, runner, "0s::2", "64")
+    source_pcap_slice_impl(test_pcap_file, runner, "1s::1", "0")
+    source_pcap_slice_impl(test_pcap_file, runner, "1s::", "0")
+    # these cases look legit to me: :1s:1, 0:1s, 1.5:3.5
+    # add some bad cases that should error
+    fail_cases = ["1s:1:", "'-1s::'", ".s:0.s", "0::0", ".:.:3", "::-1", "3:1"]
+    for case in fail_cases:
+        source_pcap_slice_impl(test_pcap_file, runner, case, "0", True)
+
+
+def test_source_pcap_save_no_filename(test_pcap_file, runner, tmp_path):
+    """It should save an automatically named file with that extension by default."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save', '.osf']).args)
+        assert result.exit_code == 0
+        # there's at most one OSF file in output dir
+        files = os.listdir(tmp_path)
+        assert len(files) == 1
+        assert all(filename.endswith('.osf') for filename in files)
+
+
+def test_source_pcap_save_filename(test_pcap_file, runner, tmp_path):
+    """It should save an osf file with the desired name."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save', 'test.osf']).args)
+        assert result.exit_code == 0
+        # there's at most one OSF file in output dir
+        files = os.listdir(tmp_path)
+        assert len(files) == 1
+        assert all(filename == 'test.osf' for filename in files)
+
+
+def test_source_pcap_save_filename_prefix(test_pcap_file, runner, tmp_path):
+    """It should save an osf file with the desired name."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save', '-p', 'prefix', 'test.osf']).args)
+        assert result.exit_code == 0
+        # there's at most one OSF file in output dir
+        files = os.listdir(tmp_path)
+        assert len(files) == 1
+        assert all(filename == 'prefix_test.osf' for filename in files)
+
+
+def test_source_pcap_save_no_extension(test_pcap_file, runner, tmp_path):
+    """It should save an osf file with the desired name."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save', 'osf']).args)
+        assert result.exit_code == 2
+        # there's no OSF file in output dir
+        files = os.listdir(tmp_path)
+        assert "Must provide a " in result.output
+        assert len(files) == 0
+
+
+def test_source_pcap_legacy_soft_id_failure(runner, tmp_path):
+    test_pcap = str(Path(PCAPS_DATA_DIR) / 'same_ports_legacy.pcap')
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', '-s', test_pcap, 'save', 'osf.osf']).args)
+
+        assert "--soft-id-check is not supported for multi-sensor datasets." in result.output
+
+        # there are no files in the output dir
+        files = os.listdir(tmp_path)
+        assert len(files) == 0
+
+
+def test_source_pcap_save_raw(test_pcap_file, runner, tmp_path):
+    """It should save a pcap file with the desired name."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save_raw', 'test.pcap']).args)
+        assert result.exit_code == 0
+        # there's a pcap in the output directory
+        files = os.listdir(tmp_path)
+        assert len(files) == 2
+        assert any(filename == 'test.pcap' for filename in files)
+
+
+def test_source_pcap_save_zm_imu(runner, tmp_path):
+    """It should save a pcap file with the desired name."""
+    test_pcap_file = str(Path(PCAPS_DATA_DIR) / 'imu_zm_no_lidar.pcap')
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save', 'test.pcap']).args)
+        assert result.exit_code == 0
+        # there's a pcap in the output directory
+        files = os.listdir(tmp_path)
+        assert len(files) == 2
+        assert any(filename == 'test.pcap' for filename in files)
+
+
+def test_source_pcap_save_raw_zm_imu(runner, tmp_path):
+    """It should save a pcap file with the desired name."""
+    test_pcap_file = str(Path(PCAPS_DATA_DIR) / 'imu_zm_no_lidar.pcap')
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file, 'save_raw', 'test.pcap']).args)
+        assert result.exit_code == 0
+        # there's a pcap in the output directory
+        files = os.listdir(tmp_path)
+        assert len(files) == 2
+        assert any(filename == 'test.pcap' for filename in files)
+
+
+def test_source_osf_info_help(test_osf_file, runner):
+    """ouster-cli source <src>.osf info --help
+    should display OSF viz help"""
+    result = runner.invoke(core.cli, CliArgs(['source', test_osf_file, 'info', '--help']).args)
+    assert "Usage: cli source SOURCE info [OPTIONS]" in result.output
+
+    option_names = [option.name.replace('_', '-') for option in source_osf.osf_info.params]
+    assert all([option_name in result.output.lower().replace('_', '-') for option_name in option_names])
+    assert result.exit_code == 0
+
+
+def test_source_osf_viz_help(test_osf_file, runner):
+    """ouster-cli source <src>.osf viz --help
+    should display OSF viz help"""
+    result = runner.invoke(core.cli, ['source', test_osf_file, 'viz', '--help'])
+    assert "Usage: cli source SOURCE viz [OPTIONS]" in result.output
+    option_names = [option.name.replace('_', '-') for option in source.source_viz.params]
+    assert all([option_name in result.output.lower().replace('_', '-') for option_name in option_names])
+    assert result.exit_code == 0
+
+
+def get_stats(monkeypatch, runner, filename, args = []):
+    import atexit
+    from contextlib import redirect_stdout, redirect_stderr
+    import io
+    # monkeypatch atexit so and capture the output
+    with monkeypatch.context() as m:
+        teardown_fn: Callable[[], None] = lambda: None  # noqa
+
+        def set_teardown_fn(fn):
+            nonlocal teardown_fn
+            teardown_fn = fn
+
+        m.setattr(atexit, "register", set_teardown_fn)
+        io_stream = io.StringIO()
+        with redirect_stdout(io_stream), redirect_stderr(io_stream):
+            all_args = ['source']
+            for arg in args:
+                all_args.append(arg)
+            all_args.append(filename)
+            all_args.append('stats')
+            result = runner.invoke(core.cli, CliArgs(all_args).args)
+            teardown_fn()
+
+    assert result.exit_code == 0
+    return io_stream.getvalue()
+
+
+@pytest.mark.parametrize('args', [('.osf', 10, 1, 1), ('.bag', 10, 1, 1), ('.pcap', 10, 2, 2),
+                                  ('.osf', 0, 3, 3), ('.bag', 0, 3, 2), ('.pcap', 0, 4, 4)])
+def test_source_split_save(test_pcap_file2, runner, tmp_path, args, monkeypatch):
+    """Make sure we save the expected number of files with the expected number of frames."""
+    with set_directory(tmp_path):
+        ext, split_size, num_files, num_files_windows = args
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file2, 'save', '--split',
+                                                  str(split_size), 'test' + ext]).args)
+        assert result.exit_code == 0
+        # test we got the expected number of files
+        files = os.listdir(tmp_path)
+        if sys.platform.startswith("win"):
+            assert len(files) == num_files_windows
+        else:
+            assert len(files) == num_files
+        assert ('test' + ext) in files
+
+        assert "Count: 3" in get_stats(monkeypatch, runner, 'test*' + ext, args=['-g'])
+
+
+@pytest.mark.parametrize('args', [('.bag', 10, 1, 1), ('.pcap', 10, 2, 2),
+                                  ('.bag', 0, 3, 2), ('.pcap', 0, 4, 4)])
+def test_source_split_save_raw(test_pcap_file2, runner, tmp_path, args, monkeypatch):
+    """Make sure we save the expected number of files with the expected number of frames."""
+    with set_directory(tmp_path):
+        ext, split_size, num_files, num_files_windows = args
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', test_pcap_file2, 'save_raw', '--split',
+                                                  str(split_size), 'test' + ext]).args)
+        print(result.output)
+        assert result.exit_code == 0
+        # test we got the expected number of files
+        files = os.listdir(tmp_path)
+        if sys.platform.startswith("win"):
+            assert len(files) == num_files_windows
+        else:
+            assert len(files) == num_files
+        assert ('test' + ext) in files
+
+        assert "Count: 3" in get_stats(monkeypatch, runner, 'test*' + ext, args=['-g'])
+
+
+def test_discover(runner):
+    """ouster-cli discover --help
+    should display discover plugin help."""
+    result = runner.invoke(core.cli, ['discover', '--help'])
+    assert "Usage: cli discover [OPTIONS]" in result.output
+    assert result.exit_code == 0
+
+
+def test_source_stats(test_pcap_file, runner, monkeypatch):
+    """ouster-cli source ... stats should display correct stats."""
+    result = get_stats(monkeypatch, runner, test_pcap_file)
+    assert "Count: 1" in result
+    assert "First Receive Time: 1650408693" in result
+    assert "Sizes: 1024x128" in result
+    assert "Incomplete Scans" in result
+
+
+def test_source_filter_no_lidar(runner, monkeypatch):
+    """ouster-cli source --filter on data with no lidar packets should pass through scans"""
+    test_pcap_file = str(Path(PCAPS_DATA_DIR) / 'imu_zm_no_lidar.pcap')
+    result = get_stats(monkeypatch, runner, test_pcap_file, args = [])
+    assert "Count: 1" in result
+    result = get_stats(monkeypatch, runner, test_pcap_file, args = ["--filter"])
+    assert "Count: 1" in result
+
+
+def test_source_filter(runner, monkeypatch):
+    """ouster-cli source --filter removes incomplete scans"""
+    test_pcap_file = str(Path(PCAPS_DATA_DIR) / 'crc_test.pcap')
+    result = get_stats(monkeypatch, runner, test_pcap_file, args = [])
+    assert "Count: 2" in result
+    result = get_stats(monkeypatch, runner, test_pcap_file, args = ["--filter"])
+    assert "Count: 1" in result
+
+
+def test_source_filter_coord_frame_requires_xyz():
+    """--coord-frame should only be accepted for X/Y/Z filtering."""
+    ctx = source.SourceCommandContext()
+    source_filter_fn = inspect.unwrap(source.source_filter.callback)
+    with pytest.raises(click.BadParameter, match="X, Y, or Z"):
+        source_filter_fn(
+            ctx=ctx,
+            axis_field="U",
+            indices=(None, 10),
+            filtered_fields=None,
+            invalid_value=0,
+            coord_frame="WORLD",
+        )
+
+
+@pytest.mark.parametrize("coord_frame, expected_use_extrinsics, expected_dewarp_points", [
+    ("SENSOR", False, False),
+    ("BODY", True, False),
+    ("WORLD", True, True),
+])
+def test_source_filter_xyz_coord_frame_modes(
+    monkeypatch,
+    coord_frame,
+    expected_use_extrinsics,
+    expected_dewarp_points,
+):
+    """XYZ coord frames should map to expected LUT/dewarp behavior."""
+    import ouster.sdk.core as sdk_core
+    import ouster.sdk.core.scan_ops as so
+    source_filter_fn = inspect.unwrap(source.source_filter.callback)
+
+    xyzlut_use_extrinsics = []
+    dewarp_points_args = []
+    scan_tokens = []
+
+    class FakeScanSource:
+        sensor_info = [object()]
+
+    ctx = source.SourceCommandContext()
+    ctx.scan_source = FakeScanSource()
+    ctx.scan_iter = lambda: iter([[{"scan": 1}]])  # type: ignore
+
+    def fake_xyzlut(sensor_info, use_extrinsics=True):
+        xyzlut_use_extrinsics.append(use_extrinsics)
+
+        def fake_xyz(range_image):
+            h, w = range_image.shape
+            return np.zeros((h, w, 3), dtype=np.float64)
+
+        return fake_xyz
+
+    def fake_filter_xyz(scan, xyzlut, axis_idx, lower, upper, invalid,
+                        filtered_fields=None, dewarp_points=False):
+        scan_tokens.append(scan)
+        dewarp_points_args.append(dewarp_points)
+        return None
+
+    monkeypatch.setattr(sdk_core, "XYZLut", fake_xyzlut)
+    monkeypatch.setattr(so, "filter_xyz", fake_filter_xyz)
+
+    source_filter_fn(
+        ctx=ctx,
+        axis_field="X",
+        indices=(-1000, 1000),
+        filtered_fields=None,
+        invalid_value=0,
+        coord_frame=coord_frame,
+    )
+    list(ctx.scan_iter())  # type: ignore[operator]
+
+    assert scan_tokens
+    assert xyzlut_use_extrinsics
+    assert set(xyzlut_use_extrinsics) == {expected_use_extrinsics}
+    assert dewarp_points_args
+    assert set(dewarp_points_args) == {expected_dewarp_points}
+
+
+def test_source_plumb(test_pcap_file, runner, tmp_path):
+    """ouster-cli source ... plumb should run successfully."""
+    with set_directory(tmp_path):
+        assert not os.listdir(tmp_path)  # no files in output dir
+        result = runner.invoke(core.cli, CliArgs(['source', "--sensor-idx", "0",
+                                                  test_pcap_file, 'plumb', 'save', 'test.osf']).args)
+        assert result.exit_code == 0
+        # there's at most one OSF file in output dir
+        files = os.listdir(tmp_path)
+        assert len(files) == 1
+        assert all(filename == 'test.osf' for filename in files)
+
+
+def test_source_osf(runner, has_mapping) -> None:
+    """It should list the correct commands
+    in the help depending on source type."""
+    # osf
+    with tempfile.NamedTemporaryFile(suffix='.osf') as temp_osf:
+        result = runner.invoke(core.cli, ['source', temp_osf.name])
+        assert result.exit_code == 0
+        expected_commands = {'info', 'viz', 'slice', 'save'}
+        if has_mapping:
+            expected_commands.add('slam')
+        assert read_commands_from_help_text(result.output) >= expected_commands
+
+
+def test_source_osf_dump(test_osf_file, runner):
+    """ouster-cli source <src>.osf dump
+    should display OSF metadata"""
+    result = runner.invoke(core.cli, ['--sdk-log-level', 'off', 'source', test_osf_file, 'dump'])
+    meta = json.loads(result.output)
+    assert len(meta['metadata']['entries']) == 3
+    assert 'buffer' in meta['metadata']['entries'][0]
+    assert meta['metadata']['entries'][0]['type'] == "ouster/v1/os_sensor/LidarSensor"
+    assert result.exit_code == 0
+
+
+def test_source_osf_dump_short(test_osf_file, runner):
+    """ouster-cli source <src>.osf info -s
+    should display OSF metadata in short form"""
+    result = runner.invoke(core.cli, ['--sdk-log-level', 'off', 'source', test_osf_file, 'dump', '-s'])
+    meta = json.loads(result.output)
+    assert len(meta['metadata']['entries']) == 3
+    assert 'buffer' not in meta['metadata']['entries'][0]
+    assert meta['metadata']['entries'][0]['type'] == "ouster/v1/os_sensor/LidarSensor"
+    assert result.exit_code == 0

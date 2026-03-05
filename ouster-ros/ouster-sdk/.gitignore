@@ -1,0 +1,49 @@
+__pycache__/
+python/build/
+python/dist/
+python/.tox/
+python/**/*.egg-info/
+python/**/*.so
+python/**/*.dll
+python/**/*.pyd
+
+/build
+python/artifacts/
+/artifacts
+
+# visual studio
+.vs/
+.vscode
+out/
+
+# vim
+*.swp
+
+# emacs
+.dir.locals.el
+.ccls-cache
+
+# CMake, Ninja
+.ninja_deps
+.ninja_log
+CMakeFiles
+CTestTestfile.cmake
+compile_commands.json
+
+# Built artifacts
+generated
+rules.ninja
+*.a
+**/_build
+clang-tidy-output.{txt,json}
+
+#npm
+node_modules/
+/package-lock.json
+/package.json
+.aider*
+
+# docs
+docs/build/
+docs/cpp/api_cpp/
+docs/python/api_python/

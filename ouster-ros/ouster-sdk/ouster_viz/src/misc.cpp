@@ -1,0 +1,494 @@
+/**
+ * Copyright (c) 2022, Ouster, Inc.
+ * All rights reserved.
+ */
+
+#include "misc.h"
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "camera.h"
+#include "common.h"
+#include "glfw.h"
+#include "ouster/point_viz.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+namespace ouster {
+namespace sdk {
+namespace viz {
+namespace impl {
+
+/*
+ * Rings
+ */
+bool GLRings::initialized = false;
+GLuint GLRings::ring_vao;
+GLuint GLRings::ring_program_id;
+GLuint GLRings::ring_xyz_id;
+GLuint GLRings::ring_proj_view_id;
+GLuint GLRings::ring_range_id;
+GLuint GLRings::ring_thickness_id;
+GLuint GLRings::xyz_buffer;
+
+GLRings::GLRings() : ring_size_(1), ring_line_width_(1), rings_enabled_(true) {
+    // Make a quad thats a bit larger than our maximum range
+    std::vector<GLfloat> xyz(3 * 6, 0);
+    const float max_range = 1000;
+    // Point 0
+    xyz[0] = -1.1;
+    xyz[1] = -1.1;
+    xyz[2] = 0.0;
+    // Point 1
+    xyz[3] = 1.1;
+    xyz[4] = -1.1;
+    xyz[5] = 0.0;
+    // Point 2
+    xyz[6] = 1.1;
+    xyz[7] = 1.1;
+    xyz[8] = 0.0;
+    // Point 3
+    xyz[9] = -1.1;
+    xyz[10] = -1.1;
+    xyz[11] = 0.0;
+    // Point 4
+    xyz[12] = -1.1;
+    xyz[13] = 1.1;
+    xyz[14] = 0.0;
+    // Point 5
+    xyz[15] = 1.1;
+    xyz[16] = 1.1;
+    xyz[17] = 0.0;
+
+    // scale to expected size
+    for (size_t i = 0; i < xyz.size(); i++) {
+        xyz[i] = xyz[i] * max_range;
+    }
+    glGenBuffers(1, &xyz_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * xyz.size(), xyz.data(),
+                 GL_STATIC_DRAW);
+}
+
+void GLRings::update(const TargetDisplay& target) {
+    rings_enabled_ = target.rings_enabled_;
+    ring_size_ = target.ring_size_;
+    ring_line_width_ = target.ring_line_width_;
+}
+
+void GLRings::draw(const WindowCtx& /*unused*/, const CameraData& camera) {
+    if (!GLRings::initialized) {
+        throw std::logic_error("GLRings not initialized");
+    }
+
+    if (!rings_enabled_) {
+        return;
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+
+    glBindVertexArray(GLRings::ring_vao);
+    glUseProgram(GLRings::ring_program_id);
+    const float radius = std::pow(10.0f, ring_size_);
+    // rings are displayed at the camera target, so model is inverse of target
+    Eigen::Matrix4f mvp = (camera.proj * camera.view).cast<float>();
+
+    glUniformMatrix4fv(GLRings::ring_proj_view_id, 1, GL_FALSE, mvp.data());
+    glUniform1f(GLRings::ring_range_id, radius);
+    glUniform1f(GLRings::ring_thickness_id, ring_line_width_);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+}
+
+void GLRings::initialize() {
+    glGenVertexArrays(1, &GLRings::ring_vao);
+    glBindVertexArray(GLRings::ring_vao);
+
+    GLRings::ring_program_id =
+        load_shaders(RING_VERTEX_SHADER_CODE, RING_FRAGMENT_SHADER_CODE);
+
+    glBindBuffer(GL_ARRAY_BUFFER, GLRings::xyz_buffer);
+    GLRings::ring_xyz_id = glGetAttribLocation(ring_program_id, "ring_xyz");
+
+    glEnableVertexAttribArray(GLRings::ring_xyz_id);
+    glVertexAttribPointer(GLRings::ring_xyz_id,
+                          3,              // size
+                          GL_FLOAT,       // type
+                          GL_FALSE,       // normalized
+                          0,              // stride
+                          (void*)nullptr  // array buffer offset
+    );
+
+    glBindVertexArray(0);
+
+    GLRings::ring_proj_view_id =
+        glGetUniformLocation(ring_program_id, "proj_view");
+    GLRings::ring_range_id =
+        glGetUniformLocation(ring_program_id, "ring_range");
+    GLRings::ring_thickness_id =
+        glGetUniformLocation(ring_program_id, "ring_thickness");
+
+    GLRings::initialized = true;
+}
+
+void GLRings::uninitialize() {
+    GLRings::initialized = false;
+    glDeleteProgram(ring_program_id);
+    glDeleteVertexArrays(1, &GLRings::ring_vao);
+    glDeleteBuffers(1, &GLRings::xyz_buffer);
+}
+
+/*
+ * Cuboids
+ */
+bool GLCuboid::initialized = false;
+GLuint GLCuboid::cuboid_vao;
+GLuint GLCuboid::cuboid_program_id;
+GLuint GLCuboid::cuboid_xyz_id;
+GLuint GLCuboid::cuboid_proj_view_id;
+GLuint GLCuboid::cuboid_rgba_id;
+
+GLCuboid::GLCuboid()
+    : xyz_{+0.5, +0.5, +0.5, +0.5, +0.5, -0.5, +0.5, -0.5,
+           +0.5, +0.5, -0.5, -0.5, -0.5, +0.5, +0.5, -0.5,
+           +0.5, -0.5, -0.5, -0.5, +0.5, -0.5, -0.5, -0.5},
+      indices_{0, 1, 2, 2, 1, 3, 6, 7, 4, 4, 7, 5, 2, 3, 6, 6, 3, 7,
+               4, 5, 0, 0, 5, 1, 0, 2, 4, 4, 2, 6, 5, 7, 1, 1, 7, 3},
+      edge_indices_{0, 1, 1, 3, 3, 2, 2, 0, 4, 5, 5, 7,
+                    7, 6, 6, 4, 0, 4, 1, 5, 2, 6, 3, 7} {
+    glGenBuffers(1, &xyz_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 24, xyz_.data(),
+                 GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indices_buffer_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_buffer_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_.size() * sizeof(GLubyte),
+                 indices_.data(), GL_STATIC_DRAW);
+
+    glGenBuffers(1, &edge_indices_buffer_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_indices_buffer_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 edge_indices_.size() * sizeof(GLubyte), edge_indices_.data(),
+                 GL_STATIC_DRAW);
+
+    transform_ = Eigen::Matrix4d::Identity();
+}
+
+// for Indexed<T, U>, arg ignored
+GLCuboid::GLCuboid(const Cuboid& /*unused*/) : GLCuboid{} {}
+
+GLCuboid::~GLCuboid() {
+    glDeleteBuffers(1, &xyz_buffer_);
+    glDeleteBuffers(1, &indices_buffer_);
+    glDeleteBuffers(1, &edge_indices_buffer_);
+}
+
+/*
+ * Draws the cuboids from the point of view of the camera.
+ */
+void GLCuboid::draw(const WindowCtx& /*unused*/, const CameraData& camera,
+                    Cuboid& cuboid) {
+    if (!GLCuboid::initialized) {
+        throw std::logic_error("GLCuboid not initialized");
+    }
+
+    if (cuboid.transform_changed_) {
+        transform_ =
+            Eigen::Map<const Eigen::Matrix4d>{cuboid.transform_.data()};
+        cuboid.transform_changed_ = false;
+    }
+
+    if (cuboid.rgba_changed_) {
+        rgba_ = cuboid.rgba_;
+        cuboid.rgba_changed_ = false;
+    }
+
+    glBindVertexArray(GLCuboid::cuboid_vao);
+    glUniform4fv(GLCuboid::cuboid_rgba_id, 1, rgba_.data());
+
+    // cuboid pose (model matrix) is separate for some reason
+    const Eigen::Matrix4f mvp =
+        (camera.proj * camera.view * camera.target * transform_).cast<float>();
+    glUniformMatrix4fv(GLCuboid::cuboid_proj_view_id, 1, GL_FALSE, mvp.data());
+    glEnableVertexAttribArray(GLCuboid::cuboid_xyz_id);
+    glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer_);
+    glVertexAttribPointer(GLCuboid::cuboid_xyz_id,
+                          3,              // size
+                          GL_FLOAT,       // type
+                          GL_FALSE,       // normalized
+                          0,              // stride
+                          (void*)nullptr  // array buffer offset
+    );
+
+    // draw cube faces only if they should be visible to avoid alpha sort issues
+    if (rgba_[3] > 0) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_buffer_);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, (void*)nullptr);
+    }
+
+    auto rgba = cuboid.rgba_;
+    rgba[3] = 1;
+    glUniform4fv(GLCuboid::cuboid_rgba_id, 1, rgba.data());
+
+    // draw cube frame
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_indices_buffer_);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, (void*)nullptr);
+
+    glBindVertexArray(0);
+}
+
+/**
+ * initializes shader program and handles
+ */
+void GLCuboid::initialize() {
+    glGenVertexArrays(1, &GLCuboid::cuboid_vao);
+    GLCuboid::cuboid_program_id =
+        load_shaders(CUBOID_VERTEX_SHADER_CODE, CUBOID_FRAGMENT_SHADER_CODE);
+    GLCuboid::cuboid_xyz_id =
+        glGetAttribLocation(cuboid_program_id, "cuboid_xyz");
+    GLCuboid::cuboid_proj_view_id =
+        glGetUniformLocation(cuboid_program_id, "proj_view");
+    GLCuboid::cuboid_rgba_id =
+        glGetUniformLocation(cuboid_program_id, "cuboid_rgba");
+    GLCuboid::initialized = true;
+}
+
+void GLCuboid::uninitialize() {
+    GLCuboid::initialized = false;
+    glDeleteProgram(GLCuboid::cuboid_program_id);
+    glDeleteVertexArrays(1, &GLCuboid::cuboid_vao);
+}
+
+void GLCuboid::beginDraw() {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+
+    // enable culling
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+
+    glUseProgram(cuboid_program_id);
+}
+
+void GLCuboid::endDraw() {
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+}
+
+/*
+ * Lines
+ */
+bool GLLines::initialized = false;
+GLuint GLLines::lines_vao;
+GLuint GLLines::lines_program_id;
+GLuint GLLines::lines_xyz_id;
+GLuint GLLines::lines_proj_view_id;
+GLuint GLLines::lines_rgba_id;
+
+GLLines::GLLines() {
+    glGenBuffers(1, &xyz_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer_);
+
+    transform_ = Eigen::Matrix4d::Identity();
+}
+
+// for Indexed<T, U>, arg ignored
+GLLines::GLLines(const Lines& /*unused*/) : GLLines{} {}
+
+GLLines::~GLLines() { glDeleteBuffers(1, &xyz_buffer_); }
+
+/*
+ * Draws the lines from the point of view of the camera.
+ */
+void GLLines::draw(const WindowCtx& /*unused*/, const CameraData& camera,
+                   Lines& lines) {
+    if (!GLLines::initialized) {
+        throw std::logic_error("GLLines not initialized");
+    }
+
+    if (lines.transform_changed_) {
+        transform_ = Eigen::Map<const Eigen::Matrix4d>{lines.transform_.data()};
+        lines.transform_changed_ = false;
+    }
+
+    if (lines.rgba_changed_) {
+        rgba_ = lines.rgba_;
+        lines.rgba_changed_ = false;
+    }
+
+    if (lines.points_changed_) {
+        glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer_);
+        glBufferData(GL_ARRAY_BUFFER,
+                     sizeof(GLfloat) * lines.point_data_.size(),
+                     lines.point_data_.data(), GL_STATIC_DRAW);
+        lines.points_changed_ = false;
+    }
+
+    glBindVertexArray(GLLines::lines_vao);
+    glUniform4fv(GLLines::lines_rgba_id, 1, rgba_.data());
+
+    // cuboid pose (model matrix) is separate for some reason
+    const Eigen::Matrix4f mvp =
+        (camera.proj * camera.view * camera.target * transform_).cast<float>();
+    glUniformMatrix4fv(GLLines::lines_proj_view_id, 1, GL_FALSE, mvp.data());
+    glEnableVertexAttribArray(GLLines::lines_xyz_id);
+    glBindBuffer(GL_ARRAY_BUFFER, xyz_buffer_);
+    glVertexAttribPointer(GLLines::lines_xyz_id,
+                          3,              // size
+                          GL_FLOAT,       // type
+                          GL_FALSE,       // normalized
+                          0,              // stride
+                          (void*)nullptr  // array buffer offset
+    );
+
+    glDrawArrays(GL_LINES, 0, lines.point_data_.size() / 3);
+
+    glBindVertexArray(0);
+}
+
+/**
+ * initializes shader program and handles
+ */
+void GLLines::initialize() {
+    glGenVertexArrays(1, &GLLines::lines_vao);
+    GLLines::lines_program_id =
+        load_shaders(LINES_VERTEX_SHADER_CODE, LINES_FRAGMENT_SHADER_CODE);
+    GLLines::lines_xyz_id = glGetAttribLocation(lines_program_id, "lines_xyz");
+    GLLines::lines_proj_view_id =
+        glGetUniformLocation(lines_program_id, "proj_view");
+    GLLines::lines_rgba_id =
+        glGetUniformLocation(lines_program_id, "lines_rgba");
+    GLLines::initialized = true;
+}
+
+void GLLines::uninitialize() {
+    GLLines::initialized = false;
+    glDeleteProgram(GLLines::lines_program_id);
+    glDeleteVertexArrays(1, &GLLines::lines_vao);
+}
+
+void GLLines::beginDraw() {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+
+    glLineWidth(1);
+
+    glUseProgram(lines_program_id);
+}
+
+void GLLines::endDraw() { glDisable(GL_BLEND); }
+
+/*
+ * Label3d
+ */
+GLLabel::GLLabel() : gltext_{gltCreateText()}, text_position_{0, 0, 0} {
+    assert(gltext_ != GLT_NULL);
+}
+
+// for Indexed<T, U>
+GLLabel::GLLabel(const Label& /*unused*/) : GLLabel{} {}
+
+GLLabel::~GLLabel() { gltDeleteText(gltext_); }
+
+void GLLabel::draw(const WindowCtx& ctx, const CameraData& camera,
+                   Label& label) {
+    if (label.text_changed_) {
+        gltSetText(gltext_, label.text_.c_str());
+        label.text_changed_ = false;
+    }
+
+    if (label.pos_changed_) {
+        text_position_ =
+            Eigen::Map<const Eigen::Vector3d>{label.position_.data()};
+        is_3d_ = label.is_3d_;
+        halign_ = label.align_right_ ? GLT_RIGHT : GLT_LEFT;
+        valign_ = label.align_top_ ? GLT_TOP : GLT_BOTTOM;
+        label.pos_changed_ = false;
+    }
+
+    if (label.scale_changed_) {
+        scale_ = label.scale_;
+        label.scale_changed_ = false;
+    }
+
+    if (label.rgba_changed_) {
+        rgba_ = label.rgba_;
+        label.rgba_changed_ = false;
+    }
+
+    gltColor(rgba_[0], rgba_[1], rgba_[2], rgba_[3]);
+
+    if (is_3d_) {
+        Eigen::Matrix4d model =
+            (Eigen::Translation3d{text_position_.cast<double>()} *
+             // make text face the camera
+             Eigen::Affine3d{camera.view.block<3, 3>(0, 0).inverse()} *
+             // text rendered +z direction, needs to be flipped
+             Eigen::AngleAxisd{M_PI, Eigen::Vector3d::UnitX()} *
+             // scale text, could make this configurable
+             Eigen::Scaling(0.02 * scale_))
+                .matrix();
+
+        Eigen::Matrix4f mvp =
+            (camera.proj * camera.view * camera.target * model).cast<float>();
+
+        gltDrawText(gltext_, mvp.data());
+    } else {
+        float x = text_position_.x() * ctx.viewport_width;
+        float y = text_position_.y() * ctx.viewport_height;
+        float scale2d = scale_;
+#ifdef __APPLE__
+        // TODO[mb]: Use GLFW window_content_scale for this
+        scale2d *= 2.0;
+#endif
+        gltDrawText2DAligned(gltext_, x, y, scale2d, halign_, valign_);
+    }
+}
+
+void GLLabel::beginDraw() {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+    gltBeginDraw();
+}
+
+void GLLabel::endDraw() {
+    gltEndDraw();
+    glDisable(GL_BLEND);
+}
+
+float GLLabel::get_text_height(const Label& label) {
+    if (label.text_.empty()) {
+        return 0.0f;
+    }
+    float scale = label.scale_;
+#ifdef __APPLE__
+    // TODO[mb]: Use GLFW window_content_scale for this
+    scale *= 2.0;
+#endif
+    return (gltCountNewLines(label.text_.c_str()) + 1) *
+           gltGetLineHeight(scale);
+}
+
+}  // namespace impl
+}  // namespace viz
+}  // namespace sdk
+}  // namespace ouster

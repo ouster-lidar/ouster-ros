@@ -1,6 +1,53 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Changelog for package ouster_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+0.14.1 (2026-03-05)
+-------------------
+* Add support for ``ACCEL32_GYRO32_NMEA`` imu profile (part of FW 3.2).
+  - Add related sensor parameters to the launch file
+    - ``udp_profile_imu``
+    - ``imu_packets_per_frame``
+    - ``gyro_fsr`` and ``accel_fsr``
+* Add support for the following lidar profiles (part of FW 3.2)
+  - ``RNG15_RFL8_NIR8``
+  - ``RNG15_RFL8_NIR8_DUAL``
+  - ``RNG15_RFL8_WIN8``
+  - ``RNG15_RFL8_NIR8_ZONE16``
+  - ``RNG19_RFL8_SIG16_NIR16_ZONE16``
+* [BREAKING]: Several sensor point types had some narrowed field sizes:
+  - The Point_LEGACY has narrowed signal and near_ir fields from uint16_t to uint8_t. while
+  the reflectivity has changed from uint32_t to uint8_t.
+  - The Point_RNG19_RFL8_SIG16_NIR16 has narrowed reflectivity from uint16_t to uint8_t.
+  - The RNG15_RFL8_NIR8 has narrowed reflectivity and near_ir from uint16_t to uint8_t.
+* Add launch file config options to following sensor parameters:
+  - ``operating_mode``
+  - ``signal_multiplier``
+  - ``phase_lock_enable`` and ``phase_lock_offset``
+  - ``lidar_frame_azimuth_offset``
+  - ``return_order``
+  - ``bloom_reduction_optimization``
+* [BUGFIX]: NEAR_IR data is not populated with data for organized point clouds that have no range.
+* Add support to enable **loop** for pcap replay + other replay config.
+* Add a new launch file parameter ``pub_static_tf`` that allows users to turn off the braodcast
+  of sensor TF transforms.
+* Introduce a new topic ``/ouster/telemetry`` that publishes ``ouster_ros::Telemetry`` messages,
+  the topic can be turned on/off by including the token ``TLM`` in the flag ``proc_mask`` launch arg.
+* Add a new launch file parameter ``min_scan_valid_columns_ratio`` to allow users to set the minimum
+  ratio of valid columns in a scan for it to be processed. Default value is ``0.0``.
+* Update where ouster-ros and ouster_client include directories get installed so that those headers
+  can be included externally.
+* Add ``storage`` launch parameter to ``record.launch.xml``
+* Add a padding-free point type of ``PointXYZI`` under ``ouster_ros`` namespace contrary to the pcl
+  version ``pcl::PointXYZI`` for bandwith sensitive applications.
+* [BUGFIX]: Use the node clock to ensure messages report sim time in replay mode.
+* Introduce a new param ``v_reduction`` that allows reducing the number of beams count of the published
+  point cloud
+* Allow users to use ``Zenoh`` with the supplied Dockerfile and add it to the CI pipeline.
+* Introduce a new capability to suppress certain range measurements of the point cloud by providing
+  a mask image to the driver through the ``mask_path`` launch file argument.
+* [BUGFIX]: Correct the computation of ``pointcloud.is_dense`` flag.
+* [BUGFIX]: Drop whole archive linkage which is causing double free corruption.
+
 
 0.13.15 (2025-10-24)
 --------------------

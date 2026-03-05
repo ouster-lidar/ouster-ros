@@ -2,6 +2,10 @@
 Changelog for package ouster_sensor_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.14.1 (2026-03-05)
+-------------------
+* N/A
+
 0.13.15 (2025-10-24)
 --------------------
 * SW-6906: publish sensor telemetry in ouster ros (#422)

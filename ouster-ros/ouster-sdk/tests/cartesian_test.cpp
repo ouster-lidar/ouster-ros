@@ -1,0 +1,218 @@
+/**
+ * Copyright (c) 2021, Ouster, Inc.
+ * All rights reserved.
+ */
+
+#include "ouster/cartesian.h"
+
+#include <gtest/gtest.h>
+
+#include <Eigen/Core>
+#include <cstdlib>
+#include <iomanip>
+#include <numeric>
+#include <random>
+
+#include "ouster/lidar_scan.h"
+#include "ouster/typedefs.h"
+#include "ouster/xyzlut.h"
+#include "util.h"
+
+using ouster::sdk::core::cartesianT;
+using ouster::sdk::core::img_t;
+using ouster::sdk::core::XYZLut;
+
+using ouster::sdk::core::ArrayX3dR;
+using ouster::sdk::core::ArrayX3fR;
+using ouster::sdk::core::PointCloudXYZd;
+using ouster::sdk::core::PointCloudXYZf;
+
+// Same as ouster::cartesian but uses single float precision
+PointCloudXYZf cartesian_f(const Eigen::Ref<const img_t<uint32_t>>& range,
+                           const ArrayX3fR& direction,
+                           const ArrayX3fR& offset) {
+    if (range.cols() * range.rows() != direction.rows())
+        throw std::invalid_argument("unexpected image dimensions");
+    auto reshaped = Eigen::Map<const Eigen::ArrayX<uint32_t>>(
+        range.data(), range.cols() * range.rows());
+    auto nooffset = direction.colwise() * reshaped.cast<float>();
+    return (nooffset == 0.0).select(nooffset, nooffset + offset).matrix();
+}
+
+class CartesianParameterizedTestFixture
+    : public ::testing::TestWithParam<std::pair<int, int>> {
+   protected:
+    int scan_width;
+    int scan_height;
+};
+
+INSTANTIATE_TEST_CASE_P(CartesianParametrisedTests,
+                        CartesianParameterizedTestFixture,
+                        ::testing::Values(std::pair<int, int>{512, 128},
+                                          std::pair<int, int>{1024, 128},
+                                          std::pair<int, int>{2048, 128},
+                                          std::pair<int, int>{4096, 128}));
+
+TEST(CartesianParameterizedTestFixture, CartesianFunctionsMatch) {
+    const auto WIDTH = 256;
+    const auto HEIGHT = 32;
+    const auto ROWS = WIDTH * HEIGHT;
+    const auto COLS = 3;
+
+    ArrayX3dR direction = 0.5 * ArrayX3dR::Random(ROWS, COLS) +
+                          ArrayX3dR::Constant(ROWS, COLS, 1.0);
+    ArrayX3dR offset = 0.005 * (ArrayX3dR::Random(ROWS, COLS) +
+                                ArrayX3dR::Constant(ROWS, COLS, 1.0));
+    XYZLut lut;
+    lut.direction = direction;
+    lut.offset = offset;
+
+    img_t<uint32_t> range = img_t<uint32_t>::Random(WIDTH, HEIGHT);
+
+    auto points0 = cartesian(range, lut);
+
+    PointCloudXYZd points = PointCloudXYZd::Zero(ROWS, COLS);
+
+    cartesianT(points, range, direction, offset);
+    EXPECT_TRUE(points.isApprox(points0));
+}
+
+TEST(CartesianParameterizedTestFixture, CartesianFunctionsMatchF) {
+    const auto WIDTH = 256;
+    const auto HEIGHT = 32;
+    const auto ROWS = WIDTH * HEIGHT;
+    const auto COLS = 3;
+
+    ArrayX3dR direction = 0.5 * ArrayX3dR::Random(ROWS, COLS) +
+                          ArrayX3dR::Constant(ROWS, COLS, 1.0);
+    ArrayX3dR offset = 0.005 * (ArrayX3dR::Random(ROWS, COLS) +
+                                ArrayX3dR::Constant(ROWS, COLS, 1.0));
+    XYZLut lut;
+    lut.direction = direction;
+    lut.offset = offset;
+
+    ArrayX3fR directionF = direction.cast<float>();
+    ArrayX3fR offsetF = offset.cast<float>();
+
+    img_t<uint32_t> range = img_t<uint32_t>::Random(WIDTH, HEIGHT);
+
+    auto points0 = cartesian(range, lut);
+    auto points0F = points0.cast<float>();
+
+    PointCloudXYZf pointsF = PointCloudXYZf::Zero(ROWS, COLS);
+
+    cartesianT(pointsF, range, directionF, offsetF);
+    EXPECT_TRUE(pointsF.isApprox(points0F));
+}
+
+TEST_P(CartesianParameterizedTestFixture, SpeedCheck) {
+    std::map<std::string, std::string> styles = term_styles();
+
+    const auto test_params = GetParam();
+    const auto WIDTH = test_params.first;
+    const auto HEIGHT = test_params.second;
+    const auto ROWS = WIDTH * HEIGHT;
+    const auto COLS = 3;
+    std::cout << styles["yellow"] << styles["bold"]
+              << "CHECKING PERFORMANCE FOR LIDAR MODE: [" << WIDTH << "x"
+              << HEIGHT << "]" << styles["reset"] << std::endl;
+
+    ArrayX3dR direction = 0.5 * ArrayX3dR::Random(ROWS, COLS) +
+                          ArrayX3dR::Constant(ROWS, COLS, 1.0);
+    ArrayX3dR offset = 0.005 * (ArrayX3dR::Random(ROWS, COLS) +
+                                ArrayX3dR::Constant(ROWS, COLS, 1.0));
+    XYZLut lut;
+    lut.direction = direction;
+    lut.offset = offset;
+
+    ArrayX3fR directionF = direction.cast<float>();
+    ArrayX3fR offsetF = offset.cast<float>();
+
+    // create an empty arrays of points
+    PointCloudXYZd points = PointCloudXYZd(ROWS, COLS);
+    PointCloudXYZf pointsF = PointCloudXYZf(ROWS, COLS);
+    img_t<uint32_t> range = img_t<uint32_t>(WIDTH, HEIGHT);
+
+    // By default run the shortest possible test unless OUSTER_PERFORMANCE is
+    // set
+    int N_SCANS = enable_performance_tests() ? 100 : 1;
+
+    constexpr int MOVING_AVG_WINDOW = 30;
+    using MovingAverage64 = MovingAverage<int64_t, int64_t, MOVING_AVG_WINDOW>;
+    static std::map<std::string, MovingAverage64> mv;
+
+    Timer t;
+    std::stringstream ss;
+    int output_ctr = 0;
+
+    using CartesianMethod = std::function<void(const img_t<uint32_t>& range)>;
+    std::vector<std::pair<std::string, CartesianMethod>> all_cartesians;
+
+    all_cartesians.emplace_back("c0", [&](const img_t<uint32_t>& range) {
+        points = cartesian(range, lut);
+    });
+
+    all_cartesians.emplace_back("c0f", [&](const img_t<uint32_t>& range) {
+        pointsF = cartesian_f(range, directionF, offsetF);
+    });
+
+    all_cartesians.emplace_back("cT", [&](const img_t<uint32_t>& range) {
+        cartesianT(points, range, direction, offset);
+    });
+
+    all_cartesians.emplace_back("cfT", [&](const img_t<uint32_t>& range) {
+        cartesianT(pointsF, range, directionF, offsetF);
+    });
+
+    std::default_random_engine g;
+    std::uniform_real_distribution<double> d(0.0, 1.0);
+    std::vector<int> ids(all_cartesians.size());
+    std::iota(std::begin(ids), std::end(ids), 0);
+
+    for (auto i = 0; i < N_SCANS; ++i) {
+        auto p = std::ceil(10 * float(i) / float(N_SCANS)) / 10;
+        auto unary_expr = [&g, &d, p](auto) {
+            return d(g) >= p ? 0U : static_cast<uint32_t>(d(g) * 10000);
+        };
+
+        auto valid_returns = (range != 0).count();
+        auto percentage_valid =
+            int(roundf(float(valid_returns) / float(range.size()) * 100));
+
+        std::shuffle(std::begin(ids), std::end(ids), g);
+        for (auto i : ids) {
+            const auto& method = all_cartesians[i];
+            range = range.unaryExpr(unary_expr);
+            t.start();
+            method.second(range);
+            t.stop();
+            mv[method.first](t.elapsed_microseconds());
+        }
+
+        if (++output_ctr % MOVING_AVG_WINDOW == 0) {
+            ss.str("");
+            ss << styles["bold"] << "returns: " << styles["reset"]
+               << styles["magenta"] << std::setw(3) << percentage_valid << "%, "
+               << styles["reset"];
+            ss << styles["bold"] << "c0[time]: " << styles["reset"]
+               << styles["cyan"] << std::setw(4) << mv["c0"] << "μs, "
+               << styles["reset"];
+
+            auto best_time = std::min_element(
+                mv.begin(), mv.end(), [](const auto& a, const auto& b) -> bool {
+                    return a.second < b.second;
+                });
+
+            for (const auto& x : mv) {
+                auto speedup = lround(100.0f * mv["c0"] / x.second);
+                auto color_modifier =
+                    x.first == best_time->first
+                        ? styles["blue"]
+                        : (speedup >= 100 ? styles["green"] : styles["red"]);
+                ss << styles["bold"] << x.first << ": " << color_modifier
+                   << std::setw(4) << speedup << "%, " << styles["reset"];
+            }
+            std::cout << ss.str() << std::endl;
+        }
+    }
+}
