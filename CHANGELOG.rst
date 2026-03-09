@@ -2,6 +2,9 @@
 Changelog
 =========
 
+[UNRELEASED]
+============
+* [BUGFIX]: Add the missing ament_cmake_gtest to the dependencies.
 
 ouster_ros v0.14.0
 ==================
