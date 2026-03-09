@@ -12,6 +12,7 @@
 
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
+  <depend>class_loader</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>std_msgs</depend>
   <depend>ouster_sensor_msgs</depend>
