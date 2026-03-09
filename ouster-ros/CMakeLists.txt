@@ -68,14 +68,14 @@ add_library(ouster_ros_library SHARED
 )
 
 set(ouster_ros_library_deps
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  ouster_sensor_msgs
-  pcl_conversions
-  tf2
-  tf2_eigen
-  OpenCV
+  rclcpp::rclcpp
+  sensor_msgs::sensor_msgs
+  geometry_msgs::geometry_msgs
+  ouster_sensor_msgs::ouster_sensor_msgs
+  pcl_conversions::pcl_conversions
+  tf2::tf2
+  tf2_eigen::tf2_eigen
+  OpenCV::OpenCV
 )
 
 target_link_libraries(ouster_ros_library
