@@ -78,7 +78,7 @@ set(ouster_ros_library_deps
   OpenCV
 )
 
-ament_target_dependencies(ouster_ros_library
+target_link_libraries(ouster_ros_library
   ${ouster_ros_library_deps}
 )
 

@@ -36,6 +36,7 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>libjsoncpp</exec_depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>gtest</test_depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
