@@ -14,6 +14,7 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+#include <ouster/client.h>
 #include <string>
 #include <thread>
 #include <atomic>
