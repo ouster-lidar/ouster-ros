@@ -39,6 +39,7 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 set(_ouster_ros_INCLUDE_DIRS
   "include;"
   "ouster-sdk/ouster_sensor/include;"
+  "ouster-sdk/ouster_client/include;"
   "ouster-sdk/ouster_client/include/optional-lite;"
   "ouster-sdk/ouster_pcap/include")
 
