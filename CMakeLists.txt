@@ -101,7 +101,7 @@ endif()
 add_library(ouster_ros src/os_ros.cpp)
 target_link_libraries(ouster_ros
   PUBLIC ${catkin_LIBRARIES} ouster_build OusterSDK::ouster_sensor pcl_common
-  PRIVATE ${OUSTER_TARGET_LINKS}
+    -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive
 )
 
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
