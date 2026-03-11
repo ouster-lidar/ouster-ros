@@ -13,6 +13,10 @@ find_package(tf2_eigen REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenCV REQUIRED)
+# Use OpenCV libs varaible
+if (NOT OpenCV_LIBS)
+  set(OpenCV_LIBS ${OpenCV_LIBRARIES})
+endif()
 
 find_package(
   catkin REQUIRED
@@ -37,11 +41,12 @@ add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;"
-  "ouster-sdk/ouster_sensor/include;"
-  "ouster-sdk/ouster_client/include;"
-  "ouster-sdk/ouster_client/include/optional-lite;"
-  "ouster-sdk/ouster_pcap/include")
+  include
+  ouster-sdk/ouster_sensor/include
+  ouster-sdk/ouster_client/include
+  ouster-sdk/ouster_pcap/include
+  ouster-sdk/ouster_client/include/optional-lite
+)
 
 catkin_package(
   INCLUDE_DIRS
@@ -101,8 +106,14 @@ endif()
 
 add_library(ouster_ros src/os_ros.cpp)
 target_link_libraries(ouster_ros
-  PUBLIC ${catkin_LIBRARIES} ouster_build OusterSDK::ouster_sensor pcl_common
-  PRIVATE -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive # in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE:ouster_client> (min cmake 3.24)
+  PUBLIC
+    pcl_common
+    ouster_build
+    OusterSDK::ouster_sensor
+    ${catkin_LIBRARIES}
+  PRIVATE
+    -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive # in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE:ouster_client> (min cmake 3.24)
+    ${OpenCV_LIBS}
 )
 
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
@@ -112,8 +123,6 @@ add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
 target_link_libraries(
   ${PROJECT_NAME}_nodelets
   ouster_ros
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
 )
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 

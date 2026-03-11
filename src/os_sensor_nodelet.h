@@ -14,11 +14,12 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <ouster/client.h>
 #include <string>
 #include <thread>
 #include <atomic>
 #include <optional>
+
+#include <ouster/client.h>
 
 #include "ouster_ros/GetConfig.h"
 #include "ouster_ros/SetConfig.h"
