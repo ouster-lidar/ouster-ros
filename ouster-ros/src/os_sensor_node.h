@@ -19,6 +19,8 @@
 #include <atomic>
 #include <optional>
 
+#include <ouster/client.h>
+
 #include <std_srvs/srv/empty.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/srv/get_config.hpp"

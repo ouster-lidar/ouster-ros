@@ -15,11 +15,16 @@
 // clang-format on
 
 #include <pcl_conversions/pcl_conversions.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include "lock_free_ring_buffer.h"
 #include <optional>
-#include <thread>
 #include <chrono>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <vector>
+#include <string>
 
 namespace {
 
