@@ -105,6 +105,17 @@ if (BUILD_PCAP)
 endif()
 
 add_library(ouster_ros src/os_ros.cpp)
+
+# in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE,${OUSTER_TARGET_LINKS}> (min cmake 3.24) 
+if (APPLE)
+  set(WHOLE_ARCHIVE_LINK -Wl,-force-load,$<TARGET_FILE:ouster_client>)
+  if (BUILD_PCAP)
+    list(APPEND WHOLE_ARCHIVE_LINK -Wl,-force-load,$<TARGET_FILE:ouster_pcap>)
+  endif()
+else()
+  set(WHOLE_ARCHIVE_LINK -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
+endif()
+
 target_link_libraries(ouster_ros
   PUBLIC
     pcl_common
@@ -112,7 +123,7 @@ target_link_libraries(ouster_ros
     OusterSDK::ouster_sensor
     ${catkin_LIBRARIES}
   PRIVATE
-    -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive # in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE:ouster_client> (min cmake 3.24)
+    ${WHOLE_ARCHIVE_LINK}
     ${OpenCV_LIBS}
 )
 
