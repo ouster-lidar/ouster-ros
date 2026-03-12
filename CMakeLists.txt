@@ -13,6 +13,10 @@ find_package(tf2_eigen REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenCV REQUIRED)
+# Use OpenCV libs varaible
+if (NOT OpenCV_LIBS)
+  set(OpenCV_LIBS ${OpenCV_LIBRARIES})
+endif()
 
 find_package(
   catkin REQUIRED
@@ -37,11 +41,12 @@ add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
 set(_ouster_ros_INCLUDE_DIRS
-  "include;"
-  "ouster-sdk/ouster_sensor/include;"
-  "ouster-sdk/ouster_client/include;"
-  "ouster-sdk/ouster_client/include/optional-lite;"
-  "ouster-sdk/ouster_pcap/include")
+  include
+  ouster-sdk/ouster_sensor/include
+  ouster-sdk/ouster_client/include
+  ouster-sdk/ouster_pcap/include
+  ouster-sdk/ouster_client/include/optional-lite
+)
 
 catkin_package(
   INCLUDE_DIRS
@@ -81,7 +86,7 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS})
 
 # use only MPL-licensed parts of eigen
-add_definitions(-DEIGEN_MPL2_ONLY)
+add_compile_definitions(EIGEN_MPL2_ONLY)
 
 set(NODELET_SRC
   src/os_sensor_nodelet_base.cpp
@@ -100,9 +105,26 @@ if (BUILD_PCAP)
 endif()
 
 add_library(ouster_ros src/os_ros.cpp)
+
+# in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE,${OUSTER_TARGET_LINKS}> (min cmake 3.24) 
+if (APPLE)
+  set(WHOLE_ARCHIVE_LINK -Wl,-force_load,$<TARGET_FILE:ouster_client>)
+  if (BUILD_PCAP)
+    list(APPEND WHOLE_ARCHIVE_LINK -Wl,-force_load,$<TARGET_FILE:ouster_pcap>)
+  endif()
+else()
+  set(WHOLE_ARCHIVE_LINK -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
+endif()
+
 target_link_libraries(ouster_ros
-  PUBLIC ${catkin_LIBRARIES} ouster_build OusterSDK::ouster_sensor pcl_common
-  PRIVATE ${OUSTER_TARGET_LINKS}
+  PUBLIC
+    pcl_common
+    ouster_build
+    OusterSDK::ouster_sensor
+    ${catkin_LIBRARIES}
+  PRIVATE
+    ${WHOLE_ARCHIVE_LINK}
+    ${OpenCV_LIBS}
 )
 
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
@@ -112,9 +134,8 @@ add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
 target_link_libraries(
   ${PROJECT_NAME}_nodelets
   ouster_ros
-  ${OUSTER_TARGET_LINKS}  # Add this to ensure ouster_client is linked
+  ${OpenCV_LIBS}
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
 )
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
@@ -128,8 +149,11 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_transform_test.cpp
     tests/point_cloud_compose_test.cpp
   )
-  target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES}
-    ouster_build pcl_common ${OUSTER_TARGET_LINKS})
+  target_link_libraries(${PROJECT_NAME}_test
+    ouster_ros
+    ${catkin_LIBRARIES}
+    ouster_build
+    pcl_common)
 endif()
 
 # ==== Install ====

@@ -2,6 +2,11 @@
 Changelog
 =========
 
+[UNRELEASED]
+============
+* Restore ``whole-archive`` only on ouster_ros library to avoid double free corruption issue.
+  - The ``ouster_client`` library is now linked normally without whole-archive.
+* Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 
 ouster_ros v0.14.0
 ==================
