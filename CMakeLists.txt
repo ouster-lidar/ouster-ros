@@ -135,6 +135,7 @@ target_link_libraries(
   ${PROJECT_NAME}_nodelets
   ouster_ros
   ${OpenCV_LIBS}
+  ${catkin_LIBRARIES}
 )
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
