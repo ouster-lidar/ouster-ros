@@ -108,9 +108,9 @@ add_library(ouster_ros src/os_ros.cpp)
 
 # in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE,${OUSTER_TARGET_LINKS}> (min cmake 3.24) 
 if (APPLE)
-  set(WHOLE_ARCHIVE_LINK -Wl,-force-load,$<TARGET_FILE:ouster_client>)
+  set(WHOLE_ARCHIVE_LINK -Wl,-force_load,$<TARGET_FILE:ouster_client>)
   if (BUILD_PCAP)
-    list(APPEND WHOLE_ARCHIVE_LINK -Wl,-force-load,$<TARGET_FILE:ouster_pcap>)
+    list(APPEND WHOLE_ARCHIVE_LINK -Wl,-force_load,$<TARGET_FILE:ouster_pcap>)
   endif()
 else()
   set(WHOLE_ARCHIVE_LINK -Wl,--whole-archive ${OUSTER_TARGET_LINKS} -Wl,--no-whole-archive)
@@ -134,6 +134,7 @@ add_library(${PROJECT_NAME}_nodelets ${NODELET_SRC})
 target_link_libraries(
   ${PROJECT_NAME}_nodelets
   ouster_ros
+  ${OpenCV_LIBS}
 )
 add_dependencies(${PROJECT_NAME}_nodelets ${PROJECT_NAME}_gencpp)
 
