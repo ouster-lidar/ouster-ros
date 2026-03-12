@@ -78,7 +78,7 @@ struct Point_LEGACY : public _Point_LEGACY {
       flags = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, signal, near_ir, reflectivity, flags);
     }
 
@@ -174,7 +174,7 @@ struct Point_RNG19_RFL8_SIG16_NIR16_DUAL : public _Point_RNG19_RFL8_SIG16_NIR16_
       flags = 0; window = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, signal, reflectivity, near_ir, flags, window);
     }
 
@@ -254,7 +254,7 @@ struct Point_RNG19_RFL8_SIG16_NIR16 : public _Point_RNG19_RFL8_SIG16_NIR16 {
       flags = 0; window = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, signal, reflectivity, flags, near_ir, window);
     }
 
@@ -330,7 +330,7 @@ struct Point_RNG15_RFL8_NIR8 : public _Point_RNG15_RFL8_NIR8 {
       flags = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, reflectivity, near_ir, flags);
     }
 
@@ -430,7 +430,7 @@ struct Point_RNG15_RFL8_NIR8_DUAL : public _Point_RNG15_RFL8_NIR8_DUAL {
       window = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, reflectivity, near_ir, flags, window);
     }
 
@@ -520,7 +520,7 @@ struct Point_RNG15_RFL8_WIN8 : public _Point_RNG15_RFL8_WIN8 {
       flags = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, reflectivity, window, flags);
     }
 
@@ -598,7 +598,7 @@ struct Point_RNG15_RFL8_NIR8_ZONE16 : public _Point_RNG15_RFL8_NIR8_ZONE16 {
       zone_mask = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, reflectivity, near_ir, zone_mask);
     }
 
@@ -679,7 +679,7 @@ struct Point_RNG19_RFL8_SIG16_NIR16_ZONE16 : public _Point_RNG19_RFL8_SIG16_NIR1
       zone_mask = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, t, ring, range, signal, reflectivity, flags, near_ir, zone_mask);
     }
 
