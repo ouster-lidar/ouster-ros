@@ -4,7 +4,8 @@ Changelog
 
 [UNRELEASED]
 ============
-* [BUGFIX]: Add the missing ament_cmake_gtest to the dependencies.
+* [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
+* Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 
 ouster_ros v0.14.0
 ==================

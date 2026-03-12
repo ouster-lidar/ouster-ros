@@ -40,8 +40,9 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 set(_ouster_ros_INCLUDE_DIRS
   include
   ouster-sdk/ouster_sensor/include
-  ouster-sdk/ouster_client/include/optional-lite
+  ouster-sdk/ouster_client/include
   ouster-sdk/ouster_pcap/include
+  ouster-sdk/ouster_client/include/optional-lite
 )
 
 # ==== Libraries ====
@@ -62,7 +63,7 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS})
 
 # use only MPL-licensed parts of eigen
-add_definitions(-DEIGEN_MPL2_ONLY)
+add_compile_definitions(EIGEN_MPL2_ONLY)
 
 set(OUSTER_TARGET_LINKS ouster_client)
 if (BUILD_PCAP)
