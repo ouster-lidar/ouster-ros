@@ -691,7 +691,7 @@ bool OusterSensor::configure_sensor(const std::string& hostname,
 
 void OusterSensor::populate_metadata_defaults(
     SensorInfo& info, LidarMode specified_lidar_mode) {
-    ouster::sdk::core::Version v = ouster::sdk::core::version_from_string(info.fw_rev);
+    ouster::sdk::core::Version v = ouster::sdk::core::version_from_string(info.image_rev);
     if (v == ouster::sdk::core::INVALID_VERSION)
         NODELET_WARN(
             "Unknown sensor firmware version; output may not be reliable");
