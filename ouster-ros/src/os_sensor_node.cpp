@@ -835,7 +835,7 @@ bool OusterSensor::configure_sensor(
 // fill in values that could not be parsed from metadata
 void OusterSensor::populate_metadata_defaults(
     SensorInfo& info, LidarMode specified_lidar_mode) {
-    ouster::sdk::core::Version v = ouster::sdk::core::version_from_string(info.fw_rev);
+    ouster::sdk::core::Version v = ouster::sdk::core::version_from_string(info.image_rev);
     if (v == ouster::sdk::core::INVALID_VERSION)
         RCLCPP_WARN(
             get_logger(),
