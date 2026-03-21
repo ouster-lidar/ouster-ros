@@ -109,6 +109,9 @@ class OusterSensor : public OusterSensorNodeBase {
     void parse_lidar_frame_azimuth_offset(ouster::sdk::core::SensorConfig& config);
     void parse_bloom_reduction_optimization(ouster::sdk::core::SensorConfig& config);
     void parse_return_order(ouster::sdk::core::SensorConfig& config);
+    void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_frequency(ouster::sdk::core::SensorConfig& config);
     void parse_persist_config_flag();
 
     uint8_t compose_config_flags(const ouster::sdk::core::SensorConfig& config);

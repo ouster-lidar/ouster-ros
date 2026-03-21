@@ -103,6 +103,9 @@ void OusterSensor::declare_parameters() {
     declare_parameter("lidar_frame_azimuth_offset", -1);
     declare_parameter("return_order", "");
     declare_parameter("bloom_reduction_optimization", "");
+    declare_parameter("multipurpose_io_mode", "");
+    declare_parameter("sync_pulse_out_polarity", "");
+    declare_parameter("sync_pulse_out_frequency", 0);
 }
 
 bool OusterSensor::start() {
@@ -736,6 +739,48 @@ void OusterSensor::parse_bloom_reduction_optimization(SensorConfig& config) {
     config.bloom_reduction_optimization = bloom_reduction.value();
 }
 
+void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
+    auto multipurpose_io_mode_arg =
+        get_parameter("multipurpose_io_mode").as_string();
+    if (!is_arg_set(multipurpose_io_mode_arg)) {
+        return;
+    }
+
+    config.multipurpose_io_mode =
+        ouster::sdk::core::multipurpose_io_mode_of_string(multipurpose_io_mode_arg);
+    if (!config.multipurpose_io_mode) {
+        auto error_msg =
+            "Invalid multipurpose_io_mode: " + multipurpose_io_mode_arg;
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+}
+
+void OusterSensor::parse_sync_pulse_out_polarity(SensorConfig& config) {
+    auto sync_pulse_out_polarity_arg =
+        get_parameter("sync_pulse_out_polarity").as_string();
+    if (!is_arg_set(sync_pulse_out_polarity_arg)) {
+        return;
+    }
+
+    config.sync_pulse_out_polarity =
+        ouster::sdk::core::polarity_of_string(sync_pulse_out_polarity_arg);
+    if (!config.sync_pulse_out_polarity) {
+        auto error_msg =
+            "Invalid sync_pulse_out_polarity: " + sync_pulse_out_polarity_arg;
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+}
+
+void OusterSensor::parse_sync_pulse_out_frequency(SensorConfig& config) {
+    auto sync_pulse_out_frequency =
+        get_parameter("sync_pulse_out_frequency").as_int();
+    if (sync_pulse_out_frequency > 0) {
+        config.sync_pulse_out_frequency = sync_pulse_out_frequency;
+    }
+}
+
 void OusterSensor::parse_persist_config_flag() {
     auto lidar_port = get_parameter("lidar_port").as_int();
     auto imu_port = get_parameter("imu_port").as_int();
@@ -761,6 +806,9 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_lidar_frame_azimuth_offset(config);
     parse_return_order(config);
     parse_bloom_reduction_optimization(config);
+    parse_multipurpose_io_mode(config);
+    parse_sync_pulse_out_polarity(config);
+    parse_sync_pulse_out_frequency(config);
     parse_persist_config_flag();
     return config;
 }
