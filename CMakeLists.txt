@@ -36,7 +36,7 @@ add_compile_options(-Wall -Wextra)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 
 # ==== Catkin ====
-add_message_files(FILES PacketMsg.msg Telemetry.msg)
+add_message_files(FILES PacketMsg.msg Telemetry.msg ChannelField.msg LidarScan.msg LidarInfo.msg)
 add_service_files(FILES GetConfig.srv SetConfig.srv GetMetadata.srv)
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 
@@ -104,7 +104,7 @@ if (BUILD_PCAP)
   list(APPEND NODELET_SRC src/os_pcap_nodelet.cpp)
 endif()
 
-add_library(ouster_ros src/os_ros.cpp)
+add_library(ouster_ros src/os_ros.cpp src/lidar_scan_to_point_cloud.cpp)
 
 # in future replace with $<LINK_LIBRARY:WHOLE_ARCHIVE,${OUSTER_TARGET_LINKS}> (min cmake 3.24) 
 if (APPLE)
@@ -148,6 +148,7 @@ if(CATKIN_ENABLE_TESTING)
     tests/point_accessor_test.cpp
     tests/point_transform_test.cpp
     tests/point_cloud_compose_test.cpp
+    tests/lidar_scan_to_point_cloud_test.cpp
   )
   target_link_libraries(${PROJECT_NAME}_test
     ouster_ros
