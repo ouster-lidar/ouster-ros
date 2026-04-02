@@ -13,7 +13,6 @@
 // clang-format on
 
 #include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/point_cloud2_iterator.h>
 
 #include <Eigen/Core>
 #include <cmath>
@@ -219,7 +218,6 @@ void lidarScanToPointCloud(
 
     const uint32_t h = scan.height;
     const uint32_t w = scan.width;
-    const size_t n = static_cast<size_t>(h) * static_cast<size_t>(w);
 
     if (h == 0 || w == 0) {
         throw std::invalid_argument("LidarScan dimensions must be > 0");
@@ -261,39 +259,38 @@ void lidarScanToPointCloud(
     cloud_msg.is_bigendian = false;
     cloud_msg.is_dense = false;
 
-    // Define the point fields
-    sensor_msgs::PointCloud2Modifier modifier(cloud_msg);
-    modifier.setPointCloud2Fields(
-        7,
-        "x", 1, sensor_msgs::PointField::FLOAT32,
-        "y", 1, sensor_msgs::PointField::FLOAT32,
-        "z", 1, sensor_msgs::PointField::FLOAT32,
-        "range", 1, sensor_msgs::PointField::UINT32,
-        "signal", 1, sensor_msgs::PointField::UINT16,
-        "reflectivity", 1, sensor_msgs::PointField::UINT16,
-        "near_ir", 1, sensor_msgs::PointField::UINT16);
+    // Define point fields manually to have full control over layout.
+    // Layout (28 bytes per point):
+    //   x:            float32  offset  0
+    //   y:            float32  offset  4
+    //   z:            float32  offset  8
+    //   range:        uint32   offset 12
+    //   signal:       uint16   offset 16
+    //   reflectivity: uint16   offset 18
+    //   near_ir:      uint16   offset 20
+    //   t:            uint32   offset 22
+    //   ring:         uint16   offset 26
+    // Total: 28 bytes
+    cloud_msg.fields.clear();
+    auto addField = [&](const std::string& name, uint32_t off, uint8_t dt) {
+        sensor_msgs::PointField f;
+        f.name = name;
+        f.offset = off;
+        f.datatype = dt;
+        f.count = 1;
+        cloud_msg.fields.push_back(f);
+    };
+    addField("x",            0,  sensor_msgs::PointField::FLOAT32);
+    addField("y",            4,  sensor_msgs::PointField::FLOAT32);
+    addField("z",            8,  sensor_msgs::PointField::FLOAT32);
+    addField("range",       12,  sensor_msgs::PointField::UINT32);
+    addField("signal",      16,  sensor_msgs::PointField::UINT16);
+    addField("reflectivity",18,  sensor_msgs::PointField::UINT16);
+    addField("near_ir",     20,  sensor_msgs::PointField::UINT16);
+    addField("t",           22,  sensor_msgs::PointField::UINT32);
+    addField("ring",        26,  sensor_msgs::PointField::UINT16);
 
-    // Add t (uint32) and ring (uint16) fields manually since
-    // PointCloud2Modifier's setPointCloud2Fields only supports a fixed set.
-    {
-        sensor_msgs::PointField t_field;
-        t_field.name = "t";
-        t_field.offset = cloud_msg.point_step;
-        t_field.datatype = sensor_msgs::PointField::UINT32;
-        t_field.count = 1;
-        cloud_msg.fields.push_back(t_field);
-        cloud_msg.point_step += 4;
-
-        sensor_msgs::PointField ring_field;
-        ring_field.name = "ring";
-        ring_field.offset = cloud_msg.point_step;
-        ring_field.datatype = sensor_msgs::PointField::UINT16;
-        ring_field.count = 1;
-        cloud_msg.fields.push_back(ring_field);
-        cloud_msg.point_step += 2;
-    }
-
-    // Resize data buffer
+    cloud_msg.point_step = 28;
     cloud_msg.row_step = cloud_msg.point_step * w;
     cloud_msg.data.resize(static_cast<size_t>(cloud_msg.row_step) * h, 0);
 
@@ -318,11 +315,17 @@ void lidarScanToPointCloud(
             const size_t tgt_idx = static_cast<size_t>(row) * w + col;
 
             // Source index accounts for destaggering
-            const uint32_t src_col = destagger
-                ? static_cast<uint32_t>(
-                      (static_cast<int>(col) + static_cast<int>(w) - pixel_shift[row])
-                          % static_cast<int>(w))
-                : col;
+            uint32_t src_col;
+            if (destagger) {
+                // Ensure positive modulo by adding w multiple times if needed.
+                // pixel_shift values are typically in [0, w) but may be negative.
+                int shifted = ((static_cast<int>(col) - pixel_shift[row])
+                               % static_cast<int>(w));
+                if (shifted < 0) shifted += static_cast<int>(w);
+                src_col = static_cast<uint32_t>(shifted);
+            } else {
+                src_col = col;
+            }
             const size_t src_idx = static_cast<size_t>(row) * w + src_col;
 
             // Read the range value
