@@ -62,6 +62,16 @@ class OusterDriver : public OusterSensor {
         }
     }
 
+    static rclcpp::PublisherOptions qos_overridable_publisher_options() {
+        rclcpp::PublisherOptions pub_opts;
+        pub_opts.qos_overriding_options = rclcpp::QosOverridingOptions{
+            {rclcpp::QosPolicyKind::Depth,
+             rclcpp::QosPolicyKind::Durability,
+             rclcpp::QosPolicyKind::History,
+             rclcpp::QosPolicyKind::Reliability}};
+        return pub_opts;
+    }
+
     virtual void create_publishers() override {
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = impl::parse_tokens(proc_mask, '|');
@@ -73,13 +83,15 @@ class OusterDriver : public OusterSensor {
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
 
+        auto pub_opts = qos_overridable_publisher_options();
+
         auto timestamp_mode = get_parameter("timestamp_mode").as_string();
         auto ptp_utc_tai_offset =
             get_parameter("ptp_utc_tai_offset").as_double();
 
         if (impl::check_token(tokens, "IMU")) {
             imu_pub =
-                create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos);
+                create_publisher<sensor_msgs::msg::Imu>("imu", selected_qos, pub_opts);
             imu_packet_handler = ImuPacketHandler::create(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
@@ -100,7 +112,7 @@ class OusterDriver : public OusterSensor {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                    topic_for_return("points", i), selected_qos);
+                    topic_for_return("points", i), selected_qos, pub_opts);
             }
 
             auto point_type = get_parameter("point_type").as_string();
@@ -156,7 +168,7 @@ class OusterDriver : public OusterSensor {
             scan_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 scan_pubs[i] = create_publisher<sensor_msgs::msg::LaserScan>(
-                    topic_for_return("scan", i), selected_qos);
+                    topic_for_return("scan", i), selected_qos, pub_opts);
             }
 
             // TODO: avoid duplication in os_cloud_node
@@ -204,7 +216,8 @@ class OusterDriver : public OusterSensor {
             for (auto it = which_map->begin(); it != which_map->end(); ++it) {
                 image_pubs[it->first] =
                     create_publisher<sensor_msgs::msg::Image>(it->second,
-                                                              selected_qos);
+                                                              selected_qos,
+                                                              pub_opts);
             }
 
             processors.push_back(ImageProcessor::create(
@@ -226,7 +239,8 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "TLM")) {
             telemetry_pub =
                 create_publisher<ouster_sensor_msgs::msg::Telemetry>("telemetry",
-                                                                     selected_qos);
+                                                                     selected_qos,
+                                                                     pub_opts);
             telemetry_handler = TelemetryHandler::create(
                 info, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
