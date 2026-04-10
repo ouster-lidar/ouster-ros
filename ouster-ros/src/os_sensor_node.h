@@ -105,7 +105,18 @@ class OusterSensor : public OusterSensorNodeBase {
     void parse_azimuth_window(ouster::sdk::core::SensorConfig& config);
     void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
     void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
+    void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_in_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_ignore_valid_char(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_baud_rate(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_leap_seconds(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_in_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_frequency(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_angle(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_pulse_width(ouster::sdk::core::SensorConfig& config);
     void parse_phase_lock_and_offset(ouster::sdk::core::SensorConfig& config);
+    void parse_min_distance(ouster::sdk::core::SensorConfig& config);
     void parse_lidar_frame_azimuth_offset(ouster::sdk::core::SensorConfig& config);
     void parse_bloom_reduction_optimization(ouster::sdk::core::SensorConfig& config);
     void parse_return_order(ouster::sdk::core::SensorConfig& config);
