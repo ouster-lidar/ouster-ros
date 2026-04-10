@@ -67,7 +67,7 @@
     }"/>
   <arg name="multipurpose_io_mode" default="OFF"
     description="multipurpose IO / time sync mode; possible values: {
-    OFF, 
+    OFF,
     INPUT_NMEA_UART,
     OUTPUT_FROM_INTERNAL_OSC,
     OUTPUT_FROM_SYNC_PULSE_IN,
