@@ -453,6 +453,108 @@ void OusterSensor::parse_udp_profile_imu_and_settings(SensorConfig& config) {
     }
 }
 
+void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto arg = nh.param("multipurpose_io_mode", std::string{});
+    if (!is_arg_set(arg)) return;
+
+    auto mode = ouster::sdk::core::multipurpose_io_mode_of_string(arg);
+    if (!mode) {
+        auto error_msg = "Invalid multipurpose io mode: " + arg;
+        NODELET_FATAL_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.multipurpose_io_mode = mode.value();
+}
+
+void OusterSensor::parse_nmea_in_polarity(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto arg = nh.param("nmea_in_polarity", std::string{});
+    if (!is_arg_set(arg)) return;
+
+    auto pol = ouster::sdk::core::polarity_of_string(arg);
+    if (!pol) {
+        auto error_msg = "Invalid nmea_in_polarity: " + arg;
+        NODELET_FATAL_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.nmea_in_polarity = pol.value();
+}
+
+void OusterSensor::parse_nmea_ignore_valid_char(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    config.nmea_ignore_valid_char = nh.param("nmea_ignore_valid_char", false);
+}
+
+void OusterSensor::parse_nmea_baud_rate(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto arg = nh.param("nmea_baud_rate", std::string{});
+    if (!is_arg_set(arg)) return;
+
+    auto rate = ouster::sdk::core::nmea_baud_rate_of_string(arg);
+    if (!rate) {
+        auto error_msg = "Invalid nmea_baud_rate: " + arg;
+        NODELET_FATAL_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.nmea_baud_rate = rate.value();
+}
+
+void OusterSensor::parse_nmea_leap_seconds(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto val = nh.param("nmea_leap_seconds", 0);
+    config.nmea_leap_seconds = val;
+}
+
+void OusterSensor::parse_sync_pulse_in_polarity(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto arg = nh.param("sync_pulse_in_polarity", std::string{});
+    if (!is_arg_set(arg)) return;
+
+    auto pol = ouster::sdk::core::polarity_of_string(arg);
+    if (!pol) {
+        auto error_msg = "Invalid sync_pulse_in_polarity: " + arg;
+        NODELET_FATAL_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.sync_pulse_in_polarity = pol.value();
+}
+
+void OusterSensor::parse_sync_pulse_out_polarity(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto arg = nh.param("sync_pulse_out_polarity", std::string{});
+    if (!is_arg_set(arg)) return;
+
+    auto pol = ouster::sdk::core::polarity_of_string(arg);
+    if (!pol) {
+        auto error_msg = "Invalid sync_pulse_out_polarity: " + arg;
+        NODELET_FATAL_STREAM(error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.sync_pulse_out_polarity = pol.value();
+}
+
+void OusterSensor::parse_sync_pulse_out_frequency(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto val = nh.param("sync_pulse_out_frequency", -1);
+    if (val < 0) return;
+    config.sync_pulse_out_frequency = val;
+}
+
+void OusterSensor::parse_sync_pulse_out_angle(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto val = nh.param("sync_pulse_out_angle", -1);
+    if (val < 0) return;
+    config.sync_pulse_out_angle = val;
+}
+
+void OusterSensor::parse_sync_pulse_out_pulse_width(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto val = nh.param("sync_pulse_out_pulse_width", -1);
+    if (val < 0) return;
+    config.sync_pulse_out_pulse_width = val;
+}
+
 void OusterSensor::parse_lidar_mode(SensorConfig& config) {
     auto& nh = getPrivateNodeHandle();
     auto lidar_mode_arg = nh.param("lidar_mode", std::string{});
@@ -552,6 +654,18 @@ void OusterSensor::parse_phase_lock_and_offset(SensorConfig& config) {
     config.phase_lock_offset = phase_lock_offset;
 }
 
+void OusterSensor::parse_min_distance(SensorConfig& config) {
+    auto& nh = getPrivateNodeHandle();
+    auto min_distance = nh.param("min_distance", -1);
+    if (min_distance < 0) return;
+    // Only allow exact values: 0, 30, or 50 (cm)
+    if (min_distance != 0 && min_distance != 30 && min_distance != 50) {
+        NODELET_FATAL("min_distance must be one of {0, 30, 50} cm");
+        throw std::runtime_error("invalid min_distance value!");
+    }
+    config.min_range_threshold_cm = min_distance;
+}
+
 void OusterSensor::parse_lidar_frame_azimuth_offset(SensorConfig& config) {
     auto& nh = getPrivateNodeHandle();
     auto azimuth_offset = nh.param("lidar_frame_azimuth_offset", -1);
@@ -614,7 +728,18 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_azimuth_window(config);
     parse_operating_mode(config);
     parse_signal_multiplier(config);
+    parse_multipurpose_io_mode(config);
+    parse_nmea_in_polarity(config);
+    parse_nmea_ignore_valid_char(config);
+    parse_nmea_baud_rate(config);
+    parse_nmea_leap_seconds(config);
+    parse_sync_pulse_in_polarity(config);
+    parse_sync_pulse_out_polarity(config);
+    parse_sync_pulse_out_frequency(config);
+    parse_sync_pulse_out_angle(config);
+    parse_sync_pulse_out_pulse_width(config);
     parse_phase_lock_and_offset(config);
+    parse_min_distance(config);
     parse_lidar_frame_azimuth_offset(config);
     parse_return_order(config);
     parse_bloom_reduction_optimization(config);

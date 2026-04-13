@@ -60,6 +60,66 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+
+  <arg name="multipurpose_io_mode" default="OFF"
+    doc="Configure the mode of the MULTIPURPOSE_IO pin; possible values: {
+    OFF,
+    INPUT_NMEA_UART,
+    OUTPUT_FROM_INTERNAL_OSC,
+    OUTPUT_FROM_SYNC_PULSE_IN,
+    OUTPUT_FROM_PTP_1588,
+    OUTPUT_FROM_ENCODER_ANGLE
+    }"/>
+ 
+  <arg name="nmea_in_polarity" default="ACTIVE_HIGH"
+    doc="Set the polarity of NMEA UART input $GPRMC messages.
+      Use ACTIVE_HIGH if UART is active high, idle low, and start bit is after a falling edge.
+      possible values: {
+        ACTIVE_HIGH,
+        ACTIVE_LOW
+    }"/>
+   
+  <arg name="nmea_ignore_valid_char" default="false"
+    doc="Set false if NMEA UART input $GPRMC messages should be ignored if valid character is not set,
+      and true if messages should be used for time syncing regardless of the valid character."/>
+
+  <arg name="nmea_baud_rate" default="BAUD_9600"
+    doc="Expected baud for NMEA UART $GPRMC; possible values: {
+        BAUD_9600,
+        BAUD_115200
+    }"/>
+  
+  <arg name="nmea_leap_seconds" default="0"
+    doc="Set an integer number of leap seconds that will be added to the UDP timestamp when calculating seconds since 00:00:00 Thursday, 1 January 1970.
+      For Unix Epoch time, this should be set to 0."/>
+  
+  <arg name="sync_pulse_in_polarity" default="ACTIVE_HIGH"
+    doc="The polarity of SYNC_PULSE_IN input, which controls polarity of SYNC_PULSE_IN pin when timestamp_mode is set in TIME_FROM_SYNC_PULSE_IN;
+      possible values: {
+        ACTIVE_HIGH,
+        ACTIVE_LOW
+    }"/>
+
+  <arg name="sync_pulse_out_polarity" default="ACTIVE_LOW"
+    doc="Polarity of SYNC_PULSE_OUT when this sensor is the time-sync master;
+      possible values: {
+        ACTIVE_HIGH,
+        ACTIVE_LOW
+    }"/>
+  
+  <arg name="sync_pulse_out_frequency" default="-1"
+    doc="The output SYNC_PULSE_OUT pulse rate in Hz. Valid inputs are integers >0 Hz,
+    but also limited by the criteria described in the Time Synchronization section of the Firmware User Manual."/>
+
+  <arg name="sync_pulse_out_angle" default="-1"
+    doc="The angle in terms of degrees that the sensor traverses between each SYNC_PULSE_OUT pulse. 
+      E.g. a value of 180 means a sync pulse is sent out every 180° for a total of two pulses per revolution and angular frequency of 20 Hz;
+      values range [0, 360], -1 is unset"/>
+
+  <arg name="sync_pulse_out_pulse_width" default="-1"
+    doc="The polarity of SYNC_PULSE_OUT output, if the sensor is set as the master sensor used for time synchronization.
+      Output SYNC_PULSE_OUT pulse width is in ms, increments in 1 ms. -1 is unset"/>
+
   <arg name="ptp_utc_tai_offset" default="-37.0"
     doc="UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588"/>
   <arg name="metadata" default=" " doc="path to write metadata file when receiving sensor data"/>
@@ -136,6 +196,13 @@
     NEAREST_TO_FARTHEST
     "/>
 
+  <!-- Only set this parameter when working with FW 3.1+ -->
+  <arg name="min_distance" default="-1"
+    doc="to change the sensor’s minimum reported range (cm);
+    available options (FW3.1+): {0, 30}
+    available options (FW3.2+): {0, 30, 50}"
+     />
+
   <!-- Only set this parameter when working with FW 3.2+ -->
   <arg name="bloom_reduction_optimization" default=" "
     doc="level of bloom reduction optimization to apply on the sensor (FW3.2+); possible values:
@@ -194,6 +261,16 @@
       <param name="~/accel_fsr" type="str" value="$(arg accel_fsr)"/>
       <param name="~/lidar_mode" type="str" value="$(arg lidar_mode)"/>
       <param name="~/timestamp_mode" type="str" value="$(arg timestamp_mode)"/>
+      <param name="~/multipurpose_io_mode" type="str" value="$(arg multipurpose_io_mode)"/>
+      <param name="~/nmea_in_polarity" type="str" value="$(arg nmea_in_polarity)"/>
+      <param name="~/nmea_ignore_valid_char" type="bool" value="$(arg nmea_ignore_valid_char)"/>
+      <param name="~/nmea_baud_rate" type="str" value="$(arg nmea_baud_rate)"/>
+      <param name="~/nmea_leap_seconds" type="int" value="$(arg nmea_leap_seconds)"/>
+      <param name="~/sync_pulse_in_polarity" type="str" value="$(arg sync_pulse_in_polarity)"/>
+      <param name="~/sync_pulse_out_polarity" type="str" value="$(arg sync_pulse_out_polarity)"/>
+      <param name="~/sync_pulse_out_frequency" type="int" value="$(arg sync_pulse_out_frequency)"/>
+      <param name="~/sync_pulse_out_angle" type="int" value="$(arg sync_pulse_out_angle)"/>
+      <param name="~/sync_pulse_out_pulse_width" type="int" value="$(arg sync_pulse_out_pulse_width)"/>
       <param name="~/ptp_utc_tai_offset" type="double"
         value="$(arg ptp_utc_tai_offset)"/>
       <param name="~/metadata" type="str" value="$(arg metadata)"/>
@@ -223,6 +300,7 @@
              value="$(arg max_failed_reconnect_attempts)"/>
       <param name="~/organized" value="$(arg organized)"/>
       <param name="~/destagger" value="$(arg destagger)"/>
+      <param name="~/min_distance" value="$(arg min_distance)"/>
       <param name="~/min_range" value="$(arg min_range)"/>
       <param name="~/max_range" value="$(arg max_range)"/>
       <param name="~/v_reduction" value="$(arg v_reduction)"/>

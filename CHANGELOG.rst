@@ -7,6 +7,13 @@ Changelog
 * Restore ``whole-archive`` only on ouster_ros library to avoid double free corruption issue.
   - The ``ouster_client`` library is now linked normally without whole-archive.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
+* Add launch file and nodelet support for additional sensor configuration parameters (time
+  synchronization, multipurpose IO, and minimum reported range on FW 3.1+):
+  - ``multipurpose_io_mode``
+  - ``nmea_in_polarity``, ``nmea_ignore_valid_char``, ``nmea_baud_rate``, ``nmea_leap_seconds``
+  - ``sync_pulse_in_polarity``, ``sync_pulse_out_polarity``, ``sync_pulse_out_frequency``,
+    ``sync_pulse_out_angle``, ``sync_pulse_out_pulse_width``
+  - ``min_distance`` (sensor field ``min_range_threshold_cm``)
 
 ouster_ros v0.14.0
 ==================
