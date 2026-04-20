@@ -23,6 +23,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <atomic>
 #include <vector>
 #include <string>
 
@@ -382,7 +383,7 @@ class LidarPacketHandler {
 
     LidarPacketAccumlator lidar_packet_accumlator;
 
-    bool lidar_scans_processing_active = true;
+    std::atomic<bool> lidar_scans_processing_active = true;
     std::unique_ptr<std::thread> lidar_scans_processing_thread;
     std::condition_variable ring_buffer_has_elements;
 

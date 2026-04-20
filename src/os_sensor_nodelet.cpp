@@ -56,7 +56,7 @@ bool OusterSensor::start() {
     } else {
         if (!get_active_config_no_throw(sensor_hostname, config)) return false;
 
-        NODELET_INFO("Retrived sensor active config");
+        NODELET_INFO("Retrieved sensor active config");
 
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
@@ -183,7 +183,7 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-    if (write_text_to_file(meta_file, cached_metadata)) {
+    if (impl::write_text_to_file(meta_file, cached_metadata)) {
         NODELET_INFO_STREAM("Wrote sensor metadata to " << meta_file);
     } else {
         NODELET_WARN_STREAM(
@@ -249,7 +249,7 @@ void OusterSensor::create_set_config_service() {
 
                     std::string config_str;
                     try {
-                        config_str = read_text_file(request.config_file);
+                        config_str = impl::read_text_file(request.config_file);
                         if (config_str.empty()) {
                             NODELET_ERROR_STREAM(
                                 "provided config file: "
@@ -302,7 +302,7 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
 
     std::shared_ptr<ouster::sdk::sensor::Client> cli;
     if (ouster::sdk::sensor::in_multicast(udp_dest)) {
-        // use the mtp_init_client to recieve data via multicast
+        // use the mtp_init_client to receive data via multicast
         // if mtp_main is true when sensor will be configured
             cli = ouster::sdk::sensor::mtp_init_client(hostname, config, mtp_dest, mtp_main);
     } else if (lidar_port != 0 && imu_port != 0) {
@@ -756,11 +756,11 @@ uint8_t OusterSensor::compose_config_flags(
         // TODO: revise multicast setup inference
         if (ouster::sdk::sensor::in_multicast(*config.udp_dest)) {
             if (is_arg_set(mtp_dest)) {
-                NODELET_INFO_STREAM("Will recieve data via multicast on "
+                NODELET_INFO_STREAM("Will receive data via multicast on "
                                     << mtp_dest);
             } else {
                 NODELET_INFO(
-                    "mtp_dest was not set, will recieve data via multicast "
+                    "mtp_dest was not set, will receive data via multicast "
                     "on first available interface");
             }
         }
@@ -795,7 +795,7 @@ bool OusterSensor::configure_sensor(const std::string& hostname,
             return false;
         }
 
-        NODELET_INFO("Retrived active config of sensor");
+        NODELET_INFO("Retrieved active config of sensor");
         return true;
     }
 
@@ -979,7 +979,7 @@ void OusterSensor::start_sensor_connection_thread() {
 
 void OusterSensor::stop_sensor_connection_thread() {
     NODELET_DEBUG("sensor_connection_thread stopping.");
-    if ((sensor_connection_thread != nullptr) &&
+    if (sensor_connection_thread != nullptr &&
         sensor_connection_thread->joinable()) {
         sensor_connection_active = false;
         sensor_connection_thread->join();
@@ -1003,7 +1003,7 @@ void OusterSensor::reset_sensor(bool /*force_reinit*/, bool /*init_id_reset*/) {
 
 void OusterSensor::reactivate_sensor(bool /*init_id_reset*/) {
     NODELET_WARN(
-        "sensor reactivate is invoked but sensor it is not implemented");
+        "sensor reactivate is invoked but it is not implemented");
 }
 
 }  // namespace ouster_ros

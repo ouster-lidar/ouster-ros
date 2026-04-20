@@ -11,8 +11,6 @@
 #include <ouster/impl/build.h>
 #include <std_msgs/String.h>
 
-#include <fstream>
-
 #include "ouster_ros/GetMetadata.h"
 
 using ouster::sdk::core::UDPProfileLidar;
@@ -59,25 +57,6 @@ void OusterSensorNodeletBase::display_lidar_info(
         << "lidar mode: " << ouster::sdk::core::to_string(lidar_mode) << ", "
         << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
         << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
-}
-
-std::string OusterSensorNodeletBase::read_text_file(
-    const std::string& text_file) {
-    std::ifstream ifs{};
-    ifs.open(text_file);
-    if (ifs.fail()) return {};
-    std::stringstream buf;
-    buf << ifs.rdbuf();
-    return buf.str();
-}
-
-bool OusterSensorNodeletBase::write_text_to_file(const std::string& file_path,
-                                                 const std::string& text) {
-    std::ofstream ofs(file_path);
-    if (!ofs.is_open()) return false;
-    ofs << text << std::endl;
-    ofs.close();
-    return true;
 }
 
 }  // namespace ouster_ros

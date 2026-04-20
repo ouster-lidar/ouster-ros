@@ -78,7 +78,7 @@ class OusterPcap : public OusterSensorNodeletBase {
 
     void load_metadata_from_file(const std::string& meta_file) {
         try {
-            cached_metadata = read_text_file(meta_file);
+            cached_metadata = impl::read_text_file(meta_file);
             info = ouster::sdk::core::SensorInfo(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
@@ -119,7 +119,8 @@ class OusterPcap : public OusterSensorNodeletBase {
 
     void stop_packet_read_thread() {
         NODELET_DEBUG("packet_read_thread stopping.");
-        if (packet_read_thread->joinable()) {
+        if (packet_read_thread != nullptr &&
+            packet_read_thread->joinable()) {
             packet_read_active = false;
             packet_read_thread->join();
         }
