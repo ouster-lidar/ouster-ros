@@ -89,7 +89,7 @@ class LidarPacketHandler {
         for (size_t i = 0; i < lidar_scans.size(); ++i) {
             lidar_scans[i] = std::make_unique<ouster::sdk::core::LidarScan>(
                 info.format.columns_per_frame, info.format.pixels_per_column,
-                info.format.udp_profile_lidar);
+                info.format.udp_profile_lidar, info.format.columns_per_packet);
             mutexes[i] = std::make_unique<std::mutex>();
         }
 
