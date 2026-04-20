@@ -14,6 +14,7 @@ find_package(class_loader REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(lidar_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -72,12 +73,14 @@ endif()
 
 add_library(ouster_ros_library SHARED
   src/os_ros.cpp
+  src/ouster_lidar_ros_msgs.cpp
 )
 
 set(ouster_ros_library_deps
   rclcpp
   sensor_msgs
   geometry_msgs
+  lidar_msgs
   ouster_sensor_msgs
   pcl_conversions
   tf2
@@ -120,6 +123,7 @@ function(create_ros2_component
     std_msgs
     sensor_msgs
     geometry_msgs
+    lidar_msgs
     ${additional_dependencies}
   )
 
@@ -207,6 +211,7 @@ if(BUILD_TESTING)
   ament_target_dependencies(${PROJECT_NAME}_test
     rclcpp
     ouster_sensor_msgs
+    sensor_msgs
   )
   target_include_directories(${PROJECT_NAME}_test PUBLIC
     ${_ouster_ros_INCLUDE_DIRS}
