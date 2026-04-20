@@ -65,6 +65,7 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  <!--
   <arg name="multipurpose_io_mode" default="OFF"
     description="multipurpose IO / time sync mode; possible values: {
     OFF,
@@ -74,6 +75,7 @@
     OUTPUT_FROM_PTP_1588,
     OUTPUT_FROM_ENCODER_ANGLE
     }"/>
+  -->
   <arg name="nmea_in_polarity" default="ACTIVE_HIGH"
     description="polarity for NMEA UART input; possible values: ACTIVE_HIGH, ACTIVE_LOW"/>
   <arg name="nmea_ignore_valid_char" default="false"
@@ -253,7 +255,7 @@
       <param name="point_cloud_frame" value="$(var point_cloud_frame)"/>
       <param name="pub_static_tf" value="$(var pub_static_tf)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
-      <param name="multipurpose_io_mode" value="$(var multipurpose_io_mode)"/>
+      <!-- <param name="multipurpose_io_mode" value="$(var multipurpose_io_mode)"/> -->
       <param name="nmea_in_polarity" value="$(var nmea_in_polarity)"/>
       <param name="nmea_ignore_valid_char" value="$(var nmea_ignore_valid_char)"/>
       <param name="nmea_baud_rate" value="$(var nmea_baud_rate)"/>

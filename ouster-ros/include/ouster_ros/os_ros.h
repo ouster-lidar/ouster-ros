@@ -188,6 +188,11 @@ ouster::sdk::core::img_t<pixel_type> load_mask(const std::string& mask_path,
     return (eigen_img.array() == 0.0).select(zero_image, ones_image).cast<pixel_type>();
 }
 
+std::string read_text_file(const std::string& text_file);
+
+bool write_text_to_file(const std::string& file_path,
+                        const std::string& text);
+
 } // namespace impl
 
 }  // namespace ouster_ros

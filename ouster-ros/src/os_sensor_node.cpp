@@ -103,7 +103,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("lidar_frame_azimuth_offset", -1);
     declare_parameter("return_order", "");
     declare_parameter("bloom_reduction_optimization", "");
-    declare_parameter("multipurpose_io_mode", "OFF");
+    // declare_parameter("multipurpose_io_mode", "OFF");
     declare_parameter("nmea_in_polarity", "ACTIVE_HIGH");
     declare_parameter("nmea_ignore_valid_char", false);
     declare_parameter("nmea_baud_rate", "BAUD_9600");
@@ -128,7 +128,7 @@ bool OusterSensor::start() {
         if (!get_active_config_no_throw(sensor_hostname, config))
             return false;
 
-        RCLCPP_INFO(get_logger(), "Retrived sensor active config");
+        RCLCPP_INFO(get_logger(), "Retrieved sensor active config");
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
         // Only reset udp_dest if auto_udp was allowed on startup
@@ -306,7 +306,7 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-    if (write_text_to_file(meta_file, cached_metadata)) {
+    if (impl::write_text_to_file(meta_file, cached_metadata)) {
         RCLCPP_INFO_STREAM(get_logger(),
                            "Wrote sensor metadata to " << meta_file);
     } else {
@@ -408,7 +408,7 @@ void OusterSensor::create_set_config_service() {
             response->config = "";
             std::string config_str;
             try {
-                config_str = read_text_file(request->config_file);
+                config_str = impl::read_text_file(request->config_file);
                 if (config_str.empty()) {
                     RCLCPP_ERROR_STREAM(
                         get_logger(),
@@ -699,19 +699,19 @@ void OusterSensor::parse_signal_multiplier(SensorConfig& config) {
     config.signal_multiplier = signal_multiplier;
 }
 
-void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
-    auto arg = get_parameter("multipurpose_io_mode").as_string();
-    if (!is_arg_set(arg)) {
-        return;
-    }
-    auto mode = ouster::sdk::core::multipurpose_io_mode_of_string(arg);
-    if (!mode) {
-        auto error_msg = "Invalid multipurpose io mode: " + arg;
-        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
-        throw std::runtime_error(error_msg);
-    }
-    config.multipurpose_io_mode = mode.value();
-}
+// void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
+//     auto arg = get_parameter("multipurpose_io_mode").as_string();
+//     if (!is_arg_set(arg)) {
+//         return;
+//     }
+//     auto mode = ouster::sdk::core::multipurpose_io_mode_of_string(arg);
+//     if (!mode) {
+//         auto error_msg = "Invalid multipurpose io mode: " + arg;
+//         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+//         throw std::runtime_error(error_msg);
+//     }
+//     config.multipurpose_io_mode = mode.value();
+// }
 
 void OusterSensor::parse_nmea_in_polarity(SensorConfig& config) {
     auto arg = get_parameter("nmea_in_polarity").as_string();
@@ -887,7 +887,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_azimuth_window(config);
     parse_operating_mode(config);
     parse_signal_multiplier(config);
-    parse_multipurpose_io_mode(config);
+    // parse_multipurpose_io_mode(config);
     parse_nmea_in_polarity(config);
     parse_nmea_ignore_valid_char(config);
     parse_nmea_baud_rate(config);
@@ -917,11 +917,11 @@ uint8_t OusterSensor::compose_config_flags(
             if (is_arg_set(mtp_dest)) {
                 RCLCPP_INFO_STREAM(
                     get_logger(),
-                    "Will recieve data via multicast on " << mtp_dest);
+                    "Will receive data via multicast on " << mtp_dest);
             } else {
                 RCLCPP_INFO(
                     get_logger(),
-                    "mtp_dest was not set, will recieve data via multicast "
+                    "mtp_dest was not set, will receive data via multicast "
                     "on first available interface");
             }
         }
@@ -954,7 +954,7 @@ bool OusterSensor::configure_sensor(
             return false;
         }
 
-        RCLCPP_INFO(get_logger(), "Retrived active config of sensor");
+        RCLCPP_INFO(get_logger(), "Retrieved active config of sensor");
         return true;
     }
 

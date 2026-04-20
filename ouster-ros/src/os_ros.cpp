@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <sstream>
+#include <fstream>
 
 
 namespace ouster_ros {
@@ -131,7 +133,7 @@ std::string scan_return(const std::string& field, bool second) {
     } else if (field == ChanField::REFLECTIVITY || field == ChanField::REFLECTIVITY2) {
         return second ? ChanField::REFLECTIVITY2 : ChanField::REFLECTIVITY;
     } else if (field == ChanField::FLAGS || field == ChanField::FLAGS2) {
-        return second ? ChanField::FLAGS : ChanField::FLAGS2;
+        return second ? ChanField::FLAGS2 : ChanField::FLAGS;
     } else if (field == ChanField::NEAR_IR) {
         return ChanField::NEAR_IR;
     } else if (field == ChanField::WINDOW) {
@@ -152,6 +154,9 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
         // Remove leading and trailing whitespaces from the token
         size_t start = token.find_first_not_of(" ");
         size_t end = token.find_last_not_of(" ");
+        if (start == std::string::npos || end == std::string::npos) {
+            continue;  // Skip tokens that are all whitespace
+        }
         token = token.substr(start, end - start + 1);
         if (!token.empty()) tokens.insert(token);
     }
@@ -181,6 +186,24 @@ void warn_mask_resized(int image_cols, int image_rows,
     RCLCPP_WARN_STREAM(logger, "Mask image has size (" << image_cols << "x" << image_rows << ")"
                        << " but incoming scans has size (" << scan_height << "x" << scan_width << ")."
                        << " Resizing mask to match the scans size.");    
+}
+
+std::string read_text_file(const std::string& text_file) {
+    std::ifstream ifs{};
+    ifs.open(text_file);
+    if (ifs.fail()) return {};
+    std::stringstream buf;
+    buf << ifs.rdbuf();
+    return buf.str();
+}
+
+bool write_text_to_file(const std::string& file_path,
+                        const std::string& text) {
+    std::ofstream ofs(file_path);
+    if (!ofs.is_open()) return false;
+    ofs << text << std::endl;
+    ofs.close();
+    return true;
 }
 
 }  // namespace impl

@@ -106,7 +106,7 @@ class OusterSensor : public OusterSensorNodeBase {
     void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
     void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
     void parse_min_distance(ouster::sdk::core::SensorConfig& config);
-    void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
+    // void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_in_polarity(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_ignore_valid_char(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_baud_rate(ouster::sdk::core::SensorConfig& config);
@@ -164,7 +164,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string sensor_hostname;
     std::optional<ouster::sdk::core::SensorConfig> staged_config;
     std::string mtp_dest;
-    bool mtp_main;
+    bool mtp_main = false;
     std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet_msg;
     ouster_sensor_msgs::msg::PacketMsg imu_packet_msg;
