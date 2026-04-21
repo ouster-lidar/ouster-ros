@@ -167,3 +167,60 @@ ouster/os_driver:
     # mask_path[optional]: path to an image file that will be used to mask parts of the
     # pointcloud.
     mask_path: ''
+    # nmea_in_polarity[optional]: polarity for NMEA UART input; possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    nmea_in_polarity: ACTIVE_HIGH
+    # nmea_ignore_valid_char[optional]: Set false if NMEA UART input $GPRMC messages should
+    # be ignored if valid character is not set, and true if messages should be used for time
+    # syncing regardless of the valid character.
+    # possible values:
+    # - true
+    # - false
+    nmea_ignore_valid_char: false
+    # nmea_baud_rate[optional]: Expected baud for NMEA UART $GPRMC; possible values:
+    # - BAUD_9600
+    # - BAUD_115200
+    nmea_baud_rate: BAUD_9600
+    # nmea_leap_seconds[optional]: Set an integer number of leap seconds that will be added
+    # to the UDP timestamp when calculating seconds since 00:00:00 Thursday, 1 January 1970.
+    # For Unix Epoch time, this should be set to 0.
+    # possible values:
+    # - 0
+    # - 1
+    nmea_leap_seconds: 0
+    # sync_pulse_in_polarity[optional]: The polarity of SYNC_PULSE_IN input, which controls
+    # polarity of SYNC_PULSE_IN pin when timestamp_mode is set in TIME_FROM_SYNC_PULSE_IN;
+    # possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    sync_pulse_in_polarity: ACTIVE_HIGH
+    # sync_pulse_out_polarity[optional]: Polarity of SYNC_PULSE_OUT when this sensor is the time-sync master;
+    # possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    sync_pulse_out_polarity: ACTIVE_LOW
+    # sync_pulse_out_frequency[optional]: The output SYNC_PULSE_OUT pulse rate in Hz. Valid inputs are integers >0 Hz,
+    # but also limited by the criteria described in the Time Synchronization section of the Firmware User Manual;
+    # possible values:
+    # - -1 (unset)
+    # - integer >0 Hz
+    sync_pulse_out_frequency: -1
+    # sync_pulse_out_angle[optional]: The angle in terms of degrees that the sensor traverses between each
+    # SYNC_PULSE_OUT pulse. E.g. a value of 180 means a sync pulse is sent out every 180° for a total of two pulses per
+    # revolution and angular frequency of 20 Hz;
+    # possible values:
+    # - -1 (unset).
+    # - [0, 360000]
+    sync_pulse_out_angle: -1
+    # sync_pulse_out_pulse_width[optional]: The polarity of SYNC_PULSE_OUT output, if the sensor is set as the master
+    # sensor used for time synchronization. Output SYNC_PULSE_OUT pulse width is in ms, increments in 1 ms;
+    #possible values:
+    # - -1 (unset)
+    # - integer >0 ms
+    sync_pulse_out_pulse_width: -1
+    # min_distance[optional]: minimum distance to consider (cm).
+    # available options (FW3.1+): {0, 30}
+    # available options (FW3.2+): {0, 30, 50}
+    # default is -1 (unset).
+    min_distance: -1

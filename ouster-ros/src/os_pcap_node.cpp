@@ -23,7 +23,7 @@
 #include "ouster_sensor_msgs/msg/packet_msg.h"
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
-
+#include "ouster_ros/impl/file_util.h"
 #include <ouster/os_pcap.h>
 
 using namespace std::chrono;

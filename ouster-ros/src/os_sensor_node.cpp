@@ -16,6 +16,7 @@
 
 #include "os_sensor_node.h"
 #include <ouster/metadata.h>
+#include "ouster_ros/impl/file_util.h"
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;

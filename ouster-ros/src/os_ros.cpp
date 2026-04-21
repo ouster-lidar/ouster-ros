@@ -25,8 +25,6 @@
 #include <string>
 #include <vector>
 #include <regex>
-#include <sstream>
-#include <fstream>
 
 
 namespace ouster_ros {
@@ -186,24 +184,6 @@ void warn_mask_resized(int image_cols, int image_rows,
     RCLCPP_WARN_STREAM(logger, "Mask image has size (" << image_cols << "x" << image_rows << ")"
                        << " but incoming scans has size (" << scan_height << "x" << scan_width << ")."
                        << " Resizing mask to match the scans size.");    
-}
-
-std::string read_text_file(const std::string& text_file) {
-    std::ifstream ifs{};
-    ifs.open(text_file);
-    if (ifs.fail()) return {};
-    std::stringstream buf;
-    buf << ifs.rdbuf();
-    return buf.str();
-}
-
-bool write_text_to_file(const std::string& file_path,
-                        const std::string& text) {
-    std::ofstream ofs(file_path);
-    if (!ofs.is_open()) return false;
-    ofs << text << std::endl;
-    ofs.close();
-    return true;
 }
 
 }  // namespace impl

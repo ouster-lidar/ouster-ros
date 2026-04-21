@@ -7,7 +7,7 @@ Changelog
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 * Add launch file and os_sensor_node support for additional sensor configuration parameters (time
-  synchronization, multipurpose IO, and minimum reported range on FW 3.1+):
+  synchronization, and minimum reported range on FW 3.1+):
   - ``nmea_in_polarity``, ``nmea_ignore_valid_char``, ``nmea_baud_rate``, ``nmea_leap_seconds``
   - ``sync_pulse_in_polarity``, ``sync_pulse_out_polarity``, ``sync_pulse_out_frequency``,
     ``sync_pulse_out_angle``, ``sync_pulse_out_pulse_width``
