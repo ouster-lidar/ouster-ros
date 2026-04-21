@@ -54,7 +54,7 @@ struct Point : public _Point {
       range = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, intensity, t, reflectivity, ring, ambient, range);
     }
 

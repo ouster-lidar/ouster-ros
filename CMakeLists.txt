@@ -89,6 +89,7 @@ include_directories(
 add_compile_definitions(EIGEN_MPL2_ONLY)
 
 set(NODELET_SRC
+  src/impl/file_util.cpp
   src/os_sensor_nodelet_base.cpp
   src/os_sensor_nodelet.cpp
   src/os_replay_nodelet.cpp

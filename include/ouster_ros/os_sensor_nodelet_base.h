@@ -6,6 +6,7 @@
  * @brief Base class for ouster_ros sensor and replay nodelets
  *
  */
+#pragma once
 
 #include <nodelet/nodelet.h>
 #include <ros/ros.h>
@@ -27,11 +28,6 @@ class OusterSensorNodeletBase : public nodelet::Nodelet {
     void publish_metadata();
 
     void display_lidar_info(const ouster::sdk::core::SensorInfo& info);
-
-    std::string read_text_file(const std::string& text_file);
-
-    bool write_text_to_file(const std::string& file_path,
-                            const std::string& text);
 
    protected:
     ouster::sdk::core::SensorInfo info;

@@ -14,6 +14,8 @@ Changelog
   - ``sync_pulse_in_polarity``, ``sync_pulse_out_polarity``, ``sync_pulse_out_frequency``,
     ``sync_pulse_out_angle``, ``sync_pulse_out_pulse_width``
   - ``min_distance`` (sensor field ``min_range_threshold_cm``)
+* [BUGFIX] Correct the order of ``FLAGS`` field.
+* Enable varying columns per packet.
 
 ouster_ros v0.14.0
 ==================

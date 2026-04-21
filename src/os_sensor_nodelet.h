@@ -149,7 +149,7 @@ class OusterSensor : public OusterSensorNodeletBase {
     std::string sensor_hostname;
     std::optional<ouster::sdk::core::SensorConfig> staged_config;
     std::string mtp_dest;
-    bool mtp_main;
+    bool mtp_main = {false};
     std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
     PacketMsg lidar_packet_msg;
     PacketMsg imu_packet_msg;
