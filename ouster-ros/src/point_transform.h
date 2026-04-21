@@ -29,6 +29,8 @@ DEFINE_MEMBER_CHECKER(near_ir);
 DEFINE_MEMBER_CHECKER(flags);
 DEFINE_MEMBER_CHECKER(window);
 DEFINE_MEMBER_CHECKER(zone_mask);
+DEFINE_MEMBER_CHECKER(return_type);
+DEFINE_MEMBER_CHECKER(channel);
 
 template <typename PointTGT, typename PointSRC>
 void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
@@ -161,6 +163,47 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
     CondBinaryOp<has_zone_mask_v<PointTGT> && !has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto&) {
             tgt_pt.zone_mask = static_cast<decltype(tgt_pt.zone_mask)>(0);
+        }
+    );
+
+    // return_type
+    CondBinaryOp<has_return_type_v<PointTGT> && has_return_type_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.return_type = src_pt.return_type; 
+        }
+    );
+
+    CondBinaryOp<has_return_type_v<PointTGT> && !has_return_type_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto&) {
+            tgt_pt.return_type = static_cast<decltype(tgt_pt.return_type)>(0);
+        }
+    );
+
+    // channel <- ring (Velodyne-style: invert ring numbering for compatibility)
+    CondBinaryOp<has_channel_v<PointTGT> && has_ring_v<PointSRC> && !has_channel_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            // For Velodyne compatibility: invert ring numbering 
+            // Assume common lidar configurations (16, 32, 64, 128 beams)
+            uint16_t max_ring;
+            if (src_pt.ring < 16) max_ring = 15;
+            else if (src_pt.ring < 32) max_ring = 31;
+            else if (src_pt.ring < 64) max_ring = 63;
+            else if (src_pt.ring < 128) max_ring = 127;
+            else max_ring = 255; // fallback for higher beam counts
+            
+            tgt_pt.channel = static_cast<decltype(tgt_pt.channel)>(max_ring - src_pt.ring);
+        }
+    );
+
+    CondBinaryOp<has_channel_v<PointTGT> && has_channel_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.channel = src_pt.channel; 
+        }
+    );
+
+    CondBinaryOp<has_channel_v<PointTGT> && !has_channel_v<PointSRC> && !has_ring_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto&) {
+            tgt_pt.channel = static_cast<decltype(tgt_pt.channel)>(0);
         }
     );
 }

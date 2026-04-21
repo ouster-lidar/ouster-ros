@@ -122,7 +122,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                      const ouster::sdk::core::LidarScan& ls,
                      const std::vector<int>& pixel_shift_by_row,
                      bool organized = false, bool destagger = true,
-                     int rows_step = 1) {
+                     int rows_step = 1, int return_index = 0) {
     auto ls_tuple = make_lidar_scan_tuple<0, N, PROFILE>(ls);
     auto timestamp = ls.timestamp();
 
@@ -170,6 +170,24 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             // case of pcl::PointXYZ or pcl::PointXYZI.
             pt.t = static_cast<uint32_t>(ts);
             pt.ring = static_cast<uint16_t>(u);
+            
+            // Copy return type
+            if constexpr (point::has_return_type_v<decltype(pt)>) {
+                uint8_t mapped_return_type;
+                switch (return_index) {
+                    case 0: mapped_return_type = 1; break; // First return -> Strongest
+                    case 1: mapped_return_type = 2; break; // Second return -> Last
+                    default: mapped_return_type = 0; break; // Unknown/Not Marked
+                }
+                pt.return_type = static_cast<decltype(pt.return_type)>(mapped_return_type);
+            }
+            
+            // Set channel if the point type supports it (Velodyne-style: inverted ring)
+            if constexpr (point::has_channel_v<decltype(pt)>) {
+                // Invert ring numbering to match Velodyne convention (0 = lowest beam)
+                uint16_t max_ring = static_cast<uint16_t>(ls.h - 1); // ls.h is pixels_per_column (number of beams)
+                pt.channel = static_cast<decltype(pt.channel)>(max_ring - pt.ring);
+            }
             copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
             // only perform point transform operation when PointT, and PointS
             // don't match
