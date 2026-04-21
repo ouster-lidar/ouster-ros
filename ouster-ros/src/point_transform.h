@@ -31,6 +31,10 @@ DEFINE_MEMBER_CHECKER(window);
 DEFINE_MEMBER_CHECKER(zone_mask);
 DEFINE_MEMBER_CHECKER(return_type);
 DEFINE_MEMBER_CHECKER(channel);
+DEFINE_MEMBER_CHECKER(time_stamp);
+DEFINE_MEMBER_CHECKER(azimuth);
+DEFINE_MEMBER_CHECKER(elevation);
+DEFINE_MEMBER_CHECKER(distance);
 
 template <typename PointTGT, typename PointSRC>
 void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
@@ -77,9 +81,15 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         }
     );
 
-    // intensity <- signal
-    // PointTGT should not have signal and intensity at the same time [normally]
-    CondBinaryOp<has_intensity_v<PointTGT> && has_signal_v<PointSRC>>::run(
+    // intensity <- reflectivity / 64 (Autoware specific format override)
+    CondBinaryOp<has_intensity_v<PointTGT> && has_reflectivity_v<PointSRC> && has_time_stamp_v<PointTGT>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.intensity = static_cast<decltype(tgt_pt.intensity)>(src_pt.reflectivity / 64);
+        }
+    );
+
+    // intensity <- signal (Standard Ouster)
+    CondBinaryOp<has_intensity_v<PointTGT> && has_signal_v<PointSRC> && !has_time_stamp_v<PointTGT>>::run(
         tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) {
             tgt_pt.intensity = static_cast<decltype(tgt_pt.intensity)>(src_pt.signal);
         }
@@ -204,6 +214,48 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
     CondBinaryOp<has_channel_v<PointTGT> && !has_channel_v<PointSRC> && !has_ring_v<PointSRC>>::run(
         tgt_pt, src_pt, [](auto& tgt_pt, const auto&) {
             tgt_pt.channel = static_cast<decltype(tgt_pt.channel)>(0);
+        }
+    );
+
+    // time_stamp <- t
+    CondBinaryOp<has_time_stamp_v<PointTGT> && has_t_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.time_stamp = static_cast<decltype(tgt_pt.time_stamp)>(src_pt.t); 
+        }
+    );
+    CondBinaryOp<has_time_stamp_v<PointTGT> && !has_t_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto&) { tgt_pt.time_stamp = 0U; }
+    );
+
+    // distance <- range
+    CondBinaryOp<has_distance_v<PointTGT> && has_range_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.distance = static_cast<float>(src_pt.range) / 1000.0f; 
+        }
+    );
+    CondBinaryOp<has_distance_v<PointTGT> && !has_range_v<PointSRC>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.distance = std::sqrt(src_pt.x * src_pt.x + src_pt.y * src_pt.y + src_pt.z * src_pt.z); 
+        }
+    );
+
+    // azimuth <- x, y
+    CondBinaryOp<has_azimuth_v<PointTGT>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.azimuth = std::atan2(src_pt.y, src_pt.x); 
+        }
+    );
+
+    // elevation <- z, distance
+    CondBinaryOp<has_elevation_v<PointTGT> && has_distance_v<PointTGT>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            tgt_pt.elevation = (tgt_pt.distance > 0.0f) ? std::asin(src_pt.z / tgt_pt.distance) : 0.0f; 
+        }
+    );
+    CondBinaryOp<has_elevation_v<PointTGT> && !has_distance_v<PointTGT>>::run(
+        tgt_pt, src_pt, [](auto& tgt_pt, const auto& src_pt) { 
+            float dist = std::sqrt(src_pt.x * src_pt.x + src_pt.y * src_pt.y + src_pt.z * src_pt.z);
+            tgt_pt.elevation = (dist > 0.0f) ? std::asin(src_pt.z / dist) : 0.0f; 
         }
     );
 }
