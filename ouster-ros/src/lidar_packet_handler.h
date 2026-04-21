@@ -23,6 +23,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <atomic>
 #include <vector>
 #include <string>
 
