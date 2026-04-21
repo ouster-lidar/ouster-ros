@@ -11,7 +11,7 @@
 
 #include "ouster_ros/os_sensor_nodelet_base.h"
 
-#include "ouster_ros/os_ros.h"
+#include "ouster_ros/impl/file_util.h"
 
 
 namespace ouster_ros {

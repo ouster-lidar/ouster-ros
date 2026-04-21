@@ -22,6 +22,7 @@
 
 #include "ouster_ros/os_sensor_nodelet_base.h"
 #include "ouster_ros/PacketMsg.h"
+#include "ouster_ros/impl/file_util.h"
 #include <ouster/os_pcap.h>
 
 using namespace std::chrono;

@@ -21,6 +21,7 @@
 
 #include "ouster_ros/PacketMsg.h"
 #include "os_sensor_nodelet.h"
+#include "ouster_ros/impl/file_util.h"
 
 using std::to_string;
 using namespace std::chrono_literals;
