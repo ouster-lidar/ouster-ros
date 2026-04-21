@@ -69,24 +69,6 @@ void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
             << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
 }
 
-std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {
-    std::ifstream ifs{};
-    ifs.open(text_file);
-    if (ifs.fail()) return {};
-    std::stringstream buf;
-    buf << ifs.rdbuf();
-    return buf.str();
-}
-
-bool OusterSensorNodeBase::write_text_to_file(const std::string& file_path,
-                                              const std::string& text) {
-    std::ofstream ofs(file_path);
-    if (!ofs.is_open()) return false;
-    ofs << text << std::endl;
-    ofs.close();
-    return true;
-}
-
 std::string OusterSensorNodeBase::transition_id_to_string(uint8_t transition_id) {
     switch (transition_id) {
         case lifecycle_msgs::msg::Transition::TRANSITION_CREATE:
