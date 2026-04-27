@@ -49,6 +49,8 @@ class OusterImage : public OusterProcessingNodeBase {
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
         declare_parameter("mask_path", "");
         declare_parameter("distortion_model", "plumb_bob");
+        declare_parameter("sensor_frame", "os_lidar");
+        declare_parameter("publish_camera_info", true);
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
@@ -112,18 +114,24 @@ class OusterImage : public OusterProcessingNodeBase {
         }
 
         auto mask_path = get_parameter("mask_path").as_string();
+        auto sensor_frame = get_parameter("sensor_frame").as_string();
+        publish_camera_info_ = get_parameter("publish_camera_info").as_bool();
 
-        create_camera_info_publisher(info, selected_qos);
+        if (publish_camera_info_) {
+            create_camera_info_publisher(info, sensor_frame, selected_qos);
+        }
 
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
-                info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
+                info, sensor_frame,
                 mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
                         image_pubs[it->first]->publish(*it->second);
                     }
-                    publish_camera_info(msgs);
+                    if (publish_camera_info_) {
+                        publish_camera_info(msgs);
+                    }
                 })
         };
 
@@ -148,6 +156,7 @@ class OusterImage : public OusterProcessingNodeBase {
 
     void create_camera_info_publisher(
         const ouster::sdk::core::SensorInfo& sensor_info,
+        const std::string& frame_id,
         const rclcpp::QoS& qos) {
         uint32_t H = sensor_info.format.pixels_per_column;
         uint32_t W = sensor_info.format.columns_per_frame;
@@ -173,11 +182,19 @@ class OusterImage : public OusterProcessingNodeBase {
             double mean_alt_rad = 0.5 * (*max_it + *min_it) * M_PI / 180.0;
             cy = static_cast<double>(H) / 2.0 - mean_alt_rad * fy;
         } else {
+            // Degenerate fallback: assumes full 2π VFOV, which is wrong for any
+            // real Ouster sensor. Downstream rectification/projection will be
+            // garbage. Warn loudly so this isn't debugged in silence.
+            RCLCPP_WARN(get_logger(),
+                "CameraInfo: beam_altitude_angles has %zu element(s) "
+                "(need >=2). Falling back to a degenerate 2pi-VFOV calibration; "
+                "K matrix will not match real sensor geometry. Check sensor "
+                "metadata.", alts.size());
             fy = static_cast<double>(H) / (2.0 * M_PI);
             cy = static_cast<double>(H) / 2.0;
         }
 
-        camera_info_msg_.header.frame_id = "os_lidar";
+        camera_info_msg_.header.frame_id = frame_id;
         camera_info_msg_.height = H;
         camera_info_msg_.width = W;
         camera_info_msg_.distortion_model = get_parameter("distortion_model").as_string();
@@ -207,6 +224,7 @@ class OusterImage : public OusterProcessingNodeBase {
         image_pubs;
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_pub_;
     sensor_msgs::msg::CameraInfo camera_info_msg_;
+    bool publish_camera_info_{true};
 
     LidarPacketHandler::HandlerType lidar_packet_handler;
 };
