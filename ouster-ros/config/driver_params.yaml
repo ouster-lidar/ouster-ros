@@ -34,7 +34,7 @@ ouster/os_driver:
     # - OUTPUT_FROM_SYNC_PULSE_IN
     # - OUTPUT_FROM_PTP_1588
     # - OUTPUT_FROM_ENCODER_ANGLE
-    multipurpose_io_mode: OFF
+    multipurpose_io_mode: 'OFF'
     # ptp_utc_tai_offset[optional]: UTC/TAI offset in seconds to apply when
     # TIME_FROM_PTP_1588 timestamp mode is used.
     ptp_utc_tai_offset: -37.0
@@ -224,7 +224,7 @@ ouster/os_driver:
     sync_pulse_out_angle: -1
     # sync_pulse_out_pulse_width[optional]: The polarity of SYNC_PULSE_OUT output, if the sensor is set as the master
     # sensor used for time synchronization. Output SYNC_PULSE_OUT pulse width is in ms, increments in 1 ms;
-    # possible values:
+    #possible values:
     # - -1 (unset)
     # - integer >0 ms
     sync_pulse_out_pulse_width: -1
