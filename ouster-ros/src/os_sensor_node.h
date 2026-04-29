@@ -106,7 +106,7 @@ class OusterSensor : public OusterSensorNodeBase {
     void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
     void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
     void parse_min_distance(ouster::sdk::core::SensorConfig& config);
-    // void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_in_polarity(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_ignore_valid_char(ouster::sdk::core::SensorConfig& config);
     void parse_nmea_baud_rate(ouster::sdk::core::SensorConfig& config);

@@ -104,7 +104,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("lidar_frame_azimuth_offset", -1);
     declare_parameter("return_order", "");
     declare_parameter("bloom_reduction_optimization", "");
-    // declare_parameter("multipurpose_io_mode", "OFF");
+    declare_parameter("multipurpose_io_mode", "OFF");
     declare_parameter("nmea_in_polarity", "ACTIVE_HIGH");
     declare_parameter("nmea_ignore_valid_char", false);
     declare_parameter("nmea_baud_rate", "BAUD_9600");
@@ -700,19 +700,19 @@ void OusterSensor::parse_signal_multiplier(SensorConfig& config) {
     config.signal_multiplier = signal_multiplier;
 }
 
-// void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
-//     auto arg = get_parameter("multipurpose_io_mode").as_string();
-//     if (!is_arg_set(arg)) {
-//         return;
-//     }
-//     auto mode = ouster::sdk::core::multipurpose_io_mode_of_string(arg);
-//     if (!mode) {
-//         auto error_msg = "Invalid multipurpose io mode: " + arg;
-//         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
-//         throw std::runtime_error(error_msg);
-//     }
-//     config.multipurpose_io_mode = mode.value();
-// }
+void OusterSensor::parse_multipurpose_io_mode(SensorConfig& config) {
+    auto arg = get_parameter("multipurpose_io_mode").as_string();
+    if (!is_arg_set(arg)) {
+        return;
+    }
+    auto mode = ouster::sdk::core::multipurpose_io_mode_of_string(arg);
+    if (!mode) {
+        auto error_msg = "Invalid multipurpose io mode: " + arg;
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+    config.multipurpose_io_mode = mode.value();
+}
 
 void OusterSensor::parse_nmea_in_polarity(SensorConfig& config) {
     auto arg = get_parameter("nmea_in_polarity").as_string();
@@ -888,7 +888,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     parse_azimuth_window(config);
     parse_operating_mode(config);
     parse_signal_multiplier(config);
-    // parse_multipurpose_io_mode(config);
+    parse_multipurpose_io_mode(config);
     parse_nmea_in_polarity(config);
     parse_nmea_ignore_valid_char(config);
     parse_nmea_baud_rate(config);

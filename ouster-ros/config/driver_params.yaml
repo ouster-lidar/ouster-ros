@@ -26,6 +26,15 @@ ouster/os_driver:
     #                       packet of a LidarScan as the timestamp of the IMU,
     #                       PointCloud2 and LaserScan messages.
     timestamp_mode: ''
+    # multipurpose_io_mode[optional]: multipurpose IO / time sync mode;
+    # possible values:
+    # - OFF
+    # - INPUT_NMEA_UART
+    # - OUTPUT_FROM_INTERNAL_OSC
+    # - OUTPUT_FROM_SYNC_PULSE_IN
+    # - OUTPUT_FROM_PTP_1588
+    # - OUTPUT_FROM_ENCODER_ANGLE
+    multipurpose_io_mode: 'OFF'
     # ptp_utc_tai_offset[optional]: UTC/TAI offset in seconds to apply when
     # TIME_FROM_PTP_1588 timestamp mode is used.
     ptp_utc_tai_offset: -37.0
