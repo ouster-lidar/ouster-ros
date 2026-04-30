@@ -134,7 +134,7 @@ constexpr void apply(PointT& pt, UnaryOp unary_op) {
  * @brief Enumerates the elements of a point (compile time) applying a lambda
  * function to each element in sequence within the range [Index, N) where:
  *      `Index < N and N <= size(pt)`
- * The lambda function recieves the index of each element as the first parameter
+ * The lambda function receives the index of each element as the first parameter
  * and a reference to the element as the second parameter
  */
 template <std::size_t Index, std::size_t N, typename PointT, typename EnumOp>

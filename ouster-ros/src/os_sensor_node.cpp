@@ -16,6 +16,7 @@
 
 #include "os_sensor_node.h"
 #include <ouster/metadata.h>
+#include "ouster_ros/impl/file_util.h"
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
@@ -128,7 +129,7 @@ bool OusterSensor::start() {
         if (!get_active_config_no_throw(sensor_hostname, config))
             return false;
 
-        RCLCPP_INFO(get_logger(), "Retrived sensor active config");
+        RCLCPP_INFO(get_logger(), "Retrieved sensor active config");
         // Unfortunately it seems we need to invoke this to force the auto
         // TODO[UN]: find a shortcut
         // Only reset udp_dest if auto_udp was allowed on startup
@@ -306,7 +307,7 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-    if (write_text_to_file(meta_file, cached_metadata)) {
+    if (impl::write_text_to_file(meta_file, cached_metadata)) {
         RCLCPP_INFO_STREAM(get_logger(),
                            "Wrote sensor metadata to " << meta_file);
     } else {
@@ -408,7 +409,7 @@ void OusterSensor::create_set_config_service() {
             response->config = "";
             std::string config_str;
             try {
-                config_str = read_text_file(request->config_file);
+                config_str = impl::read_text_file(request->config_file);
                 if (config_str.empty()) {
                     RCLCPP_ERROR_STREAM(
                         get_logger(),
@@ -917,11 +918,11 @@ uint8_t OusterSensor::compose_config_flags(
             if (is_arg_set(mtp_dest)) {
                 RCLCPP_INFO_STREAM(
                     get_logger(),
-                    "Will recieve data via multicast on " << mtp_dest);
+                    "Will receive data via multicast on " << mtp_dest);
             } else {
                 RCLCPP_INFO(
                     get_logger(),
-                    "mtp_dest was not set, will recieve data via multicast "
+                    "mtp_dest was not set, will receive data via multicast "
                     "on first available interface");
             }
         }
@@ -954,7 +955,7 @@ bool OusterSensor::configure_sensor(
             return false;
         }
 
-        RCLCPP_INFO(get_logger(), "Retrived active config of sensor");
+        RCLCPP_INFO(get_logger(), "Retrieved active config of sensor");
         return true;
     }
 

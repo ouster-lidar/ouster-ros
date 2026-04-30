@@ -23,6 +23,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <atomic>
 #include <vector>
 #include <string>
 
@@ -88,7 +89,7 @@ class LidarPacketHandler {
         for (size_t i = 0; i < lidar_scans.size(); ++i) {
             lidar_scans[i] = std::make_unique<ouster::sdk::core::LidarScan>(
                 info.format.columns_per_frame, info.format.pixels_per_column,
-                info.format.udp_profile_lidar);
+                info.format.udp_profile_lidar, info.format.columns_per_packet);
             mutexes[i] = std::make_unique<std::mutex>();
         }
 
@@ -384,7 +385,7 @@ class LidarPacketHandler {
 
     LidarPacketAccumlator lidar_packet_accumlator;
 
-    bool lidar_scans_processing_active = true;
+    std::atomic<bool> lidar_scans_processing_active = true;
     std::unique_ptr<std::thread> lidar_scans_processing_thread;
     std::condition_variable ring_buffer_has_elements;
 

@@ -65,6 +65,7 @@
     TIME_FROM_PTP_1588,
     TIME_FROM_ROS_TIME
     }"/>
+  
   <arg name="multipurpose_io_mode" default="OFF"
     description="multipurpose IO / time sync mode; possible values: {
     OFF,
@@ -74,6 +75,7 @@
     OUTPUT_FROM_PTP_1588,
     OUTPUT_FROM_ENCODER_ANGLE
     }"/>
+ 
   <arg name="nmea_in_polarity" default="ACTIVE_HIGH"
     description="polarity for NMEA UART input; possible values: ACTIVE_HIGH, ACTIVE_LOW"/>
   <arg name="nmea_ignore_valid_char" default="false"
@@ -89,7 +91,8 @@
     description="Set an integer number of leap seconds that will be added to the UDP timestamp
       when calculating seconds since 00:00:00 Thursday, 1 January 1970. For Unix Epoch time, this should be set to 0."/>
   <arg name="sync_pulse_in_polarity" default="ACTIVE_HIGH"
-    description="The polarity of SYNC_PULSE_IN input, which controls polarity of SYNC_PULSE_IN pin when timestamp_mode is set in TIME_FROM_SYNC_PULSE_IN;
+    description="The polarity of SYNC_PULSE_IN input, which controls polarity of SYNC_PULSE_IN pin when timestamp_mode
+    is set in TIME_FROM_SYNC_PULSE_IN;
     possible values: {
       ACTIVE_HIGH,
       ACTIVE_LOW
@@ -105,8 +108,8 @@
     but also limited by the criteria described in the Time Synchronization section of the Firmware User Manual."/>
   <arg name="sync_pulse_out_angle" default="-1"
     description="The angle in terms of degrees that the sensor traverses between each SYNC_PULSE_OUT pulse. 
-      E.g. a value of 180 means a sync pulse is sent out every 180° for a total of two pulses per revolution and angular frequency of 20 Hz;
-      values range [0, 360], -1 is unset"/>
+      E.g. a value of 180 means a sync pulse is sent out every 180° for a total of two pulses per revolution and angular
+      frequency of 20 Hz; values range [0, 360], -1 is unset"/>
   <arg name="sync_pulse_out_pulse_width" default="-1"
     description="The polarity of SYNC_PULSE_OUT output, if the sensor is set as the master sensor used for time synchronization.
       Output SYNC_PULSE_OUT pulse width is in ms, increments in 1 ms. -1 is unset"/>
@@ -253,7 +256,7 @@
       <param name="point_cloud_frame" value="$(var point_cloud_frame)"/>
       <param name="pub_static_tf" value="$(var pub_static_tf)"/>
       <param name="timestamp_mode" value="$(var timestamp_mode)"/>
-      <param name="multipurpose_io_mode" value="$(var multipurpose_io_mode)"/>
+      <param name="multipurpose_io_mode" value="$(var multipurpose_io_mode)" type="str"/>
       <param name="nmea_in_polarity" value="$(var nmea_in_polarity)"/>
       <param name="nmea_ignore_valid_char" value="$(var nmea_ignore_valid_char)"/>
       <param name="nmea_baud_rate" value="$(var nmea_baud_rate)"/>

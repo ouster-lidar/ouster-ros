@@ -131,7 +131,7 @@ std::string scan_return(const std::string& field, bool second) {
     } else if (field == ChanField::REFLECTIVITY || field == ChanField::REFLECTIVITY2) {
         return second ? ChanField::REFLECTIVITY2 : ChanField::REFLECTIVITY;
     } else if (field == ChanField::FLAGS || field == ChanField::FLAGS2) {
-        return second ? ChanField::FLAGS : ChanField::FLAGS2;
+        return second ? ChanField::FLAGS2 : ChanField::FLAGS;
     } else if (field == ChanField::NEAR_IR) {
         return ChanField::NEAR_IR;
     } else if (field == ChanField::WINDOW) {
@@ -152,6 +152,9 @@ std::set<std::string> parse_tokens(const std::string& input, char delim) {
         // Remove leading and trailing whitespaces from the token
         size_t start = token.find_first_not_of(" ");
         size_t end = token.find_last_not_of(" ");
+        if (start == std::string::npos || end == std::string::npos) {
+            continue;  // Skip tokens that are all whitespace
+        }
         token = token.substr(start, end - start + 1);
         if (!token.empty()) tokens.insert(token);
     }
