@@ -18,12 +18,12 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_LEGACY staging_pt;
                     scan_to_cloud_f<Profile_LEGACY.size(), Profile_LEGACY>(
                         cloud, staging_pt, points, scan_ts, ls,
-                        pixel_shift_by_row, organized, destagger, rows_step);
+                        pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL:
@@ -40,13 +40,13 @@ class PointCloudProcessorFactory {
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size(),
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                            pixel_shift_by_row, organized, destagger, rows_step, return_index);
                     } else {
                         scan_to_cloud_f<
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN.size(),
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                            pixel_shift_by_row, organized, destagger, rows_step, return_index);
                     }
                 };
 
@@ -56,14 +56,14 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_RNG19_RFL8_SIG16_NIR16 staging_pt;
                     scan_to_cloud_f<
                         Profile_RNG19_RFL8_SIG16_NIR16.size(),
                         Profile_RNG19_RFL8_SIG16_NIR16>(
                             cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                            pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             case UDPProfileLidar::RNG15_RFL8_NIR8:
@@ -72,14 +72,14 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_RNG15_RFL8_NIR8 staging_pt;
                     scan_to_cloud_f<
                         Profile_RNG15_RFL8_NIR8.size(),
                         Profile_RNG15_RFL8_NIR8>(
                         cloud, staging_pt, points, scan_ts, ls,
-                        pixel_shift_by_row, organized, destagger, rows_step);
+                        pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
@@ -97,13 +97,13 @@ class PointCloudProcessorFactory {
                             Profile_RNG15_RFL8_NIR8_DUAL.size(),
                             Profile_RNG15_RFL8_NIR8_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                            pixel_shift_by_row, organized, destagger, rows_step, return_index);
                     } else {
                         scan_to_cloud_f<
                             Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
                             Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                            pixel_shift_by_row, organized, destagger, rows_step, return_index);
                     }
                 };
 
@@ -113,14 +113,14 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_RNG15_RFL8_WIN8 staging_pt;
                     scan_to_cloud_f<
                         Profile_RNG15_RFL8_WIN8.size(),
                         Profile_RNG15_RFL8_WIN8>(
                         cloud, staging_pt, points, scan_ts, ls,
-                        pixel_shift_by_row, organized, destagger, rows_step);
+                        pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             case UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16:
@@ -129,14 +129,14 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_RNG15_RFL8_NIR8_ZONE16 staging_pt;
                     scan_to_cloud_f<
                         Profile_RNG15_RFL8_NIR8_ZONE16.size(),
                         Profile_RNG15_RFL8_NIR8_ZONE16>(
                         cloud, staging_pt, points, scan_ts, ls,
-                        pixel_shift_by_row, organized, destagger, rows_step);
+                        pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16:
@@ -145,14 +145,14 @@ class PointCloudProcessorFactory {
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarScan& ls,
                     const std::vector<int>& pixel_shift_by_row,
-                    int /*return_index*/) {
+                    int return_index) {
 
                     Point_RNG19_RFL8_SIG16_NIR16_ZONE16 staging_pt;
                     scan_to_cloud_f<
                         Profile_RNG19_RFL8_SIG16_NIR16_ZONE16.size(),
                         Profile_RNG19_RFL8_SIG16_NIR16_ZONE16>(
                         cloud, staging_pt, points, scan_ts, ls,
-                        pixel_shift_by_row, organized, destagger, rows_step);
+                        pixel_shift_by_row, organized, destagger, rows_step, return_index);
                 };
 
             default:
@@ -178,8 +178,8 @@ class PointCloudProcessorFactory {
 
    public:
     static bool point_type_requires_intensity(const std::string& point_type) {
-        return point_type == "xyzi" || point_type == "xyzir" ||
-               point_type == "original" || point_type == "o_xyzi";
+        return point_type == "xyzi" || point_type == "xyzir" || point_type == "xyzirc" ||
+               point_type == "xyzircaedt" || point_type == "original" || point_type == "o_xyzi";
     }
 
     static bool profile_has_intensity(UDPProfileLidar profile) {
@@ -263,6 +263,16 @@ class PointCloudProcessorFactory {
                 mask_path, post_processing_fn);
         } else if (point_type == "xyzir") {
             return make_point_cloud_processor<PointXYZIR>(
+                info, frame, apply_lidar_to_sensor_transform,
+                organized, destagger, min_range, max_range, rows_step,
+                mask_path, post_processing_fn);
+        } else if (point_type == "xyzirc") {
+            return make_point_cloud_processor<PointXYZIRC>(
+                info, frame, apply_lidar_to_sensor_transform,
+                organized, destagger, min_range, max_range, rows_step,
+                mask_path, post_processing_fn);
+        } else if (point_type == "xyzircaedt") {
+            return make_point_cloud_processor<PointXYZIRCAEDT>(
                 info, frame, apply_lidar_to_sensor_transform,
                 organized, destagger, min_range, max_range, rows_step,
                 mask_path, post_processing_fn);
