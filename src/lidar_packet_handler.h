@@ -87,9 +87,11 @@ class LidarPacketHandler {
         mutexes.resize(LIDAR_SCAN_COUNT);
 
         for (size_t i = 0; i < lidar_scans.size(); ++i) {
-            lidar_scans[i] = std::make_unique<ouster::sdk::core::LidarScan>(
-                info.format.columns_per_frame, info.format.pixels_per_column,
-                info.format.udp_profile_lidar, info.format.columns_per_packet);
+            // NOTE: must construct with SensorInfo (not the
+            // (w, h, UDPProfileLidar, cols_per_packet) overload) so that the
+            // RGB profile's RGB channel is created as a 3D (h x w x 3) field.
+            lidar_scans[i] =
+                std::make_unique<ouster::sdk::core::LidarScan>(info);
             mutexes[i] = std::make_unique<std::mutex>();
         }
 

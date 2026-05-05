@@ -147,10 +147,10 @@ class ImageProcessor {
             }
         }
 
-        signal_ae(signal_image_eigen, first);
-        reflec_ae(reflec_image_eigen, first);
-        nearir_buc(nearir_image_eigen);
-        nearir_ae(nearir_image_eigen, first);
+        signal_ae.update(signal_image_eigen, first);
+        reflec_ae.update(reflec_image_eigen, first);
+        nearir_buc.update(nearir_image_eigen);
+        nearir_ae.update(nearir_image_eigen, first);
         nearir_image_eigen = nearir_image_eigen.sqrt();
         signal_image_eigen = signal_image_eigen.sqrt();
 
@@ -188,8 +188,8 @@ class ImageProcessor {
     PostProcessingFn post_processing_fn;
     ouster::sdk::core::SensorInfo info_;
 
-    ouster::sdk::core::AutoExposure nearir_ae, signal_ae, reflec_ae;
-    ouster::sdk::core::BeamUniformityCorrector nearir_buc;
+    ouster::sdk::core::image::AutoExposure nearir_ae, signal_ae, reflec_ae;
+    ouster::sdk::core::image::BeamUniformityCorrector nearir_buc;
 
     ouster::sdk::core::img_t<pixel_type> mask;
 };

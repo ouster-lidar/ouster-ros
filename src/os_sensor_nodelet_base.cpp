@@ -48,7 +48,7 @@ void OusterSensorNodeletBase::display_lidar_info(
     auto fw_ver = ouster::sdk::core::version_from_string(info.image_rev);
     auto lidar_profile = info.format.udp_profile_lidar;
     auto imu_profile = info.format.udp_profile_imu;
-    auto lidar_mode = info.config.lidar_mode.value_or(LidarMode::UNSPECIFIED);
+    auto lidar_mode = info.config.lidar_mode.value();
     NODELET_INFO_STREAM(
         "ouster client version: "
         << ouster::sdk::SDK_VERSION_FULL << "\n"

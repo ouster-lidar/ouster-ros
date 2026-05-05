@@ -29,6 +29,16 @@ DEFINE_MEMBER_CHECKER(near_ir);
 DEFINE_MEMBER_CHECKER(flags);
 DEFINE_MEMBER_CHECKER(window);
 DEFINE_MEMBER_CHECKER(zone_mask);
+DEFINE_MEMBER_CHECKER(r);
+DEFINE_MEMBER_CHECKER(g);
+DEFINE_MEMBER_CHECKER(b);
+
+// Compile-time predicate identifying point types that expose a complete
+// (r, g, b) color triplet directly accessible by name. Used for direct
+// per-channel mapping during point transforms and as the gating condition
+// for RGB ingestion in scan_to_cloud_f.
+template <typename T>
+inline constexpr bool has_rgb_v = has_r_v<T> && has_g_v<T> && has_b_v<T>;
 
 
 template <typename PointTGT, typename PointSRC>
@@ -162,6 +172,47 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
     CondBinaryOp<has_zone_mask_v<PointTGT> && !has_zone_mask_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto&) {
             tgt_pt.zone_mask = static_cast<decltype(tgt_pt.zone_mask)>(0);
+        }
+    );
+
+    // r/g/b: direct per-channel mapping between RGB-compatible point types.
+    // Both ouster_ros native colored point types and pcl::PointXYZ{RGB,RGBA}
+    // expose r, g, b as named members so a member-wise copy is sufficient
+    // regardless of underlying packing (PCL keeps r/g/b in a union with rgb
+    // and rgba so updating the bytes implicitly refreshes the packed view).
+    CondBinaryOp<has_r_v<PointTGT> && has_r_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.r = static_cast<decltype(tgt_pt.r)>(src_pt.r);
+        }
+    );
+
+    CondBinaryOp<has_r_v<PointTGT> && !has_r_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.r = static_cast<decltype(tgt_pt.r)>(0);
+        }
+    );
+
+    CondBinaryOp<has_g_v<PointTGT> && has_g_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.g = static_cast<decltype(tgt_pt.g)>(src_pt.g);
+        }
+    );
+
+    CondBinaryOp<has_g_v<PointTGT> && !has_g_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.g = static_cast<decltype(tgt_pt.g)>(0);
+        }
+    );
+
+    CondBinaryOp<has_b_v<PointTGT> && has_b_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto& src_pt) {
+            tgt_pt.b = static_cast<decltype(tgt_pt.b)>(src_pt.b);
+        }
+    );
+
+    CondBinaryOp<has_b_v<PointTGT> && !has_b_v<PointSRC>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.b = static_cast<decltype(tgt_pt.b)>(0);
         }
     );
 }
