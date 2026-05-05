@@ -202,6 +202,32 @@ class OusterImage : public OusterProcessingNodeBase {
         camera_info_msg_.p = {fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0, 0.0, 0.0,
                               1.0, 0.0};
 
+        // ROI from sensor metadata column_window. Ouster sensors support
+        // azimuth windowing (e.g. forward-only sector to suppress backplate
+        // self-returns); the published image is still full-width (invalid
+        // columns are zero-filled), but ROI tells consumers which columns
+        // hold real data. column_window is inclusive on both ends; if
+        // first > second the window wraps through column 0, which a single
+        // rectangle cannot represent — fall back to "no ROI" in that case.
+        const auto& cw = sensor_info.format.column_window;
+        if (cw.first <= cw.second) {
+            camera_info_msg_.roi.x_offset = static_cast<uint32_t>(cw.first);
+            camera_info_msg_.roi.y_offset = 0;
+            camera_info_msg_.roi.width =
+                static_cast<uint32_t>(cw.second - cw.first + 1);
+            camera_info_msg_.roi.height = H;
+        } else {
+            RCLCPP_INFO(get_logger(),
+                "CameraInfo: column_window=[%d,%d] wraps through column 0; "
+                "leaving ROI unset (consumers should treat the full %u-column "
+                "image as the ROI).", cw.first, cw.second, W);
+            camera_info_msg_.roi.x_offset = 0;
+            camera_info_msg_.roi.y_offset = 0;
+            camera_info_msg_.roi.width = W;
+            camera_info_msg_.roi.height = H;
+        }
+        camera_info_msg_.roi.do_rectify = false;
+
         camera_info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>(
             "camera_info", qos);
     }
