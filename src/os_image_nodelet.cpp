@@ -74,7 +74,8 @@ class OusterImage : public nodelet::Nodelet {
                 {ChanField::NEAR_IR, "nearir_image"},
                 {ChanField::RANGE2, "range_image2"},
                 {ChanField::SIGNAL2, "signal_image2"},
-                {ChanField::REFLECTIVITY2, "reflec_image2"}};
+                {ChanField::REFLECTIVITY2, "reflec_image2"},
+                {ChanField::RGB, "rgb_image"}};
 
         for (auto it : channel_field_topic_map) {
             image_pubs[it.first] = getNodeHandle().advertise<sensor_msgs::Image>(it.second, 100);

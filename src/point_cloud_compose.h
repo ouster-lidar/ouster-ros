@@ -18,33 +18,6 @@ namespace ouster_ros {
 
 using ouster::sdk::core::ChanFieldType;
 
-namespace impl {
-
-/**
- * @brief Fast float16->float32 conversion for normal-range values.
- * Mirrors the implementation used inside ouster-sdk image_processing.
- */
-inline float f16_bits_to_f32(uint16_t bits) {
-    if (bits == 0) return 0.0f;
-    const uint32_t expanded = static_cast<uint32_t>(bits + 0x1C000u) << 13;
-    float result;
-    std::memcpy(&result, &expanded, sizeof(float));
-    return result;
-}
-
-/**
- * @brief Convert a float16 RGB sample (in normalized [0, 1] range) to an 8-bit
- * color channel.
- */
-inline uint8_t f16_rgb_to_u8(ouster::sdk::core::float16_t v) {
-    float f = f16_bits_to_f32(v.data);
-    if (f < 0.0f) f = 0.0f;
-    if (f > 1.0f) f = 1.0f;
-    return static_cast<uint8_t>(f * 255.0f + 0.5f);
-}
-
-}  // namespace impl
-
 template <ChanFieldType T>
 struct TypeSelector { /*undefined*/
 };
@@ -163,20 +136,6 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
     int h = static_cast<int>(ls.h);
     int w = static_cast<int>(ls.w);
 
-    // RGB profiles store color as a 3D float16 tensor of shape (h, w, 3) keyed
-    // by ChanField::RGB. The RGB field cannot be expressed in the regular
-    // 2D-only ChanFieldTable machinery used for the rest of the fields so we
-    // grab a typed pointer to the raw tensor data and decode it inline. The
-    // underlying SoA layout is plain row-major float16 so the byte offset of a
-    // color sample is just (src_idx * 3 + channel).
-    constexpr bool handle_rgb = point::has_rgb_v<PointS>;
-    [[maybe_unused]] const ouster::sdk::core::float16_t* rgb_data = nullptr;
-    if constexpr (handle_rgb) {
-        rgb_data =
-            ls.field(ouster::sdk::core::ChanField::RGB)
-                .template get<ouster::sdk::core::float16_t>();
-    }
-
     for (auto u = 0; u < h; u += rows_step) {
         for (auto v = 0; v < w; ++v) {   // TODO[UN]: consider cols_step in future
             const auto v_shift =
@@ -200,7 +159,6 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                     cloud.points.emplace_back();
             }
 
-
             // if target point and staging point has matching type bind the
             // target directly and avoid performing transform_point at the end
             auto& pt = CondBinaryBind<std::is_same_v<PointT, PointS>>::run(
@@ -216,12 +174,6 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             pt.t = static_cast<uint32_t>(ts);
             pt.ring = static_cast<uint16_t>(u);
             copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
-            if constexpr (handle_rgb) {
-                const auto rgb_base = static_cast<std::size_t>(src_idx) * 3;
-                pt.r = impl::f16_rgb_to_u8(rgb_data[rgb_base + 0]);
-                pt.g = impl::f16_rgb_to_u8(rgb_data[rgb_base + 1]);
-                pt.b = impl::f16_rgb_to_u8(rgb_data[rgb_base + 2]);
-            }
             // only perform point transform operation when PointT, and PointS
             // don't match
             CondBinaryOp<!std::is_same_v<PointT, PointS>>::run(

@@ -27,6 +27,10 @@
 #include <vector>
 #include <string>
 
+#include <ouster/image_processing.h>
+
+namespace ChanField = ouster::sdk::core::ChanField;
+
 namespace {
 
 template <typename T, typename UnaryPredicate>
@@ -52,6 +56,21 @@ uint64_t linear_interpolate(int x0, uint64_t y0, int x1, uint64_t y1, int x) {
         sign = -1;
     }
     return y0 + (x - x0) * sign * (max_v - min_v) / (x1 - x0);
+}
+
+// Fast float16 -> float32 conversion for normal-range values.
+inline float f16_bits_to_f32(uint16_t bits) {
+    if (bits == 0) return 0.0f;
+    const uint32_t expanded = static_cast<uint32_t>(bits + 0x1C000u) << 13;
+    float result;
+    std::memcpy(&result, &expanded, sizeof(float));
+    return result;
+}
+
+inline uint8_t f32_to_u8(float v) {
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    return static_cast<uint8_t>(v * 255.0f + 0.5f);
 }
 
 }  // namespace
@@ -204,9 +223,64 @@ class LidarPacketHandler {
 
         std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);
 
+        // apply auto exposure to the rgb data only if the point cloud has rgb fields
+        static ouster::sdk::core::image::AutoExposure auto_exposure;
+        auto ls = *lidar_scans[ring_buffer.read_head()];
+
+        if (ls.has_field(ChanField::R) && ls.has_field(ChanField::G) && ls.has_field(ChanField::B)) {
+
+            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> r_data = ls.field<uint16_t>(ChanField::R);
+            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> g_data = ls.field<uint16_t>(ChanField::G);
+            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> b_data = ls.field<uint16_t>(ChanField::B);
+
+            ouster::sdk::core::img_t<float> r_data_float(r_data.rows(), r_data.cols());
+            ouster::sdk::core::img_t<float> g_data_float(g_data.rows(), g_data.cols());
+            ouster::sdk::core::img_t<float> b_data_float(b_data.rows(), b_data.cols());
+
+            // Get raw pointers for speed
+            const uint16_t* r_in = r_data.data();
+            const uint16_t* g_in = g_data.data();
+            const uint16_t* b_in = b_data.data();
+
+            float* r_out = r_data_float.data();
+            float* g_out = g_data_float.data();
+            float* b_out = b_data_float.data();
+
+            for (int i = 0; i < r_data.size(); ++i) {
+                r_out[i] = f16_bits_to_f32(r_in[i]);
+                g_out[i] = f16_bits_to_f32(g_in[i]);
+                b_out[i] = f16_bits_to_f32(b_in[i]);
+            }
+
+            auto_exposure.update(r_data_float, g_data_float, b_data_float, true);
+
+            ouster::sdk::core::img_t<uint8_t> r_data_uint8(r_data.rows(), r_data.cols());
+            ouster::sdk::core::img_t<uint8_t> g_data_uint8(g_data.rows(), g_data.cols());
+            ouster::sdk::core::img_t<uint8_t> b_data_uint8(b_data.rows(), b_data.cols());
+
+            uint8_t* r_out_uint8 = r_data_uint8.data();
+            uint8_t* g_out_uint8 = g_data_uint8.data();
+            uint8_t* b_out_uint8 = b_data_uint8.data();
+
+            for (int i = 0; i < r_data.size(); ++i) {
+                r_out_uint8[i] = f32_to_u8(r_out[i]);
+                g_out_uint8[i] = f32_to_u8(g_out[i]);
+                b_out_uint8[i] = f32_to_u8(b_out[i]);
+            }
+
+            ls.del_field(ChanField::R);
+            ls.add_field(ChanField::R, ouster::sdk::core::fd_array<uint8_t>(r_data.rows(), r_data.cols()));
+            ls.del_field(ChanField::G);
+            ls.add_field(ChanField::G, ouster::sdk::core::fd_array<uint8_t>(g_data.rows(), g_data.cols()));
+            ls.del_field(ChanField::B);
+            ls.add_field(ChanField::B, ouster::sdk::core::fd_array<uint8_t>(b_data.rows(), b_data.cols()));
+            ls.field<uint8_t>(ChanField::R) = r_data_uint8;
+            ls.field<uint8_t>(ChanField::G) = g_data_uint8;
+            ls.field<uint8_t>(ChanField::B) = b_data_uint8;
+        }
+
         for (auto h : lidar_scan_handlers) {
-            h(*lidar_scans[ring_buffer.read_head()], lidar_scan_estimated_ts,
-              lidar_scan_estimated_msg_ts);
+            h(ls, lidar_scan_estimated_ts, lidar_scan_estimated_msg_ts);
         }
 
         // when we hit percent amount of the ring_buffer capacity throttle
