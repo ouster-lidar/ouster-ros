@@ -54,7 +54,7 @@ class ImageProcessor {
             init_image_msg(*it->second, H, W, frame);
         }
 
-        mask = impl::load_mask<pixel_type>(mask_path, H, W, info.format.pixel_shift_by_row);
+        mask = impl::load_mask<pixel_type>(mask_path, H, W);
     }
 
    private:
