@@ -55,6 +55,15 @@ class ImageProcessor {
         }
 
         mask = impl::load_mask<pixel_type>(mask_path, H, W);
+
+        has_rgb = info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+        info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+
+        // TODO[UN]: Update the code to make rgb_processing conditional
+        // if (has_rgb) {
+            image_msgs[ChanField::RGB] = std::make_shared<sensor_msgs::msg::Image>();
+            init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
+        // }
     }
 
    private:
@@ -69,6 +78,16 @@ class ImageProcessor {
         // TODO: allow choosing higher image encoding representation
         msg.encoding = sensor_msgs::image_encodings::MONO16;
         msg.data.resize(W * H * sizeof(pixel_type));
+        msg.header.frame_id = frame;
+    }
+
+    static void init_image_msg_rgb(sensor_msgs::msg::Image& msg, size_t H, size_t W,
+                               const std::string& frame) {
+        msg.width = W;
+        msg.height = H;
+        msg.step = W * 3 * sizeof(uint8_t);
+        msg.encoding = sensor_msgs::image_encodings::RGB8;
+        msg.data.resize(H * msg.step);
         msg.header.frame_id = frame;
     }
 
@@ -104,6 +123,13 @@ class ImageProcessor {
         ouster::sdk::core::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
             impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
 
+        ouster::sdk::core::img_t<uint8_t> r_data = impl::get_or_fill_zero<uint8_t>(
+            ouster::sdk::core::ChanField::R, lidar_scan);
+        ouster::sdk::core::img_t<uint8_t> g_data = impl::get_or_fill_zero<uint8_t>(
+            ouster::sdk::core::ChanField::G, lidar_scan);
+        ouster::sdk::core::img_t<uint8_t> b_data = impl::get_or_fill_zero<uint8_t>(
+            ouster::sdk::core::ChanField::B, lidar_scan);
+
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
 
@@ -121,6 +147,10 @@ class ImageProcessor {
         auto nearir_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)near_ir_msg->data.data(), H, W);
 
+        auto rgb_msg = image_msgs[ChanField::RGB];
+        auto rgb_image_map = Eigen::TensorMap<ouster::sdk::core::rgb_img_t<uint8_t>>(
+            (uint8_t*)rgb_msg->data.data(), H, W, 3);
+
         const auto& px_offset = info_.format.pixel_shift_by_row;
 
         ouster::sdk::core::img_t<float> signal_image_eigen(H, W);
@@ -131,6 +161,10 @@ class ImageProcessor {
         const auto sg = signal.data();
         const auto rf = reflectivity.data();
         const auto nr = near_ir.data();
+
+        const auto rd = r_data.data();
+        const auto gd = g_data.data();
+        const auto bd = b_data.data();
 
         // copy data out of Cloud message, with destaggering
         for (size_t u = 0; u < H; u++) {
@@ -144,15 +178,20 @@ class ImageProcessor {
                 signal_image_eigen(u, v) = sg[idx];
                 reflec_image_eigen(u, v) = rf[idx];
                 nearir_image_eigen(u, v) = nr[idx];
+                rgb_image_map(u, v, 0) = rd[idx];
+                rgb_image_map(u, v, 1) = gd[idx];
+                rgb_image_map(u, v, 2) = bd[idx];
             }
         }
 
-        signal_ae(signal_image_eigen, first);
-        reflec_ae(reflec_image_eigen, first);
-        nearir_buc(nearir_image_eigen);
-        nearir_ae(nearir_image_eigen, first);
+        signal_ae.update(signal_image_eigen, first);
+        reflec_ae.update(reflec_image_eigen, first);
+        nearir_buc.update(nearir_image_eigen);
+        nearir_ae.update(nearir_image_eigen, first);
         nearir_image_eigen = nearir_image_eigen.sqrt();
         signal_image_eigen = signal_image_eigen.sqrt();
+
+        // NOTE[UN]: RGB image data is readily autoexposed at the lidar packet handler step
 
         // copy data into image messages
         signal_image_map =
@@ -167,6 +206,9 @@ class ImageProcessor {
             signal_image_map = signal_image_map * mask;
             reflec_image_map = reflec_image_map * mask;
             nearir_image_map = nearir_image_map * mask;
+
+            // TODO[UN]: apply mask to an RGB image
+            // rgb_image_map = rgb_image_map * mask;
         }
     }
 
@@ -188,10 +230,11 @@ class ImageProcessor {
     PostProcessingFn post_processing_fn;
     ouster::sdk::core::SensorInfo info_;
 
-    ouster::sdk::core::AutoExposure nearir_ae, signal_ae, reflec_ae;
-    ouster::sdk::core::BeamUniformityCorrector nearir_buc;
+    ouster::sdk::core::image::AutoExposure nearir_ae, signal_ae, reflec_ae;
+    ouster::sdk::core::image::BeamUniformityCorrector nearir_buc;
 
     ouster::sdk::core::img_t<pixel_type> mask;
+    bool has_rgb;
 };
 
 }  // namespace ouster_ros

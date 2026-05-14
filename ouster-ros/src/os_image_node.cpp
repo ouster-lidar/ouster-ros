@@ -79,7 +79,8 @@ class OusterImage : public OusterProcessingNodeBase {
                 {ChanField::RANGE, "range_image"},
                 {ChanField::SIGNAL, "signal_image"},
                 {ChanField::REFLECTIVITY, "reflec_image"},
-                {ChanField::NEAR_IR, "nearir_image"}};
+                {ChanField::NEAR_IR, "nearir_image"},
+                {ChanField::RGB, "rgb_image"}};
 
         const std::map<std::string, std::string>
             channel_field_topic_map_2 {
@@ -89,7 +90,8 @@ class OusterImage : public OusterProcessingNodeBase {
                 {ChanField::NEAR_IR, "nearir_image"},
                 {ChanField::RANGE2, "range_image2"},
                 {ChanField::SIGNAL2, "signal_image2"},
-                {ChanField::REFLECTIVITY2, "reflec_image2"}};
+                {ChanField::REFLECTIVITY2, "reflec_image2"},
+                {ChanField::RGB, "rgb_image"}};
 
         auto which_map = n_returns == 1 ? &channel_field_topic_map_1
                                         : &channel_field_topic_map_2;

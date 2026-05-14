@@ -288,7 +288,7 @@ void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
 
     info = ouster::sdk::core::SensorInfo(cached_metadata);
     // TODO: revist when *min_version* is changed
-    populate_metadata_defaults(info, LidarMode::UNSPECIFIED);
+    populate_metadata_defaults(info, LidarMode::_2048x10);
 
     publish_metadata();
     save_metadata();
@@ -473,7 +473,7 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, LidarMode::UNSPECIFIED,
+        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, LidarMode::_2048x10,
                                   TimestampMode::UNSPECIFIED, lidar_port, imu_port);
     }
 
@@ -623,13 +623,14 @@ void OusterSensor::parse_lidar_mode(SensorConfig& config) {
         return;
     }
 
-    auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
-    if (lidar_mode == LidarMode::MODE_UNSPEC) {
-        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
+    try {
+        auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
+        config.lidar_mode = lidar_mode;
+    } catch (const std::exception& e) {
+        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg + ", exception details: " + e.what();
         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
-    config.lidar_mode = lidar_mode;
 }
 
 void OusterSensor::parse_timestamp_mode(SensorConfig& config) {
