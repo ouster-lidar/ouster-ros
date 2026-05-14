@@ -350,10 +350,6 @@ class PointCloudProcessorFactory {
                 organized, destagger, min_range, max_range, rows_step,
                 mask_path, post_processing_fn);
         } else if (point_type == "xyzrgb") {
-            // The RGB target type only carries meaningful color data when the
-            // active udp profile is one of the colored profiles. For non-RGB
-            // profiles the per-point r/g/b channels remain zeroed because the
-            // staging native point lacks the corresponding members.
             return make_point_cloud_processor<pcl::PointXYZRGB>(
                 info, frame, apply_lidar_to_sensor_transform,
                 organized, destagger, min_range, max_range, rows_step,

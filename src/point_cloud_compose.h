@@ -5,8 +5,6 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <ouster/typedefs.h>
-
 #include "ouster_ros/os_point.h"
 #include "ouster_ros/sensor_point_types.h"
 #include "ouster_ros/common_point_types.h"
