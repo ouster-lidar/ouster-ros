@@ -225,7 +225,8 @@ class LidarPacketHandler {
 
         // apply auto exposure to the rgb data only if the point cloud has rgb fields
         static ouster::sdk::core::image::AutoExposure auto_exposure;
-        auto ls = *lidar_scans[ring_buffer.read_head()];
+        // NOTE[UN]: We need to copy the lidar scan to avoid modifying the original scan
+        ouster::sdk::core::LidarScan ls = *lidar_scans[ring_buffer.read_head()];
 
         if (ls.has_field(ChanField::R) && ls.has_field(ChanField::G) && ls.has_field(ChanField::B)) {
 
