@@ -144,6 +144,13 @@
     NEAREST_TO_FARTHEST
     "/>
 
+  <!-- Only set this parameter when working with FW 3.1+ -->
+  <arg name="min_distance" default="-1"
+    doc="to change the sensor’s minimum reported range (cm);
+    available options (FW3.1+): {0, 30}
+    available options (FW3.2+): {0, 30, 50}"
+     />
+
   <!-- Only set this parameter when working with FW3.2+ -->
   <arg name="bloom_reduction_optimization" default=" "
     doc="level of bloom reduction optimization to apply on the sensor (FW3.2+); possible values:
@@ -215,6 +222,7 @@
       <param name="~/lidar_frame_azimuth_offset" value="$(arg lidar_frame_azimuth_offset)"/>
       <param name="~/return_order" value="$(arg return_order)"/>
       <param name="~/bloom_reduction_optimization" value="$(arg bloom_reduction_optimization)"/>
+      <param name="~/min_distance" value="$(arg min_distance)"/>
       <param name="~/persist_config" value="$(arg persist_config)"/>
       <param name="~/attempt_reconnect" value="$(arg attempt_reconnect)"/>
       <param name="~/dormant_period_between_reconnects"
