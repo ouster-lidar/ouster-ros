@@ -722,9 +722,9 @@ static constexpr ChanFieldTable<8> Profile_RNG19_RFL8_SIG16_NIR16_RGB16{{
     {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::FLAGS, ChanFieldType::UINT8},
-    {ChanField::R, ChanFieldType::UINT8},
-    {ChanField::G, ChanFieldType::UINT8},
-    {ChanField::B, ChanFieldType::UINT8},
+    {ChanField::R8, ChanFieldType::UINT8},
+    {ChanField::G8, ChanFieldType::UINT8},
+    {ChanField::B8, ChanFieldType::UINT8},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_RGB16
@@ -814,9 +814,9 @@ static constexpr ChanFieldTable<8> Profile_RNG19_RFL8_SIG16_NIR16_RGB16_DUAL{{
     {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::FLAGS, ChanFieldType::UINT8},
-    {ChanField::R, ChanFieldType::UINT8},
-    {ChanField::G, ChanFieldType::UINT8},
-    {ChanField::B, ChanFieldType::UINT8}
+    {ChanField::R8, ChanFieldType::UINT8},
+    {ChanField::G8, ChanFieldType::UINT8},
+    {ChanField::B8, ChanFieldType::UINT8}
 }};
 
 // 2nd return mirror of Profile_RNG19_RFL8_SIG16_NIR16_RGB16_DUAL. NEAR_IR and
@@ -828,9 +828,9 @@ static constexpr ChanFieldTable<8>
         {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
         {ChanField::NEAR_IR, ChanFieldType::UINT16},
         {ChanField::FLAGS2, ChanFieldType::UINT8},
-        {ChanField::R, ChanFieldType::UINT8},
-        {ChanField::G, ChanFieldType::UINT8},
-        {ChanField::B, ChanFieldType::UINT8}
+        {ChanField::R8, ChanFieldType::UINT8},
+        {ChanField::G8, ChanFieldType::UINT8},
+        {ChanField::B8, ChanFieldType::UINT8}
     }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_RGB16_DUAL
