@@ -150,6 +150,7 @@ class ImageProcessor {
         const auto sg = signal.data();
         const auto rf = reflectivity.data();
         const auto nr = near_ir.data();
+        const bool has_mask = mask.size() != 0;
 
         // copy data out of Cloud message, with destaggering
         auto process_pixel = [&](size_t u, size_t v, size_t idx) {
@@ -159,7 +160,9 @@ class ImageProcessor {
             range_image_map(u, v) = r > pixel_value_max ? 0 : r;
             signal_image_eigen(u, v) = sg[idx];
             reflec_image_eigen(u, v) = rf[idx];
-            nearir_image_eigen(u, v) = nr[idx];
+            if (first) {
+                nearir_image_eigen(u, v) = nr[idx];
+            }
         };
 
         const bool process_rgb = has_rgb_ && first;
@@ -193,6 +196,19 @@ class ImageProcessor {
                     rgb_image_map(u, v, 2) = bd[idx];
                 }
             }
+
+            if (has_mask) {
+                using MaskTensorMap =
+                    Eigen::TensorMap<const Eigen::Tensor<pixel_type, 2, Eigen::RowMajor>>;
+                MaskTensorMap mask_tensor(mask.data(), H, W);
+                const Eigen::array<Eigen::Index, 3> mask_shape = {
+                    static_cast<Eigen::Index>(H), static_cast<Eigen::Index>(W), 1};
+                const Eigen::array<Eigen::Index, 3> mask_broadcast = {1, 1, 3};
+                rgb_image_map *=
+                    mask_tensor.reshape(mask_shape)
+                    .broadcast(mask_broadcast)
+                    .cast<uint8_t>();
+            }
         } else {
             for (size_t u = 0; u < H; u++) {
                 for (size_t v = 0; v < W; v++) {
@@ -204,30 +220,35 @@ class ImageProcessor {
         }
 
         signal_ae.update(signal_image_eigen, first);
-        reflec_ae.update(reflec_image_eigen, first);
-        nearir_buc.update(nearir_image_eigen);
-        nearir_ae.update(nearir_image_eigen, first);
-        nearir_image_eigen = nearir_image_eigen.sqrt();
         signal_image_eigen = signal_image_eigen.sqrt();
+        reflec_ae.update(reflec_image_eigen, first);
+        if (first) {
+            nearir_buc.update(nearir_image_eigen);
+            nearir_ae.update(nearir_image_eigen, first);
+            nearir_image_eigen = nearir_image_eigen.sqrt();
+        }
 
-        // NOTE[UN]: RGB image data is readily autoexposed at the lidar packet handler step
+        // NOTE[UN]: RGB image data is readily autoexposed at the lidar packet handler
+        // and therefore, we don't need to apply auto exposure to the RGB image here
 
         // copy data into image messages
         signal_image_map =
             (signal_image_eigen * pixel_value_max).cast<pixel_type>();
         reflec_image_map =
             (reflec_image_eigen * pixel_value_max).cast<pixel_type>();
-        nearir_image_map =
-            (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
 
-        if (mask.size() != 0) {
+        if (first) {
+            nearir_image_map =
+                (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
+        }
+
+        if (has_mask) {
             range_image_map = range_image_map * mask;
             signal_image_map = signal_image_map * mask;
             reflec_image_map = reflec_image_map * mask;
-            nearir_image_map = nearir_image_map * mask;
-
-            // TODO[UN]: apply mask to an RGB image
-            // rgb_image_map = rgb_image_map * mask;
+            if (first) {
+                nearir_image_map = nearir_image_map * mask;
+            }
         }
     }
 
