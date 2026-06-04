@@ -56,8 +56,9 @@ class ImageProcessor {
 
         mask = impl::load_mask<pixel_type>(mask_path, H, W);
 
-        has_rgb = info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
-        info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+        has_rgb =
+            info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+            info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
 
         // TODO[UN]: Update the code to make rgb_processing conditional
         // if (has_rgb) {
@@ -124,11 +125,11 @@ class ImageProcessor {
             impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
 
         ouster::sdk::core::img_t<uint8_t> r_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::R, lidar_scan);
+            ouster::sdk::core::ChanField::R8, lidar_scan);
         ouster::sdk::core::img_t<uint8_t> g_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::G, lidar_scan);
+            ouster::sdk::core::ChanField::G8, lidar_scan);
         ouster::sdk::core::img_t<uint8_t> b_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::B, lidar_scan);
+            ouster::sdk::core::ChanField::B8, lidar_scan);
 
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;

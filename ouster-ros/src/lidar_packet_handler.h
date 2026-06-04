@@ -116,16 +116,17 @@ class LidarPacketHandler {
         if (info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
             info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL) {
             has_rgb_ = true;
-            using ouster::sdk::core::img_t;
-            r_field_float = img_t<float>(info.format.columns_per_frame, info.format.pixels_per_column);
-            g_field_float = img_t<float>(info.format.columns_per_frame, info.format.pixels_per_column);
-            b_field_float = img_t<float>(info.format.columns_per_frame, info.format.pixels_per_column);
+            uint32_t H = info.format.pixels_per_column;
+            uint32_t W = info.format.columns_per_frame;
+            r_field_float = ouster::sdk::core::img_t<float>(H, W);
+            g_field_float = ouster::sdk::core::img_t<float>(H, W);
+            b_field_float = ouster::sdk::core::img_t<float>(H, W);
             auto_exposure_ = std::make_unique<ouster::sdk::core::image::AutoExposure>();
             for (auto& ls : lidar_scans) {
                 using ouster::sdk::core::fd_array;
-                ls->add_field(ChanField::R8, fd_array<uint8_t>(ls->h, ls->w));
-                ls->add_field(ChanField::G8, fd_array<uint8_t>(ls->h, ls->w));
-                ls->add_field(ChanField::B8, fd_array<uint8_t>(ls->h, ls->w));
+                ls->add_field(ChanField::R8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::G8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::B8, fd_array<uint8_t>(H, W));
             }
         }
 
