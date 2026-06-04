@@ -56,15 +56,14 @@ class ImageProcessor {
 
         mask = impl::load_mask<pixel_type>(mask_path, H, W);
 
-        has_rgb =
+        has_rgb_ =
             info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
             info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
 
-        // TODO[UN]: Update the code to make rgb_processing conditional
-        // if (has_rgb) {
+        if (has_rgb_) {
             image_msgs[ChanField::RGB] = std::make_shared<sensor_msgs::msg::Image>();
             init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
-        // }
+        }
     }
 
    private:
@@ -83,7 +82,7 @@ class ImageProcessor {
     }
 
     static void init_image_msg_rgb(sensor_msgs::msg::Image& msg, size_t H, size_t W,
-                               const std::string& frame) {
+                                   const std::string& frame) {
         msg.width = W;
         msg.height = H;
         msg.step = W * 3 * sizeof(uint8_t);
@@ -124,13 +123,6 @@ class ImageProcessor {
         ouster::sdk::core::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
             impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
 
-        ouster::sdk::core::img_t<uint8_t> r_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::R8, lidar_scan);
-        ouster::sdk::core::img_t<uint8_t> g_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::G8, lidar_scan);
-        ouster::sdk::core::img_t<uint8_t> b_data = impl::get_or_fill_zero<uint8_t>(
-            ouster::sdk::core::ChanField::B8, lidar_scan);
-
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
 
@@ -148,10 +140,6 @@ class ImageProcessor {
         auto nearir_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
             (pixel_type*)near_ir_msg->data.data(), H, W);
 
-        auto rgb_msg = image_msgs[ChanField::RGB];
-        auto rgb_image_map = Eigen::TensorMap<ouster::sdk::core::rgb_img_t<uint8_t>>(
-            (uint8_t*)rgb_msg->data.data(), H, W, 3);
-
         const auto& px_offset = info_.format.pixel_shift_by_row;
 
         ouster::sdk::core::img_t<float> signal_image_eigen(H, W);
@@ -163,25 +151,55 @@ class ImageProcessor {
         const auto rf = reflectivity.data();
         const auto nr = near_ir.data();
 
-        const auto rd = r_data.data();
-        const auto gd = g_data.data();
-        const auto bd = b_data.data();
-
         // copy data out of Cloud message, with destaggering
-        for (size_t u = 0; u < H; u++) {
-            for (size_t v = 0; v < W; v++) {
-                const size_t vv = (v + W - px_offset[u]) % W;
-                const size_t idx = u * W + vv;
-                // TODO: re-examine this truncation later
-                // 16 bit img: use 4mm resolution and throw out returns > 260m
-                auto r = (rg[idx] + 0b10) >> 2;
-                range_image_map(u, v) = r > pixel_value_max ? 0 : r;
-                signal_image_eigen(u, v) = sg[idx];
-                reflec_image_eigen(u, v) = rf[idx];
-                nearir_image_eigen(u, v) = nr[idx];
-                rgb_image_map(u, v, 0) = rd[idx];
-                rgb_image_map(u, v, 1) = gd[idx];
-                rgb_image_map(u, v, 2) = bd[idx];
+        auto process_pixel = [&](size_t u, size_t v, size_t idx) {
+            // TODO: re-examine this truncation later
+            // 16 bit img: use 4mm resolution and throw out returns > 260m
+            auto r = (rg[idx] + 0b10) >> 2;
+            range_image_map(u, v) = r > pixel_value_max ? 0 : r;
+            signal_image_eigen(u, v) = sg[idx];
+            reflec_image_eigen(u, v) = rf[idx];
+            nearir_image_eigen(u, v) = nr[idx];
+        };
+
+        const bool process_rgb = has_rgb_ && first;
+        if (process_rgb) {
+            ouster::sdk::core::img_t<uint8_t> r_data =
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::R8,
+                                                lidar_scan);
+            ouster::sdk::core::img_t<uint8_t> g_data =
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::G8,
+                                                lidar_scan);
+            ouster::sdk::core::img_t<uint8_t> b_data =
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::B8,
+                                                lidar_scan);
+
+            auto rgb_msg = image_msgs[ChanField::RGB];
+            auto rgb_image_map =
+                Eigen::TensorMap<ouster::sdk::core::rgb_img_t<uint8_t>>(
+                    (uint8_t*)rgb_msg->data.data(), H, W, 3);
+
+            const auto rd = r_data.data();
+            const auto gd = g_data.data();
+            const auto bd = b_data.data();
+
+            for (size_t u = 0; u < H; u++) {
+                for (size_t v = 0; v < W; v++) {
+                    const size_t vv = (v + W - px_offset[u]) % W;
+                    const size_t idx = u * W + vv;
+                    process_pixel(u, v, idx);
+                    rgb_image_map(u, v, 0) = rd[idx];
+                    rgb_image_map(u, v, 1) = gd[idx];
+                    rgb_image_map(u, v, 2) = bd[idx];
+                }
+            }
+        } else {
+            for (size_t u = 0; u < H; u++) {
+                for (size_t v = 0; v < W; v++) {
+                    const size_t vv = (v + W - px_offset[u]) % W;
+                    const size_t idx = u * W + vv;
+                    process_pixel(u, v, idx);
+                }
             }
         }
 
@@ -235,7 +253,7 @@ class ImageProcessor {
     ouster::sdk::core::image::BeamUniformityCorrector nearir_buc;
 
     ouster::sdk::core::img_t<pixel_type> mask;
-    bool has_rgb;
+    bool has_rgb_ = false;
 };
 
 }  // namespace ouster_ros
