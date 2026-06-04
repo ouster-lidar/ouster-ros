@@ -35,6 +35,8 @@ class PointTransformTest : public ::testing::Test {
         initialize_point_elements_with_randoms<point::size(pt_xyzir)>(pt_xyzir);
         initialize_point_elements_with_randoms<point::size(pt_xyzrgb)>(
             pt_xyzrgb);
+        initialize_point_elements_with_randoms<point::size(pt_xyzrgba)>(
+            pt_xyzrgba);
         // native sensor point types
         initialize_point_elements_with_randoms<point::size(pt_legacy)>(
             pt_legacy);
@@ -61,6 +63,7 @@ class PointTransformTest : public ::testing::Test {
     static pcl::PointXYZI pt_xyzi;
     static PointXYZIR pt_xyzir;
     static pcl::PointXYZRGB pt_xyzrgb;
+    static pcl::PointXYZRGBA pt_xyzrgba;
     // native point types
     static Point_LEGACY pt_legacy;
     static Point_RNG19_RFL8_SIG16_NIR16_DUAL pt_rg19_rf8_sg16_nr16_dual;
@@ -78,6 +81,7 @@ pcl::PointXYZ PointTransformTest::pt_xyz;
 pcl::PointXYZI PointTransformTest::pt_xyzi;
 PointXYZIR PointTransformTest::pt_xyzir;
 pcl::PointXYZRGB PointTransformTest::pt_xyzrgb;
+pcl::PointXYZRGBA PointTransformTest::pt_xyzrgba;
 // native point types
 Point_LEGACY PointTransformTest::pt_legacy;
 Point_RNG19_RFL8_SIG16_NIR16_DUAL
@@ -225,6 +229,11 @@ void verify_point_transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         tgt_pt, src_pt, [](const auto& tgt_pt, const auto&) {
             EXPECT_EQ(tgt_pt.b, static_cast<decltype(tgt_pt.b)>(0));
         });
+
+    CondBinaryOp<has_a_v<PointTGT>>::run(
+        tgt_pt, src_pt, [](const auto& tgt_pt, const auto&) {
+            EXPECT_EQ(tgt_pt.a, static_cast<decltype(tgt_pt.a)>(255));
+        });
 }
 
 // lambda function to check that point elements other than xyz have been zeroed
@@ -248,6 +257,12 @@ TEST_F(PointTransformTest, ExpectPointFieldZeroed) {
     point::transform(pt_xyzrgb, pt_xyz);
     expect_points_xyz_equal(pt_xyzrgb, pt_xyz);
     expect_point_fields_zeros<point::size(pt_xyzrgb)>(pt_xyzrgb);
+    EXPECT_EQ(pt_xyzrgb.a, 255);
+
+    point::transform(pt_xyzrgba, pt_xyz);
+    expect_points_xyz_equal(pt_xyzrgba, pt_xyz);
+    expect_point_fields_zeros<point::size(pt_xyzrgba)>(pt_xyzrgba);
+    EXPECT_EQ(pt_xyzrgba.a, 255);
 
     point::transform(pt_legacy, pt_xyz);
     expect_points_xyz_equal(pt_legacy, pt_xyz);
@@ -381,6 +396,10 @@ TEST_F(PointTransformTest, TestTransformReduce_RNG19_RFL8_SIG16_NIR16_RGB16) {
     point::transform(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16);
     expect_points_xyz_equal(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16);
     verify_point_transform(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16);
+
+    point::transform(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16);
+    expect_points_xyz_equal(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16);
+    verify_point_transform(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16);
 }
 
 TEST_F(PointTransformTest,
@@ -400,20 +419,40 @@ TEST_F(PointTransformTest,
     point::transform(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16_dual);
     expect_points_xyz_equal(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16_dual);
     verify_point_transform(pt_xyzrgb, pt_rg19_rf8_sg16_nr16_rgb16_dual);
+
+    point::transform(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16_dual);
+    expect_points_xyz_equal(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16_dual);
+    verify_point_transform(pt_xyzrgba, pt_rg19_rf8_sg16_nr16_rgb16_dual);
 }
 
-// Validates that transforming a non-RGB native sensor point into pcl::PointXYZRGB
-// results in zeroed color channels (rather than uninitialized memory).
-TEST_F(PointTransformTest, TestTransformReduce_NonRGB_to_PointXYZRGB) {
+// Validates that transforming a non-RGB native sensor point into PCL RGB point
+// types results in zeroed color channels (rather than uninitialized memory).
+TEST_F(PointTransformTest, TestTransformReduce_NonRGB_to_PclColorPoints) {
     point::transform(pt_xyzrgb, pt_legacy);
     expect_points_xyz_equal(pt_xyzrgb, pt_legacy);
     EXPECT_EQ(pt_xyzrgb.r, 0);
     EXPECT_EQ(pt_xyzrgb.g, 0);
     EXPECT_EQ(pt_xyzrgb.b, 0);
+    EXPECT_EQ(pt_xyzrgb.a, 255);
+
+    point::transform(pt_xyzrgba, pt_legacy);
+    expect_points_xyz_equal(pt_xyzrgba, pt_legacy);
+    EXPECT_EQ(pt_xyzrgba.r, 0);
+    EXPECT_EQ(pt_xyzrgba.g, 0);
+    EXPECT_EQ(pt_xyzrgba.b, 0);
+    EXPECT_EQ(pt_xyzrgba.a, 255);
 
     point::transform(pt_xyzrgb, pt_rg19_rf8_sg16_nr16);
     expect_points_xyz_equal(pt_xyzrgb, pt_rg19_rf8_sg16_nr16);
     EXPECT_EQ(pt_xyzrgb.r, 0);
     EXPECT_EQ(pt_xyzrgb.g, 0);
     EXPECT_EQ(pt_xyzrgb.b, 0);
+    EXPECT_EQ(pt_xyzrgb.a, 255);
+
+    point::transform(pt_xyzrgba, pt_rg19_rf8_sg16_nr16);
+    expect_points_xyz_equal(pt_xyzrgba, pt_rg19_rf8_sg16_nr16);
+    EXPECT_EQ(pt_xyzrgba.r, 0);
+    EXPECT_EQ(pt_xyzrgba.g, 0);
+    EXPECT_EQ(pt_xyzrgba.b, 0);
+    EXPECT_EQ(pt_xyzrgba.a, 255);
 }

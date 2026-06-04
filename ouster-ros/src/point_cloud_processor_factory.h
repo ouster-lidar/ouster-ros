@@ -326,6 +326,11 @@ class PointCloudProcessorFactory {
                 info, frame, apply_lidar_to_sensor_transform,
                 organized, destagger, min_range, max_range, rows_step,
                 mask_path, post_processing_fn);
+        } else if (point_type == "xyzrgba") {
+            return make_point_cloud_processor<pcl::PointXYZRGBA>(
+                info, frame, apply_lidar_to_sensor_transform,
+                organized, destagger, min_range, max_range, rows_step,
+                mask_path, post_processing_fn);
         } else if (point_type == "original") {
             return make_point_cloud_processor<ouster_ros::Point>(
                 info, frame, apply_lidar_to_sensor_transform,

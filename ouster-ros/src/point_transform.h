@@ -32,6 +32,7 @@ DEFINE_MEMBER_CHECKER(zone_mask);
 DEFINE_MEMBER_CHECKER(r);
 DEFINE_MEMBER_CHECKER(g);
 DEFINE_MEMBER_CHECKER(b);
+DEFINE_MEMBER_CHECKER(a);
 
 // Compile-time predicate identifying point types that expose a complete
 // (r, g, b) color triplet directly accessible by name. Used for direct
@@ -188,6 +189,12 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
             tgt_pt.r = static_cast<decltype(tgt_pt.r)>(0);
             tgt_pt.g = static_cast<decltype(tgt_pt.g)>(0);
             tgt_pt.b = static_cast<decltype(tgt_pt.b)>(0);
+        }
+    );
+
+    CondBinaryOp<has_a_v<PointTGT>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.a = static_cast<decltype(tgt_pt.a)>(255);
         }
     );
 }
