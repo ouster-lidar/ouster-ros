@@ -124,9 +124,9 @@ class LidarPacketHandler {
             auto_exposure_ = std::make_unique<ouster::sdk::core::image::AutoExposure>();
             for (auto& ls : lidar_scans) {
                 using ouster::sdk::core::fd_array;
-                ls->add_field(ChanField::R8, fd_array<uint8_t>(H, W));
-                ls->add_field(ChanField::G8, fd_array<uint8_t>(H, W));
-                ls->add_field(ChanField::B8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::R_U8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::G_U8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::B_U8, fd_array<uint8_t>(H, W));
             }
         }
 
@@ -269,9 +269,9 @@ class LidarPacketHandler {
 
             auto_exposure_->update(r_field_float, g_field_float, b_field_float, true);
 
-            Eigen::Ref<img_t<uint8_t>> r_field_uint8 = ls.field<uint8_t>(ChanField::R8);
-            Eigen::Ref<img_t<uint8_t>> g_field_uint8 = ls.field<uint8_t>(ChanField::G8);
-            Eigen::Ref<img_t<uint8_t>> b_field_uint8 = ls.field<uint8_t>(ChanField::B8);
+            Eigen::Ref<img_t<uint8_t>> r_field_uint8 = ls.field<uint8_t>(ChanField::R_U8);
+            Eigen::Ref<img_t<uint8_t>> g_field_uint8 = ls.field<uint8_t>(ChanField::G_U8);
+            Eigen::Ref<img_t<uint8_t>> b_field_uint8 = ls.field<uint8_t>(ChanField::B_U8);
 
             uint8_t* r_out_uint8 = r_field_uint8.data();
             uint8_t* g_out_uint8 = g_field_uint8.data();

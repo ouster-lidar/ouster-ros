@@ -168,13 +168,13 @@ class ImageProcessor {
         const bool process_rgb = has_rgb_ && first;
         if (process_rgb) {
             ouster::sdk::core::img_t<uint8_t> r_data =
-                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::R8,
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::R_U8,
                                                 lidar_scan);
             ouster::sdk::core::img_t<uint8_t> g_data =
-                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::G8,
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::G_U8,
                                                 lidar_scan);
             ouster::sdk::core::img_t<uint8_t> b_data =
-                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::B8,
+                impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::B_U8,
                                                 lidar_scan);
 
             auto rgb_msg = image_msgs[ChanField::RGB];

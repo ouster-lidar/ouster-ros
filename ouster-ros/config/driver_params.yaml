@@ -104,7 +104,7 @@ ouster/os_driver:
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
     # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi,
-    #                                     xyzir, xyzrgb, xyzrgba}
+    #                                     xyzir, xyzrgb, xyzrgba, color_point}
     # Here is a breif description of each option:
     #  - original: This uses the original point representation ouster_ros::Point
     #          of the ouster-ros driver.
@@ -121,6 +121,7 @@ ouster/os_driver:
     #  - xyzrgb: same as xyz point type but adds RGB color fields.
     #  - xyzrgba: same as xyzrgb point type but publishes the packed color as
     #          PCL's RGBA field with an opaque alpha channel.
+    #  - color_point: same as the original point type but adds RGB color fields.
     # for more details about the fields of each point type and their data refer
     # to the following header files:
     # - ouster_ros/os_point.h
