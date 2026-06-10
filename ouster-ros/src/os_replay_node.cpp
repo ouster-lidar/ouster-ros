@@ -107,7 +107,7 @@ class OusterReplay : public OusterSensorNodeBase {
    private:
     void declare_parameters() {
         declare_parameter("auto_start", true);
-        declare_parameter<std::string>("metadata");
+        declare_parameter<std::string>("metadata", "");
     }
 
     std::string parse_parameters() {

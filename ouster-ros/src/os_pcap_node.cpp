@@ -149,8 +149,8 @@ class OusterPcap : public OusterSensorNodeBase {
 
     void declare_parameters() {
         declare_parameter("auto_start", true);
-        declare_parameter<std::string>("metadata");
-        declare_parameter<std::string>("pcap_file");
+        declare_parameter<std::string>("metadata", "");
+        declare_parameter<std::string>("pcap_file", "");
         declare_parameter("loop", false);
         declare_parameter("progress_update_freq", 1.0);
         declare_parameter("use_system_default_qos", false);
@@ -208,7 +208,7 @@ class OusterPcap : public OusterSensorNodeBase {
     }
 
     void open_pcap(const std::string& pcap_file) {
-        pcap.reset(new PcapReader(pcap_file));
+        pcap = std::make_unique<PcapReader>(pcap_file);
     }
 
     void start_packet_read_thread() {
