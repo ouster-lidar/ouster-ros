@@ -89,6 +89,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
  * @param[in] frame the parent frame of the generated laser scan message
  * @param[in] lidar_mode lidar mode (width x frequency)
  * @param[in] ring selected ring to be published
+ * @param[in] no_return_is_inf whether missing returns should be reported as +inf
  * @param[in] pixel_shift_by_row pixel shifts by row
  * @param[in] return_index index of return desired starting at 0
  * @return ROS message suitable for publishing as a LaserScan
@@ -98,7 +99,8 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const rclcpp::Time& timestamp,
     const std::string &frame,
     const ouster::sdk::core::LidarMode lidar_mode,
-    const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
+    const uint16_t ring, bool no_return_is_inf,
+    const std::vector<int>& pixel_shift_by_row,
     const int return_index);
 
 /**

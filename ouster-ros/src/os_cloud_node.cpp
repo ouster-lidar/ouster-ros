@@ -61,6 +61,7 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("proc_mask", "IMU|PCL|SCAN");
         declare_parameter("use_system_default_qos", false);
         declare_parameter("scan_ring", 0);
+        declare_parameter("no_return_is_inf", false);
         declare_parameter("point_type", "original");
         declare_parameter("organized", true);
         declare_parameter("destagger", true);
@@ -198,6 +199,7 @@ class OusterCloud : public OusterProcessingNodeBase {
             }
             // TODO: avoid this duplication in os_cloud_node
             int beams_count = static_cast<int>(get_beams_count(info));
+            bool no_return_is_inf = get_parameter("no_return_is_inf").as_bool();
             int scan_ring = get_parameter("scan_ring").as_int();
             scan_ring = std::min(std::max(scan_ring, 0), beams_count - 1);
             if (scan_ring != get_parameter("scan_ring").as_int()) {
@@ -208,7 +210,7 @@ class OusterCloud : public OusterProcessingNodeBase {
             }
 
             processors.push_back(LaserScanProcessor::create(
-                info, tf_bcast.lidar_frame_id(), scan_ring,
+                info, tf_bcast.lidar_frame_id(), scan_ring, no_return_is_inf,
                 [this](LaserScanProcessor::OutputType msgs) {
                     for (size_t i = 0; i < msgs.size(); ++i) scan_pubs[i]->publish(*msgs[i]);
                 }));
