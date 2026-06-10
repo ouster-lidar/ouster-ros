@@ -104,6 +104,10 @@ class LidarPacketHandler {
 
         lidar_scans.resize(LIDAR_SCAN_COUNT);
         mutexes.resize(LIDAR_SCAN_COUNT);
+        // Per-slot scan-timestamp storage. Kept alongside lidar_scans so the
+        // existing per-slot mutex serialises writer/reader access.
+        lidar_scan_slot_ts.assign(LIDAR_SCAN_COUNT, 0);
+        lidar_scan_slot_msg_ts.assign(LIDAR_SCAN_COUNT, rclcpp::Time(0, 0));
 
         for (size_t i = 0; i < lidar_scans.size(); ++i) {
             // NOTE: must construct with SensorInfo (not the
@@ -240,11 +244,12 @@ class LidarPacketHandler {
             if (ring_buffer.empty()) return;
         }
 
-        std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);
+        const auto slot = ring_buffer.read_head();
+        std::unique_lock<std::mutex> lock(*mutexes[slot]);
 
         // apply auto exposure to the rgb data only if the point cloud has rgb fields
         // NOTE[UN]: Don't copy the lidar scan to avoid modifying the original scan in the ring buffer
-        ouster::sdk::core::LidarScan& ls = *lidar_scans[ring_buffer.read_head()];
+        ouster::sdk::core::LidarScan& ls = *lidar_scans[slot];
 
         if (has_rgb_) {
             using ouster::sdk::core::img_t;
@@ -285,7 +290,7 @@ class LidarPacketHandler {
         }
 
         for (auto h : lidar_scan_handlers) {
-            h(ls, lidar_scan_estimated_ts, lidar_scan_estimated_msg_ts);
+            h(ls, lidar_scan_slot_ts[slot], lidar_scan_slot_msg_ts[slot]);
         }
 
         // when we hit percent amount of the ring_buffer capacity throttle
@@ -389,8 +394,9 @@ class LidarPacketHandler {
                                    const ouster::sdk::core::LidarPacket& lidar_packet,
                                    ouster::sdk::core::LidarScan& lidar_scan) {
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_estimated_msg_ts = rclcpp::Time(lidar_scan_estimated_ts);
+        const auto slot = ring_buffer.write_head();
+        lidar_scan_slot_ts[slot] = compute_scan_ts(lidar_scan.timestamp());
+        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(lidar_scan_slot_ts[slot]);
 
         return true;
     }
@@ -402,9 +408,9 @@ class LidarPacketHandler {
         auto ts_v = lidar_scan.timestamp();
         for (int i = 0; i < ts_v.rows(); ++i)
             ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset_);
-        lidar_scan_estimated_ts = compute_scan_ts(ts_v);
-        lidar_scan_estimated_msg_ts =
-            rclcpp::Time(lidar_scan_estimated_ts);
+        const auto slot = ring_buffer.write_head();
+        lidar_scan_slot_ts[slot] = compute_scan_ts(ts_v);
+        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(lidar_scan_slot_ts[slot]);
 
         return true;
     }
@@ -421,8 +427,9 @@ class LidarPacketHandler {
         }
 
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
-        lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts.value();
+        const auto slot = ring_buffer.write_head();
+        lidar_scan_slot_ts[slot] = compute_scan_ts(lidar_scan.timestamp());
+        lidar_scan_slot_msg_ts[slot] = lidar_handler_ros_time_frame_ts.value();
         // set time for next point cloud msg
         lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
             pf, lidar_packet.buf.data(), packet_receive_time);
@@ -444,9 +451,11 @@ class LidarPacketHandler {
     std::mutex ring_buffer_mutex;
     std::vector<std::unique_ptr<ouster::sdk::core::LidarScan>> lidar_scans;
     std::vector<std::unique_ptr<std::mutex>> mutexes;
-
-    uint64_t lidar_scan_estimated_ts;
-    rclcpp::Time lidar_scan_estimated_msg_ts;
+    // Per-slot scan timestamp, written by the lidar_handler_* methods inside
+    // the writer's per-slot mutex and read in process_scans() inside the same
+    // mutex for the slot at read_head().
+    std::vector<uint64_t> lidar_scan_slot_ts;
+    std::vector<rclcpp::Time> lidar_scan_slot_msg_ts;
 
     std::optional<rclcpp::Time> lidar_handler_ros_time_frame_ts;
 
