@@ -8,7 +8,11 @@
 
 #pragma once
 
+#if __has_include(<tf2_ros/static_transform_broadcaster.hpp>)
+#include <tf2_ros/static_transform_broadcaster.hpp>
+#else
 #include <tf2_ros/static_transform_broadcaster.h>
+#endif
 
 namespace ouster_ros {
 
