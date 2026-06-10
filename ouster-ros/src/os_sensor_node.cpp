@@ -1137,6 +1137,13 @@ void OusterSensor::cleanup() {
     get_config_srv.reset();
     set_config_srv.reset();
     sensor_connection_thread.reset();
+    // Cancel and drop any pending reconnect timer; its lambda captures
+    // `this` and could otherwise fire after cleanup if the node is
+    // re-configured.
+    if (reconnect_timer) {
+        reconnect_timer->cancel();
+        reconnect_timer.reset();
+    }
 }
 
 void OusterSensor::connection_loop(ouster::sdk::sensor::Client& cli,

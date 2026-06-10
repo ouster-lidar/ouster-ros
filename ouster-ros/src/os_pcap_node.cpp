@@ -208,7 +208,7 @@ class OusterPcap : public OusterSensorNodeBase {
     }
 
     void open_pcap(const std::string& pcap_file) {
-        pcap.reset(new PcapReader(pcap_file));
+        pcap = std::make_unique<PcapReader>(pcap_file);
     }
 
     void start_packet_read_thread() {

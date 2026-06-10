@@ -15,8 +15,14 @@
 
 /**
  * @class LockFreeRingBuffer thread safe ring buffer.
- * 
+ *
  * @remarks current implementation has effective (capacity-1) when writing elements
+ *
+ * Single-producer / single-consumer only: write() / write_head() must be
+ * called from at most one thread, and read() / read_head() from at most one
+ * (possibly different) thread. size(), full() and empty() observe both
+ * indices non-atomically and may briefly return stale values; callers must
+ * be tolerant of that.
  */
 class LockFreeRingBuffer {
    public:
