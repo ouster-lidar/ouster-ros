@@ -312,6 +312,14 @@ class LidarPacketHandler {
                           int scan_width) {
         assert(scan_width + curr_scan_first_nonzero_idx >
                last_scan_last_nonzero_idx);
+        if (scan_width + curr_scan_first_nonzero_idx <=
+            last_scan_last_nonzero_idx) {
+            // Precondition violated (corrupt column indices); the assert above
+            // is compiled out under NDEBUG and linear_interpolate would divide
+            // by zero. Fall back to extrapolating from the current scan alone.
+            return extrapolate_value(curr_scan_first_nonzero_idx,
+                                     curr_scan_first_nonzero_value);
+        }
         double interpolated_value = linear_interpolate(
             last_scan_last_nonzero_idx, last_scan_last_nonzero_value,
             scan_width + curr_scan_first_nonzero_idx,
@@ -327,12 +335,19 @@ class LidarPacketHandler {
         return impl::ulround(extrapolated_value);
     }
 
-    // compute_scan_ts_0 for first scan
-    uint64_t compute_scan_ts_0(
+    // compute_scan_ts_0 for first scan. Returns std::nullopt if the scan has
+    // no non-zero timestamp column at all (the caller must drop the scan);
+    // the asserts this replaces were compiled out under NDEBUG and an
+    // all-zero column would dereference an end iterator.
+    std::optional<uint64_t> compute_scan_ts_0(
         const ouster::sdk::core::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
-        assert(idx != ts_v.data() + ts_v.size());  // should never happen
+        if (idx == ts_v.data() + ts_v.size()) {
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                        "scan timestamp column is all zeros, dropping scan");
+            return std::nullopt;
+        }
         int curr_scan_first_nonzero_idx = idx - ts_v.data();
         uint64_t curr_scan_first_nonzero_value = *idx;
 
@@ -344,7 +359,11 @@ class LidarPacketHandler {
 
         last_scan_last_nonzero_idx =
             find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
-        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
+        // Logically guaranteed to succeed since std::find_if above already
+        // located a non-zero element, but guard in Release: indexing ts_v
+        // with -1 would be UB. State is untouched, so the next scan
+        // re-anchors through compute_scan_ts_0 again.
+        if (last_scan_last_nonzero_idx < 0) return std::nullopt;
         last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_n(ts_v);
@@ -353,12 +372,20 @@ class LidarPacketHandler {
         return scan_ns;
     }
 
-    // compute_scan_ts_n applied to all subsequent scans except first one
-    uint64_t compute_scan_ts_n(
+    // compute_scan_ts_n applied to all subsequent scans except first one.
+    // Same std::nullopt contract as compute_scan_ts_0; when a scan is
+    // dropped the estimator re-anchors on the next valid scan instead of
+    // imputing across the gap with stale last_scan_last_nonzero_* state.
+    std::optional<uint64_t> compute_scan_ts_n(
         const ouster::sdk::core::LidarScan::Header<uint64_t>& ts_v) {
         auto idx = std::find_if(ts_v.data(), ts_v.data() + ts_v.size(),
                                 [](uint64_t h) { return h != 0; });
-        assert(idx != ts_v.data() + ts_v.size());  // should never happen
+        if (idx == ts_v.data() + ts_v.size()) {
+            RCLCPP_WARN(rclcpp::get_logger(getName()),
+                        "scan timestamp column is all zeros, dropping scan");
+            reset_compute_scan_ts();
+            return std::nullopt;
+        }
         int curr_scan_first_nonzero_idx = idx - ts_v.data();
         uint64_t curr_scan_first_nonzero_value = *idx;
         uint64_t scan_ns = curr_scan_first_nonzero_idx == 0
@@ -370,9 +397,24 @@ class LidarPacketHandler {
                                               static_cast<int>(ts_v.size()));
         last_scan_last_nonzero_idx =
             find_if_reverse(ts_v, [](uint64_t h) { return h != 0; });
-        assert(last_scan_last_nonzero_idx >= 0);  // should never happen
+        // See compute_scan_ts_0: cannot fail after find_if succeeded, but
+        // guard in Release and re-anchor rather than keep stale state.
+        if (last_scan_last_nonzero_idx < 0) {
+            reset_compute_scan_ts();
+            return std::nullopt;
+        }
         last_scan_last_nonzero_value = ts_v(last_scan_last_nonzero_idx);
         return scan_ns;
+    }
+
+    // Forget the previous scan's trailing timestamp and anchor the estimator
+    // on the next valid scan via compute_scan_ts_0.
+    void reset_compute_scan_ts() {
+        last_scan_last_nonzero_idx = -1;
+        last_scan_last_nonzero_value = 0;
+        compute_scan_ts = [this](const auto& ts_v) {
+            return compute_scan_ts_0(ts_v);
+        };
     }
 
     uint16_t packet_col_index(const ouster::sdk::core::PacketFormat& pf,
@@ -394,9 +436,11 @@ class LidarPacketHandler {
                                    const ouster::sdk::core::LidarPacket& lidar_packet,
                                    ouster::sdk::core::LidarScan& lidar_scan) {
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
+        const auto scan_ts = compute_scan_ts(lidar_scan.timestamp());
+        if (!scan_ts) return false;  // drop scans without a usable timestamp
         const auto slot = ring_buffer.write_head();
-        lidar_scan_slot_ts[slot] = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(lidar_scan_slot_ts[slot]);
+        lidar_scan_slot_ts[slot] = *scan_ts;
+        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(*scan_ts);
 
         return true;
     }
@@ -408,9 +452,11 @@ class LidarPacketHandler {
         auto ts_v = lidar_scan.timestamp();
         for (int i = 0; i < ts_v.rows(); ++i)
             ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset_);
+        const auto scan_ts = compute_scan_ts(ts_v);
+        if (!scan_ts) return false;  // drop scans without a usable timestamp
         const auto slot = ring_buffer.write_head();
-        lidar_scan_slot_ts[slot] = compute_scan_ts(ts_v);
-        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(lidar_scan_slot_ts[slot]);
+        lidar_scan_slot_ts[slot] = *scan_ts;
+        lidar_scan_slot_msg_ts[slot] = rclcpp::Time(*scan_ts);
 
         return true;
     }
@@ -427,12 +473,16 @@ class LidarPacketHandler {
         }
 
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
-        const auto slot = ring_buffer.write_head();
-        lidar_scan_slot_ts[slot] = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_slot_msg_ts[slot] = lidar_handler_ros_time_frame_ts.value();
-        // set time for next point cloud msg
+        const auto scan_ts = compute_scan_ts(lidar_scan.timestamp());
+        const auto frame_ts = lidar_handler_ros_time_frame_ts.value();
+        // set time for next point cloud msg (even when this scan is dropped,
+        // so the next frame's ROS time stays anchored to packet arrival)
         lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
             pf, lidar_packet.buf.data(), packet_receive_time);
+        if (!scan_ts) return false;  // drop scans without a usable timestamp
+        const auto slot = ring_buffer.write_head();
+        lidar_scan_slot_ts[slot] = *scan_ts;
+        lidar_scan_slot_msg_ts[slot] = frame_ts;
         return true;
     }
 
@@ -465,7 +515,10 @@ class LidarPacketHandler {
     double scan_col_ts_spacing_ns;  // interval or spacing between columns of a
                                     // scan
 
-    std::function<uint64_t(const ouster::sdk::core::LidarScan::Header<uint64_t>&)>
+    // Returns std::nullopt when the scan carries no usable timestamp (the
+    // scan must then be dropped instead of published with a zero stamp).
+    std::function<std::optional<uint64_t>(
+        const ouster::sdk::core::LidarScan::Header<uint64_t>&)>
         compute_scan_ts;
 
     std::vector<LidarScanProcessor> lidar_scan_handlers;
