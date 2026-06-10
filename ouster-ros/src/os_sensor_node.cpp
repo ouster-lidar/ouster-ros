@@ -637,14 +637,16 @@ void OusterSensor::parse_lidar_mode(SensorConfig& config) {
         return;
     }
 
-    try {
-        auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
-        config.lidar_mode = lidar_mode;
-    } catch (const std::exception& e) {
-        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg + ", exception details: " + e.what();
+    // lidar_mode_of_string returns std::optional and does not throw; an
+    // invalid mode yields std::nullopt, so check explicitly instead of
+    // relying on a catch block that can never be reached.
+    auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
+    if (!lidar_mode) {
+        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
+    config.lidar_mode = lidar_mode.value();
 }
 
 void OusterSensor::parse_timestamp_mode(SensorConfig& config) {
