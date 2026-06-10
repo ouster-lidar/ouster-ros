@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-2023, Ouster, Inc.
+ * Copyright (c) 2026, Ouster, Inc.
  * All rights reserved.
  *
  * @file color_point.h
