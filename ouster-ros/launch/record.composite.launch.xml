@@ -144,12 +144,7 @@
   <arg name="phase_lock_offset" default="0"
     description="Angle that sensors are locked to in millidegrees, values range [0, 360000]"/>
 
-  <!-- Only set this parameter when working with FW3.2 -->
-  <arg name="lidar_frame_azimuth_offset" default="-1"
-    description="The lidar frame azimuth offset for the sensor to use in millidegrees;
-    values range [0, 360000], -1 is unset"/>
-
-  <!-- Only set this parameter when working with FW3.2 -->
+  <!-- Only set this parameter when working with FW3.2+ -->
   <arg name="lidar_frame_azimuth_offset" default="-1"
     description="The lidar frame azimuth offset for the sensor to use in millidegrees (FW3.2+);
     values range [0, 360000], -1 is unset"/>
