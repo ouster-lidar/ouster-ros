@@ -21,6 +21,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -28,6 +29,37 @@ find_package(OpenCV REQUIRED)
 if(NOT OpenCV_LIBS)
   set(OpenCV_LIBS ${OpenCV_LIBRARIES})
 endif()
+
+# Link an ament package as a dependency. ament_cmake exposes packages in
+# three shapes across ROS 2 distros; we try each in turn:
+#   1. ${pkg}_TARGETS         - rosidl pkgs (msgs/srvs); library pkgs on
+#                               Lyrical+ (e.g. tf2).
+#   2. pkg::pkg imported tgt  - library pkgs on Humble/Jazzy/Kilted.
+#   3. ${pkg}_INCLUDE_DIRS /
+#      ${pkg}_LIBRARIES       - legacy header-only pkgs (pcl_conversions
+#                               on Humble/Jazzy/Kilted).
+function(_ouster_link_ament_deps target visibility)
+  foreach(_pkg IN LISTS ARGN)
+    if(DEFINED ${_pkg}_TARGETS)
+      target_link_libraries(${target} ${visibility} ${${_pkg}_TARGETS})
+    elseif(TARGET ${_pkg}::${_pkg})
+      target_link_libraries(${target} ${visibility} ${_pkg}::${_pkg})
+    elseif(DEFINED ${_pkg}_INCLUDE_DIRS OR DEFINED ${_pkg}_LIBRARIES)
+      if(${_pkg}_INCLUDE_DIRS)
+        target_include_directories(${target} SYSTEM ${visibility}
+          ${${_pkg}_INCLUDE_DIRS})
+      endif()
+      if(${_pkg}_LIBRARIES)
+        target_link_libraries(${target} ${visibility} ${${_pkg}_LIBRARIES})
+      endif()
+    else()
+      message(FATAL_ERROR
+        "_ouster_link_ament_deps: cannot resolve dependency '${_pkg}' "
+        "(none of ${_pkg}_TARGETS, target ${_pkg}::${_pkg}, or legacy "
+        "${_pkg}_INCLUDE_DIRS/${_pkg}_LIBRARIES are defined)")
+    endif()
+  endforeach()
+endfunction()
 
 # ==== Options ====
 add_compile_options(-Wall -Wextra)
@@ -85,18 +117,21 @@ set(ouster_ros_library_deps
   tf2_eigen
 )
 
-ament_target_dependencies(ouster_ros_library
+_ouster_link_ament_deps(ouster_ros_library PUBLIC
   ${ouster_ros_library_deps}
 )
 
 target_link_libraries(ouster_ros_library
-  # PUBLIC (unsupported)
+  PUBLIC
     ouster_build
     OusterSDK::ouster_sensor
     pcl_common
-  # PRIVATE (unsupported)
-  ${OUSTER_TARGET_LINKS}
-  ${OpenCV_LIBS}
+    # OpenCV must stay PUBLIC: impl::load_mask in the installed public header
+    # os_ros.h is a template calling cv:: functions, instantiated inside the
+    # component libraries that link only ouster_ros_library.
+    ${OpenCV_LIBS}
+  PRIVATE
+    ${OUSTER_TARGET_LINKS}
 )
 
 # helper method to construct ouster-ros components
@@ -113,7 +148,7 @@ function(create_ros2_component
       "OUSTER_ROS_BUILDING_DLL"
   )
 
-  ament_target_dependencies(${component_lib_name}
+  _ouster_link_ament_deps(${component_lib_name} PUBLIC
     rclcpp
     class_loader
     rclcpp_components
@@ -125,7 +160,8 @@ function(create_ros2_component
   )
 
   target_link_libraries(${component_lib_name}
-    ouster_ros_library
+    PUBLIC
+      ouster_ros_library
   )
 
 endfunction()
@@ -205,16 +241,21 @@ if(BUILD_TESTING)
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
   )
-  ament_target_dependencies(${PROJECT_NAME}_test
-    rclcpp
-    ouster_sensor_msgs
-  )
-  target_include_directories(${PROJECT_NAME}_test PUBLIC
-    ${_ouster_ros_INCLUDE_DIRS}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-  target_link_libraries(${PROJECT_NAME}_test ouster_ros_library)
+  if(TARGET ${PROJECT_NAME}_test)
+    target_include_directories(${PROJECT_NAME}_test PRIVATE
+      ${_ouster_ros_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+    # ament_add_gtest links gtest into the target with the plain
+    # target_link_libraries signature on Humble/Jazzy/Kilted and the keyword
+    # signature on Lyrical; CMake forbids mixing the two on one target.
+    # Appending to LINK_LIBRARIES directly is signature-neutral and, for an
+    # executable, equivalent to PRIVATE linkage. The test's remaining deps
+    # (rclcpp, ouster_sensor_msgs, PCL, ...) propagate through
+    # ouster_ros_library's PUBLIC usage requirements.
+    set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
+      LINK_LIBRARIES ouster_ros_library)
+  endif()
 endif()
 
 
