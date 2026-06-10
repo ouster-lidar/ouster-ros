@@ -164,7 +164,7 @@ rclcpp_components_register_node(os_cloud_component
 # ==== os_image_component ====
 create_ros2_component(os_image_component
   "src/os_processing_node_base.cpp;src/os_image_node.cpp"
-  ""
+  "tf2_ros"
 )
 rclcpp_components_register_node(os_image_component
   PLUGIN "ouster_ros::OusterImage"
