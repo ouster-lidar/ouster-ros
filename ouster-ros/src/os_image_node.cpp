@@ -162,34 +162,43 @@ class OusterImage : public OusterProcessingNodeBase {
         uint32_t W = sensor_info.format.columns_per_frame;
 
         // Equirectangular projection for the LiDAR range image.
-        // Horizontal: each column = 2π/W radians (full rotation, azimuth-window
-        // only affects data validity, not the column ↔ angle mapping).
+        // Horizontal: each column = 2pi/W radians (full rotation, azimuth
+        // window only affects data validity, not the column-to-angle mapping).
         double fx = static_cast<double>(W) / (2.0 * M_PI);
         double cx = static_cast<double>(W) / 2.0;
 
         // Vertical: use actual beam altitude angles for correct VFOV.
         // The beams are approximately uniformly spaced; per-beam non-uniformity
-        // cannot be represented in a single fy but this is far closer than 2π.
+        // cannot be represented in a single fy but this is far closer than 2pi.
         double fy;
         double cy;
         const auto& alts = sensor_info.beam_altitude_angles;
+        double vfov_rad = 0.0;
+        double max_alt_rad = 0.0;
         if (alts.size() >= 2) {
             auto [min_it, max_it] = std::minmax_element(alts.begin(), alts.end());
-            double vfov_rad = (*max_it - *min_it) * M_PI / 180.0;
-            fy = static_cast<double>(H) / vfov_rad;
-            // cy: row where elevation = 0°.  Beams are ordered top-to-bottom
-            // (highest altitude = row 0), so 0° maps to:
-            double mean_alt_rad = 0.5 * (*max_it + *min_it) * M_PI / 180.0;
-            cy = static_cast<double>(H) / 2.0 - mean_alt_rad * fy;
+            vfov_rad = (*max_it - *min_it) * M_PI / 180.0;
+            max_alt_rad = *max_it * M_PI / 180.0;
+        }
+        if (vfov_rad > 0.0) {
+            // The top and bottom beams sit at rows 0 and H-1, so the measured
+            // VFOV spans H-1 pixel pitches, not H.
+            fy = static_cast<double>(H - 1) / vfov_rad;
+            // cy: row where elevation = 0 deg. Beams are ordered top-to-bottom
+            // (highest altitude = row 0), so row(e) = (max_alt - e) * fy and
+            // the horizon lands at:
+            cy = max_alt_rad * fy;
         } else {
-            // Degenerate fallback: assumes full 2π VFOV, which is wrong for any
-            // real Ouster sensor. Downstream rectification/projection will be
+            // Degenerate fallback (fewer than 2 beams, or all altitudes
+            // equal): assumes full 2pi VFOV, which is wrong for any real
+            // Ouster sensor. Downstream rectification/projection will be
             // garbage. Warn loudly so this isn't debugged in silence.
             RCLCPP_WARN(get_logger(),
-                "CameraInfo: beam_altitude_angles has %zu element(s) "
-                "(need >=2). Falling back to a degenerate 2pi-VFOV calibration; "
-                "K matrix will not match real sensor geometry. Check sensor "
-                "metadata.", alts.size());
+                "CameraInfo: beam_altitude_angles has %zu element(s) spanning "
+                "%f rad (need >=2 distinct altitudes). Falling back to a "
+                "degenerate 2pi-VFOV calibration; K matrix will not match "
+                "real sensor geometry. Check sensor metadata.",
+                alts.size(), vfov_rad);
             fy = static_cast<double>(H) / (2.0 * M_PI);
             cy = static_cast<double>(H) / 2.0;
         }
