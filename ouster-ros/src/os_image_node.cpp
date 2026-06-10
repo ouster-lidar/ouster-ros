@@ -215,21 +215,35 @@ class OusterImage : public OusterProcessingNodeBase {
         // azimuth windowing (e.g. forward-only sector to suppress backplate
         // self-returns); the published image is still full-width (invalid
         // columns are zero-filled), but ROI tells consumers which columns
-        // hold real data. column_window is inclusive on both ends; if
-        // first > second the window wraps through column 0, which a single
-        // rectangle cannot represent — fall back to "no ROI" in that case.
+        // hold real data. column_window is inclusive on both ends and given
+        // in raw (staggered) columns, while the published images are
+        // destaggered: image column = raw column - pixel_shift_by_row[u]
+        // (mod W), so the valid region shifts per row. A CameraInfo ROI is a
+        // single rectangle, so publish the bounding box over all rows when
+        // it fits without wrapping; otherwise fall back to a full-size ROI.
         const auto& cw = sensor_info.format.column_window;
-        if (cw.first <= cw.second) {
-            camera_info_msg_.roi.x_offset = static_cast<uint32_t>(cw.first);
+        const auto& shifts = sensor_info.format.pixel_shift_by_row;
+        int min_shift = 0;
+        int max_shift = 0;
+        if (!shifts.empty()) {
+            auto [min_it, max_it] =
+                std::minmax_element(shifts.begin(), shifts.end());
+            min_shift = *min_it;
+            max_shift = *max_it;
+        }
+        const int x0 = cw.first - max_shift;   // leftmost valid image column
+        const int x1 = cw.second - min_shift;  // rightmost valid image column
+        if (cw.first <= cw.second && x0 >= 0 && x1 < static_cast<int>(W)) {
+            camera_info_msg_.roi.x_offset = static_cast<uint32_t>(x0);
             camera_info_msg_.roi.y_offset = 0;
-            camera_info_msg_.roi.width =
-                static_cast<uint32_t>(cw.second - cw.first + 1);
+            camera_info_msg_.roi.width = static_cast<uint32_t>(x1 - x0 + 1);
             camera_info_msg_.roi.height = H;
         } else {
             RCLCPP_INFO(get_logger(),
-                "CameraInfo: column_window=[%d,%d] wraps through column 0; "
-                "leaving ROI unset (consumers should treat the full %u-column "
-                "image as the ROI).", cw.first, cw.second, W);
+                "CameraInfo: column_window=[%d,%d] with destagger shifts "
+                "[%d,%d] wraps through column 0; publishing a full-size ROI "
+                "(equivalent to unset).", cw.first, cw.second, min_shift,
+                max_shift);
             camera_info_msg_.roi.x_offset = 0;
             camera_info_msg_.roi.y_offset = 0;
             camera_info_msg_.roi.width = W;
