@@ -50,7 +50,7 @@ class OusterImage : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
     }
 
-    void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
+    void metadata_handler(const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);

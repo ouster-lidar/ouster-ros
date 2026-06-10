@@ -86,6 +86,20 @@ option(BUILD_OSF "Turn off building OSF" OFF)
 option(BUILD_MAPPING "Turn off building MAPPING" OFF)
 find_package(OusterSDK REQUIRED)
 
+# The Ouster SDK is vendored via the ouster-sdk submodule. Silence
+# -Wpedantic / -Wdeprecated-declarations on its own compilation units so
+# pedantic workspace compile flags don't fail the build on third-party code
+# we don't own. Our wrapper (ouster_ros_library, os_*_node, etc.) is still
+# compiled with the full diagnostic set.
+foreach(_sdk_target ouster_client ouster_sensor ouster_pcap ouster_osf ouster_viz)
+  if(TARGET ${_sdk_target})
+    target_compile_options(${_sdk_target} PRIVATE
+      -Wno-pedantic
+      -Wno-deprecated-declarations
+    )
+  endif()
+endforeach()
+
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
 
 # catkin adds all include dirs to a single variable, don't try to use targets
