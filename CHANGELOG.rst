@@ -15,6 +15,12 @@ Changelog
   - ``min_distance`` (sensor field ``min_range_threshold_cm``)
 * [BUGFIX] Correct the order of ``FLAGS`` field.
 * Enable varying columns per packet.
+* Add support for Rev8 and the new RGB profiles
+* Add a ``columns_per_packet`` configuration property to launch file params.
+* Extend driver list of point types to include color capable types:
+  - ``pcl::XYZRGB``
+  - ``pcl::XYZRGBA``
+  - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
 
 ouster_ros v0.14.0
 ==================

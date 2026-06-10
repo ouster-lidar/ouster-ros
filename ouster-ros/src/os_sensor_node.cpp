@@ -85,6 +85,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("lidar_mode", "");
     declare_parameter("timestamp_mode", "");
     declare_parameter("udp_profile_lidar", "");
+    declare_parameter("columns_per_packet", 0);
     declare_parameter("udp_profile_imu", "");
     declare_parameter("imu_packets_per_frame", 0);
     declare_parameter("gyro_fsr", "");
@@ -288,7 +289,7 @@ void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
 
     info = ouster::sdk::core::SensorInfo(cached_metadata);
     // TODO: revist when *min_version* is changed
-    populate_metadata_defaults(info, LidarMode::UNSPECIFIED);
+    populate_metadata_defaults(info);
 
     publish_metadata();
     save_metadata();
@@ -473,7 +474,7 @@ std::shared_ptr<ouster::sdk::sensor::Client> OusterSensor::create_sensor_client(
     } else {
         // use the full init_client to generate and assign random ports to
         // sensor
-        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, LidarMode::UNSPECIFIED,
+        cli = ouster::sdk::sensor::init_client(hostname, udp_dest, LidarMode(0, 0),
                                   TimestampMode::UNSPECIFIED, lidar_port, imu_port);
     }
 
@@ -566,6 +567,19 @@ void OusterSensor::parse_udp_profile_lidar(SensorConfig& config) {
     config.udp_profile_lidar = udp_profile_lidar;
 }
 
+void OusterSensor::parse_columns_per_packet(SensorConfig& config) {
+    auto columns_per_packet = get_parameter("columns_per_packet").as_int();
+    if (columns_per_packet == 0) {
+        return;
+    }
+    auto valid_values = std::vector<int>{1, 2, 4, 8, 16, 32, 64};
+    if (std::find(valid_values.begin(), valid_values.end(), columns_per_packet) == valid_values.end()) {
+        RCLCPP_FATAL(get_logger(), "columns_per_packet needs to be one of the values: {1, 2, 4, 8, 16, 32, 64}");
+        throw std::runtime_error("invalid columns_per_packet value!");
+    }
+    config.columns_per_packet = columns_per_packet;
+}
+
 void OusterSensor::parse_udp_profile_imu_and_settings(SensorConfig& config) {
     auto udp_profile_imu_arg = get_parameter("udp_profile_imu").as_string();
 
@@ -623,13 +637,14 @@ void OusterSensor::parse_lidar_mode(SensorConfig& config) {
         return;
     }
 
-    auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
-    if (lidar_mode == LidarMode::MODE_UNSPEC) {
-        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg;
+    try {
+        auto lidar_mode = ouster::sdk::core::lidar_mode_of_string(lidar_mode_arg);
+        config.lidar_mode = lidar_mode;
+    } catch (const std::exception& e) {
+        auto error_msg = "Invalid lidar mode: " + lidar_mode_arg + ", exception details: " + e.what();
         RCLCPP_FATAL_STREAM(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
-    config.lidar_mode = lidar_mode;
 }
 
 void OusterSensor::parse_timestamp_mode(SensorConfig& config) {
@@ -882,6 +897,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     SensorConfig config;
     parse_udp_dest_and_ports(config);
     parse_udp_profile_lidar(config);
+    parse_columns_per_packet(config);
     parse_udp_profile_imu_and_settings(config);
     parse_lidar_mode(config);
     parse_timestamp_mode(config);
@@ -976,7 +992,7 @@ bool OusterSensor::configure_sensor(
 
 // fill in values that could not be parsed from metadata
 void OusterSensor::populate_metadata_defaults(
-    SensorInfo& info, LidarMode specified_lidar_mode) {
+    SensorInfo& info) {
     ouster::sdk::core::Version v = ouster::sdk::core::version_from_string(info.image_rev);
     if (v == ouster::sdk::core::INVALID_VERSION)
         RCLCPP_WARN(
@@ -986,13 +1002,6 @@ void OusterSensor::populate_metadata_defaults(
         RCLCPP_WARN(get_logger(),
                     "Firmware < %s not supported; output may not be reliable",
                     ouster::sdk::sensor::MIN_VERSION.simple_version_string().c_str());
-
-    if (!info.config.lidar_mode) {
-        RCLCPP_WARN(
-            get_logger(),
-            "Lidar mode not found in metadata; output may not be reliable");
-        info.config.lidar_mode = specified_lidar_mode;
-    }
 
     if (!info.prod_line.size()) info.prod_line = "UNKNOWN";
 

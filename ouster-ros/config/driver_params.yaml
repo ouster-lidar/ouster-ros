@@ -48,7 +48,12 @@ ouster/os_driver:
     # - RNG15_RFL8_WIN8 (requires FW3.2+)
     # - RNG15_RFL8_NIR8_ZONE16 (requires FW3.2+)
     # - RNG19_RFL8_SIG16_NIR16_ZONE16 (requires FW3.2+)
+    # - RNG19_RFL8_SIG16_NIR16_RGB16 (requires FW4.0+)
+    # - RNG19_RFL8_SIG16_NIR16_RGB16_DUAL (requires FW4.0+)
     udp_profile_lidar: ''
+    # columns_per_packet[optional]: number of columns per packet; possible values: {1, 2, 4, 8, 16, 32, 64};
+    # default is 0 (unset); requires FW4.0+.
+    columns_per_packet: 0
     # udp_profile_imu[optional]: imu packet profile; possible values:
     # - LEGACY: not recommended
     # - ACCEL32_GYRO32_NMEA (requires FW3.2+)
@@ -98,8 +103,8 @@ ouster/os_driver:
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
-    # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi, 
-    #                                     yzir}
+    # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi,
+    #                                     xyzir, xyzrgb, xyzrgba, color_point}
     # Here is a breif description of each option:
     #  - original: This uses the original point representation ouster_ros::Point
     #          of the ouster-ros driver.
@@ -113,6 +118,10 @@ ouster/os_driver:
     #  - xyzir: same as xyzi type but adds ring (channel) field.
     #          this type is same as Velodyne point cloud type
     #          this type is not compatible with the low data profile.
+    #  - xyzrgb: same as xyz point type but adds RGB color fields.
+    #  - xyzrgba: same as xyzrgb point type but publishes the packed color as
+    #          PCL's RGBA field with an opaque alpha channel.
+    #  - color_point: same as the original point type but adds RGB color fields.
     # for more details about the fields of each point type and their data refer
     # to the following header files:
     # - ouster_ros/os_point.h
