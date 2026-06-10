@@ -17,7 +17,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
@@ -309,8 +308,7 @@ install(
     share/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include) 
-ament_export_dependencies(rosidl_default_runtime)
+ament_export_include_directories(include)
 ament_export_libraries(ouster_ros_library)
 ament_export_dependencies(${ouster_ros_library_deps})
 ament_package()
