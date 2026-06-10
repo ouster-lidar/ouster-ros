@@ -49,7 +49,7 @@ class OusterImage : public OusterProcessingNodeBase {
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
         declare_parameter("mask_path", "");
         declare_parameter("distortion_model", "plumb_bob");
-        declare_parameter("sensor_frame", "os_lidar");
+        declare_parameter("frame_id", "os_lidar");
         declare_parameter("publish_camera_info", true);
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
@@ -112,16 +112,16 @@ class OusterImage : public OusterProcessingNodeBase {
         }
 
         auto mask_path = get_parameter("mask_path").as_string();
-        auto sensor_frame = get_parameter("sensor_frame").as_string();
+        auto frame_id = get_parameter("frame_id").as_string();
         publish_camera_info_ = get_parameter("publish_camera_info").as_bool();
 
         if (publish_camera_info_) {
-            create_camera_info_publisher(info, sensor_frame, selected_qos);
+            create_camera_info_publisher(info, frame_id, selected_qos);
         }
 
         std::vector<LidarScanProcessor> processors {
             ImageProcessor::create(
-                info, sensor_frame,
+                info, frame_id,
                 mask_path,
                 [this](ImageProcessor::OutputType msgs) {
                     for (auto it = msgs.begin(); it != msgs.end(); ++it) {
