@@ -1034,9 +1034,17 @@ void OusterSensor::create_publishers() {
     rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
     auto selected_qos =
         use_system_default_qos ? system_default_qos : sensor_data_qos;
+
+    rclcpp::PublisherOptions pub_opts;
+    pub_opts.qos_overriding_options = rclcpp::QosOverridingOptions{
+        {rclcpp::QosPolicyKind::Depth,
+         rclcpp::QosPolicyKind::Durability,
+         rclcpp::QosPolicyKind::History,
+         rclcpp::QosPolicyKind::Reliability}};
+
     lidar_packet_pub =
-        create_publisher<PacketMsg>("lidar_packets", selected_qos);
-    imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos);
+        create_publisher<PacketMsg>("lidar_packets", selected_qos, pub_opts);
+    imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos, pub_opts);
 }
 
 void OusterSensor::allocate_buffers() {
