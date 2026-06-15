@@ -92,7 +92,7 @@ public:
               out_bag.write("/" + ns_ + "/points", lidar_packet_time, *msgs[0]);
             }));
 
-    auto lidar_packet_handler = LidarPacketHandler::create(
+    auto lidar_packet_handler = std::make_shared<LidarPacketHandler>(
         info, lidar_scan_processors, "", static_cast<int64_t>(-37.0 * 1e+9), 0);
 
     auto imu_packet_handler = ImuPacketHandler::create(
@@ -127,7 +127,8 @@ public:
                msg->buf.size());
 
         lidar_packet_time = m.getTime();
-        lidar_packet_handler(lidar_packet);
+        lidar_packet_handler->wait_for_buffer_room();
+        lidar_packet_handler->process_packet(lidar_packet);
       }
       // Process IMU packets
       else if (m.getTopic() == "/" + ns_ + "/imu_packets")
@@ -162,6 +163,9 @@ public:
       std::cout << "] " << int(progress * 100.0) << " %";
       std::cout.flush();
     }
+
+    std::cout << std::endl << "Waiting for remaining scans to be processed..." << std::endl;
+    lidar_packet_handler->flush();
 
     in_bag.close();
     out_bag.close();

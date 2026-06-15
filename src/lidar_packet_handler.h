@@ -184,6 +184,24 @@ class LidarPacketHandler {
 
     const std::string getName() const { return "lidar_packet_hander"; }
 
+    void process_packet(const sensor::LidarPacket& lidar_packet) {
+        if (lidar_packet_accumlator(lidar_packet)) {
+            ring_buffer_has_elements.notify_one();
+        }
+    }
+
+    void wait_for_buffer_room(float max_fill_ratio = 0.5f) {
+        while (ring_buffer.size() > max_fill_ratio * ring_buffer.capacity()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+
+    void flush() {
+        while (!ring_buffer.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+
     void process_scans() {
         {
             using namespace std::chrono;
