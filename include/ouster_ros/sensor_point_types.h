@@ -722,9 +722,9 @@ static constexpr ChanFieldTable<8> Profile_RNG19_RFL8_SIG16_NIR16_RGB16{{
     {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::FLAGS, ChanFieldType::UINT8},
-    {ChanField::R, ChanFieldType::UINT8},
-    {ChanField::G, ChanFieldType::UINT8},
-    {ChanField::B, ChanFieldType::UINT8},
+    {ChanField::R_U8, ChanFieldType::UINT8},
+    {ChanField::G_U8, ChanFieldType::UINT8},
+    {ChanField::B_U8, ChanFieldType::UINT8},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_RGB16
@@ -814,9 +814,9 @@ static constexpr ChanFieldTable<8> Profile_RNG19_RFL8_SIG16_NIR16_RGB16_DUAL{{
     {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::FLAGS, ChanFieldType::UINT8},
-    {ChanField::R, ChanFieldType::UINT8},
-    {ChanField::G, ChanFieldType::UINT8},
-    {ChanField::B, ChanFieldType::UINT8}
+    {ChanField::R_U8, ChanFieldType::UINT8},
+    {ChanField::G_U8, ChanFieldType::UINT8},
+    {ChanField::B_U8, ChanFieldType::UINT8}
 }};
 
 // 2nd return mirror of Profile_RNG19_RFL8_SIG16_NIR16_RGB16_DUAL. NEAR_IR and
@@ -828,9 +828,9 @@ static constexpr ChanFieldTable<8>
         {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
         {ChanField::NEAR_IR, ChanFieldType::UINT16},
         {ChanField::FLAGS2, ChanFieldType::UINT8},
-        {ChanField::R, ChanFieldType::UINT8},
-        {ChanField::G, ChanFieldType::UINT8},
-        {ChanField::B, ChanFieldType::UINT8}
+        {ChanField::R_U8, ChanFieldType::UINT8},
+        {ChanField::G_U8, ChanFieldType::UINT8},
+        {ChanField::B_U8, ChanFieldType::UINT8}
     }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_RGB16_DUAL
@@ -907,95 +907,6 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_RGB16
     (std::uint8_t, r, r)
     (std::uint8_t, g, g)
     (std::uint8_t, b, b)
-)
-
-// clang-format on
-
-
-/* NOTE: TEMPORARY PROFILE FOR TESTING PURPOSES */
-namespace ouster_ros {
-
-// Profile_RNG19_RFL8_SIG16_NIR16_R16_G16_B16: aka R16_G16_B16 single return.
-static constexpr ChanFieldTable<7> Profile_RNG19_RFL8_SIG16_NIR16_R16_G16_B16{{
-    {ChanField::RANGE, ChanFieldType::UINT32},
-    {ChanField::SIGNAL, ChanFieldType::UINT16},
-    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
-    {ChanField::NEAR_IR, ChanFieldType::UINT16},
-    {ChanField::R, ChanFieldType::UINT32},
-    {ChanField::G, ChanFieldType::UINT32},
-    {ChanField::B, ChanFieldType::UINT32},
-}};
-
-// auto=RNG19_RFL8_SIG16_NIR16_R16_G16_B16
-struct EIGEN_ALIGN16 _Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16 {
-    PCL_ADD_POINT4D;
-    uint32_t t;             // timestamp in nanoseconds relative to frame start
-    uint16_t ring;          // equivalent channel
-    uint32_t range;
-    uint16_t signal;        // equivalent to intensity
-    uint8_t reflectivity;
-    uint16_t near_ir;       // equivalent to ambient
-    uint32_t r;              // red color channel
-    uint32_t g;              // green color channel
-    uint32_t b;              // blue color channel
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-struct Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16 :
-    public _Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16 {
-
-    inline Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16(
-        const _Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16& pt)
-    {
-        x = pt.x; y = pt.y; z = pt.z; data[3] = 1.0f;
-        t = pt.t; ring = pt.ring;
-        range = pt.range; signal = pt.signal;
-        reflectivity = pt.reflectivity; near_ir = pt.near_ir;
-        r = pt.r; g = pt.g; b = pt.b;
-    }
-
-    inline Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16()
-    {
-        x = y = z = 0.0f; data[3] = 1.0f;
-        t = 0; ring = 0;
-        range = 0; signal = 0;
-        reflectivity = 0; near_ir = 0;
-        r = 0; g = 0; b = 0;
-    }
-
-    inline auto as_tuple() const {
-        return std::tie(x, y, z, t, ring, range, signal, reflectivity,
-                        near_ir, r, g, b);
-    }
-
-    inline auto as_tuple() {
-        return std::tie(x, y, z, t, ring, range, signal, reflectivity,
-                        near_ir, r, g, b);
-    }
-
-    template<size_t I>
-    inline auto& get() {
-        return std::get<I>(as_tuple());
-    }
-};
-
-}   // namespace ouster_ros
-
-// clang-format off
-
-POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_R16_G16_B16,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (std::uint32_t, t, t)
-    (std::uint16_t, ring, ring)
-    (std::uint32_t, range, range)
-    (std::uint16_t, signal, signal)
-    (std::uint8_t, reflectivity, reflectivity)
-    (std::uint16_t, near_ir, near_ir)
-    (std::uint32_t, r, r)
-    (std::uint32_t, g, g)
-    (std::uint32_t, b, b)
 )
     
 // clang-format on

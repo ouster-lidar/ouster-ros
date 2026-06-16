@@ -109,9 +109,25 @@ class LidarPacketHandler {
             // NOTE: must construct with SensorInfo (not the
             // (w, h, UDPProfileLidar, cols_per_packet) overload) so that the
             // RGB profile's RGB channel is created as a 3D (h x w x 3) field.
-            lidar_scans[i] =
-                std::make_unique<ouster::sdk::core::LidarScan>(info);
+            lidar_scans[i] = std::make_unique<ouster::sdk::core::LidarScan>(info);
             mutexes[i] = std::make_unique<std::mutex>();
+        }
+
+        if (info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+            info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL) {
+            has_rgb_ = true;
+            uint32_t H = info.format.pixels_per_column;
+            uint32_t W = info.format.columns_per_frame;
+            r_field_float = ouster::sdk::core::img_t<float>(H, W);
+            g_field_float = ouster::sdk::core::img_t<float>(H, W);
+            b_field_float = ouster::sdk::core::img_t<float>(H, W);
+            auto_exposure_ = std::make_unique<ouster::sdk::core::image::AutoExposure>();
+            for (auto& ls : lidar_scans) {
+                using ouster::sdk::core::fd_array;
+                ls->add_field(ChanField::R_U8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::G_U8, fd_array<uint8_t>(H, W));
+                ls->add_field(ChanField::B_U8, fd_array<uint8_t>(H, W));
+            }
         }
 
         lidar_scans_processing_thread = std::make_unique<std::thread>([this]() {
@@ -224,60 +240,45 @@ class LidarPacketHandler {
         std::unique_lock<std::mutex> lock(*mutexes[ring_buffer.read_head()]);
 
         // apply auto exposure to the rgb data only if the point cloud has rgb fields
-        static ouster::sdk::core::image::AutoExposure auto_exposure;
-        // NOTE[UN]: We need to copy the lidar scan to avoid modifying the original scan
-        ouster::sdk::core::LidarScan ls = *lidar_scans[ring_buffer.read_head()];
+        // NOTE[UN]: Don't copy the lidar scan to avoid modifying the original scan in the ring buffer
+        ouster::sdk::core::LidarScan& ls = *lidar_scans[ring_buffer.read_head()];
 
-        if (ls.has_field(ChanField::R) && ls.has_field(ChanField::G) && ls.has_field(ChanField::B)) {
-
-            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> r_data = ls.field<uint16_t>(ChanField::R);
-            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> g_data = ls.field<uint16_t>(ChanField::G);
-            Eigen::Ref<ouster::sdk::core::img_t<uint16_t>> b_data = ls.field<uint16_t>(ChanField::B);
-
-            ouster::sdk::core::img_t<float> r_data_float(r_data.rows(), r_data.cols());
-            ouster::sdk::core::img_t<float> g_data_float(g_data.rows(), g_data.cols());
-            ouster::sdk::core::img_t<float> b_data_float(b_data.rows(), b_data.cols());
+        if (has_rgb_) {
+            using ouster::sdk::core::img_t;
+            Eigen::Ref<img_t<uint16_t>> r_field = ls.field<uint16_t>(ChanField::R);
+            Eigen::Ref<img_t<uint16_t>> g_field = ls.field<uint16_t>(ChanField::G);
+            Eigen::Ref<img_t<uint16_t>> b_field = ls.field<uint16_t>(ChanField::B);
 
             // Get raw pointers for speed
-            const uint16_t* r_in = r_data.data();
-            const uint16_t* g_in = g_data.data();
-            const uint16_t* b_in = b_data.data();
+            const uint16_t* r_in = r_field.data();
+            const uint16_t* g_in = g_field.data();
+            const uint16_t* b_in = b_field.data();
 
-            float* r_out = r_data_float.data();
-            float* g_out = g_data_float.data();
-            float* b_out = b_data_float.data();
+            float* r_out = r_field_float.data();
+            float* g_out = g_field_float.data();
+            float* b_out = b_field_float.data();
 
-            for (int i = 0; i < r_data.size(); ++i) {
+            for (Eigen::Index i = 0; i < r_field.size(); ++i) {
                 r_out[i] = f16_bits_to_f32(r_in[i]);
                 g_out[i] = f16_bits_to_f32(g_in[i]);
                 b_out[i] = f16_bits_to_f32(b_in[i]);
             }
 
-            auto_exposure.update(r_data_float, g_data_float, b_data_float, true);
+            auto_exposure_->update(r_field_float, g_field_float, b_field_float, true);
 
-            ouster::sdk::core::img_t<uint8_t> r_data_uint8(r_data.rows(), r_data.cols());
-            ouster::sdk::core::img_t<uint8_t> g_data_uint8(g_data.rows(), g_data.cols());
-            ouster::sdk::core::img_t<uint8_t> b_data_uint8(b_data.rows(), b_data.cols());
+            Eigen::Ref<img_t<uint8_t>> r_field_uint8 = ls.field<uint8_t>(ChanField::R_U8);
+            Eigen::Ref<img_t<uint8_t>> g_field_uint8 = ls.field<uint8_t>(ChanField::G_U8);
+            Eigen::Ref<img_t<uint8_t>> b_field_uint8 = ls.field<uint8_t>(ChanField::B_U8);
 
-            uint8_t* r_out_uint8 = r_data_uint8.data();
-            uint8_t* g_out_uint8 = g_data_uint8.data();
-            uint8_t* b_out_uint8 = b_data_uint8.data();
+            uint8_t* r_out_uint8 = r_field_uint8.data();
+            uint8_t* g_out_uint8 = g_field_uint8.data();
+            uint8_t* b_out_uint8 = b_field_uint8.data();
 
-            for (int i = 0; i < r_data.size(); ++i) {
+            for (Eigen::Index i = 0; i < r_field_uint8.size(); ++i) {
                 r_out_uint8[i] = f32_to_u8(r_out[i]);
                 g_out_uint8[i] = f32_to_u8(g_out[i]);
                 b_out_uint8[i] = f32_to_u8(b_out[i]);
             }
-
-            ls.del_field(ChanField::R);
-            ls.add_field(ChanField::R, ouster::sdk::core::fd_array<uint8_t>(r_data.rows(), r_data.cols()));
-            ls.del_field(ChanField::G);
-            ls.add_field(ChanField::G, ouster::sdk::core::fd_array<uint8_t>(g_data.rows(), g_data.cols()));
-            ls.del_field(ChanField::B);
-            ls.add_field(ChanField::B, ouster::sdk::core::fd_array<uint8_t>(b_data.rows(), b_data.cols()));
-            ls.field<uint8_t>(ChanField::R) = r_data_uint8;
-            ls.field<uint8_t>(ChanField::G) = g_data_uint8;
-            ls.field<uint8_t>(ChanField::B) = b_data_uint8;
         }
 
         for (auto h : lidar_scan_handlers) {
@@ -467,6 +468,13 @@ class LidarPacketHandler {
     int64_t ptp_utc_tai_offset_;
 
     float min_scan_valid_columns_ratio_ = 0.0f;
+
+    bool has_rgb_ = false;
+    ouster::sdk::core::img_t<float> r_field_float;
+    ouster::sdk::core::img_t<float> g_field_float;
+    ouster::sdk::core::img_t<float> b_field_float;
+
+    std::unique_ptr<ouster::sdk::core::image::AutoExposure> auto_exposure_;
 };
 
 }  // namespace ouster_ros

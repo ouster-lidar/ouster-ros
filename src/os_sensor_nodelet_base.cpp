@@ -48,15 +48,17 @@ void OusterSensorNodeletBase::display_lidar_info(
     auto fw_ver = ouster::sdk::core::version_from_string(info.image_rev);
     auto lidar_profile = info.format.udp_profile_lidar;
     auto imu_profile = info.format.udp_profile_imu;
-    auto lidar_mode = info.config.lidar_mode.value();
+    auto lidar_mode = info.config.lidar_mode.value_or(LidarMode(0, 0));
+    auto columns_per_packet = info.format.columns_per_packet;
     NODELET_INFO_STREAM(
         "ouster client version: "
         << ouster::sdk::SDK_VERSION_FULL << "\n"
-        << "product: " << info.prod_line << ", sn: " << info.sn
+        << "product: " << info.prod_line << ", sn: " << info.sn << ", "
         << "firmware ver: " << fw_ver.simple_version_string() << "\n"
         << "lidar mode: " << ouster::sdk::core::to_string(lidar_mode) << ", "
         << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
-        << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
+        << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile) << "\n"
+        << "columns per packet: " << columns_per_packet);
 }
 
 }  // namespace ouster_ros

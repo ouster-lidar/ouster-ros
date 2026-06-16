@@ -32,6 +32,7 @@ DEFINE_MEMBER_CHECKER(zone_mask);
 DEFINE_MEMBER_CHECKER(r);
 DEFINE_MEMBER_CHECKER(g);
 DEFINE_MEMBER_CHECKER(b);
+DEFINE_MEMBER_CHECKER(a);
 
 // Compile-time predicate identifying point types that expose a complete
 // (r, g, b) color triplet directly accessible by name. Used for direct
@@ -39,7 +40,6 @@ DEFINE_MEMBER_CHECKER(b);
 // for RGB ingestion in scan_to_cloud_f.
 template <typename T>
 inline constexpr bool has_rgb_v = has_r_v<T> && has_g_v<T> && has_b_v<T>;
-
 
 template <typename PointTGT, typename PointSRC>
 void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
@@ -175,6 +175,7 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         }
     );
 
+    // RGB: only copy if both source and target support direct color access
     CondBinaryOp<has_rgb_v<PointTGT> && has_rgb_v<PointSRC>>::run(tgt_pt, src_pt,
         [](auto& tgt_pt, const auto& src_pt) {
             tgt_pt.r = static_cast<decltype(tgt_pt.r)>(src_pt.r);
@@ -188,6 +189,12 @@ void transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
             tgt_pt.r = static_cast<decltype(tgt_pt.r)>(0);
             tgt_pt.g = static_cast<decltype(tgt_pt.g)>(0);
             tgt_pt.b = static_cast<decltype(tgt_pt.b)>(0);
+        }
+    );
+
+    CondBinaryOp<has_a_v<PointTGT>>::run(tgt_pt, src_pt,
+        [](auto& tgt_pt, const auto&) {
+            tgt_pt.a = static_cast<decltype(tgt_pt.a)>(255);
         }
     );
 }

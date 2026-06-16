@@ -134,6 +134,25 @@ inline constexpr auto& get<4, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { retur
 template <>
 inline constexpr auto& get<5, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.b; }
 
+// pcl::PointXYZRGBA has the same x/y/z/r/g/b access pattern as PointXYZRGB.
+// Alpha is set by point::transform() to PCL's default opaque value.
+template <>
+inline constexpr std::size_t size<pcl::PointXYZRGBA>(const pcl::PointXYZRGBA&) { return 6U; }
+
+template <>
+inline constexpr auto& get<0, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.x; }
+template <>
+inline constexpr auto& get<1, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.y; }
+template <>
+inline constexpr auto& get<2, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.z; }
+template <>
+inline constexpr auto& get<3, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.r; }
+template <>
+inline constexpr auto& get<4, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.g; }
+template <>
+inline constexpr auto& get<5, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.b; }
+
+
 // TODO: create a generalized vardiac templates of apply and enumerate functions
 
 /**
