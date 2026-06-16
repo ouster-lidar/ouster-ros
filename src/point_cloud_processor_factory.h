@@ -1,7 +1,6 @@
 #pragma once
 
 #include "point_cloud_processor.h"
-#include "impl/rgb_profile.h"
 
 namespace ouster_ros {
 
