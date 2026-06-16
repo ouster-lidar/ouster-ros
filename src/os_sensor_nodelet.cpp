@@ -22,7 +22,6 @@
 #include "ouster_ros/PacketMsg.h"
 #include "os_sensor_nodelet.h"
 #include "ouster_ros/impl/file_util.h"
-#include "impl/rgb_profile.h"
 
 using std::to_string;
 using namespace std::chrono_literals;
@@ -125,9 +124,6 @@ void OusterSensor::schedule_stop() {
 }
 
 void OusterSensor::onInit() {
-    /* NOTE: TEMPORARY PROFILE FOR TESTING PURPOSES */
-    ouster::sdk::core::register_r16_g16_b16_profile();
-
     staged_config = parse_config_from_ros_parameters();
     create_metadata_pub();
     create_services();
