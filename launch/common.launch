@@ -44,6 +44,9 @@
     xyzi,
     o_xyzi,
     xyzir,
+    xyzrgb,
+    xyzrgba,
+    color_point,
     }"/>
 
   <arg name="organized" doc="generate an organzied point cloud"/>

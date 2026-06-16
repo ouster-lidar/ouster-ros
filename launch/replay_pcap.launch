@@ -59,7 +59,10 @@
     native,
     xyz,
     xyzi,
-    xyzir
+    xyzir,
+    xyzrgb,
+    xyzrgba,
+    color_point
     }"/>
 
   <arg name="organized" default="true"

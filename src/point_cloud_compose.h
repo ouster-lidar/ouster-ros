@@ -1,9 +1,12 @@
 #pragma once
 
+#include <cstring>
+
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
 #include "ouster_ros/os_point.h"
+#include "ouster_ros/color_point.h"
 #include "ouster_ros/sensor_point_types.h"
 #include "ouster_ros/common_point_types.h"
 
@@ -154,7 +157,6 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                 else
                     cloud.points.emplace_back();
             }
-
 
             // if target point and staging point has matching type bind the
             // target directly and avoid performing transform_point at the end
