@@ -219,10 +219,12 @@ class OusterImage : public OusterProcessingNodeBase {
         // columns are zero-filled), but ROI tells consumers which columns
         // hold real data. column_window is inclusive on both ends and given
         // in raw (staggered) columns, while the published images are
-        // destaggered: image column = raw column - pixel_shift_by_row[u]
-        // (mod W), so the valid region shifts per row. A CameraInfo ROI is a
-        // single rectangle, so publish the bounding box over all rows when
-        // it fits without wrapping; otherwise fall back to a full-size ROI.
+        // destaggered. The SDK destagger maps a staggered column c to image
+        // column (c + pixel_shift_by_row[u]) mod W (see ouster::destagger:
+        // destaggered[k] = staggered[k - shift]), so the valid region shifts
+        // per row. A CameraInfo ROI is a single rectangle, so publish the
+        // bounding box over all rows when it fits without wrapping; otherwise
+        // fall back to a full-size ROI.
         const auto& cw = sensor_info.format.column_window;
         const auto& shifts = sensor_info.format.pixel_shift_by_row;
         int min_shift = 0;
@@ -233,8 +235,8 @@ class OusterImage : public OusterProcessingNodeBase {
             min_shift = *min_it;
             max_shift = *max_it;
         }
-        const int x0 = cw.first - max_shift;   // leftmost valid image column
-        const int x1 = cw.second - min_shift;  // rightmost valid image column
+        const int x0 = cw.first + min_shift;   // leftmost valid image column
+        const int x1 = cw.second + max_shift;  // rightmost valid image column
         if (cw.first <= cw.second && x0 >= 0 && x1 < static_cast<int>(W)) {
             camera_info_msg_.roi.x_offset = static_cast<uint32_t>(x0);
             camera_info_msg_.roi.y_offset = 0;
@@ -243,9 +245,9 @@ class OusterImage : public OusterProcessingNodeBase {
         } else {
             RCLCPP_INFO(get_logger(),
                 "CameraInfo: column_window=[%d,%d] with destagger shifts "
-                "[%d,%d] wraps through column 0; publishing a full-size ROI "
-                "(equivalent to unset).", cw.first, cw.second, min_shift,
-                max_shift);
+                "[%d,%d] makes the valid region wrap past the image bounds; "
+                "publishing a full-size ROI (equivalent to unset).",
+                cw.first, cw.second, min_shift, max_shift);
             camera_info_msg_.roi.x_offset = 0;
             camera_info_msg_.roi.y_offset = 0;
             camera_info_msg_.roi.width = W;
