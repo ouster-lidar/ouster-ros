@@ -88,6 +88,7 @@ pcl::PointXYZ PointTransformTest::pt_xyz;
 pcl::PointXYZI PointTransformTest::pt_xyzi;
 PointXYZIR PointTransformTest::pt_xyzir;
 pcl::PointXYZRGB PointTransformTest::pt_xyzrgb;
+pcl::PointXYZRGBA PointTransformTest::pt_xyzrgba;
 // native point types
 Point_LEGACY PointTransformTest::pt_legacy;
 Point_RNG19_RFL8_SIG16_NIR16_DUAL
