@@ -35,8 +35,6 @@ class PointTransformTest : public ::testing::Test {
         initialize_point_elements_with_randoms<point::size(pt_xyzir)>(pt_xyzir);
         initialize_point_elements_with_randoms<point::size(pt_xyzrgb)>(
             pt_xyzrgb);
-        initialize_point_elements_with_randoms<point::size(pt_xyzrgb)>(
-            pt_xyzrgb);
         initialize_point_elements_with_randoms<point::size(pt_xyzrgba)>(
             pt_xyzrgba);
         // native sensor point types
@@ -48,11 +46,6 @@ class PointTransformTest : public ::testing::Test {
             pt_rg19_rf8_sg16_nr16)>(pt_rg19_rf8_sg16_nr16);
         initialize_point_elements_with_randoms<point::size(pt_rg15_rfl8_nr8)>(
             pt_rg15_rfl8_nr8);
-        initialize_point_elements_with_randoms<point::size(
-            pt_rg19_rf8_sg16_nr16_rgb16)>(pt_rg19_rf8_sg16_nr16_rgb16);
-        initialize_point_elements_with_randoms<point::size(
-            pt_rg19_rf8_sg16_nr16_rgb16_dual)>(
-            pt_rg19_rf8_sg16_nr16_rgb16_dual);
         initialize_point_elements_with_randoms<point::size(
             pt_rg19_rf8_sg16_nr16_rgb16)>(pt_rg19_rf8_sg16_nr16_rgb16);
         initialize_point_elements_with_randoms<point::size(

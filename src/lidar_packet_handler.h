@@ -26,6 +26,7 @@
 #include <atomic>
 #include <vector>
 #include <string>
+#include <cstring>
 
 #include <ouster/image_processing.h>
 
