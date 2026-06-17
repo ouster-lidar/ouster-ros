@@ -23,6 +23,7 @@ find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 # Use OpenCV libs variable (OpenCV::OpenCV target may not resolve on all systems)
 if(NOT OpenCV_LIBS)
@@ -164,11 +165,21 @@ rclcpp_components_register_node(os_cloud_component
 # ==== os_image_component ====
 create_ros2_component(os_image_component
   "src/os_processing_node_base.cpp;src/os_image_node.cpp"
-  ""
+  "tf2_ros"
 )
 rclcpp_components_register_node(os_image_component
   PLUGIN "ouster_ros::OusterImage"
   EXECUTABLE os_image
+)
+
+# ==== os_pinhole_component ====
+create_ros2_component(os_pinhole_component
+  "src/os_processing_node_base.cpp;src/os_pinhole_node.cpp"
+  "tf2;tf2_geometry_msgs;tf2_ros"
+)
+rclcpp_components_register_node(os_pinhole_component
+  PLUGIN "ouster_ros::OusterPinhole"
+  EXECUTABLE os_pinhole
 )
 
 # ==== os_driver_component ====
@@ -225,6 +236,7 @@ set(OUSTER_INSTALL_TARGETS
   os_replay_component
   os_cloud_component
   os_image_component
+  os_pinhole_component
   os_driver_component
 )
 if (BUILD_PCAP)
