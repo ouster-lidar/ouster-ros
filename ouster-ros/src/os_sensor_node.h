@@ -19,6 +19,8 @@
 #include <atomic>
 #include <optional>
 
+#include <ouster/client.h>
+
 #include <std_srvs/srv/empty.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/srv/get_config.hpp"
@@ -97,12 +99,24 @@ class OusterSensor : public OusterSensorNodeBase {
     // helper methods for parsing individual config fields from ros parameters
     void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
+    void parse_columns_per_packet(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_imu_and_settings(ouster::sdk::core::SensorConfig& config);
     void parse_lidar_mode(ouster::sdk::core::SensorConfig& config);
     void parse_timestamp_mode(ouster::sdk::core::SensorConfig& config);
     void parse_azimuth_window(ouster::sdk::core::SensorConfig& config);
     void parse_operating_mode(ouster::sdk::core::SensorConfig& config);
     void parse_signal_multiplier(ouster::sdk::core::SensorConfig& config);
+    void parse_min_distance(ouster::sdk::core::SensorConfig& config);
+    void parse_multipurpose_io_mode(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_in_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_ignore_valid_char(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_baud_rate(ouster::sdk::core::SensorConfig& config);
+    void parse_nmea_leap_seconds(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_in_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_polarity(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_frequency(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_angle(ouster::sdk::core::SensorConfig& config);
+    void parse_sync_pulse_out_pulse_width(ouster::sdk::core::SensorConfig& config);
     void parse_phase_lock_and_offset(ouster::sdk::core::SensorConfig& config);
     void parse_lidar_frame_azimuth_offset(ouster::sdk::core::SensorConfig& config);
     void parse_bloom_reduction_optimization(ouster::sdk::core::SensorConfig& config);
@@ -117,8 +131,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string load_config_file(const std::string& config_file);
 
     // fill in values that could not be parsed from metadata
-    void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info,
-                                    ouster::sdk::core::LidarMode specified_lidar_mode);
+    void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info);
 
     void allocate_buffers();
 
@@ -151,7 +164,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string sensor_hostname;
     std::optional<ouster::sdk::core::SensorConfig> staged_config;
     std::string mtp_dest;
-    bool mtp_main;
+    bool mtp_main = false;
     std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet_msg;
     ouster_sensor_msgs::msg::PacketMsg imu_packet_msg;

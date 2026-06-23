@@ -2,9 +2,25 @@
 Changelog
 =========
 
-ouster_ros v0.14.1
-==================
-* [BUGFIX]: Add the missing ament_cmake_gtest to the dependencies.
+[UNRELEASED]
+============
+* [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
+* Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
+* Add launch file, driver params, and os_sensor_node support for additional sensor configuration
+  parameters (time synchronization, and minimum reported range on FW 3.1+):
+  - ``multipurpose_io_mode``
+  - ``nmea_in_polarity``, ``nmea_ignore_valid_char``, ``nmea_baud_rate``, ``nmea_leap_seconds``
+  - ``sync_pulse_in_polarity``, ``sync_pulse_out_polarity``, ``sync_pulse_out_frequency``,
+    ``sync_pulse_out_angle``, ``sync_pulse_out_pulse_width``
+  - ``min_distance`` (sensor field ``min_range_threshold_cm``)
+* [BUGFIX] Correct the order of ``FLAGS`` field.
+* Enable varying columns per packet.
+* Add support for Rev8 and the new RGB profiles
+* Add a ``columns_per_packet`` configuration property to launch file params.
+* Extend driver list of point types to include color capable types:
+  - ``pcl::XYZRGB``
+  - ``pcl::XYZRGBA``
+  - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
 
 ouster_ros v0.14.0
 ==================

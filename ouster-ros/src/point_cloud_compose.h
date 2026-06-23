@@ -4,6 +4,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include "ouster_ros/os_point.h"
+#include "ouster_ros/color_point.h"
 #include "ouster_ros/sensor_point_types.h"
 #include "ouster_ros/common_point_types.h"
 

@@ -44,6 +44,10 @@ static constexpr cf_type FLAGS2 = "FLAGS2";      ///< 2nd return flags
 static constexpr cf_type NORMALS = "NORMALS";    ///< 1st return normal values
 static constexpr cf_type NORMALS2 = "NORMALS2";  ///< 2nd return normal values
 static constexpr cf_type WINDOW = "WINDOW";      ///< window blockage
+static constexpr cf_type R = "R";                ///< Red channel
+static constexpr cf_type G = "G";                ///< Green channel
+static constexpr cf_type B = "B";                ///< Blue channel
+static constexpr cf_type RGB = "RGB";            ///< Combined RGB channel
 static constexpr cf_type ZONE_MASK =
     "ZONE_MASK";  ///< per pixel mask describing zone occupancy
 static constexpr cf_type RAW_HEADERS =
@@ -98,6 +102,10 @@ static constexpr cf_type ZONE_PACKET_TIMESTAMP =
 static constexpr cf_type ZONE_STATES = "ZONE_STATES";  ///< zone states
 static constexpr cf_type ZONE_ALERT_FLAGS =
     "ZONE_ALERT_FLAGS";  ///< zone alert flags
+
+static constexpr cf_type R_U8 = "R_U8";  ///< Red channel 8-bit
+static constexpr cf_type G_U8 = "G_U8";  ///< Green channel 8-bit
+static constexpr cf_type B_U8 = "B_U8";  ///< Blue channel 8-bit
 }  // namespace ChanField
 
 #if defined(VOID)
@@ -119,6 +127,7 @@ enum class ChanFieldType {
     FLOAT32 = 9,
     FLOAT64 = 10,
     CHAR = 11,
+    FLOAT16 = 12,
     /* offsetting 30 for structs to pad their numbers for versioning */
     ZONE_STATE = 30,
     UNREGISTERED = 100

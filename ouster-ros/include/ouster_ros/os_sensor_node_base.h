@@ -6,8 +6,11 @@
  * @brief Base class for ouster_ros sensor and replay nodes
  *
  */
+#pragma once
 
+#include <string>
 #include <chrono>
+#include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
@@ -37,11 +40,6 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     void publish_metadata();
 
     void display_lidar_info(const ouster::sdk::core::SensorInfo& info);
-
-    static std::string read_text_file(const std::string& text_file);
-
-    static bool write_text_to_file(const std::string& file_path,
-                                   const std::string& text);
 
     static std::string transition_id_to_string(uint8_t transition_id);
 

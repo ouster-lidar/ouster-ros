@@ -57,7 +57,8 @@ void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
     auto fw_ver = ouster::sdk::core::version_from_string(info.image_rev);
     auto lidar_profile = info.format.udp_profile_lidar;
     auto imu_profile = info.format.udp_profile_imu;
-    auto lidar_mode = info.config.lidar_mode.value_or(LidarMode::MODE_UNSPEC);
+    auto lidar_mode = info.config.lidar_mode.value_or(LidarMode(0, 0));
+    auto columns_per_packet = info.format.columns_per_packet;
     RCLCPP_INFO_STREAM(
         get_logger(),
         "ouster client version: "
@@ -66,25 +67,8 @@ void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
             << "firmware ver: " << fw_ver.simple_version_string() << "\n"
             << "lidar mode: " << ouster::sdk::core::to_string(lidar_mode) << ", "
             << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
-            << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile));
-}
-
-std::string OusterSensorNodeBase::read_text_file(const std::string& text_file) {
-    std::ifstream ifs{};
-    ifs.open(text_file);
-    if (ifs.fail()) return {};
-    std::stringstream buf;
-    buf << ifs.rdbuf();
-    return buf.str();
-}
-
-bool OusterSensorNodeBase::write_text_to_file(const std::string& file_path,
-                                              const std::string& text) {
-    std::ofstream ofs(file_path);
-    if (!ofs.is_open()) return false;
-    ofs << text << std::endl;
-    ofs.close();
-    return true;
+            << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile) << "\n"
+            << "columns per packet: " << columns_per_packet);
 }
 
 std::string OusterSensorNodeBase::transition_id_to_string(uint8_t transition_id) {
