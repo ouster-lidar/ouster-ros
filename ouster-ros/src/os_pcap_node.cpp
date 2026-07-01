@@ -23,14 +23,14 @@
 #include "ouster_sensor_msgs/msg/packet_msg.h"
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
-
+#include "ouster_ros/impl/file_util.h"
 #include <ouster/os_pcap.h>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
-namespace sensor = ouster::sensor;
-using ouster::sensor_utils::PcapReader;
 using ouster_sensor_msgs::msg::PacketMsg;
+using ouster::sdk::pcap::PcapReader;
+using ouster::sdk::core::PacketFormat;
 
 namespace ouster_ros {
 
@@ -178,8 +178,8 @@ class OusterPcap : public OusterSensorNodeBase {
 
     void load_metadata_from_file(const std::string& meta_file) {
         try {
-            cached_metadata = read_text_file(meta_file);
-            info = sensor::parse_metadata(cached_metadata);
+            cached_metadata = impl::read_text_file(meta_file);
+            info = ouster::sdk::core::SensorInfo(cached_metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
             cached_metadata.clear();
@@ -190,7 +190,7 @@ class OusterPcap : public OusterSensorNodeBase {
     }
 
     void allocate_buffers() {
-        auto& pf = sensor::get_format(info);
+        auto& pf = ouster::sdk::core::get_format(info);
         lidar_packet.buf.resize(pf.lidar_packet_size);
         imu_packet.buf.resize(pf.imu_packet_size);
     }
@@ -214,7 +214,7 @@ class OusterPcap : public OusterSensorNodeBase {
     void start_packet_read_thread() {
         packet_read_active = true;
         packet_read_thread = std::make_unique<std::thread>([this]() {
-            auto& pf = sensor::get_format(info);
+            auto& pf = ouster::sdk::core::get_format(info);
             do {
                 read_packets(*pcap, pf);
                 pcap->reset();
@@ -227,7 +227,8 @@ class OusterPcap : public OusterSensorNodeBase {
 
     void stop_packet_read_thread() {
         RCLCPP_DEBUG(get_logger(), "packet_read_thread stopping.");
-        if (packet_read_thread->joinable()) {
+        if (packet_read_thread != nullptr &&
+            packet_read_thread->joinable()) {
             packet_read_active = false;
             packet_read_thread->join();
         }
@@ -253,7 +254,7 @@ class OusterPcap : public OusterSensorNodeBase {
         imu_packet_pub->publish(imu_packet);
     }
 
-    void read_packets(PcapReader& pcap, const sensor::packet_format& pf) {
+    void read_packets(PcapReader& pcap, const PacketFormat& pf) {
         size_t payload_size = pcap.next_packet();
         auto packet_info = pcap.current_info();
         auto file_start = packet_info.timestamp;

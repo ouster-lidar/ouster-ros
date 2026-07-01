@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2023, Ouster, Inc.
  * All rights reserved.
  *
- * @file os_tf_publisher.h
+ * @file os_static_transforms_broadcaster.h
  * @brief ...
  */
 
@@ -49,7 +49,7 @@ class OusterStaticTransformsBroadcaster {
         }
     }
 
-    void broadcast_transforms(const sensor::sensor_info& info) {
+    void broadcast_transforms(const ouster::sdk::core::SensorInfo& info) {
         auto now = node->get_clock()->now();
         tf_bcast.sendTransform(ouster_ros::transform_to_tf_msg(
             info.lidar_to_sensor_transform, sensor_frame, lidar_frame, now));

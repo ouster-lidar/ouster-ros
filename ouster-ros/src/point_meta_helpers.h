@@ -113,6 +113,45 @@ inline  constexpr auto& get<2, pcl::PointXYZI>(pcl::PointXYZI& point) { return p
 template <>
 inline  constexpr auto& get<3, pcl::PointXYZI>(pcl::PointXYZI& point) { return point.intensity; }
 
+// pcl::PointXYZRGB has x/y/z plus r/g/b (and a packed rgb/rgba alias). We only
+// expose the 3 color channels here since they are the only fields produced
+// by ouster_ros for RGB-capable lidar profiles. The alpha channel and packed
+// representations are derived from the r/g/b bytes via PCL's union and are
+// updated implicitly when r/g/b are written.
+template <>
+inline constexpr std::size_t size<pcl::PointXYZRGB>(const pcl::PointXYZRGB&) { return 6U; }
+
+template <>
+inline constexpr auto& get<0, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.x; }
+template <>
+inline constexpr auto& get<1, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.y; }
+template <>
+inline constexpr auto& get<2, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.z; }
+template <>
+inline constexpr auto& get<3, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.r; }
+template <>
+inline constexpr auto& get<4, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.g; }
+template <>
+inline constexpr auto& get<5, pcl::PointXYZRGB>(pcl::PointXYZRGB& point) { return point.b; }
+
+// pcl::PointXYZRGBA has the same x/y/z/r/g/b access pattern as PointXYZRGB.
+// Alpha is set by point::transform() to PCL's default opaque value.
+template <>
+inline constexpr std::size_t size<pcl::PointXYZRGBA>(const pcl::PointXYZRGBA&) { return 6U; }
+
+template <>
+inline constexpr auto& get<0, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.x; }
+template <>
+inline constexpr auto& get<1, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.y; }
+template <>
+inline constexpr auto& get<2, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.z; }
+template <>
+inline constexpr auto& get<3, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.r; }
+template <>
+inline constexpr auto& get<4, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.g; }
+template <>
+inline constexpr auto& get<5, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.b; }
+
 // TODO: create a generalized vardiac templates of apply and enumerate functions
 
 /**
@@ -134,7 +173,7 @@ constexpr void apply(PointT& pt, UnaryOp unary_op) {
  * @brief Enumerates the elements of a point (compile time) applying a lambda
  * function to each element in sequence within the range [Index, N) where:
  *      `Index < N and N <= size(pt)`
- * The lambda function recieves the index of each element as the first parameter
+ * The lambda function receives the index of each element as the first parameter
  * and a reference to the element as the second parameter
  */
 template <std::size_t Index, std::size_t N, typename PointT, typename EnumOp>

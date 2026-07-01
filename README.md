@@ -175,6 +175,12 @@ If you don't pass a `params_file` then the file located at `ouster/config/driver
 the params you can start with default options for everything except the `sensor_hostname` param which you should adjust
 to match the hostname or ip address of the Ouster sensor you are trying to connect to.
 
+> **Note**:
+> If you observe parts of the scan missing is missing, this suggests having a lots of dropped packets
+> It is recommended that you increase the maximum allowed size for receive memory buffers in network
+> subsystem and tune packet fragmentation settings, you can do so by running the script `network-configure.bash` found
+> under `util`.
+
 **comptability mode**
 If you are migrating from https://github.com/ros-drivers/ros2_ouster_drivers to the official ouster drivers
 we supply you with a file `driver_launch.py` which provides users with same topic name and accepts the same

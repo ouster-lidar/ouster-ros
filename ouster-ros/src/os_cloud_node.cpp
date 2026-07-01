@@ -29,8 +29,9 @@
 
 namespace ouster_ros {
 
-namespace sensor = ouster::sensor;
 using ouster_sensor_msgs::msg::PacketMsg;
+using ouster::sdk::core::ImuPacket;
+using ouster::sdk::core::LidarPacket;
 
 class OusterCloud : public OusterProcessingNodeBase {
    public:
@@ -74,14 +75,16 @@ class OusterCloud : public OusterProcessingNodeBase {
         const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
-        info = sensor::parse_metadata(metadata_msg->data);
+        info = ouster::sdk::core::SensorInfo(metadata_msg->data);
+        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
+            ouster::sdk::core::get_format(info));
         if (tf_bcast.publish_static_tf()) {
             tf_bcast.broadcast_transforms(info);
         }
         create_publishers_subscriptions(info);
     }
 
-    void create_publishers_subscriptions(const sensor::sensor_info& info) {
+    void create_publishers_subscriptions(const ouster::sdk::core::SensorInfo& info) {
         auto timestamp_mode = get_parameter("timestamp_mode").as_string();
         auto ptp_utc_tai_offset =
             get_parameter("ptp_utc_tai_offset").as_double();
@@ -108,11 +111,14 @@ class OusterCloud : public OusterProcessingNodeBase {
                     if (imu_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
-                        sensor::ImuPacket imu_packet(msg->buf.size());
-                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        ImuPacket imu_packet(msg->buf.size());
+                        imu_packet.format = packet_format;
                         imu_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
-                        auto imu_msg = imu_packet_handler(imu_packet);
-                        imu_pub->publish(imu_msg);
+                        memcpy(imu_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        auto imu_msgs = imu_packet_handler(imu_packet);
+                        for (const auto& imu_msg : imu_msgs) {
+                            imu_pub->publish(imu_msg);
+                        }
                     }
                 });
         }
@@ -123,7 +129,7 @@ class OusterCloud : public OusterProcessingNodeBase {
             throw std::runtime_error("min_scan_valid_columns_ratio out of bounds!");
         }
 
-        int num_returns = get_n_returns(info);
+        int num_returns = info.num_returns();
 
         std::vector<LidarScanProcessor> processors;
 
@@ -232,9 +238,10 @@ class OusterCloud : public OusterProcessingNodeBase {
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                     // Need to redefine the Packet object and allow use of array_views
-                    sensor::LidarPacket lidar_packet(msg->buf.size());
-                    memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                    LidarPacket lidar_packet(msg->buf.size());
+                    lidar_packet.format = packet_format;
                     lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
+                    memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
 
                     if (telemetry_handler) {
                         auto telemetry = telemetry_handler(lidar_packet);

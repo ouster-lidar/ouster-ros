@@ -48,7 +48,7 @@ struct PointXYZI : public _Ouster_PointXYZI {
       intensity = 0.0f;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, intensity);
     }
 
@@ -88,7 +88,7 @@ struct PointXYZIR : public _PointXYZIR {
       intensity = 0.0f; ring = 0;
     }
 
-    inline const auto as_tuple() const {
+    inline auto as_tuple() const {
         return std::tie(x, y, z, intensity, ring);
     }
 

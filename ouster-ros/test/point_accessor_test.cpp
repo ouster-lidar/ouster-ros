@@ -23,25 +23,25 @@ class PointAccessorTest : public ::testing::Test {
         pt_legacy = ouster_ros::_Point_LEGACY{
             {0.0f, 1.0f, 2.0f, 1.0f},   // x, y, z, w
             3, 4,                       // t, ring
-            5, 6, 7, 8                  // range, signal, reflectivity, near_ir
+            5, 6, 7, 8, 9               // range, signal, reflectivity, near_ir, flags
         };
 
         pt_rg19_rf8_sg16_nr16_dual = ouster_ros::_Point_RNG19_RFL8_SIG16_NIR16_DUAL{
             {0.0f, 1.0f, 2.0f, 1.0f},   // x, y, z, w
             3, 4,                       // t, ring
-            5, 6, 7, 8                  // range, signal, reflectivity, near_ir
+            5, 6, 7, 8, 9, 10           // range, signal, reflectivity, near_ir, flags, window
         };
 
         pt_rg19_rf8_sg16_nr16 = ouster_ros::_Point_RNG19_RFL8_SIG16_NIR16{
             {0.0f, 1.0f, 2.0f, 1.0f},   // x, y, z, w
             3, 4,                       // t, ring
-            5, 6, 7, 8                  // range, signal, reflectivity, near_ir
+            5, 6, 7, 8, 9, 10           // range, signal, reflectivity, flags, near_ir, window
         };
 
         pt_rg15_rfl8_nr8 = ouster_ros::_Point_RNG15_RFL8_NIR8{
             {0.0f, 1.0f, 2.0f, 1.0f},   // x, y, z, w
             3, 4,                       // t, ring
-            5, 6, 7,                    // range, reflectivity, near_ir
+            5, 6, 7, 8                  // range, reflectivity, near_ir, flags
         };
 
         pt_os_point = ouster_ros::_Point{

@@ -26,6 +26,15 @@ ouster/os_driver:
     #                       packet of a LidarScan as the timestamp of the IMU,
     #                       PointCloud2 and LaserScan messages.
     timestamp_mode: ''
+    # multipurpose_io_mode[optional]: multipurpose IO / time sync mode;
+    # possible values:
+    # - OFF
+    # - INPUT_NMEA_UART
+    # - OUTPUT_FROM_INTERNAL_OSC
+    # - OUTPUT_FROM_SYNC_PULSE_IN
+    # - OUTPUT_FROM_PTP_1588
+    # - OUTPUT_FROM_ENCODER_ANGLE
+    multipurpose_io_mode: 'OFF'
     # ptp_utc_tai_offset[optional]: UTC/TAI offset in seconds to apply when
     # TIME_FROM_PTP_1588 timestamp mode is used.
     ptp_utc_tai_offset: -37.0
@@ -34,17 +43,39 @@ ouster/os_driver:
     # - RNG19_RFL8_SIG16_NIR16
     # - RNG15_RFL8_NIR8
     # - RNG19_RFL8_SIG16_NIR16_DUAL
-    # - FUSA_RNG15_RFL8_NIR8_DUAL
+    # - FUSA_RNG15_RFL8_NIR8_DUAL (deprecated, renamed to RNG15_RFL8_NIR8_DUAL)
+    # - RNG15_RFL8_NIR8_DUAL (requires FW3.2+)
+    # - RNG15_RFL8_WIN8 (requires FW3.2+)
+    # - RNG15_RFL8_NIR8_ZONE16 (requires FW3.2+)
+    # - RNG19_RFL8_SIG16_NIR16_ZONE16 (requires FW3.2+)
+    # - RNG19_RFL8_SIG16_NIR16_RGB16 (requires FW4.0+)
+    # - RNG19_RFL8_SIG16_NIR16_RGB16_DUAL (requires FW4.0+)
     udp_profile_lidar: ''
+    # columns_per_packet[optional]: number of columns per packet; possible values: {1, 2, 4, 8, 16, 32, 64};
+    # default is 0 (unset); requires FW4.0+.
+    columns_per_packet: 0
+    # udp_profile_imu[optional]: imu packet profile; possible values:
+    # - LEGACY: not recommended
+    # - ACCEL32_GYRO32_NMEA (requires FW3.2+)
+    udp_profile_imu: ''
+    # imu_packets_per_frame[optional]: number of IMU packets per frame;
+    # possible values: {1, 2, 4, 8}, default is 0 (unset; requires FW3.2+).
+    imu_packets_per_frame: 0
+    # gyro_fsr[optional]: gyroscope full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is '' (unset; requires FW 3.1+).
+    gyro_fsr: ''
+    # accel_fsr[optional]: accelerometer full-scale range; possible values: {NORMAL, EXTENDED},
+    # default is '' (unset; requires FW 3.1+).
+    accel_fsr: ''
     # metadata[optional]: path to save metadata file to, if left empty a file
-    # with the sensor hostname or ip will be crearted in ~/.ros folder.
+    # with the sensor hostname or ip will be created in ~/.ros folder.
     metadata: ''
     # lidar_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     lidar_port: 0
     # imu_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first avaliable port number will be
+    # use 0 as the port value then the first available port number will be
     # assigned.
     imu_port: 0
     # sensor_frame[optional]: name to use when referring to the sensor frame.
@@ -72,8 +103,8 @@ ouster/os_driver:
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
-    # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi, 
-    #                                     yzir}
+    # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi,
+    #                                     xyzir, xyzrgb, xyzrgba, color_point}
     # Here is a breif description of each option:
     #  - original: This uses the original point representation ouster_ros::Point
     #          of the ouster-ros driver.
@@ -87,6 +118,10 @@ ouster/os_driver:
     #  - xyzir: same as xyzi type but adds ring (channel) field.
     #          this type is same as Velodyne point cloud type
     #          this type is not compatible with the low data profile.
+    #  - xyzrgb: same as xyz point type but adds RGB color fields.
+    #  - xyzrgba: same as xyzrgb point type but publishes the packed color as
+    #          PCL's RGBA field with an opaque alpha channel.
+    #  - color_point: same as the original point type but adds RGB color fields.
     # for more details about the fields of each point type and their data refer
     # to the following header files:
     # - ouster_ros/os_point.h
@@ -97,9 +132,34 @@ ouster/os_driver:
     azimuth_window_start: 0
     # azimuth_window_end[optional]: values range [0, 360000] millidegrees
     azimuth_window_end: 360000
+    # operating_mode[optional]: sensor operating mode; possible values:
+    # - NORMAL
+    # - STANDBY
+    operating_mode: NORMAL
+    # signal_multiplier[optional]: multiplier for signal strength of sensor; possible values: {0.25, 0.5, 1, 2, 3}
+    # default is 1.0.
+    signal_multiplier: 1.0
+    # phase_lock_enable[optional]: enable or disable phase lock.
+    phase_lock_enable: false
+    # phase_lock_offset[optional]: angle that sensors are locked to in millidegrees, values range [0, 360000].
+    phase_lock_offset: 0
+    # lidar_frame_azimuth_offset[optional]: The lidar frame azimuth offset for the sensor to use in millidegrees;
+    # values range [0, 360000], default -1 (unset; requires FW 3.2+).
+    lidar_frame_azimuth_offset: -1
+    # return_order[optional]: order of returns to use for generating point cloud; possible values:
+    # - STRONGEST_TO_WEAKEST
+    # - FARTHEST_TO_NEAREST
+    # - NEAREST_TO_FARTHEST
+    # default is '' (unset; requires FW 3.1+).
+    return_order: ''
+    # bloom_reduction_optimization[optional]: level of bloom reduction optimization to apply on the sensor; possible values:
+    # - BALANCED
+    # - MINIMIZE_FALSE_POSITIVES
+    # default is '' (unset; requires FW 3.2+).
+    bloom_reduction_optimization: ''
     # persist_config[optional]: request the sensor to persist settings
     persist_config: false
-    # attempt_config[optional]: attempting to reconnect to the sensor after
+    # attempt_reconnect[optional]: attempting to reconnect to the sensor after
     # connection loss or sensor powered down
     attempt_reconnect: false
     # dormant_period_between_reconnects[optional]: wait time in seconds between
@@ -125,3 +185,60 @@ ouster/os_driver:
     # mask_path[optional]: path to an image file that will be used to mask parts of the
     # pointcloud.
     mask_path: ''
+    # nmea_in_polarity[optional]: polarity for NMEA UART input; possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    nmea_in_polarity: ACTIVE_HIGH
+    # nmea_ignore_valid_char[optional]: Set false if NMEA UART input $GPRMC messages should
+    # be ignored if valid character is not set, and true if messages should be used for time
+    # syncing regardless of the valid character.
+    # possible values:
+    # - true
+    # - false
+    nmea_ignore_valid_char: false
+    # nmea_baud_rate[optional]: Expected baud for NMEA UART $GPRMC; possible values:
+    # - BAUD_9600
+    # - BAUD_115200
+    nmea_baud_rate: BAUD_9600
+    # nmea_leap_seconds[optional]: Set an integer number of leap seconds that will be added
+    # to the UDP timestamp when calculating seconds since 00:00:00 Thursday, 1 January 1970.
+    # For Unix Epoch time, this should be set to 0.
+    # possible values:
+    # - 0
+    # - 1
+    nmea_leap_seconds: 0
+    # sync_pulse_in_polarity[optional]: The polarity of SYNC_PULSE_IN input, which controls
+    # polarity of SYNC_PULSE_IN pin when timestamp_mode is set in TIME_FROM_SYNC_PULSE_IN;
+    # possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    sync_pulse_in_polarity: ACTIVE_HIGH
+    # sync_pulse_out_polarity[optional]: Polarity of SYNC_PULSE_OUT when this sensor is the time-sync master;
+    # possible values:
+    # - ACTIVE_HIGH
+    # - ACTIVE_LOW
+    sync_pulse_out_polarity: ACTIVE_LOW
+    # sync_pulse_out_frequency[optional]: The output SYNC_PULSE_OUT pulse rate in Hz. Valid inputs are integers >0 Hz,
+    # but also limited by the criteria described in the Time Synchronization section of the Firmware User Manual;
+    # possible values:
+    # - -1 (unset)
+    # - integer >0 Hz
+    sync_pulse_out_frequency: -1
+    # sync_pulse_out_angle[optional]: The angle in terms of degrees that the sensor traverses between each
+    # SYNC_PULSE_OUT pulse. E.g. a value of 180 means a sync pulse is sent out every 180° for a total of two pulses per
+    # revolution and angular frequency of 20 Hz;
+    # possible values:
+    # - -1 (unset).
+    # - [0, 360000]
+    sync_pulse_out_angle: -1
+    # sync_pulse_out_pulse_width[optional]: The polarity of SYNC_PULSE_OUT output, if the sensor is set as the master
+    # sensor used for time synchronization. Output SYNC_PULSE_OUT pulse width is in ms, increments in 1 ms;
+    #possible values:
+    # - -1 (unset)
+    # - integer >0 ms
+    sync_pulse_out_pulse_width: -1
+    # min_distance[optional]: minimum distance to consider (cm).
+    # available options (FW3.1+): {0, 30}
+    # available options (FW3.2+): {0, 30, 50}
+    # default is -1 (unset).
+    min_distance: -1

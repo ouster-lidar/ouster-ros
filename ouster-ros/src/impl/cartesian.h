@@ -25,9 +25,10 @@ namespace ouster {
  *         to ith pixel in LidarScan where i = row * w + col.
  */
 template <typename T>
-void cartesianT(PointsT<T>& points,
-                const Eigen::Ref<const img_t<uint32_t>>& range,
-                const PointsT<T>& direction, const PointsT<T>& offset,
+void cartesianT(ouster::sdk::core::PointCloudXYZ<T>& points,
+                const Eigen::Ref<const ouster::sdk::core::img_t<uint32_t>>& range,
+                const ouster::sdk::core::ArrayX3R<T>& direction,
+                const ouster::sdk::core::ArrayX3R<T>& offset,
                 uint32_t min_r, uint32_t max_r, T invalid) {
     assert(points.rows() == direction.rows() &&
            "points & direction row count mismatch");
@@ -42,18 +43,15 @@ void cartesianT(PointsT<T>& points,
     const auto* const ofs = offset.data();
 
     const auto N = range.size();
-    const auto col_x = 0 * N;  // 1st column of points (x)
-    const auto col_y = 1 * N;  // 2nd column of points (y)
-    const auto col_z = 2 * N;  // 3rd column of points (z)
 
 #ifdef __OUSTER_UTILIZE_OPENMP__
 #pragma omp parallel for schedule(static)
 #endif
     for (auto i = 0; i < N; ++i) {
         const auto r = rng[i];
-        const auto idx_x = col_x + i;
-        const auto idx_y = col_y + i;
-        const auto idx_z = col_z + i;
+        const auto idx_x = (i * 3) + 0;
+        const auto idx_y = (i * 3) + 1;
+        const auto idx_z = (i * 3) + 2;
         if (r <= min_r || r >= max_r) {
             pts[idx_x] = pts[idx_y] = pts[idx_z] = invalid;
         } else {
