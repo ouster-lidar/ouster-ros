@@ -20,6 +20,8 @@
     - [Windows](#windows)
     - [Mac](#mac)
   - [Getting Started](#getting-started)
+    - [Installation via apt (Recommended)](#installation-via-apt-recommended)
+    - [Building from Source](#building-from-source)
   - [Usage](#usage)
     - [Launching Nodes](#launching-nodes)
       - [Sensor Mode](#sensor-mode)
@@ -110,6 +112,25 @@ TBD
 
 
 ## Getting Started
+
+### Installation via apt (Recommended)
+The simplest way to install the driver is directly from the ROS package index using `apt`:
+
+```bash
+sudo apt install ros-${ROS_DISTRO}-ouster-ros
+```
+
+where `${ROS_DISTRO}` is one of ``rolling``, ``humble``, ``iron``, ``jazzy`` or ``kilted``.
+
+> **Note**
+> There may be a delay of a few weeks between a new release on the
+> [ros2 branch](https://github.com/ouster-lidar/ouster-ros/tree/ros2) and its availability
+> in the ROS package index. If you need the latest features or bug fixes, consider building
+> from source as described below.
+
+
+### Building from Source
+If you need the latest features or wish to contribute to the driver, you can build it from source.
 To build the driver using ROS2 you need to clone the project into the `src` folder of a ros2
 workspace as shown below:
 
