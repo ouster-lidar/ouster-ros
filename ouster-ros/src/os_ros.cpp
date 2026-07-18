@@ -182,7 +182,7 @@ void warn_mask_resized(int image_cols, int image_rows,
                        int scan_height, int scan_width) {
     auto logger = rclcpp::get_logger("ouster_ros");
     RCLCPP_WARN_STREAM(logger, "Mask image has size (" << image_cols << "x" << image_rows << ")"
-                       << " but incoming scans has size (" << scan_height << "x" << scan_width << ")."
+                       << " but incoming scans has size (" << scan_width << "x" << scan_height << ")."
                        << " Resizing mask to match the scans size.");    
 }
 
