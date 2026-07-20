@@ -32,10 +32,15 @@ endif()
 # ==== Options ====
 if(MSVC)
   add_compile_options(/W2)
-  add_compile_definitions(NOMINMAX _USE_MATH_DEFINES WIN32_LEAN_AND_MEAN)
-  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 else()
   add_compile_options(-Wall -Wextra)
+endif()
+
+if(WIN32)
+  add_compile_definitions(NOMINMAX _USE_MATH_DEFINES WIN32_LEAN_AND_MEAN)
+  if(NOT DEFINED CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON CACHE BOOL "Export all symbols on Windows by default")
+  endif()
 endif()
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
