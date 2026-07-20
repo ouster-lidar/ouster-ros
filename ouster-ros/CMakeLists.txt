@@ -30,7 +30,14 @@ if(NOT OpenCV_LIBS)
 endif()
 
 # ==== Options ====
-add_compile_options(-Wall -Wextra)
+if(MSVC)
+  add_compile_options(/W2)
+  add_compile_definitions(NOMINMAX _USE_MATH_DEFINES WIN32_LEAN_AND_MEAN)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
+
 if(NOT DEFINED CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
