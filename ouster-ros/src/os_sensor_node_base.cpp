@@ -23,7 +23,7 @@ namespace ouster_ros {
 OusterSensorNodeBase::OusterSensorNodeBase(
     const std::string& name, const rclcpp::NodeOptions& options)
 : rclcpp_lifecycle::LifecycleNode(name, options),
-  change_state_client{create_client<ChangeState>(std::string{get_name()} + "/change_state")} {
+  change_state_client{create_client<ChangeState>("~/change_state")} {
 }
 
 
