@@ -87,7 +87,7 @@
   <arg name="sparse_noise_culling_enable" default="true"/>
   <arg name="spatial_min_neighbors" default="6"/>
   <arg name="spatial_kernel_height" default="3"/>
-  <arg name="spatial_kernel_width" default="3"/>
+  <arg name="spatial_kernel_width" default="5"/>
   <arg name="max_culling_range_m" default="2.0"/>
   <arg name="neighbor_distance_m" default="0.02"/>
   <arg name="use_filter_field" default="true"/>
