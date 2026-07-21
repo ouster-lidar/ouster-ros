@@ -17,6 +17,8 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <memory>
+
 #include "os_sensor_nodelet.h"
 #include "os_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
@@ -25,6 +27,7 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "sparse_neighbor_culling_filter.h"
 #include "telemetry_handler.h"
 
 using ouster::sdk::core::ImuPacket;
@@ -135,6 +138,20 @@ class OusterDriver : public OusterSensor {
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
+            sparse_culling_filter =
+                std::make_unique<SparseNeighborCullingFilter>(
+                    SparseNeighborCullingConfig{
+                        pnh.param("sparse_noise_culling_enable", false),
+                        pnh.param("spatial_min_neighbors", 6),
+                        pnh.param("spatial_kernel_height", 3),
+                        pnh.param("spatial_kernel_width", 3),
+                        pnh.param("max_culling_range_m", 2.0),
+                        pnh.param("neighbor_distance_m", 0.02),
+                        pnh.param("use_filter_field", true),
+                        pnh.param("filter_field",
+                                  std::string{"reflectivity"}),
+                        pnh.param("filter_threshold", 2.0),
+                        pnh.param("keep_organized", true)});
             auto point_type = pnh.param("point_type", std::string{"original"});
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);
@@ -167,8 +184,10 @@ class OusterDriver : public OusterSensor {
                     tf_bcast.apply_lidar_to_sensor_transform(), organized,
                     destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i)
+                        for (size_t i = 0; i < msgs.size(); ++i) {
+                            sparse_culling_filter->filter(*msgs[i]);
                             lidar_pubs[i].publish(*msgs[i]);
+                        }
                     }));
 
             // warn about profile incompatibility
@@ -265,6 +284,7 @@ class OusterDriver : public OusterSensor {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+    std::unique_ptr<SparseNeighborCullingFilter> sparse_culling_filter;
 
     bool publish_raw = false;
 

@@ -62,6 +62,17 @@
 
   <arg name="mask_path" doc="path to an image file that will be used to mask parts of the pointcloud"/>
 
+  <arg name="sparse_noise_culling_enable" doc="enable sparse-neighbor point cloud culling"/>
+  <arg name="spatial_min_neighbors"/>
+  <arg name="spatial_kernel_height"/>
+  <arg name="spatial_kernel_width"/>
+  <arg name="max_culling_range_m"/>
+  <arg name="neighbor_distance_m"/>
+  <arg name="use_filter_field"/>
+  <arg name="filter_field"/>
+  <arg name="filter_threshold"/>
+  <arg name="keep_organized"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
@@ -89,6 +100,17 @@
       <param name="~/mask_path" value="$(arg mask_path)"/>
       <param name="~/min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
+      <param name="~/sparse_noise_culling_enable"
+        value="$(arg sparse_noise_culling_enable)"/>
+      <param name="~/spatial_min_neighbors" value="$(arg spatial_min_neighbors)"/>
+      <param name="~/spatial_kernel_height" value="$(arg spatial_kernel_height)"/>
+      <param name="~/spatial_kernel_width" value="$(arg spatial_kernel_width)"/>
+      <param name="~/max_culling_range_m" value="$(arg max_culling_range_m)"/>
+      <param name="~/neighbor_distance_m" value="$(arg neighbor_distance_m)"/>
+      <param name="~/use_filter_field" value="$(arg use_filter_field)"/>
+      <param name="~/filter_field" value="$(arg filter_field)"/>
+      <param name="~/filter_threshold" value="$(arg filter_threshold)"/>
+      <param name="~/keep_organized" value="$(arg keep_organized)"/>
     </node>
   </group>
 
