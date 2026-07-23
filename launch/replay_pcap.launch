@@ -84,16 +84,8 @@
   <arg name="mask_path" default=""
     doc="path to an image file that will be used to mask parts of the pointcloud"/>
 
-  <arg name="sparse_noise_culling_enable" default="true"/>
-  <arg name="spatial_min_neighbors" default="6"/>
-  <arg name="spatial_kernel_height" default="3"/>
-  <arg name="spatial_kernel_width" default="5"/>
-  <arg name="max_culling_range_m" default="2.0"/>
-  <arg name="neighbor_distance_m" default="0.02"/>
-  <arg name="use_filter_field" default="true"/>
-  <arg name="filter_field" default="reflectivity"/>
-  <arg name="filter_threshold" default="2.0"/>
-  <arg name="keep_organized" default="true"/>
+  <arg name="filter_rules_file" default="$(find ouster_ros)/config/multi_rule_filter.yaml"
+    doc="optional YAML file containing point filter rules; empty disables filtering"/>
 
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
@@ -139,16 +131,7 @@
     <arg name="mask_path" value="$(arg mask_path)"/>
     <arg name="min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
-    <arg name="sparse_noise_culling_enable" value="$(arg sparse_noise_culling_enable)"/>
-    <arg name="spatial_min_neighbors" value="$(arg spatial_min_neighbors)"/>
-    <arg name="spatial_kernel_height" value="$(arg spatial_kernel_height)"/>
-    <arg name="spatial_kernel_width" value="$(arg spatial_kernel_width)"/>
-    <arg name="max_culling_range_m" value="$(arg max_culling_range_m)"/>
-    <arg name="neighbor_distance_m" value="$(arg neighbor_distance_m)"/>
-    <arg name="use_filter_field" value="$(arg use_filter_field)"/>
-    <arg name="filter_field" value="$(arg filter_field)"/>
-    <arg name="filter_threshold" value="$(arg filter_threshold)"/>
-    <arg name="keep_organized" value="$(arg keep_organized)"/>
+    <arg name="filter_rules_file" value="$(arg filter_rules_file)"/>
   </include>
 
 

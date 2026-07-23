@@ -224,6 +224,30 @@ New launch file parameter:
           this type is same as Velodyne point cloud type
           this type is not compatible with the low data profile.
 
+### Multiple point-filter rules
+
+Use `filter_rules_file` to apply multiple range and field conditions in one
+filter pass:
+
+```bash
+roslaunch ouster_ros sensor.launch \
+  sensor_hostname:=192.168.1.10 \
+  filter_rules_file:=$(rospack find ouster_ros)/config/multi_rule_filter.yaml
+```
+
+The example file applies direct removal below 2 m and sparse-neighbor culling
+from 2 m to 25 m. Rule masks are combined, and point field thresholds use raw
+`PointCloud2` values. The `signal` name works with both the `intensity` field in
+original clouds and the `signal` field in native clouds.
+
+Each named rule uses exactly one `any` (OR) or `all` (AND) list. Conditions
+accept only `reflectivity` or `signal` with `<`, `<=`, `>`, `>=`, `==`, or
+`!=`. A `direct` rule removes matching points immediately. A `sparse` rule
+also requires `min_neighbors`, `kernel: [height, width]`, and
+`neighbor_distance_m`. Unknown settings are rejected.
+
+When `filter_rules_file` is omitted, point filtering is disabled.
+
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal
 and source the castkin workspace again by running the command:

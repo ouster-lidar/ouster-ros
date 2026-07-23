@@ -17,37 +17,66 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <map>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace ouster_ros {
 
+enum class ScalarComparison { LT, LE, GT, GE, EQ, NE };
+enum class ConditionType { COMPARISON, AND, OR };
+enum class CullingAction { REMOVE, SPARSE_NEIGHBOR_CULL };
+
+struct FieldPredicate {
+    std::string field;
+    ScalarComparison comparison;
+    double value;
+};
+
+struct ConditionNode {
+    ConditionType type = ConditionType::COMPARISON;
+    FieldPredicate comparison;
+    std::vector<ConditionNode> children;
+};
+
+struct SparseNeighborOptions {
+    int min_neighbors = 6;
+    int kernel_height = 3;
+    int kernel_width = 3;
+    double neighbor_distance_m = 0.02;
+};
+
+struct FilterRule {
+    std::string name;
+    bool enabled = true;
+    ConditionNode condition;
+    CullingAction action = CullingAction::SPARSE_NEIGHBOR_CULL;
+    SparseNeighborOptions sparse;
+};
+
 struct SparseNeighborCullingConfig {
-    bool enabled;
-    int spatial_min_neighbors;
-    int spatial_kernel_height;
-    int spatial_kernel_width;
-    double max_culling_range_m;
-    double neighbor_distance_m;
-    bool use_filter_field;
-    std::string filter_field;
-    double filter_threshold;
-    bool keep_organized;
+    bool enabled = false;
+    bool keep_organized = true;
+    std::vector<FilterRule> rules;
 };
 
 /**
- * Byte-layout-preserving port of the Python sparse noise culler. It changes
+ * Byte-layout-preserving multi-rule point culler. Rules are evaluated against
+ * the original organized cloud and their cull masks are combined. It changes
  * only XYZ values for organized output, or removes complete point records for
  * compact output.
  */
 class SparseNeighborCullingFilter {
    public:
     explicit SparseNeighborCullingFilter(SparseNeighborCullingConfig config)
-        : config_{std::move(config)} {}
+        : config_{std::move(config)} {
+        validate_config(config_);
+    }
 
     void filter(sensor_msgs::PointCloud2& cloud) const {
-        if (!config_.enabled) return;
+        if (!config_.enabled || config_.rules.empty()) return;
 
         if (cloud.height <= 1) {
             ROS_WARN_THROTTLE(
@@ -83,24 +112,9 @@ class SparseNeighborCullingFilter {
             return;
         }
 
-        const sensor_msgs::PointField* filter_field = nullptr;
-        if (config_.use_filter_field) {
-            filter_field = find_field(cloud, config_.filter_field);
-            if (!usable_scalar_field(cloud, filter_field)) {
-                ROS_WARN_THROTTLE(
-                    5.0,
-                    "Input PointCloud2 does not contain a usable '%s' field. "
-                    "Publishing unmodified cloud.",
-                    config_.filter_field.c_str());
-                return;
-            }
-        }
-
         const size_t point_count =
             static_cast<size_t>(cloud.height) * cloud.width;
         std::vector<float> ranges(point_count, 0.0f);
-        std::vector<uint8_t> candidates(point_count, 0);
-        bool any_candidate = false;
 
         for (uint32_t row = 0; row < cloud.height; ++row) {
             for (uint32_t col = 0; col < cloud.width; ++col) {
@@ -123,65 +137,58 @@ class SparseNeighborCullingFilter {
                 const float range = static_cast<float>(
                     std::sqrt(x * x + y * y + z * z));
                 ranges[index] = range;
-                bool candidate =
-                    range > 0.0f && range < config_.max_culling_range_m;
-                if (candidate && filter_field) {
-                    const double value =
-                        read_scalar(point + filter_field->offset,
-                                    filter_field->datatype,
-                                    cloud.is_bigendian);
-                    candidate = std::isfinite(value) &&
-                                value < config_.filter_threshold;
-                }
-                candidates[index] = candidate;
-                any_candidate = any_candidate || candidate;
             }
         }
 
-        if (!any_candidate) return;
-
         std::vector<uint8_t> cull(point_count, 0);
         bool any_culled = false;
-        const int half_width = config_.spatial_kernel_width / 2;
-        const int half_height = config_.spatial_kernel_height / 2;
 
-        for (uint32_t row = 0; row < cloud.height; ++row) {
-            for (uint32_t col = 0; col < cloud.width; ++col) {
-                const size_t index = linear_index(cloud, row, col);
-                if (!candidates[index]) continue;
+        for (const auto& rule : config_.rules) {
+            if (!rule.enabled) continue;
 
-                uint8_t neighbor_count = 0;
-                for (int shift_x = -half_width; shift_x <= half_width;
-                     ++shift_x) {
-                    for (int shift_y = -half_height;
-                         shift_y <= half_height; ++shift_y) {
-                        const int neighbor_row =
-                            static_cast<int>(row) - shift_y;
-                        if (neighbor_row < 0 ||
-                            neighbor_row >= static_cast<int>(cloud.height)) {
-                            continue;
-                        }
-                        int neighbor_col =
-                            (static_cast<int>(col) - shift_x) %
-                            static_cast<int>(cloud.width);
-                        if (neighbor_col < 0) neighbor_col += cloud.width;
+            std::map<std::string, const sensor_msgs::PointField*>
+                condition_fields;
+            std::string missing_field;
+            if (!bind_condition_fields(rule.condition, cloud,
+                                       condition_fields, missing_field)) {
+                ROS_WARN_THROTTLE(
+                    5.0,
+                    "Skipping point filter rule '%s': input PointCloud2 "
+                    "does not contain a usable '%s' field.",
+                    rule.name.c_str(), missing_field.c_str());
+                continue;
+            }
 
-                        const float neighbor_range = ranges[linear_index(
-                            cloud, static_cast<uint32_t>(neighbor_row),
-                            static_cast<uint32_t>(neighbor_col))];
-                        if (neighbor_range > 0.0f &&
-                            std::abs(neighbor_range - ranges[index]) <=
-                                config_.neighbor_distance_m) {
-                            ++neighbor_count;
-                        }
+            std::vector<uint8_t> candidates(point_count, 0);
+            bool any_candidate = false;
+            for (uint32_t row = 0; row < cloud.height; ++row) {
+                for (uint32_t col = 0; col < cloud.width; ++col) {
+                    const size_t index = linear_index(cloud, row, col);
+                    if (!(ranges[index] > 0.0f)) continue;
+                    const uint8_t* point = point_data(cloud, row, col);
+                    if (!condition_matches(
+                            rule.condition, ranges[index], point, cloud,
+                            condition_fields)) {
+                        continue;
                     }
-                }
-
-                if (neighbor_count < config_.spatial_min_neighbors) {
-                    cull[index] = 1;
-                    any_culled = true;
+                    candidates[index] = 1;
+                    any_candidate = true;
                 }
             }
+            if (!any_candidate) continue;
+
+            if (rule.action == CullingAction::REMOVE) {
+                for (size_t i = 0; i < point_count; ++i) {
+                    if (candidates[i]) {
+                        cull[i] = 1;
+                        any_culled = true;
+                    }
+                }
+                continue;
+            }
+
+            apply_sparse_rule(cloud, ranges, candidates, rule, cull,
+                              any_culled);
         }
 
         if (!any_culled) return;
@@ -220,6 +227,196 @@ class SparseNeighborCullingFilter {
     }
 
    private:
+    static void validate_config(const SparseNeighborCullingConfig& config) {
+        for (const auto& rule : config.rules) {
+            if (rule.name.empty()) {
+                throw std::invalid_argument(
+                    "point filter rule name must not be empty");
+            }
+            validate_condition(rule.condition, rule.name);
+            if (rule.action != CullingAction::SPARSE_NEIGHBOR_CULL) {
+                continue;
+            }
+            const auto& sparse = rule.sparse;
+            if (sparse.kernel_height <= 0 || sparse.kernel_width <= 0 ||
+                sparse.kernel_height % 2 == 0 ||
+                sparse.kernel_width % 2 == 0) {
+                throw std::invalid_argument(
+                    "sparse kernel dimensions for point filter rule '" +
+                    rule.name + "' must be positive odd numbers");
+            }
+            const int kernel_points =
+                sparse.kernel_height * sparse.kernel_width;
+            if (sparse.min_neighbors <= 0 ||
+                sparse.min_neighbors > kernel_points) {
+                throw std::invalid_argument(
+                    "min_neighbors for point filter rule '" + rule.name +
+                    "' must be within the sparse kernel area");
+            }
+            if (!std::isfinite(sparse.neighbor_distance_m) ||
+                sparse.neighbor_distance_m < 0.0) {
+                throw std::invalid_argument(
+                    "neighbor_distance_m for point filter rule '" +
+                    rule.name + "' must be non-negative");
+            }
+        }
+    }
+
+    static void validate_condition(const ConditionNode& condition,
+                                   const std::string& rule_name) {
+        if (condition.type == ConditionType::COMPARISON) {
+            if (condition.comparison.field.empty() ||
+                !std::isfinite(condition.comparison.value)) {
+                throw std::invalid_argument(
+                    "invalid comparison in point filter rule '" +
+                    rule_name + "'");
+            }
+            return;
+        }
+        if (condition.children.size() < 2) {
+            throw std::invalid_argument(
+                "logical expression in point filter rule '" + rule_name +
+                "' must have at least two operands");
+        }
+        for (const auto& child : condition.children) {
+            validate_condition(child, rule_name);
+        }
+    }
+
+    static bool compare(double actual, const FieldPredicate& predicate) {
+        if (!std::isfinite(actual)) return false;
+        switch (predicate.comparison) {
+            case ScalarComparison::LT:
+                return actual < predicate.value;
+            case ScalarComparison::LE:
+                return actual <= predicate.value;
+            case ScalarComparison::GT:
+                return actual > predicate.value;
+            case ScalarComparison::GE:
+                return actual >= predicate.value;
+            case ScalarComparison::EQ:
+                return actual == predicate.value;
+            case ScalarComparison::NE:
+                return actual != predicate.value;
+        }
+        return false;
+    }
+
+    static bool bind_condition_fields(
+        const ConditionNode& condition,
+        const sensor_msgs::PointCloud2& cloud,
+        std::map<std::string, const sensor_msgs::PointField*>& fields,
+        std::string& missing_field) {
+        if (condition.type == ConditionType::COMPARISON) {
+            const auto& name = condition.comparison.field;
+            if (name == "range" || fields.count(name) != 0) return true;
+            const auto* field = find_predicate_field(cloud, name);
+            if (!usable_scalar_field(cloud, field)) {
+                missing_field = name;
+                return false;
+            }
+            fields[name] = field;
+            return true;
+        }
+        for (const auto& child : condition.children) {
+            if (!bind_condition_fields(child, cloud, fields,
+                                       missing_field)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static bool condition_matches(
+        const ConditionNode& condition, double range, const uint8_t* point,
+        const sensor_msgs::PointCloud2& cloud,
+        const std::map<std::string,
+                       const sensor_msgs::PointField*>& fields) {
+        if (condition.type == ConditionType::COMPARISON) {
+            const auto& predicate = condition.comparison;
+            double value = range;
+            if (predicate.field != "range") {
+                const auto* field = fields.at(predicate.field);
+                value =
+                    read_scalar(point + field->offset, field->datatype,
+                                cloud.is_bigendian);
+            }
+            return compare(value, predicate);
+        }
+        if (condition.type == ConditionType::AND) {
+            for (const auto& child : condition.children) {
+                if (!condition_matches(child, range, point, cloud,
+                                       fields)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        for (const auto& child : condition.children) {
+            if (condition_matches(child, range, point, cloud, fields)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static void apply_sparse_rule(
+        const sensor_msgs::PointCloud2& cloud,
+        const std::vector<float>& ranges,
+        const std::vector<uint8_t>& candidates, const FilterRule& rule,
+        std::vector<uint8_t>& cull, bool& any_culled) {
+        const int half_width = rule.sparse.kernel_width / 2;
+        const int half_height = rule.sparse.kernel_height / 2;
+
+        for (uint32_t row = 0; row < cloud.height; ++row) {
+            for (uint32_t col = 0; col < cloud.width; ++col) {
+                const size_t index = linear_index(cloud, row, col);
+                if (!candidates[index]) continue;
+
+                int neighbor_count = 0;
+                for (int shift_x = -half_width; shift_x <= half_width;
+                     ++shift_x) {
+                    for (int shift_y = -half_height;
+                         shift_y <= half_height; ++shift_y) {
+                        const int neighbor_row =
+                            static_cast<int>(row) - shift_y;
+                        if (neighbor_row < 0 ||
+                            neighbor_row >= static_cast<int>(cloud.height)) {
+                            continue;
+                        }
+                        int neighbor_col =
+                            (static_cast<int>(col) - shift_x) %
+                            static_cast<int>(cloud.width);
+                        if (neighbor_col < 0) neighbor_col += cloud.width;
+
+                        const float neighbor_range = ranges[linear_index(
+                            cloud, static_cast<uint32_t>(neighbor_row),
+                            static_cast<uint32_t>(neighbor_col))];
+                        if (neighbor_range > 0.0f &&
+                            std::abs(neighbor_range - ranges[index]) <=
+                                rule.sparse.neighbor_distance_m) {
+                            ++neighbor_count;
+                        }
+                    }
+                }
+
+                if (neighbor_count < rule.sparse.min_neighbors) {
+                    cull[index] = 1;
+                    any_culled = true;
+                }
+            }
+        }
+    }
+
+    static const sensor_msgs::PointField* find_predicate_field(
+        const sensor_msgs::PointCloud2& cloud, const std::string& name) {
+        const auto* field = find_field(cloud, name);
+        if (!field && name == "signal") {
+            field = find_field(cloud, "intensity");
+        }
+        return field;
+    }
+
     static const sensor_msgs::PointField* find_field(
         const sensor_msgs::PointCloud2& cloud, const std::string& name) {
         const auto it = std::find_if(

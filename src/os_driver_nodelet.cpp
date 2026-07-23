@@ -27,7 +27,7 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
-#include "sparse_neighbor_culling_filter.h"
+#include "sparse_neighbor_culling_config.h"
 #include "telemetry_handler.h"
 
 using ouster::sdk::core::ImuPacket;
@@ -140,18 +140,7 @@ class OusterDriver : public OusterSensor {
         if (impl::check_token(tokens, "PCL")) {
             sparse_culling_filter =
                 std::make_unique<SparseNeighborCullingFilter>(
-                    SparseNeighborCullingConfig{
-                        pnh.param("sparse_noise_culling_enable", false),
-                        pnh.param("spatial_min_neighbors", 6),
-                        pnh.param("spatial_kernel_height", 3),
-                        pnh.param("spatial_kernel_width", 3),
-                        pnh.param("max_culling_range_m", 2.0),
-                        pnh.param("neighbor_distance_m", 0.02),
-                        pnh.param("use_filter_field", true),
-                        pnh.param("filter_field",
-                                  std::string{"reflectivity"}),
-                        pnh.param("filter_threshold", 2.0),
-                        pnh.param("keep_organized", true)});
+                    sparse_culling_config::load_config(pnh));
             auto point_type = pnh.param("point_type", std::string{"original"});
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);

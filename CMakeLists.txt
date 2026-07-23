@@ -128,6 +128,10 @@ target_link_libraries(ouster_ros
     ${OpenCV_LIBS}
 )
 
+if(APPLE AND BUILD_PCAP)
+  target_link_libraries(ouster_ros PRIVATE ouster_pcap)
+endif()
+
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 # ==== Executables ====
