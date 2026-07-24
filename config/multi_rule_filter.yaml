@@ -22,7 +22,7 @@ filter_rules:
     culling: sparse
     all:
       - "reflectivity < 2"
-      - "signal < 100"
+      - "signal < 150"
     min_neighbors: 6
     kernel: [3, 3]
-    neighbor_distance_m: 0.8
+    neighbor_distance_m: 0.05
