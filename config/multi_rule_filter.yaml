@@ -14,7 +14,7 @@ filter_rules:
     range_m: [0.0, 2.0]
     culling: direct
     any:
-      - "reflectivity <= 2"
+      - "reflectivity < 2"
       - "reflectivity > 100"
 
   condition_B:
