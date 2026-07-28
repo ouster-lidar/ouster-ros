@@ -23,6 +23,10 @@
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
+#include "ouster_ros/ouster_lidar_ros_msgs.h"
+
+#include <lidar_msgs/msg/lidar_info.hpp>
+#include <lidar_msgs/msg/lidar_scan.hpp>
 
 namespace ouster_ros {
 
@@ -59,6 +63,12 @@ class OusterDriver : public OusterSensor {
         OusterSensor::on_metadata_updated(info);
         if (tf_bcast.publish_static_tf()) {
           tf_bcast.broadcast_transforms(info);
+        }
+        if (lidar_info_pub) {
+            lidar_msgs::msg::LidarInfo lidar_info_msg;
+            sensor_info_to_lidar_info(info, tf_bcast.lidar_frame_id(),
+                                      lidar_info_msg);
+            lidar_info_pub->publish(lidar_info_msg);
         }
     }
 
@@ -219,11 +229,36 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN") ||
-            impl::check_token(tokens, "IMG"))
+            impl::check_token(tokens, "IMG")) {
+
+            rclcpp::QoS lidar_info_qos{rclcpp::KeepLast(1)};
+            lidar_info_qos.transient_local();
+            lidar_info_qos.reliable();
+            lidar_info_pub =
+                create_publisher<lidar_msgs::msg::LidarInfo>("/ouster/lidar_info",
+                                                             lidar_info_qos);
+            lidar_scan_pub =
+                create_publisher<lidar_msgs::msg::LidarScan>("/ouster/lidar_scan",
+                                                             selected_qos);
+
+            lidar_msgs::msg::LidarInfo lidar_info_msg;
+            sensor_info_to_lidar_info(info, tf_bcast.lidar_frame_id(), lidar_info_msg);
+            lidar_info_pub->publish(lidar_info_msg);
+
+            processors.push_back(
+                [this](const ouster::sdk::core::LidarScan& scan, uint64_t,
+                       const rclcpp::Time& scan_ts) {
+                    lidar_msgs::msg::LidarScan msg;
+                    ouster_sdk_lidar_scan_to_ros_msg(scan, scan_ts,
+                                                     tf_bcast.lidar_frame_id(), msg);
+                    lidar_scan_pub->publish(msg);
+                });
+
             lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
                 min_scan_valid_columns_ratio);
+        }
 
         if (impl::check_token(tokens, "TLM")) {
             telemetry_pub =
@@ -271,6 +306,8 @@ class OusterDriver : public OusterSensor {
         for (auto p : lidar_pubs) p.reset();
         for (auto p : scan_pubs) p.reset();
         for (auto p : image_pubs) p.second.reset();
+        lidar_info_pub.reset();
+        lidar_scan_pub.reset();
         OusterSensor::cleanup();
     }
 
@@ -292,6 +329,9 @@ class OusterDriver : public OusterSensor {
 
     rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
     TelemetryHandler::HandlerType telemetry_handler;
+
+    rclcpp::Publisher<lidar_msgs::msg::LidarInfo>::SharedPtr lidar_info_pub;
+    rclcpp::Publisher<lidar_msgs::msg::LidarScan>::SharedPtr lidar_scan_pub;
 };
 
 }  // namespace ouster_ros
