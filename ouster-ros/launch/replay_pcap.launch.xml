@@ -1,5 +1,7 @@
 <launch>
 
+  <!-- os_pcap is omitted only when the package is explicitly built with
+       -DBUILD_PCAP=OFF; BUILD_PCAP defaults to ON. -->
   <!-- NOTE: pcap replay node does not implement clock -->
   <set_parameter name="use_sim_time" value="false" />
 

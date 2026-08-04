@@ -92,10 +92,13 @@ set(_ouster_ros_INCLUDE_DIRS
 set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
-option(BUILD_VIZ "Turn off building VIZ" OFF)
-option(BUILD_PCAP "Turn off building PCAP" OFF)
-option(BUILD_OSF "Turn off building OSF" OFF)
-option(BUILD_MAPPING "Turn off building MAPPING" OFF)
+option(BUILD_VIZ "Build the SDK visualizer" OFF)
+# The package ships os_pcap and replay_pcap.launch.xml, and its manifest
+# already declares the capture dependencies. Build that supported path by
+# default so binary/source installs do not silently omit the executable.
+option(BUILD_PCAP "Build the os_pcap node for pcap replay" ON)
+option(BUILD_OSF "Build SDK OSF support" OFF)
+option(BUILD_MAPPING "Build SDK mapping support" OFF)
 find_package(OusterSDK REQUIRED)
 
 # The Ouster SDK is vendored via the ouster-sdk submodule. Silence
@@ -249,6 +252,9 @@ create_ros2_component(os_pcap_component
   "src/os_sensor_node_base.cpp;src/os_pcap_node.cpp"
   ""
 )
+# os_pcap_node.cpp calls PcapReader directly. Do not rely on the private
+# ouster_ros_library link to retain these symbols in a shared component.
+target_link_libraries(os_pcap_component PRIVATE OusterSDK::ouster_pcap)
 rclcpp_components_register_node(os_pcap_component
   PLUGIN "ouster_ros::OusterPcap"
   EXECUTABLE os_pcap
@@ -257,6 +263,15 @@ endif()
 
 # ==== Test ====
 if(BUILD_TESTING)
+  # OusterSDK prepends its compatibility FindGTest.cmake to
+  # CMAKE_MODULE_PATH. On newer ament_cmake_gtest releases that module finds
+  # GTest inside a function without propagating GTest_FOUND, so
+  # ament_add_gtest() silently skips this package's test executable. SDK
+  # configuration is complete here; temporarily use CMake's system finder for
+  # the ROS test target, then restore the module path for downstream users.
+  set(_ouster_ros_saved_cmake_module_path "${CMAKE_MODULE_PATH}")
+  list(REMOVE_ITEM CMAKE_MODULE_PATH
+    "${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake")
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
@@ -280,7 +295,12 @@ if(BUILD_TESTING)
     # ouster_ros_library's PUBLIC usage requirements.
     set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
       LINK_LIBRARIES ouster_ros_library)
+  else()
+    message(WARNING
+      "ouster_ros: ament_add_gtest did not create ${PROJECT_NAME}_test "
+      "even though ament_cmake_gtest is installed")
   endif()
+  set(CMAKE_MODULE_PATH "${_ouster_ros_saved_cmake_module_path}")
 endif()
 
 
