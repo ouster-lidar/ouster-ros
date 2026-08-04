@@ -129,7 +129,7 @@
     <arg name="rviz_config" value="$(var rviz_config)"/>
   </include>
 
-  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
+  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'\'')"/>
 
   <executable if="$(var _use_bag_file_name)" output="screen"
     launch-prefix="bash -c 'sleep $(var play_delay); $0 $@'"

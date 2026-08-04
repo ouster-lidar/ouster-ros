@@ -233,6 +233,7 @@ if(BUILD_TESTING)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
     test/test_main.cpp
+    test/lidar_packet_handler_test.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp

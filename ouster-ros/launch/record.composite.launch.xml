@@ -264,7 +264,7 @@
     <arg name="rviz_config" value="$(var rviz_config)"/>
   </include>
 
-  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'b\'')"/>
+  <let name="_use_bag_file_name" value="$(eval '\'$(var bag_file)\' != \'\'')"/>
   <!-- TODO: find out why this doesn't work when passing to record -->
   <!-- <let name="_topics_to_record" value="/imu_packets /lidar_packets"/> -->
 

@@ -21,7 +21,7 @@ bool write_text_to_file(const std::string& file_path,
     if (!ofs.is_open()) return false;
     ofs << text << std::endl;
     ofs.close();
-    return true;
+    return !ofs.fail();
 }
 
 } // namespace impl

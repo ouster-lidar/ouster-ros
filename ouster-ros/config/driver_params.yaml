@@ -103,6 +103,16 @@ ouster/os_driver:
     # data QoS. This is preferrable for production but default QoS is needed for
     # rosbag. See: https://github.com/ros2/rosbag2/issues/125
     use_system_default_qos: false
+    # PointCloud2 publisher QoS may be overridden independently using ROS 2's
+    # standard qos_overrides parameters. The topic key is fully resolved, so
+    # update it if the default `ouster` namespace changes; repeat for points2
+    # with dual returns. Example:
+    # qos_overrides:
+    #   /ouster/points:
+    #     publisher:
+    #       reliability: reliable
+    #       history: keep_last
+    #       depth: 10
     # point_type[optional]: choose from: {original, native, xyz, xyzi, o_xyzi,
     #                                     xyzir, xyzrgb, xyzrgba, color_point}
     # Here is a breif description of each option:

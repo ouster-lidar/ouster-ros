@@ -47,7 +47,7 @@ class PointCloudProcessor {
         : frame(frame_id),
           pixel_shift_by_row(info.format.pixel_shift_by_row),
           cloud{info.format.columns_per_frame,
-                info.format.pixels_per_column / rows_step},
+                (info.format.pixels_per_column + rows_step - 1) / rows_step},
           min_range_(min_range), max_range_(max_range),
           pc_msgs(info.num_returns()),
           scan_to_cloud_fn(scan_to_cloud_fn_),
@@ -73,6 +73,10 @@ class PointCloudProcessor {
                     mask_path,
                     info.format.pixels_per_column,
                     info.format.columns_per_frame);
+        if (mask.size() != 0) {
+            masked_range.resize(info.format.pixels_per_column,
+                                info.format.columns_per_frame);
+        }
     }
 
    private:
@@ -89,10 +93,17 @@ class PointCloudProcessor {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = i == 0 ? ChanField::RANGE : ChanField::RANGE2;
             auto range = lidar_scan.field<uint32_t>(range_channel);
-            auto range_masked = mask.size() != 0 ? range * mask : range;
-            ouster::cartesianT(points, range_masked, lut_direction, lut_offset,
-                               min_range_, max_range_,
-                               std::numeric_limits<float>::quiet_NaN());
+            if (mask.size() != 0) {
+                masked_range = range * mask;
+                ouster::cartesianT(
+                    points, masked_range, lut_direction, lut_offset,
+                    min_range_, max_range_,
+                    std::numeric_limits<float>::quiet_NaN());
+            } else {
+                ouster::cartesianT(
+                    points, range, lut_direction, lut_offset, min_range_,
+                    max_range_, std::numeric_limits<float>::quiet_NaN());
+            }
 
             scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
                                         pixel_shift_by_row, i);
@@ -143,6 +154,7 @@ class PointCloudProcessor {
     PointCloudProcessor_PostProcessingFn post_processing_fn;
 
     ouster::sdk::core::img_t<uint32_t> mask;
+    ouster::sdk::core::img_t<uint32_t> masked_range;
 };
 
 }  // namespace ouster_ros

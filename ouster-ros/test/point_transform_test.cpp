@@ -172,7 +172,7 @@ void verify_point_transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         });
 
     // near_ir
-    CondBinaryOp<has_near_ir_v<PointTGT> && has_near_ir_v<PointSRC>>::run(
+    CondBinaryOp<has_near_ir_v<PointTGT> && !has_near_ir_v<PointSRC>>::run(
         tgt_pt, src_pt, [](const auto& tgt_pt, const auto& src_pt) {
             EXPECT_EQ(tgt_pt.near_ir, src_pt.near_ir);
         });

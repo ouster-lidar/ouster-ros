@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <ouster/lidar_scan.h>
 
+#include <limits>
+#include <vector>
+
 // prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
 // clang-format off
@@ -71,4 +74,56 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
         EXPECT_EQ(point::get<7>(pt), reflect(0, src_idx));
         EXPECT_EQ(point::get<8>(pt), near_ir(0, src_idx));
     }
+}
+
+TEST_F(PointCloudComposeTest, DestaggerNormalizesPositiveAndNegativeShifts) {
+    constexpr uint32_t WIDTH = 5;
+    constexpr uint32_t HEIGHT = 1;
+    LidarScan ls(WIDTH, HEIGHT,
+                 UDPProfileLidar::RNG19_RFL8_SIG16_NIR16);
+
+    PointCloudXYZf points(WIDTH * HEIGHT, 3);
+    points.setZero();
+    for (uint32_t i = 0; i < WIDTH; ++i) points(i, 0) = i;
+
+    auto compose = [&](int shift) {
+        Cloud<Point_RNG19_RFL8_SIG16_NIR16> cloud{WIDTH, HEIGHT};
+        Point_RNG19_RFL8_SIG16_NIR16 staging_point;
+        scan_to_cloud_f<Profile_RNG19_RFL8_SIG16_NIR16.size(),
+                        Profile_RNG19_RFL8_SIG16_NIR16>(
+            cloud, staging_point, points, 0, ls, {shift},
+            /*organized=*/true, /*destagger=*/true);
+        std::vector<float> x;
+        for (const auto& point : cloud.points) x.push_back(point.x);
+        return x;
+    };
+
+    EXPECT_EQ(compose(2), (std::vector<float>{3, 4, 0, 1, 2}));
+    EXPECT_EQ(compose(-1), (std::vector<float>{1, 2, 3, 4, 0}));
+    EXPECT_EQ(compose(7), (std::vector<float>{3, 4, 0, 1, 2}));
+}
+
+TEST_F(PointCloudComposeTest, UnorganizedDestaggerAdvancesPastInvalidPoints) {
+    constexpr uint32_t WIDTH = 5;
+    constexpr uint32_t HEIGHT = 1;
+    LidarScan ls(WIDTH, HEIGHT,
+                 UDPProfileLidar::RNG19_RFL8_SIG16_NIR16);
+
+    PointCloudXYZf points(WIDTH * HEIGHT, 3);
+    points.setZero();
+    for (uint32_t i = 0; i < WIDTH; ++i) points(i, 0) = i;
+    points(3, 0) = std::numeric_limits<float>::quiet_NaN();
+
+    Cloud<Point_RNG19_RFL8_SIG16_NIR16> cloud;
+    Point_RNG19_RFL8_SIG16_NIR16 staging_point;
+    scan_to_cloud_f<Profile_RNG19_RFL8_SIG16_NIR16.size(),
+                    Profile_RNG19_RFL8_SIG16_NIR16>(
+        cloud, staging_point, points, 0, ls, {2},
+        /*organized=*/false, /*destagger=*/true);
+
+    ASSERT_EQ(cloud.size(), 4U);
+    EXPECT_EQ(cloud.points[0].x, 4);
+    EXPECT_EQ(cloud.points[1].x, 0);
+    EXPECT_EQ(cloud.points[2].x, 1);
+    EXPECT_EQ(cloud.points[3].x, 2);
 }

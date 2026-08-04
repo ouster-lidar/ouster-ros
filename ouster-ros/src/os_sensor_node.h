@@ -163,6 +163,7 @@ class OusterSensor : public OusterSensorNodeBase {
    private:
     std::string sensor_hostname;
     std::optional<ouster::sdk::core::SensorConfig> staged_config;
+    std::optional<std::string> config_parse_error;
     std::string mtp_dest;
     bool mtp_main = false;
     std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
@@ -186,9 +187,9 @@ class OusterSensor : public OusterSensorNodeBase {
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
 
     bool persist_config = false;
-    bool force_sensor_reinit = false;
+    std::atomic<bool> force_sensor_reinit = {false};
     bool auto_udp_allowed = false;
-    bool reset_last_init_id = true;
+    std::atomic<bool> reset_last_init_id = {true};
     std::optional<uint32_t> last_init_id;
 
     // TODO: add as a ros parameter

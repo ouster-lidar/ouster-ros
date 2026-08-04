@@ -72,7 +72,9 @@ void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarSca
             std::remove_pointer_t<std::tuple_element_t<Index, Tuple>>>;
         static_assert(std::is_same_v<ElementType, FieldType>,
                       "tuple element, field element types mismatch!");
-        std::get<Index>(tp) = ls.field<FieldType>(Table[Index].first).data();
+        if (ls.has_field(Table[Index].first))
+            std::get<Index>(tp) =
+                ls.field<FieldType>(Table[Index].first).data();
         map_lidar_scan_fields_to_tuple<Index + 1, N, Table>(tp, ls);
     }
 }
@@ -103,7 +105,8 @@ constexpr auto make_lidar_scan_tuple(const ouster::sdk::core::LidarScan& ls) {
 template <std::size_t Index, typename PointT, typename Tuple>
 void copy_lidar_scan_fields_to_point(PointT& pt, const Tuple& tp, int idx) {
     if constexpr (Index < std::tuple_size_v<Tuple>) {
-        point::get<5 + Index>(pt) = std::get<Index>(tp)[idx];
+        const auto* src = std::get<Index>(tp);
+        point::get<5 + Index>(pt) = src ? src[idx] : 0;
         copy_lidar_scan_fields_to_point<Index + 1>(pt, tp, idx);
     } else {
         unused_variable(pt);
@@ -132,19 +135,29 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
 
     int h = static_cast<int>(ls.h);
     int w = static_cast<int>(ls.w);
+    if (h <= 0 || w <= 0 || rows_step <= 0) return;
 
     for (auto u = 0; u < h; u += rows_step) {
+        int next_source_col = 0;
+        if (destagger && u < static_cast<int>(pixel_shift_by_row.size())) {
+            int normalized_shift = pixel_shift_by_row[u] % w;
+            if (normalized_shift < 0) normalized_shift += w;
+            next_source_col =
+                normalized_shift == 0 ? 0 : w - normalized_shift;
+        }
         for (auto v = 0; v < w; ++v) {   // TODO[UN]: consider cols_step in future
-            const auto v_shift =
-                destagger ? (v + w - pixel_shift_by_row[u]) % w : v;
-            const auto src_idx = u * w + v_shift;
+            const int source_col = next_source_col;
+            if (++next_source_col == w) next_source_col = 0;
+            const auto src_idx = u * w + source_col;
             const auto xyz = points.row(src_idx);
             const auto tgt_idx =
                 organized ? (u / rows_step) * w + v : cloud.size();
 
             // copy the timestamp of associated point
             auto ts =
-                timestamp[v_shift] > scan_ts ? timestamp[v_shift] - scan_ts : 0UL;
+                timestamp[source_col] > scan_ts
+                    ? timestamp[source_col] - scan_ts
+                    : 0UL;
 
             if (organized) {
                 // set is_dense to false if any of the xyz coordinates is NaN

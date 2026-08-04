@@ -40,7 +40,7 @@ struct ColorPoint : public _ColorPoint {
       ring = pt.ring;
       ambient = pt.ambient;
       range = pt.range;
-      r = pt.r; g = pt.g; b = pt.b;
+      rgba = pt.rgba;
     }
 
     inline ColorPoint()
@@ -86,7 +86,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::ColorPoint,
     (std::uint16_t, ring, ring)
     (std::uint16_t, ambient, ambient)
     (std::uint32_t, range, range)
-    (std::uint32_t, rgb, rgb)
+    (float, rgb, rgb)
 )
 
 // clang-format on

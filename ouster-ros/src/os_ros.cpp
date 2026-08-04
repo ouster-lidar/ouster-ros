@@ -70,13 +70,18 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
     auto& pf = *imu_packet.format;
     Eigen::ArrayX<uint64_t> imu_timestamps = imu_packet.timestamp();
     if (pf.imu_measurements_per_packet == 0) {  // Handle the LEGACY IMU profile (it would be better if the imu_packet handles this internally).
-        imu_timestamps[0] = pf.imu_gyro_ts(imu_packet.buf.data());
-    } else if ((imu_status[0] & 0x1) == 0) {    // HANDLE the case when the first imu_timestamp is unknown.
+        if (imu_timestamps.size() > 0)
+            imu_timestamps[0] = pf.imu_gyro_ts(imu_packet.buf.data());
+    } else if (imu_status.size() > 0 && (imu_status[0] & 0x1) == 0) {
         int imu_measurements_per_frame = pf.imu_measurements_per_packet * pf.imu_packets_per_frame;
-        double frame_ts_ns = 1e9 / sensor_info.format.fps;
-        double imu_measurement_interval = frame_ts_ns / imu_measurements_per_frame;
-        for (int i = 0; i < imu_timestamps.size(); ++i) {
-            imu_timestamps[i] = static_cast<uint64_t>(i * imu_measurement_interval);
+        if (sensor_info.format.fps > 0 && imu_measurements_per_frame > 0) {
+            double frame_ts_ns = 1e9 / sensor_info.format.fps;
+            double imu_measurement_interval =
+                frame_ts_ns / imu_measurements_per_frame;
+            for (int i = 0; i < imu_timestamps.size(); ++i) {
+                imu_timestamps[i] =
+                    static_cast<uint64_t>(i * imu_measurement_interval);
+            }
         }
     }
 
@@ -111,7 +116,14 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
         }
 
         m.header.frame_id = frame;
-        auto ts_offset = std::chrono::nanoseconds(imu_timestamps[i] - imu_timestamps[0]);
+        const auto base_ts = imu_timestamps[0];
+        const auto sample_ts = imu_timestamps[i];
+        const auto magnitude = sample_ts >= base_ts ? sample_ts - base_ts
+                                                    : base_ts - sample_ts;
+        const auto bounded = static_cast<int64_t>(std::min<uint64_t>(
+            magnitude, static_cast<uint64_t>(INT64_MAX)));
+        auto ts_offset = std::chrono::nanoseconds(
+            sample_ts >= base_ts ? bounded : -bounded);
         m.header.stamp = timestamp + rclcpp::Duration(ts_offset);
         m.linear_acceleration.x = accel(i, 0);
         m.linear_acceleration.y = accel(i, 1);
@@ -224,9 +236,17 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
 
     const auto scan_width = ouster::sdk::core::n_cols_of_lidar_mode(ld_mode);
     const auto scan_frequency = ouster::sdk::core::frequency_of_lidar_mode(ld_mode);
-    msg.scan_time = 1.0f / scan_frequency;
-    msg.time_increment = 1.0f / (scan_width * scan_frequency);
-    msg.angle_increment = 2 * M_PI / scan_width;
+    const double effective_width =
+        scan_width > 0 ? static_cast<double>(scan_width)
+                       : static_cast<double>(ls.w);
+    msg.scan_time = scan_frequency > 0 ? 1.0f / scan_frequency : 0.0f;
+    msg.time_increment =
+        (scan_width > 0 && scan_frequency > 0)
+            ? 1.0f /
+                  (static_cast<double>(scan_width) * scan_frequency)
+            : 0.0f;
+    msg.angle_increment =
+        effective_width > 0.0 ? 2 * M_PI / effective_width : 0.0f;
 
     auto which_range = return_index == 0 ? ChanField::RANGE
                                          : ChanField::RANGE2;
@@ -241,6 +261,10 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     msg.intensities.resize(ls.w);
 
     uint16_t u = ring;
+    if (static_cast<size_t>(u) >= pixel_shift_by_row.size() ||
+        static_cast<size_t>(u) >= static_cast<size_t>(ls.h)) {
+        return msg;
+    }
     for (int v =  0; v < static_cast<int>(ls.w); ++v) {
         auto v_shift = (v + ls.w - pixel_shift_by_row[u] + ls.w / 2) % ls.w;
         auto src_idx = u * ls.w + v_shift;

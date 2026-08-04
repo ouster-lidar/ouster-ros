@@ -32,6 +32,7 @@ void OusterSensorNodeBase::create_get_metadata_service() {
         "get_metadata",
         [this](const std::shared_ptr<GetMetadata::Request>,
                std::shared_ptr<GetMetadata::Response> response) {
+            std::lock_guard<std::mutex> lock(cached_metadata_mutex);
             response->metadata = cached_metadata;
             return cached_metadata.size() > 0;
         });
@@ -49,7 +50,10 @@ void OusterSensorNodeBase::create_metadata_pub() {
 
 void OusterSensorNodeBase::publish_metadata() {
     std_msgs::msg::String metadata_msg;
-    metadata_msg.data = cached_metadata;
+    {
+        std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+        metadata_msg.data = cached_metadata;
+    }
     metadata_pub->publish(metadata_msg);
 }
 

@@ -63,6 +63,15 @@ class OusterDriver : public OusterSensor {
     }
 
     virtual void create_publishers() override {
+        imu_packet_handler = nullptr;
+        lidar_packet_handler = nullptr;
+        telemetry_handler = nullptr;
+        imu_pub.reset();
+        telemetry_pub.reset();
+        lidar_pubs.clear();
+        scan_pubs.clear();
+        image_pubs.clear();
+
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = impl::parse_tokens(proc_mask, '|');
 
@@ -96,14 +105,21 @@ class OusterDriver : public OusterSensor {
         int num_returns = info.num_returns();
 
         std::vector<LidarScanProcessor> processors;
+        bool needs_rgb = false;
         if (impl::check_token(tokens, "PCL")) {
+            rclcpp::PublisherOptions point_cloud_pub_options;
+            point_cloud_pub_options.qos_overriding_options =
+                rclcpp::QosOverridingOptions::with_default_policies();
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {
                 lidar_pubs[i] = create_publisher<sensor_msgs::msg::PointCloud2>(
-                    topic_for_return("points", i), selected_qos);
+                    topic_for_return("points", i), selected_qos,
+                    point_cloud_pub_options);
             }
 
             auto point_type = get_parameter("point_type").as_string();
+            needs_rgb =
+                PointCloudProcessorFactory::point_type_produces_color(point_type);
             auto organized = get_parameter("organized").as_bool();
             auto destagger = get_parameter("destagger").as_bool();
             auto min_range_m = get_parameter("min_range").as_double();
@@ -182,15 +198,14 @@ class OusterDriver : public OusterSensor {
         }
 
         if (impl::check_token(tokens, "IMG")) {
-            const std::map<std::string, std::string>
+            std::map<std::string, std::string>
                 channel_field_topic_map_1{
                     {ChanField::RANGE, "range_image"},
                     {ChanField::SIGNAL, "signal_image"},
                     {ChanField::REFLECTIVITY, "reflec_image"},
-                    {ChanField::NEAR_IR, "nearir_image"},
-                    {ChanField::RGB, "rgb_image"}};
+                    {ChanField::NEAR_IR, "nearir_image"}};
 
-            const std::map<std::string, std::string>
+            std::map<std::string, std::string>
                 channel_field_topic_map_2{
                     {ChanField::RANGE, "range_image"},
                     {ChanField::SIGNAL, "signal_image"},
@@ -198,8 +213,18 @@ class OusterDriver : public OusterSensor {
                     {ChanField::NEAR_IR, "nearir_image"},
                     {ChanField::RANGE2, "range_image2"},
                     {ChanField::SIGNAL2, "signal_image2"},
-                    {ChanField::REFLECTIVITY2, "reflec_image2"},
-                    {ChanField::RGB, "rgb_image"}};
+                    {ChanField::REFLECTIVITY2, "reflec_image2"}};
+
+            const bool profile_has_rgb =
+                info.format.udp_profile_lidar ==
+                    ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+                info.format.udp_profile_lidar ==
+                    ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+            if (profile_has_rgb) {
+                channel_field_topic_map_1[ChanField::RGB] = "rgb_image";
+                channel_field_topic_map_2[ChanField::RGB] = "rgb_image";
+            }
+            needs_rgb = needs_rgb || profile_has_rgb;
 
             auto which_map = num_returns == 1 ? &channel_field_topic_map_1
                                               : &channel_field_topic_map_2;
@@ -223,7 +248,7 @@ class OusterDriver : public OusterSensor {
             lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-                min_scan_valid_columns_ratio);
+                min_scan_valid_columns_ratio, needs_rgb);
 
         if (impl::check_token(tokens, "TLM")) {
             telemetry_pub =
@@ -267,10 +292,15 @@ class OusterDriver : public OusterSensor {
     virtual void cleanup() override {
         imu_packet_handler = nullptr;
         lidar_packet_handler = nullptr;
+        telemetry_handler = nullptr;
         imu_pub.reset();
-        for (auto p : lidar_pubs) p.reset();
-        for (auto p : scan_pubs) p.reset();
-        for (auto p : image_pubs) p.second.reset();
+        telemetry_pub.reset();
+        for (auto& p : lidar_pubs) p.reset();
+        for (auto& p : scan_pubs) p.reset();
+        for (auto& p : image_pubs) p.second.reset();
+        lidar_pubs.clear();
+        scan_pubs.clear();
+        image_pubs.clear();
         OusterSensor::cleanup();
     }
 

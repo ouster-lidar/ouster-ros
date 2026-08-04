@@ -22,6 +22,8 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 
 #include <chrono>
+#include <climits>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -148,7 +150,13 @@ inline ouster::sdk::core::img_t<T> get_or_fill_zero(const std::string& field,
  * @remark method does not check upper boundary
  */
 inline uint64_t ts_safe_offset_add(uint64_t ts, int64_t offset) {
-    return offset < 0 && ts < static_cast<uint64_t>(std::abs(offset)) ? 0 : ts + offset;
+    if (offset < 0) {
+        const uint64_t magnitude =
+            static_cast<uint64_t>(-(offset + 1)) + 1ULL;
+        return ts < magnitude ? 0 : ts - magnitude;
+    }
+    const uint64_t positive = static_cast<uint64_t>(offset);
+    return ts > ULLONG_MAX - positive ? ULLONG_MAX : ts + positive;
 }
 
 std::set<std::string> parse_tokens(const std::string& input, char delim);
@@ -164,7 +172,8 @@ template <typename T>
 uint64_t ulround(T value) {
     T rounded_value = std::round(value);
     if (rounded_value < 0) return 0ULL;
-    if (rounded_value > ULLONG_MAX) return ULLONG_MAX;
+    if (static_cast<double>(rounded_value) >= 18446744073709551616.0)
+        return ULLONG_MAX;
     return static_cast<uint64_t>(rounded_value);
 }
 

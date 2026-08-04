@@ -42,10 +42,25 @@ OusterSensor::OusterSensor(const std::string& name,
                            const rclcpp::NodeOptions& options)
     : OusterSensorNodeBase(name, options) {
     declare_parameters();
-    staged_config = parse_config_from_ros_parameters();
+    try {
+        staged_config = parse_config_from_ros_parameters();
+    } catch (const std::exception& e) {
+        config_parse_error = e.what();
+        RCLCPP_FATAL_STREAM(
+            get_logger(),
+            "Invalid sensor configuration parameters: " << e.what());
+    }
     attempt_reconnect = get_parameter("attempt_reconnect").as_bool();
     dormant_period_between_reconnects = 
         get_parameter("dormant_period_between_reconnects").as_double();
+    if (dormant_period_between_reconnects <= 0.0) {
+        RCLCPP_WARN(
+            get_logger(),
+            "dormant_period_between_reconnects (%f) must be > 0; "
+            "clamping to 1.0s",
+            dormant_period_between_reconnects);
+        dormant_period_between_reconnects = 1.0;
+    }
     reconnect_attempts_available =
         get_parameter("max_failed_reconnect_attempts").as_int();
 
@@ -155,6 +170,14 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_configure(
     const rclcpp_lifecycle::State&) {
     RCLCPP_DEBUG(get_logger(), "on_configure() is called.");
 
+    if (config_parse_error) {
+        RCLCPP_FATAL_STREAM(
+            get_logger(),
+            "Cannot configure os_sensor: invalid parameters: "
+                << *config_parse_error);
+        return LifecycleNodeInterface::CallbackReturn::ERROR;
+    }
+
     try {
         if (!start()) {
             auto sleep_duration = std::chrono::duration<double>(dormant_period_between_reconnects);
@@ -192,7 +215,12 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
     const rclcpp_lifecycle::State& state) {
     RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
     LifecycleNode::on_activate(state);
-    if (cached_metadata.empty())
+    bool metadata_missing;
+    {
+        std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+        metadata_missing = cached_metadata.empty();
+    }
+    if (metadata_missing)
         update_metadata(*sensor_client);
     create_publishers();
     allocate_buffers();
@@ -273,21 +301,26 @@ std::string OusterSensor::get_sensor_hostname() {
 }
 
 void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
+    std::string fetched;
     try {
-        cached_metadata = ouster::sdk::sensor::get_metadata(cli, 60);
+        fetched = ouster::sdk::sensor::get_metadata(cli, 60);
     } catch (const std::exception& e) {
         RCLCPP_ERROR_STREAM(get_logger(),
                             "ouster::sdk::sensor::get_metadata exception: " << e.what());
-        cached_metadata.clear();
+        fetched.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+        cached_metadata = fetched;
     }
 
-    if (cached_metadata.empty()) {
+    if (fetched.empty()) {
         const auto error_msg = "Failed to collect sensor metadata";
         RCLCPP_ERROR(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
 
-    info = ouster::sdk::core::SensorInfo(cached_metadata);
+    info = ouster::sdk::core::SensorInfo(fetched);
     // TODO: revist when *min_version* is changed
     populate_metadata_defaults(info);
 
@@ -308,7 +341,12 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-    if (impl::write_text_to_file(meta_file, cached_metadata)) {
+    std::string metadata_copy;
+    {
+        std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+        metadata_copy = cached_metadata;
+    }
+    if (impl::write_text_to_file(meta_file, metadata_copy)) {
         RCLCPP_INFO_STREAM(get_logger(),
                            "Wrote sensor metadata to " << meta_file);
     } else {
@@ -352,7 +390,10 @@ void OusterSensor::reactivate_sensor(bool init_id_reset) {
     }
 
     reset_last_init_id = init_id_reset;
-    cached_metadata.clear();
+    {
+        std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+        cached_metadata.clear();
+    }
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
         lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
@@ -1139,6 +1180,8 @@ void OusterSensor::cleanup() {
     get_metadata_srv.reset();
     get_config_srv.reset();
     set_config_srv.reset();
+    reset_srv.reset();
+    metadata_pub.reset();
     sensor_connection_thread.reset();
     // Cancel and drop any pending reconnect timer; its lambda captures
     // `this` and could otherwise fire after cleanup if the node is

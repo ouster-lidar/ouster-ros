@@ -10,6 +10,7 @@
 
 #include <string>
 #include <chrono>
+#include <mutex>
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
@@ -58,6 +59,7 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
     ouster::sdk::core::SensorInfo info;
     rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
     std::string cached_metadata;
+    mutable std::mutex cached_metadata_mutex;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
 };
 

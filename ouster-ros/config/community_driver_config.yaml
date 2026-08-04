@@ -8,7 +8,7 @@ ouster_driver:
     imu_port: 7503
     lidar_port: 7502
     sensor_frame: laser_sensor_frame
-    laser_frame: laser_data_frame
+    lidar_frame: laser_data_frame
     imu_frame: imu_data_frame
 
     # if False, data are published with sensor data QoS. This is preferrable
