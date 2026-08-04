@@ -51,6 +51,8 @@ class OusterCloud : public OusterProcessingNodeBase {
         tf_bcast.parse_parameters();
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
+        load_metadata_from_file(
+            [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterCloud: node initialized!");
     }
 

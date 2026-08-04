@@ -34,8 +34,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <exception>
+#include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -54,6 +58,13 @@ class OusterPinhole : public OusterProcessingNodeBase {
     explicit OusterPinhole(const rclcpp::NodeOptions& options)
         : OusterProcessingNodeBase("os_pinhole", options) {
         on_init();
+    }
+
+    ~OusterPinhole() override {
+        // Stop incoming packets and join the packet-handler worker thread
+        // before the panel publishers it uses are destroyed.
+        lidar_packet_sub_.reset();
+        lidar_packet_handler_ = nullptr;
     }
 
    private:
@@ -83,7 +94,9 @@ class OusterPinhole : public OusterProcessingNodeBase {
         declare_parameter<std::vector<double>>("panel_vfovs_deg",
                                                 std::vector<double>{0.0});
 
-        // Frame configuration.
+        // parent_frame must use the lidar-frame convention (+X forward, +Z
+        // up, azimuth CCW about +Z). A renamed/namespaced lidar frame is fine;
+        // a differently-oriented frame would silently mis-orient every panel.
         declare_parameter("parent_frame", "os_lidar");
         declare_parameter("lidar_namespace", "lidar0");
         declare_parameter("optical_frame_template",
@@ -100,19 +113,40 @@ class OusterPinhole : public OusterProcessingNodeBase {
 
         create_metadata_subscriber(
             [this](const auto& msg) { metadata_handler(msg); });
+        load_metadata_from_file(
+            [this](const auto& msg) { metadata_handler(msg); });
 
         RCLCPP_INFO(get_logger(), "OusterPinhole: node initialized!");
     }
 
     void metadata_handler(
         const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
-        RCLCPP_INFO(get_logger(),
-                    "OusterPinhole: retrieved new sensor metadata!");
-        info = ouster::sdk::core::SensorInfo(metadata_msg->data);
-        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
-            ouster::sdk::core::get_format(info));
-        create_publishers_subscribers();
-        broadcast_static_transforms();
+        std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
+        if (metadata_is_active(metadata_msg->data)) {
+            RCLCPP_DEBUG(get_logger(),
+                         "OusterPinhole: ignoring unchanged sensor metadata");
+            return;
+        }
+
+        RCLCPP_INFO(get_logger(), "OusterPinhole: activating sensor metadata");
+        try {
+            auto parsed_info =
+                ouster::sdk::core::SensorInfo(metadata_msg->data);
+            auto parsed_format =
+                std::make_shared<ouster::sdk::core::PacketFormat>(
+                    ouster::sdk::core::get_format(parsed_info));
+            info = std::move(parsed_info);
+            packet_format = std::move(parsed_format);
+            create_publishers_subscribers();
+            broadcast_static_transforms();
+            mark_metadata_active(metadata_msg->data);
+        } catch (const std::exception& e) {
+            invalidate_active_metadata();
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
+                "OusterPinhole: failed to activate sensor metadata: "
+                    << e.what());
+        }
     }
 
     std::vector<PinholeProcessor::PanelConfig> read_panel_configs() {
@@ -144,13 +178,28 @@ class OusterPinhole : public OusterProcessingNodeBase {
             throw std::runtime_error("panel_yaws_deg length mismatch");
         }
 
+        auto check_len = [&](const auto& vec, const char* name) {
+            if (!vec.empty() && vec.size() != 1 && vec.size() != names.size()) {
+                RCLCPP_FATAL(get_logger(),
+                    "OusterPinhole: %s length (%zu) must be 0, 1, or match "
+                    "panel_names length (%zu).",
+                    name, vec.size(), names.size());
+                throw std::runtime_error(std::string(name) + " length mismatch");
+            }
+        };
+        check_len(pitches, "panel_pitches_deg");
+        check_len(hfovs, "panel_hfovs_deg");
+        check_len(widths, "panel_widths");
+        check_len(heights, "panel_heights");
+        check_len(vfovs, "panel_vfovs_deg");
+
         auto pick = [&](const auto& vec, size_t i, auto fallback) {
             if (vec.empty()) return fallback;
-            // Singleton broadcasts to all panels; partial-length arrays
-            // wrap (caller should pass length 1 or length names.size()).
-            const size_t idx = (vec.size() == 1) ? 0 : (i % vec.size());
+            const size_t idx = (vec.size() == 1) ? 0 : i;
             return static_cast<decltype(fallback)>(vec[idx]);
         };
+
+        constexpr int64_t kMaxPanelDim = 8192;
 
         std::vector<PinholeProcessor::PanelConfig> out;
         out.reserve(names.size());
@@ -160,15 +209,52 @@ class OusterPinhole : public OusterProcessingNodeBase {
             cfg.yaw_rad = yaws[i] * M_PI / 180.0;
             cfg.pitch_rad = pick(pitches, i, 0.0) * M_PI / 180.0;
             cfg.hfov_rad = pick(hfovs, i, 90.0) * M_PI / 180.0;
-            cfg.width = static_cast<uint32_t>(pick(widths, i, int64_t{256}));
-            cfg.height = static_cast<uint32_t>(pick(heights, i, int64_t{0}));
-            cfg.vfov_rad = pick(vfovs, i, 0.0) * M_PI / 180.0;
+            if (cfg.hfov_rad <= 0.0 || cfg.hfov_rad >= M_PI) {
+                RCLCPP_FATAL(get_logger(),
+                    "OusterPinhole: panel '%s' hfov (%.3f deg) must be in "
+                    "the open interval (0, 180).",
+                    cfg.name.c_str(), cfg.hfov_rad * 180.0 / M_PI);
+                throw std::runtime_error("panel hfov out of range");
+            }
+            const int64_t width_i = pick(widths, i, int64_t{256});
+            if (width_i <= 0 || width_i > kMaxPanelDim) {
+                RCLCPP_FATAL(get_logger(),
+                    "OusterPinhole: panel '%s' width (%ld) must be in [1, %ld].",
+                    cfg.name.c_str(), static_cast<long>(width_i),
+                    static_cast<long>(kMaxPanelDim));
+                throw std::runtime_error("panel width out of range");
+            }
+            const int64_t height_i = pick(heights, i, int64_t{0});
+            if (height_i < 0 || height_i > kMaxPanelDim) {
+                RCLCPP_FATAL(get_logger(),
+                    "OusterPinhole: panel '%s' height (%ld) must be in "
+                    "[0, %ld] (0 = auto-fit).",
+                    cfg.name.c_str(), static_cast<long>(height_i),
+                    static_cast<long>(kMaxPanelDim));
+                throw std::runtime_error("panel height out of range");
+            }
+            const double vfov_deg = pick(vfovs, i, 0.0);
+            if (vfov_deg < 0.0 || vfov_deg >= 180.0) {
+                RCLCPP_FATAL(get_logger(),
+                    "OusterPinhole: panel '%s' vfov (%.3f deg) must be in "
+                    "[0, 180) (0 = auto).",
+                    cfg.name.c_str(), vfov_deg);
+                throw std::runtime_error("panel vfov out of range");
+            }
+            cfg.width = static_cast<uint32_t>(width_i);
+            cfg.height = static_cast<uint32_t>(height_i);
+            cfg.vfov_rad = vfov_deg * M_PI / 180.0;
             out.push_back(cfg);
         }
         return out;
     }
 
     void create_publishers_subscribers() {
+        const uint64_t pipeline_generation = begin_pipeline_update();
+        lidar_packet_sub_.reset();
+        lidar_packet_handler_ = nullptr;
+        lidar_packet_buffer_.reset();
+
         auto timestamp_mode = get_parameter("timestamp_mode").as_string();
         auto ptp_utc_tai_offset =
             get_parameter("ptp_utc_tai_offset").as_double();
@@ -216,6 +302,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
         // PinholeProcessor::create returns just the lambda. Re-build a
         // separate helper instance just to reach the panel list, OR
         // build publishers from panel_configs directly + the channel set.
+        panel_pubs_.clear();
         const auto channel_topics = pinhole_channel_topics(info.num_returns());
         for (const auto& cfg : panel_configs) {
             PanelPublishers pp;
@@ -238,18 +325,33 @@ class OusterPinhole : public OusterProcessingNodeBase {
         lidar_packet_handler_ = LidarPacketHandler::create(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-            static_cast<float>(min_ratio));
+            static_cast<float>(min_ratio), /*process_rgb=*/false);
+        lidar_packet_buffer_ =
+            std::make_unique<LidarPacket>(packet_format->lidar_packet_size);
+        lidar_packet_buffer_->format = packet_format;
 
         lidar_packet_sub_ = create_subscription<PacketMsg>(
             "lidar_packets", selected_qos,
-            [this](const PacketMsg::ConstSharedPtr msg) {
-                if (!lidar_packet_handler_) return;
-                LidarPacket packet(msg->buf.size());
-                packet.format = packet_format;
+            [this, pipeline_generation](const PacketMsg::ConstSharedPtr msg) {
+                std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
+                if (!pipeline_is_current(pipeline_generation) ||
+                    !lidar_packet_handler_ || !lidar_packet_buffer_) {
+                    return;
+                }
+                const size_t expected_size = packet_format->lidar_packet_size;
+                if (msg->buf.size() < expected_size) {
+                    RCLCPP_WARN_STREAM_THROTTLE(
+                        get_logger(), *get_clock(), 1000,
+                        "dropping undersized lidar_packets msg ("
+                            << msg->buf.size() << " < " << expected_size
+                            << " bytes)");
+                    return;
+                }
+                auto& packet = *lidar_packet_buffer_;
                 packet.host_timestamp =
                     static_cast<uint64_t>(now().nanoseconds());
                 std::memcpy(packet.buf.data(), msg->buf.data(),
-                            msg->buf.size());
+                            expected_size);
                 lidar_packet_handler_(packet);
             });
 
@@ -349,13 +451,17 @@ class OusterPinhole : public OusterProcessingNodeBase {
             camera_info_pub;
     };
 
-    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub_;
-    LidarPacketHandler::HandlerType lidar_packet_handler_;
-    std::vector<PanelPublishers> panel_pubs_;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
     std::vector<PinholeProcessor::PanelConfig> panel_configs_for_tf_;
     std::string lidar_namespace_for_tf_;
     std::string optical_frame_template_for_tf_;
+
+    // Reverse destruction order stops callbacks, joins the scan worker, then
+    // releases the buffer and publishers used by that worker.
+    std::vector<PanelPublishers> panel_pubs_;
+    std::unique_ptr<LidarPacket> lidar_packet_buffer_;
+    LidarPacketHandler::HandlerType lidar_packet_handler_;
+    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub_;
 };
 
 }  // namespace ouster_ros

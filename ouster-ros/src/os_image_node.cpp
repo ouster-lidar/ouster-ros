@@ -21,14 +21,26 @@
 #include "ouster_ros/os_processing_node_base.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <exception>
+#include <map>
+#include <memory>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <stdexcept>
+#include <utility>
 
 #if __has_include(<tf2/LinearMath/Quaternion.hpp>)
 #include <tf2/LinearMath/Quaternion.hpp>
 #else
 #include <tf2/LinearMath/Quaternion.h>
 #endif
+#if __has_include(<tf2_ros/static_transform_broadcaster.hpp>)
+#include <tf2_ros/static_transform_broadcaster.hpp>
+#else
 #include <tf2_ros/static_transform_broadcaster.h>
+#endif
+#include <geometry_msgs/msg/transform_stamped.hpp>
 
 #include "lidar_packet_handler.h"
 #include "image_processor.h"
@@ -48,6 +60,11 @@ class OusterImage : public OusterProcessingNodeBase {
         on_init();
     }
 
+    ~OusterImage() override {
+        lidar_packet_sub.reset();
+        lidar_packet_handler = nullptr;
+    }
+
    private:
     void on_init() {
         declare_parameter("timestamp_mode", "");
@@ -58,24 +75,51 @@ class OusterImage : public OusterProcessingNodeBase {
         declare_parameter("distortion_model", "plumb_bob");
         declare_parameter("frame_id", "os_lidar");
         declare_parameter("optical_frame", "");
-        declare_parameter("publish_camera_info", true);
+        // A full 360-degree panorama is not a pinhole image; publishing a
+        // plumb_bob CameraInfo by default invites invalid back-projection.
+        declare_parameter("publish_camera_info", false);
         create_metadata_subscriber(
+            [this](const auto& msg) { metadata_handler(msg); });
+        load_metadata_from_file(
             [this](const auto& msg) { metadata_handler(msg); });
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
     }
 
     void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
-        RCLCPP_INFO(get_logger(),
-                    "OusterImage: retrieved new sensor metadata!");
-        info = ouster::sdk::core::SensorInfo(metadata_msg->data);
-        packet_format = std::make_shared<ouster::sdk::core::PacketFormat>(
-            ouster::sdk::core::get_format(info));
-        create_publishers_subscribers(info.num_returns());
+        std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
+        if (metadata_is_active(metadata_msg->data)) {
+            RCLCPP_DEBUG(get_logger(),
+                         "OusterImage: ignoring unchanged sensor metadata");
+            return;
+        }
+
+        RCLCPP_INFO(get_logger(), "OusterImage: activating sensor metadata");
+        try {
+            auto parsed_info =
+                ouster::sdk::core::SensorInfo(metadata_msg->data);
+            auto parsed_format =
+                std::make_shared<ouster::sdk::core::PacketFormat>(
+                    ouster::sdk::core::get_format(parsed_info));
+            info = std::move(parsed_info);
+            packet_format = std::move(parsed_format);
+            create_publishers_subscribers(info.num_returns());
+            mark_metadata_active(metadata_msg->data);
+        } catch (const std::exception& e) {
+            invalidate_active_metadata();
+            RCLCPP_ERROR_STREAM(
+                get_logger(),
+                "OusterImage: failed to activate sensor metadata: "
+                    << e.what());
+        }
     }
 
     void create_publishers_subscribers(int n_returns) {
+        const uint64_t pipeline_generation = begin_pipeline_update();
+        lidar_packet_sub.reset();
+        lidar_packet_handler = nullptr;
+        lidar_packet_buffer.reset();
 
-        // TODO: avoid having to replicate the parameters: 
+        // TODO: avoid having to replicate the parameters:
         // timestamp_mode, ptp_utc_tai_offset, use_system_default_qos in yet
         // another node.
         auto timestamp_mode = get_parameter("timestamp_mode").as_string();
@@ -88,15 +132,14 @@ class OusterImage : public OusterProcessingNodeBase {
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
 
-        const std::map<std::string, std::string>
+        std::map<std::string, std::string>
             channel_field_topic_map_1 {
                 {ChanField::RANGE, "range_image"},
                 {ChanField::SIGNAL, "signal_image"},
                 {ChanField::REFLECTIVITY, "reflec_image"},
-                {ChanField::NEAR_IR, "nearir_image"},
-                {ChanField::RGB, "rgb_image"}};
+                {ChanField::NEAR_IR, "nearir_image"}};
 
-        const std::map<std::string, std::string>
+        std::map<std::string, std::string>
             channel_field_topic_map_2 {
                 {ChanField::RANGE, "range_image"},
                 {ChanField::SIGNAL, "signal_image"},
@@ -104,11 +147,21 @@ class OusterImage : public OusterProcessingNodeBase {
                 {ChanField::NEAR_IR, "nearir_image"},
                 {ChanField::RANGE2, "range_image2"},
                 {ChanField::SIGNAL2, "signal_image2"},
-                {ChanField::REFLECTIVITY2, "reflec_image2"},
-                {ChanField::RGB, "rgb_image"}};
+                {ChanField::REFLECTIVITY2, "reflec_image2"}};
+
+        const bool has_rgb =
+            info.format.udp_profile_lidar ==
+                ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+            info.format.udp_profile_lidar ==
+                ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+        if (has_rgb) {
+            channel_field_topic_map_1[ChanField::RGB] = "rgb_image";
+            channel_field_topic_map_2[ChanField::RGB] = "rgb_image";
+        }
 
         auto which_map = n_returns == 1 ? &channel_field_topic_map_1
                                         : &channel_field_topic_map_2;
+        image_pubs.clear();
         for (auto it = which_map->begin(); it != which_map->end(); ++it) {
             image_pubs[it->first] =
                 create_publisher<sensor_msgs::msg::Image>(it->second,
@@ -157,19 +210,33 @@ class OusterImage : public OusterProcessingNodeBase {
         lidar_packet_handler = LidarPacketHandler::create(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-            min_scan_valid_columns_ratio);
+            min_scan_valid_columns_ratio, /*process_rgb=*/has_rgb);
+        lidar_packet_buffer =
+            std::make_unique<LidarPacket>(packet_format->lidar_packet_size);
+        lidar_packet_buffer->format = packet_format;
         lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets", selected_qos,
-                [this](const PacketMsg::ConstSharedPtr msg) {
-                    if (lidar_packet_handler) {
-                        // TODO[UN]: this is not ideal since we can't reuse the msg buffer
-                        // Need to redefine the Packet object and allow use of array_views
-                        LidarPacket lidar_packet(msg->buf.size());
-                        lidar_packet.format = packet_format;
-                        lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
-                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
-                        lidar_packet_handler(lidar_packet);
+                [this, pipeline_generation](const PacketMsg::ConstSharedPtr msg) {
+                    std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
+                    if (!pipeline_is_current(pipeline_generation) ||
+                        !lidar_packet_handler || !lidar_packet_buffer) {
+                        return;
                     }
+                    const size_t expected_size = packet_format->lidar_packet_size;
+                    if (msg->buf.size() < expected_size) {
+                        RCLCPP_WARN_STREAM_THROTTLE(
+                            get_logger(), *get_clock(), 1000,
+                            "dropping undersized lidar_packets msg ("
+                                << msg->buf.size() << " < " << expected_size
+                                << " bytes)");
+                        return;
+                    }
+                    auto& lidar_packet = *lidar_packet_buffer;
+                    lidar_packet.host_timestamp =
+                        static_cast<uint64_t>(now().nanoseconds());
+                    std::memcpy(lidar_packet.buf.data(), msg->buf.data(),
+                                expected_size);
+                    lidar_packet_handler(lidar_packet);
                 });
     }
 
@@ -220,6 +287,10 @@ class OusterImage : public OusterProcessingNodeBase {
         const ouster::sdk::core::SensorInfo& sensor_info,
         const std::string& frame_id,
         const rclcpp::QoS& qos) {
+        RCLCPP_WARN(get_logger(),
+            "os_image CameraInfo describes an equirectangular panorama, not "
+            "a pinhole camera. It is for display overlay only; use os_pinhole "
+            "for pinhole rectification or back-projection.");
         uint32_t H = sensor_info.format.pixels_per_column;
         uint32_t W = sensor_info.format.columns_per_frame;
 
@@ -331,16 +402,17 @@ class OusterImage : public OusterProcessingNodeBase {
     }
 
    private:
-    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
     std::map<std::string,
              rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
         image_pubs;
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_pub_;
     sensor_msgs::msg::CameraInfo camera_info_msg_;
-    bool publish_camera_info_{true};
+    bool publish_camera_info_{false};
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_bcast_;
 
+    std::unique_ptr<LidarPacket> lidar_packet_buffer;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+    rclcpp::Subscription<PacketMsg>::SharedPtr lidar_packet_sub;
 };
 }  // namespace ouster_ros
 

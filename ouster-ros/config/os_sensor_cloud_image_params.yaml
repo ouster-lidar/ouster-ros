@@ -37,6 +37,7 @@ ouster/os_cloud:
     lidar_frame: os_lidar
     imu_frame: os_imu
     point_cloud_frame: os_lidar
+    metadata: '' # optional path to sensor metadata JSON; useful for plain bag playback
     pub_static_tf: true
     timestamp_mode: ''  # this value needs to match os_sensor/timestamp_mode
     ptp_utc_tai_offset: -37.0 # UTC/TAI offset in seconds to apply when using TIME_FROM_PTP_1588
@@ -44,11 +45,13 @@ ouster/os_cloud:
     use_system_default_qos: false # needs to match the value defined for os_sensor node
     scan_ring: 0  # Use this parameter in conjunction with the SCAN flag and choose a
                   # value the range [0, sensor_beams_count)
-    point_type: original # choose from: {original, native, xyz, xyzi, o_xyzi, xyzir, xyzrgb, xyzrgba}
+    point_type: original # choose from: {original, native, xyz, xyzi, o_xyzi, xyzir, xyzrgb, xyzrgba, color_point}
 ouster/os_image:
   ros__parameters:
     use_system_default_qos: false # needs to match the value defined for os_sensor node
-    publish_camera_info: true # publish sensor_msgs/CameraInfo on os_image/camera_info
+    metadata: '' # optional path to sensor metadata JSON; useful for plain bag playback
+    publish_camera_info: false # display-only approximation for the equirectangular panorama;
+                               # use os_pinhole for pinhole geometry
     frame_id: os_lidar # frame_id for the published image and camera_info messages
     optical_frame: '' # empty (default) = off. When set (e.g. os_lidar_optical),
                       # images/camera_info are stamped in that frame instead of
