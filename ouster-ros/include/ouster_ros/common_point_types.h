@@ -21,6 +21,12 @@ namespace ouster_ros {
  * @remark XYZIT point type is not compatible with RNG15_RFL8_NIR8/LOW_DATA
  * udp lidar profile.
  */
+// Anonymous struct inside a union is a GCC/Clang extension (not ISO C++), but it
+// is the canonical PCL point-type layout. Suppress the -Wpedantic complaint here.
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 struct EIGEN_ALIGN16 _Ouster_PointXYZI {
     union EIGEN_ALIGN16 {
         float data[4];
@@ -33,6 +39,9 @@ struct EIGEN_ALIGN16 _Ouster_PointXYZI {
    };
    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 struct PointXYZI : public _Ouster_PointXYZI {
 

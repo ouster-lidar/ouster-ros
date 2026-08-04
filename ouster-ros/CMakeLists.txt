@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.14.0)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake)
 include(DefaultBuildType)
@@ -17,10 +17,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -29,6 +29,37 @@ find_package(OpenCV REQUIRED)
 if(NOT OpenCV_LIBS)
   set(OpenCV_LIBS ${OpenCV_LIBRARIES})
 endif()
+
+# Link an ament package as a dependency. ament_cmake exposes packages in
+# three shapes across ROS 2 distros; we try each in turn:
+#   1. ${pkg}_TARGETS         - rosidl pkgs (msgs/srvs); library pkgs on
+#                               Lyrical+ (e.g. tf2).
+#   2. pkg::pkg imported tgt  - library pkgs on Humble/Jazzy/Kilted.
+#   3. ${pkg}_INCLUDE_DIRS /
+#      ${pkg}_LIBRARIES       - legacy header-only pkgs (pcl_conversions
+#                               on Humble/Jazzy/Kilted).
+function(_ouster_link_ament_deps target visibility)
+  foreach(_pkg IN LISTS ARGN)
+    if(DEFINED ${_pkg}_TARGETS)
+      target_link_libraries(${target} ${visibility} ${${_pkg}_TARGETS})
+    elseif(TARGET ${_pkg}::${_pkg})
+      target_link_libraries(${target} ${visibility} ${_pkg}::${_pkg})
+    elseif(DEFINED ${_pkg}_INCLUDE_DIRS OR DEFINED ${_pkg}_LIBRARIES)
+      if(${_pkg}_INCLUDE_DIRS)
+        target_include_directories(${target} SYSTEM ${visibility}
+          ${${_pkg}_INCLUDE_DIRS})
+      endif()
+      if(${_pkg}_LIBRARIES)
+        target_link_libraries(${target} ${visibility} ${${_pkg}_LIBRARIES})
+      endif()
+    else()
+      message(FATAL_ERROR
+        "_ouster_link_ament_deps: cannot resolve dependency '${_pkg}' "
+        "(none of ${_pkg}_TARGETS, target ${_pkg}::${_pkg}, or legacy "
+        "${_pkg}_INCLUDE_DIRS/${_pkg}_LIBRARIES are defined)")
+    endif()
+  endforeach()
+endfunction()
 
 # ==== Options ====
 if(MSVC)
@@ -62,11 +93,28 @@ set(_ouster_ros_INCLUDE_DIRS
 set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
-option(BUILD_VIZ "Turn off building VIZ" OFF)
-option(BUILD_PCAP "Turn off building PCAP" OFF)
-option(BUILD_OSF "Turn off building OSF" OFF)
-option(BUILD_MAPPING "Turn off building MAPPING" OFF)
+option(BUILD_VIZ "Build the SDK visualizer" OFF)
+# The package ships os_pcap and replay_pcap.launch.xml, and its manifest
+# already declares the capture dependencies. Build that supported path by
+# default so binary/source installs do not silently omit the executable.
+option(BUILD_PCAP "Build the os_pcap node for pcap replay" ON)
+option(BUILD_OSF "Build SDK OSF support" OFF)
+option(BUILD_MAPPING "Build SDK mapping support" OFF)
 find_package(OusterSDK REQUIRED)
+
+# The Ouster SDK is vendored via the ouster-sdk submodule. Silence
+# -Wpedantic / -Wdeprecated-declarations on its own compilation units so
+# pedantic workspace compile flags don't fail the build on third-party code
+# we don't own. Our wrapper (ouster_ros_library, os_*_node, etc.) is still
+# compiled with the full diagnostic set.
+foreach(_sdk_target ouster_client ouster_sensor ouster_pcap ouster_osf ouster_viz)
+  if(TARGET ${_sdk_target})
+    target_compile_options(${_sdk_target} PRIVATE
+      -Wno-pedantic
+      -Wno-deprecated-declarations
+    )
+  endif()
+endforeach()
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
 
@@ -98,18 +146,21 @@ set(ouster_ros_library_deps
   tf2_eigen
 )
 
-ament_target_dependencies(ouster_ros_library
+_ouster_link_ament_deps(ouster_ros_library PUBLIC
   ${ouster_ros_library_deps}
 )
 
 target_link_libraries(ouster_ros_library
-  # PUBLIC (unsupported)
+  PUBLIC
     ouster_build
     OusterSDK::ouster_sensor
     pcl_common
-  # PRIVATE (unsupported)
-  ${OUSTER_TARGET_LINKS}
-  ${OpenCV_LIBS}
+    # OpenCV must stay PUBLIC: impl::load_mask in the installed public header
+    # os_ros.h is a template calling cv:: functions, instantiated inside the
+    # component libraries that link only ouster_ros_library.
+    ${OpenCV_LIBS}
+  PRIVATE
+    ${OUSTER_TARGET_LINKS}
 )
 
 # helper method to construct ouster-ros components
@@ -126,7 +177,7 @@ function(create_ros2_component
       "OUSTER_ROS_BUILDING_DLL"
   )
 
-  ament_target_dependencies(${component_lib_name}
+  _ouster_link_ament_deps(${component_lib_name} PUBLIC
     rclcpp
     class_loader
     rclcpp_components
@@ -138,7 +189,8 @@ function(create_ros2_component
   )
 
   target_link_libraries(${component_lib_name}
-    ouster_ros_library
+    PUBLIC
+      ouster_ros_library
   )
 
 endfunction()
@@ -211,6 +263,9 @@ create_ros2_component(os_pcap_component
   "src/os_sensor_node_base.cpp;src/os_pcap_node.cpp"
   ""
 )
+# os_pcap_node.cpp calls PcapReader directly. Do not rely on the private
+# ouster_ros_library link to retain these symbols in a shared component.
+target_link_libraries(os_pcap_component PRIVATE OusterSDK::ouster_pcap)
 rclcpp_components_register_node(os_pcap_component
   PLUGIN "ouster_ros::OusterPcap"
   EXECUTABLE os_pcap
@@ -219,6 +274,15 @@ endif()
 
 # ==== Test ====
 if(BUILD_TESTING)
+  # OusterSDK prepends its compatibility FindGTest.cmake to
+  # CMAKE_MODULE_PATH. On newer ament_cmake_gtest releases that module finds
+  # GTest inside a function without propagating GTest_FOUND, so
+  # ament_add_gtest() silently skips this package's test executable. SDK
+  # configuration is complete here; temporarily use CMake's system finder for
+  # the ROS test target, then restore the module path for downstream users.
+  set(_ouster_ros_saved_cmake_module_path "${CMAKE_MODULE_PATH}")
+  list(REMOVE_ITEM CMAKE_MODULE_PATH
+    "${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake")
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
     src/os_ros.cpp
@@ -229,16 +293,26 @@ if(BUILD_TESTING)
     test/point_cloud_compose_test.cpp
     test/pinhole_processor_test.cpp
   )
-  ament_target_dependencies(${PROJECT_NAME}_test
-    rclcpp
-    ouster_sensor_msgs
-  )
-  target_include_directories(${PROJECT_NAME}_test PUBLIC
-    ${_ouster_ros_INCLUDE_DIRS}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-  target_link_libraries(${PROJECT_NAME}_test ouster_ros_library)
+  if(TARGET ${PROJECT_NAME}_test)
+    target_include_directories(${PROJECT_NAME}_test PRIVATE
+      ${_ouster_ros_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+    # ament_add_gtest links gtest into the target with the plain
+    # target_link_libraries signature on Humble/Jazzy/Kilted and the keyword
+    # signature on Lyrical; CMake forbids mixing the two on one target.
+    # Appending to LINK_LIBRARIES directly is signature-neutral and, for an
+    # executable, equivalent to PRIVATE linkage. The test's remaining deps
+    # (rclcpp, ouster_sensor_msgs, PCL, ...) propagate through
+    # ouster_ros_library's PUBLIC usage requirements.
+    set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
+      LINK_LIBRARIES ouster_ros_library)
+  else()
+    message(WARNING
+      "ouster_ros: ament_add_gtest did not create ${PROJECT_NAME}_test "
+      "even though ament_cmake_gtest is installed")
+  endif()
+  set(CMAKE_MODULE_PATH "${_ouster_ros_saved_cmake_module_path}")
 endif()
 
 
@@ -293,8 +367,7 @@ install(
     share/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include) 
-ament_export_dependencies(rosidl_default_runtime)
+ament_export_include_directories(include)
 ament_export_libraries(ouster_ros_library)
 ament_export_dependencies(${ouster_ros_library_deps})
 ament_package()

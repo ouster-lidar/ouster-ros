@@ -85,7 +85,7 @@ class OusterImage : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
     }
 
-    void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
+    void metadata_handler(const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
         std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
         if (metadata_is_active(metadata_msg->data)) {
             RCLCPP_DEBUG(get_logger(),
