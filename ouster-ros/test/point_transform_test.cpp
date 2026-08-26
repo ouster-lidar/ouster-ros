@@ -172,12 +172,12 @@ void verify_point_transform(PointTGT& tgt_pt, const PointSRC& src_pt) {
         });
 
     // near_ir
-    CondBinaryOp<has_near_ir_v<PointTGT> && !has_near_ir_v<PointSRC>>::run(
+    CondBinaryOp<has_near_ir_v<PointTGT> && has_near_ir_v<PointSRC>>::run(
         tgt_pt, src_pt, [](const auto& tgt_pt, const auto& src_pt) {
             EXPECT_EQ(tgt_pt.near_ir, src_pt.near_ir);
         });
 
-    CondBinaryOp<has_near_ir_v<PointTGT> && has_near_ir_v<PointSRC>>::run(
+    CondBinaryOp<has_near_ir_v<PointTGT> && !has_near_ir_v<PointSRC>>::run(
         tgt_pt, src_pt, [](const auto& tgt_pt, const auto&) {
             EXPECT_EQ(tgt_pt.near_ir, static_cast<decltype(tgt_pt.near_ir)>(0));
         });
@@ -378,6 +378,16 @@ TEST_F(PointTransformTest,
     point::transform(pt_os_point, pt_rg19_rf8_sg16_nr16_rgb16_dual);
     expect_points_xyz_equal(pt_os_point, pt_rg19_rf8_sg16_nr16_rgb16_dual);
     verify_point_transform(pt_os_point, pt_rg19_rf8_sg16_nr16_rgb16_dual);
+}
+
+TEST_F(PointTransformTest, TestTransformPreservesOrZerosNearIr) {
+    Point_RNG19_RFL8_SIG16_NIR16 target;
+
+    point::transform(target, pt_rg19_rf8_sg16_nr16);
+    verify_point_transform(target, pt_rg19_rf8_sg16_nr16);
+
+    point::transform(target, pt_xyz);
+    verify_point_transform(target, pt_xyz);
 }
 
 TEST_F(PointTransformTest, TestTransformReduce_RNG19_RFL8_SIG16_NIR16_RGB16) {

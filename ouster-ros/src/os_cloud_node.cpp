@@ -75,7 +75,8 @@ class OusterCloud : public OusterProcessingNodeBase {
 
     void metadata_handler(
         const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
-        if (metadata_msg->data == active_metadata_) {
+        if (!active_metadata_.empty() &&
+            metadata_msg->data == active_metadata_) {
             RCLCPP_DEBUG(get_logger(),
                          "OusterCloud: ignoring unchanged sensor metadata");
             return;

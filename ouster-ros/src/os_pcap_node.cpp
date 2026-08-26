@@ -128,6 +128,10 @@ class OusterPcap : public OusterSensorNodeBase {
             return LifecycleNodeInterface::CallbackReturn::SUCCESS;
         }
 
+        if (state.label() == "active") {
+            stop_packet_read_thread();
+        }
+
         // whether state was 'active' or 'inactive' do cleanup
         try {
             cleanup();
