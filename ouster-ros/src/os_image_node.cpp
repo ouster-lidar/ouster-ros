@@ -125,7 +125,8 @@ class OusterImage : public OusterProcessingNodeBase {
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
             min_scan_valid_columns_ratio);
         lidar_packet_sub = create_subscription<PacketMsg>(
-                "lidar_packets", selected_qos.keep_last(lidar_packets_per_frame(info)),
+                "lidar_packets",
+                rclcpp::QoS(selected_qos).keep_last(lidar_packets_per_frame(info)),
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     if (lidar_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
