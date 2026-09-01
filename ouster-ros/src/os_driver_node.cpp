@@ -35,7 +35,7 @@ class OusterDriver : public OusterSensor {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterDriver(const rclcpp::NodeOptions& options)
-        : OusterSensor("os_driver", options), tf_bcast(this) {
+        : OusterSensor("os_driver", options), tf_bcast(*this) {
         tf_bcast.declare_parameters();
         tf_bcast.parse_parameters();
         declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW|TLM");
