@@ -24,6 +24,7 @@ ouster_ros v0.15.2
   - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
 * Enable tone mapping for RGB images.
 * Override the QoS Depth for packet topic whether when using System Defaults or not.
+* Enable building the driver for ROS2 Lyrical distro.
 
 ouster_ros v0.14.0
 ==================
