@@ -2,7 +2,7 @@
 Changelog
 =========
 
-ouster_ros v0.15.1
+ouster_ros v0.15.2
 ==================
 * [BUGFIX] fix improper scaling of mask image when row step is not 1.
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
@@ -23,6 +23,7 @@ ouster_ros v0.15.1
   - ``pcl::XYZRGBA``
   - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
 * Enable tone mapping for RGB images.
+* Override the QoS Depth for packet topic whether when using System Defaults or not.
 
 ouster_ros v0.14.0
 ==================
