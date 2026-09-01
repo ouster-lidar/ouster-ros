@@ -267,7 +267,7 @@ install(
 
 install(
   FILES
-    ../LICENSE
+    LICENSE
   DESTINATION
     share/${PROJECT_NAME}
 )

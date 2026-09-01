@@ -121,7 +121,7 @@ class LidarPacketHandler {
             r_field_float = ouster::sdk::core::img_t<float>(H, W);
             g_field_float = ouster::sdk::core::img_t<float>(H, W);
             b_field_float = ouster::sdk::core::img_t<float>(H, W);
-            auto_exposure_ = std::make_unique<ouster::sdk::core::image::AutoExposure>();
+            tone_mapper_ = std::make_unique<ouster::sdk::core::image::LocalToneMapper>();
             for (auto& ls : lidar_scans) {
                 using ouster::sdk::core::fd_array;
                 ls->add_field(ChanField::R_U8, fd_array<uint8_t>(H, W));
@@ -267,7 +267,7 @@ class LidarPacketHandler {
                 b_out[i] = f16_bits_to_f32(b_in[i]);
             }
 
-            auto_exposure_->update(r_field_float, g_field_float, b_field_float, true);
+            tone_mapper_->update(r_field_float, g_field_float, b_field_float, true);
 
             Eigen::Ref<img_t<uint8_t>> r_field_uint8 = ls.field<uint8_t>(ChanField::R_U8);
             Eigen::Ref<img_t<uint8_t>> g_field_uint8 = ls.field<uint8_t>(ChanField::G_U8);
@@ -476,7 +476,7 @@ class LidarPacketHandler {
     ouster::sdk::core::img_t<float> g_field_float;
     ouster::sdk::core::img_t<float> b_field_float;
 
-    std::unique_ptr<ouster::sdk::core::image::AutoExposure> auto_exposure_;
+    std::unique_ptr<ouster::sdk::core::image::LocalToneMapper> tone_mapper_;
 };
 
 }  // namespace ouster_ros
