@@ -50,7 +50,7 @@ class OusterImage : public OusterProcessingNodeBase {
         RCLCPP_INFO(get_logger(), "OusterImage: node initialized!");
     }
 
-    void metadata_handler(const std_msgs::msg::String::ConstPtr& metadata_msg) {
+    void metadata_handler(const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);
@@ -69,11 +69,10 @@ class OusterImage : public OusterProcessingNodeBase {
             get_parameter("ptp_utc_tai_offset").as_double();
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
-        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
-        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
-        auto selected_qos =
-            use_system_default_qos ? system_default_qos : sensor_data_qos;
-        auto packet_sub_qos = packet_qos(use_system_default_qos);
+        rclcpp::QoS selected_qos =
+            use_system_default_qos ?
+                static_cast<rclcpp::QoS>(rclcpp::SystemDefaultsQoS()) :
+                static_cast<rclcpp::QoS>(rclcpp::SensorDataQoS());
 
         const std::map<std::string, std::string>
             channel_field_topic_map_1 {
@@ -126,7 +125,7 @@ class OusterImage : public OusterProcessingNodeBase {
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
             min_scan_valid_columns_ratio);
         lidar_packet_sub = create_subscription<PacketMsg>(
-                "lidar_packets", packet_sub_qos,
+                "lidar_packets", selected_qos.keep_last(lidar_packets_per_frame(info)),
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     if (lidar_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
