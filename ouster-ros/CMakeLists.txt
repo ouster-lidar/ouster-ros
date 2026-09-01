@@ -8,6 +8,7 @@ project(ouster_ros)
 
 # ==== Requirements ====
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_target_dependencies REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(class_loader REQUIRED)
