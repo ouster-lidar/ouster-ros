@@ -202,9 +202,12 @@ class OusterPcap : public OusterSensorNodeBase {
             use_system_default_qos ?
                 static_cast<rclcpp::QoS>(rclcpp::SystemDefaultsQoS()) :
                 static_cast<rclcpp::QoS>(rclcpp::SensorDataQoS());
-        lidar_packet_pub =
-            create_publisher<PacketMsg>("lidar_packets", selected_qos.keep_last(lidar_packets_per_frame(info)));
-        imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos.keep_last(info.format.imu_packets_per_frame));
+        lidar_packet_pub = create_publisher<PacketMsg>(
+            "lidar_packets",
+            rclcpp::QoS(selected_qos).keep_last(lidar_packets_per_frame(info)));
+        imu_packet_pub = create_publisher<PacketMsg>(
+            "imu_packets",
+            rclcpp::QoS(selected_qos).keep_last(info.format.imu_packets_per_frame));
     }
 
     void open_pcap(const std::string& pcap_file) {
