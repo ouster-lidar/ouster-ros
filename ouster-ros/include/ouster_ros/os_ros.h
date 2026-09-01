@@ -55,6 +55,24 @@ size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
 std::string topic_for_return(const std::string& topic_base, int return_idx);
 
 /**
+ * Builds the QoS profile used for the raw lidar_packets/imu_packets topics.
+ * A single lidar scan can span hundreds of packets, so neither
+ * rclcpp::SensorDataQoS()'s default depth (5) nor
+ * rclcpp::SystemDefaultsQoS() (which defers reliability/history entirely to
+ * the RMW implementation, and on this RMW resolves to best-effort/depth 1 -
+ * even shallower) are deep enough: any brief delay in servicing the
+ * subscription callback overflows the reader's local queue and silently
+ * drops packets, even though the publisher keeps up fine. This builds both
+ * profiles explicitly instead of relying on SystemDefaultsQoS()'s
+ * vendor-dependent fallback.
+ * @param[in] use_system_default_qos if true, use a reliable profile;
+ *            otherwise use a best-effort profile. Both get a queue deep
+ *            enough to absorb a full scan's worth of packets
+ * @return the QoS profile to use for the raw packet topics
+ */
+rclcpp::QoS packet_qos(bool use_system_default_qos);
+
+/**
  * Parse an imu packet message into a ROS imu message
  * @param[in] imu_packet the raw IMU packet populated by read_imu_packet
  * @param[in] timestamp the timestamp to give the resulting ROS message

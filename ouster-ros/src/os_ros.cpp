@@ -50,6 +50,15 @@ size_t get_beams_count(const SensorInfo& info) {
     return info.beam_azimuth_angles.size();
 }
 
+rclcpp::QoS packet_qos(bool use_system_default_qos) {
+    // large enough to hold a full scan's worth of packets so a brief
+    // stall servicing the subscription callback doesn't drop packets
+    constexpr size_t packet_queue_depth = 1024;
+    if (use_system_default_qos)
+        return rclcpp::QoS(rclcpp::KeepLast(packet_queue_depth)).reliable();
+    return rclcpp::SensorDataQoS().keep_last(packet_queue_depth);
+}
+
 std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }
