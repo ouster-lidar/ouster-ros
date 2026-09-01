@@ -8,7 +8,6 @@ project(ouster_ros)
 
 # ==== Requirements ====
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_target_dependencies REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(class_loader REQUIRED)
@@ -29,6 +28,27 @@ find_package(OpenCV REQUIRED)
 if(NOT OpenCV_LIBS)
   set(OpenCV_LIBS ${OpenCV_LIBRARIES})
 endif()
+
+# ament_target_dependencies() lives in the ament_cmake_target_dependencies
+# extension, which newer ament_cmake releases (e.g. Rolling/Lyrical) no
+# longer provide the macro from, even when the package can still be found.
+# Use it where available and fall back to linking each dependency's own
+# modern exported CMake target otherwise, so distros that still ship it
+# (Humble/Jazzy/Kilted) behave exactly as before.
+function(ouster_ros_target_link_dependencies target)
+  if(COMMAND ament_target_dependencies)
+    ament_target_dependencies(${target} ${ARGN})
+  else()
+    foreach(dep ${ARGN})
+      if(DEFINED ${dep}_TARGETS)
+        target_link_libraries(${target} ${${dep}_TARGETS})
+      else()
+        target_link_libraries(${target} ${${dep}_LIBRARIES})
+        target_include_directories(${target} PUBLIC ${${dep}_INCLUDE_DIRS})
+      endif()
+    endforeach()
+  endif()
+endfunction()
 
 # ==== Options ====
 if(MSVC)
@@ -98,7 +118,7 @@ set(ouster_ros_library_deps
   tf2_eigen
 )
 
-ament_target_dependencies(ouster_ros_library
+ouster_ros_target_link_dependencies(ouster_ros_library
   ${ouster_ros_library_deps}
 )
 
@@ -126,7 +146,7 @@ function(create_ros2_component
       "OUSTER_ROS_BUILDING_DLL"
   )
 
-  ament_target_dependencies(${component_lib_name}
+  ouster_ros_target_link_dependencies(${component_lib_name}
     rclcpp
     class_loader
     rclcpp_components
@@ -218,7 +238,7 @@ if(BUILD_TESTING)
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
   )
-  ament_target_dependencies(${PROJECT_NAME}_test
+  ouster_ros_target_link_dependencies(${PROJECT_NAME}_test
     rclcpp
     ouster_sensor_msgs
   )
