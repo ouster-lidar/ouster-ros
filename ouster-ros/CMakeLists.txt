@@ -238,16 +238,21 @@ if(BUILD_TESTING)
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
   )
-  ouster_ros_target_link_dependencies(${PROJECT_NAME}_test
-    rclcpp
-    ouster_sensor_msgs
-  )
-  target_include_directories(${PROJECT_NAME}_test PUBLIC
-    ${_ouster_ros_INCLUDE_DIRS}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-  target_link_libraries(${PROJECT_NAME}_test ouster_ros_library)
+  # ament_add_gtest() silently skips creating the target (with just a
+  # warning) when gtest itself isn't available on the system, even though
+  # find_package(ament_cmake_gtest) above already succeeded.
+  if(TARGET ${PROJECT_NAME}_test)
+    ouster_ros_target_link_dependencies(${PROJECT_NAME}_test
+      rclcpp
+      ouster_sensor_msgs
+    )
+    target_include_directories(${PROJECT_NAME}_test PUBLIC
+      ${_ouster_ros_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    )
+    target_link_libraries(${PROJECT_NAME}_test ouster_ros_library)
+  endif()
 endif()
 
 
