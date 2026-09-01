@@ -54,6 +54,12 @@ size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
  */
 std::string topic_for_return(const std::string& topic_base, int return_idx);
 
+/** Computes lidar packet count per LidarScan (per column_azimuth)
+ * @param[in] info sensor_info
+ * @return number of raw packets required to hold a LidarScan
+*/
+size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info);
+
 /**
  * Parse an imu packet message into a ROS imu message
  * @param[in] imu_packet the raw IMU packet populated by read_imu_packet

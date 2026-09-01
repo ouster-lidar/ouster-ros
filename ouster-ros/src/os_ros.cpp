@@ -50,6 +50,11 @@ size_t get_beams_count(const SensorInfo& info) {
     return info.beam_azimuth_angles.size();
 }
 
+size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info) {
+    auto lidar_packets_per_frame = info.format.lidar_packets_per_frame();
+    return lidar_packets_per_frame > 0 ? lidar_packets_per_frame : 10;
+}
+
 std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }

@@ -1,7 +1,7 @@
 # Official ROS driver for Ouster sensors
 
 [ROS1 (melodic/noetic)](https://github.com/ouster-lidar/ouster-ros/tree/master) |
-[ROS2 (rolling/humble/iron/jazzy/kilted)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
+[ROS2 (rolling/humble/jazzy/kilted/lyrical)](https://github.com/ouster-lidar/ouster-ros/tree/ros2) |
 [ROS2 (galactic/foxy)](https://github.com/ouster-lidar/ouster-ros/tree/ros2-foxy)
 
 <p style="float: right;"><img width="20%" src="docs/images/logo.png" /></p>
@@ -9,7 +9,7 @@
 | ROS Version | Build Status (Linux) |
 |:-----------:|:------:|
 | ROS1 (melodic/noetic) | [![melodic/noetic](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
-| ROS2 (rolling/humble/iron/jazzy/kilted) | [![rolling/humble/iron/jazzy/kilted](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
+| ROS2 (rolling/humble/jazzy/kilted/lyrical) | [![rolling/humble/jazzy/kilted/lyrical](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 | ROS2 (galactic/foxy) | [![galactic/foxy](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml/badge.svg?branch=ros2-foxy)](https://github.com/ouster-lidar/ouster-ros/actions/workflows/docker-image.yml)
 
 - [Official ROS driver for Ouster sensors](#official-ros-driver-for-ouster-sensors)
@@ -59,7 +59,7 @@ You can obtain detailed specs sheet about the sensors and obtain updated FW thro
 [downloads](https://ouster.com/downloads) section.
 
 ## Requirements
-This branch is only intended for use with **Rolling**, **Humble**, **Iron**,  **Jazzy** and **Kilted**
+This branch is only intended for use with **Rolling**, **Humble**,  **Jazzy**,  **Kilted** and **Lyrical**
 ROS 2 distros. Please refer to ROS 2 online documentation on how to setup ROS on your machine before
 proceeding with the remainder of this guide.
 
@@ -79,7 +79,7 @@ sudo apt install -y             \
     ros-$ROS_DISTRO-tf2-eigen   \
     ros-$ROS_DISTRO-rviz2
 ```
-where `$ROS_DISTRO` can be either ``rolling``, ``humble``, ``iron``, ``jazzy`` or ``kilted``.
+where `$ROS_DISTRO` can be either ``rolling``, ``humble``, ``jazzy``, ``kilted`` or ``lyrical``.
 
 > **Note**  
 > Installing `ros-$ROS_DISTRO-rviz` package is optional in case you didn't need to visualize the
@@ -120,7 +120,7 @@ The simplest way to install the driver is directly from the ROS package index us
 sudo apt install ros-${ROS_DISTRO}-ouster-ros
 ```
 
-where `${ROS_DISTRO}` is one of ``rolling``, ``humble``, ``iron``, ``jazzy`` or ``kilted``.
+where `${ROS_DISTRO}` is one of ``rolling``, ``humble``, ``jazzy``, ``kilted`` or ``lyrical``.
 
 > **Note**
 > There may be a delay of a few weeks between a new release on the
@@ -141,7 +141,7 @@ git clone -b ros2 --recurse-submodules https://github.com/ouster-lidar/ouster-ro
 
 Next to compile the driver you need to source the ROS environemt into the active termainl:
 ```bash
-source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'rolling', 'humble', 'iron', 'jazzy' or `kilted`
+source /opt/ros/<ros-distro>/setup.bash # replace ros-distro with 'rolling', 'humble', 'jazzy', `kilted` or `lyrical`.
 ```
 
 Finally, invoke `colcon build` command from within the catkin workspace as shown below:

@@ -2,8 +2,9 @@
 Changelog
 =========
 
-[UNRELEASED]
-============
+ouster_ros v0.15.2
+==================
+* [BUGFIX] fix improper scaling of mask image when row step is not 1.
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 * Add launch file, driver params, and os_sensor_node support for additional sensor configuration
@@ -21,6 +22,9 @@ Changelog
   - ``pcl::XYZRGB``
   - ``pcl::XYZRGBA``
   - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
+* Enable tone mapping for RGB images.
+* Override the QoS Depth for packet topic whether when using System Defaults or not.
+* Enable building the driver for ROS2 Lyrical distro.
 
 ouster_ros v0.14.0
 ==================
