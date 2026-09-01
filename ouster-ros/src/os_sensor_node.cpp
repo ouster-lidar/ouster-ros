@@ -1030,10 +1030,7 @@ void OusterSensor::create_services() {
 void OusterSensor::create_publishers() {
     bool use_system_default_qos =
         get_parameter("use_system_default_qos").as_bool();
-    rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
-    rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
-    auto selected_qos =
-        use_system_default_qos ? system_default_qos : sensor_data_qos;
+    auto selected_qos = packet_qos(use_system_default_qos);
     lidar_packet_pub =
         create_publisher<PacketMsg>("lidar_packets", selected_qos);
     imu_packet_pub = create_publisher<PacketMsg>("imu_packets", selected_qos);

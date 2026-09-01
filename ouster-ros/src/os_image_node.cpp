@@ -73,6 +73,7 @@ class OusterImage : public OusterProcessingNodeBase {
         rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
         auto selected_qos =
             use_system_default_qos ? system_default_qos : sensor_data_qos;
+        auto packet_sub_qos = packet_qos(use_system_default_qos);
 
         const std::map<std::string, std::string>
             channel_field_topic_map_1 {
@@ -125,7 +126,7 @@ class OusterImage : public OusterProcessingNodeBase {
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
             min_scan_valid_columns_ratio);
         lidar_packet_sub = create_subscription<PacketMsg>(
-                "lidar_packets", selected_qos,
+                "lidar_packets", packet_sub_qos,
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     if (lidar_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
