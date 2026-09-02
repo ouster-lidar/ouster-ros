@@ -134,9 +134,13 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
     int w = static_cast<int>(ls.w);
 
     for (auto u = 0; u < h; u += rows_step) {
+        const auto row_shift = pixel_shift_by_row[u];
         for (auto v = 0; v < w; ++v) {   // TODO[UN]: consider cols_step in future
+            // equivalent to (v + w - row_shift) % w, but avoids a division
+            // per pixel since v and row_shift are both already in [0, w)
             const auto v_shift =
-                destagger ? (v + w - pixel_shift_by_row[u]) % w : v;
+                destagger ? (v >= row_shift ? v - row_shift : v + w - row_shift)
+                          : v;
             const auto src_idx = u * w + v_shift;
             const auto xyz = points.row(src_idx);
             const auto tgt_idx =
