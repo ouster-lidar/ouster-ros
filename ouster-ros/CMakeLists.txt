@@ -111,11 +111,22 @@ set(_ouster_ros_INCLUDE_DIRS
 set(_SAVE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
 
-option(BUILD_VIZ "Turn off building VIZ" OFF)
-option(BUILD_PCAP "Turn off building PCAP" OFF)
-option(BUILD_OSF "Turn off building OSF" OFF)
-option(BUILD_MAPPING "Turn off building MAPPING" OFF)
+option(BUILD_VIZ "Build SDK visualizer" OFF)
+option(BUILD_PCAP "Build PCAP replay support" OFF)
+option(BUILD_OSF "Build SDK OSF support" OFF)
+option(BUILD_MAPPING "Build SDK mapping support" OFF)
 find_package(OusterSDK REQUIRED)
+
+# Keep warnings enabled for the ROS wrapper while suppressing known warnings
+# from vendored SDK sources.
+foreach(_sdk_target ouster_client ouster_sensor ouster_pcap ouster_osf ouster_viz)
+  if(TARGET ${_sdk_target} AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${_sdk_target} PRIVATE
+      -Wno-pedantic
+      -Wno-deprecated-declarations
+    )
+  endif()
+endforeach()
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
 
