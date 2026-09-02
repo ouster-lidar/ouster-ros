@@ -246,7 +246,7 @@ rclcpp_components_register_node(os_image_component
 # ==== os_driver_component ====
 create_ros2_component(os_driver_component
   "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp"
-  "std_srvs;lifecycle_msgs"
+  "std_srvs;lifecycle_msgs;tf2_ros"
 )
 rclcpp_components_register_node(os_driver_component
   PLUGIN "ouster_ros::OusterDriver"
