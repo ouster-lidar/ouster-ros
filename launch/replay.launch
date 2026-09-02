@@ -90,6 +90,9 @@
   <arg name="mask_path" default=""
     doc="path to an image file that will be used to mask parts of the pointcloud"/>
 
+  <arg name="filter_rules_file" default=""
+    doc="optional YAML file containing point filter rules; empty disables filtering"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_nodelet_mgr"
       output="screen" required="true" args="manager"/>
@@ -133,6 +136,7 @@
     <arg name="mask_path" value="$(arg mask_path)"/>
     <arg name="min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
+    <arg name="filter_rules_file" value="$(arg filter_rules_file)"/>
   </include>
 
   <arg name="_use_bag_file_name" value="$(eval not (bag_file == ''))"/>

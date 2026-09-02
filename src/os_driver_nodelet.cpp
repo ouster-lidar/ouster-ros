@@ -17,6 +17,8 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <memory>
+
 #include "os_sensor_nodelet.h"
 #include "os_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
@@ -25,6 +27,7 @@
 #include "laser_scan_processor.h"
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "sparse_neighbor_culling_config.h"
 #include "telemetry_handler.h"
 
 using ouster::sdk::core::ImuPacket;
@@ -135,6 +138,9 @@ class OusterDriver : public OusterSensor {
 
         std::vector<LidarScanProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
+            sparse_culling_filter =
+                std::make_unique<SparseNeighborCullingFilter>(
+                    sparse_culling_config::load_config(pnh));
             auto point_type = pnh.param("point_type", std::string{"original"});
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);
@@ -167,8 +173,10 @@ class OusterDriver : public OusterSensor {
                     tf_bcast.apply_lidar_to_sensor_transform(), organized,
                     destagger, min_range, max_range, v_reduction, mask_path,
                     [this](PointCloudProcessor_OutputType msgs) {
-                        for (size_t i = 0; i < msgs.size(); ++i)
+                        for (size_t i = 0; i < msgs.size(); ++i) {
+                            sparse_culling_filter->filter(*msgs[i]);
                             lidar_pubs[i].publish(*msgs[i]);
+                        }
                     }));
 
             // warn about profile incompatibility
@@ -265,6 +273,7 @@ class OusterDriver : public OusterSensor {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+    std::unique_ptr<SparseNeighborCullingFilter> sparse_culling_filter;
 
     bool publish_raw = false;
 
