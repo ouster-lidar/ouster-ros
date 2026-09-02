@@ -62,6 +62,8 @@
 
   <arg name="mask_path" doc="path to an image file that will be used to mask parts of the pointcloud"/>
 
+  <arg name="filter_rules_file"/>
+
   <group ns="$(arg ouster_ns)">
     <node pkg="nodelet" type="nodelet" name="os_cloud_node"
       output="screen" required="true"
@@ -89,6 +91,9 @@
       <param name="~/mask_path" value="$(arg mask_path)"/>
       <param name="~/min_scan_valid_columns_ratio"
         value="$(arg min_scan_valid_columns_ratio)"/>
+      <rosparam command="load" file="$(arg filter_rules_file)"
+        param="point_filter_config"
+        if="$(eval arg('filter_rules_file') != '')"/>
     </node>
   </group>
 

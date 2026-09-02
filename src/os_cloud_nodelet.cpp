@@ -20,6 +20,8 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <memory>
+
 #include "ouster_ros/PacketMsg.h"
 #include "os_transforms_broadcaster.h"
 #include "imu_packet_handler.h"
@@ -27,6 +29,7 @@
 #include "point_cloud_processor.h"
 #include "laser_scan_processor.h"
 #include "point_cloud_processor_factory.h"
+#include "sparse_neighbor_culling_config.h"
 #include "telemetry_handler.h"
 
 namespace ouster_ros {
@@ -196,6 +199,9 @@ class OusterCloud : public nodelet::Nodelet {
         std::vector<LidarScanProcessor> processors;
 
         if (impl::check_token(tokens, "PCL")) {
+            sparse_culling_filter =
+                std::make_unique<SparseNeighborCullingFilter>(
+                    sparse_culling_config::load_config(pnh));
             auto point_type = pnh.param("point_type", std::string{"original"});
             auto organized = pnh.param("organized", true);
             auto destagger = pnh.param("destagger", true);
@@ -232,6 +238,7 @@ class OusterCloud : public nodelet::Nodelet {
                         for (size_t i = 0; i < msgs.size(); ++i) {
                             if (msgs[i]->header.stamp > last_msg_ts)
                                 last_msg_ts = msgs[i]->header.stamp;
+                            sparse_culling_filter->filter(*msgs[i]);
                             lidar_pubs[i].publish(*msgs[i]);
                         }
                     }));
@@ -302,6 +309,7 @@ class OusterCloud : public nodelet::Nodelet {
 
     ImuPacketHandler::HandlerType imu_packet_handler;
     LidarPacketHandler::HandlerType lidar_packet_handler;
+    std::unique_ptr<SparseNeighborCullingFilter> sparse_culling_filter;
 
     ros::Timer timer_;
     ros::Time last_msg_ts;

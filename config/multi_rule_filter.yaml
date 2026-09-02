@@ -1,0 +1,28 @@
+# HOW TO USE:
+# - Give each rule a unique name under filter_rules.
+# - range_m is [minimum inclusive, maximum exclusive].
+# - culling must be direct or sparse.
+# - Use exactly one condition list: any (OR) or all (AND).
+# - Conditions allow only reflectivity or signal with <, <=, >, >=, ==, !=.
+# - Sparse rules require min_neighbors, kernel [height, width],
+#   and neighbor_distance_m.
+# - Thresholds are raw sensor values, not percentages.
+# - Unknown or misspelled settings stop the node with an error.
+
+filter_rules:
+  condition_A:
+    range_m: [0.0, 2.0]
+    culling: direct
+    any:
+      - "reflectivity < 2"
+      - "reflectivity > 100"
+
+  condition_B:
+    range_m: [2.0, 25.0]
+    culling: sparse
+    all:
+      - "reflectivity < 2"
+      - "signal < 150"
+    min_neighbors: 6
+    kernel: [3, 3]
+    neighbor_distance_m: 0.05
