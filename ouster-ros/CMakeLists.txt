@@ -236,11 +236,21 @@ rclcpp_components_register_node(os_cloud_component
 # ==== os_image_component ====
 create_ros2_component(os_image_component
   "src/os_processing_node_base.cpp;src/os_image_node.cpp"
-  ""
+  "tf2;tf2_ros"
 )
 rclcpp_components_register_node(os_image_component
   PLUGIN "ouster_ros::OusterImage"
   EXECUTABLE os_image
+)
+
+# ==== os_pinhole_component ====
+create_ros2_component(os_pinhole_component
+  "src/os_processing_node_base.cpp;src/os_pinhole_node.cpp"
+  "tf2;tf2_ros"
+)
+rclcpp_components_register_node(os_pinhole_component
+  PLUGIN "ouster_ros::OusterPinhole"
+  EXECUTABLE os_pinhole
 )
 
 # ==== os_driver_component ====
@@ -282,6 +292,8 @@ if(BUILD_TESTING)
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
+    test/panorama_camera_info_test.cpp
+    test/pinhole_processor_test.cpp
   )
   if(TARGET ${PROJECT_NAME}_test)
     target_include_directories(${PROJECT_NAME}_test PRIVATE
@@ -303,6 +315,7 @@ set(OUSTER_INSTALL_TARGETS
   os_replay_component
   os_cloud_component
   os_image_component
+  os_pinhole_component
   os_driver_component
 )
 if (BUILD_PCAP)

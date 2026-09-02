@@ -28,6 +28,7 @@
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
         - [PCAP Replay Mode](#pcap-replay-mode)
+      - [Pinhole Panels](#pinhole-panels)
       - [Multicast Mode (experimental)](#multicast-mode-experimental)
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
@@ -239,6 +240,17 @@ ros2 launch ouster_ros replay_pcap.launch.xml   \
     pcap_file:=<path to ouster pcap file>       \
     metadata:=<json file name>              # required
 ```
+
+#### Pinhole Panels
+
+With a sensor or replay already publishing `metadata` and `lidar_packets`, run:
+
+```bash
+ros2 launch ouster_ros pinhole.launch.py
+```
+
+The default parameters publish four cardinal panels. Panel range images retain
+the driver's 4 mm radial-range encoding; they are not optical-axis depth images.
 
 #### Multicast Mode (experimental)
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
