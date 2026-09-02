@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.14.0)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake)
 include(DefaultBuildType)
@@ -12,15 +12,16 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(class_loader REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -29,25 +30,53 @@ if(NOT OpenCV_LIBS)
   set(OpenCV_LIBS ${OpenCV_LIBRARIES})
 endif()
 
-# ament_target_dependencies() lives in the ament_cmake_target_dependencies
-# extension, which newer ament_cmake releases (e.g. Rolling/Lyrical) no
-# longer provide the macro from, even when the package can still be found.
-# Use it where available and fall back to linking each dependency's own
-# modern exported CMake target otherwise, so distros that still ship it
-# (Humble/Jazzy/Kilted) behave exactly as before.
-function(ouster_ros_target_link_dependencies target)
-  if(COMMAND ament_target_dependencies)
-    ament_target_dependencies(${target} ${ARGN})
-  else()
-    foreach(dep ${ARGN})
-      if(DEFINED ${dep}_TARGETS)
-        target_link_libraries(${target} ${${dep}_TARGETS})
-      else()
-        target_link_libraries(${target} ${${dep}_LIBRARIES})
-        target_include_directories(${target} PUBLIC ${${dep}_INCLUDE_DIRS})
+# Prefer exported targets, while preserving ament's legacy dependency handling
+# on older ROS 2 distributions.
+function(_ouster_link_ament_deps target visibility)
+  foreach(_pkg IN LISTS ARGN)
+    if(TARGET ${_pkg}::${_pkg})
+      target_link_libraries(${target} ${visibility} ${_pkg}::${_pkg})
+      continue()
+    endif()
+
+    set(_ouster_pkg_targets "")
+    foreach(_candidate IN LISTS ${_pkg}_TARGETS ${_pkg}_INTERFACES)
+      if(TARGET ${_candidate})
+        list(APPEND _ouster_pkg_targets ${_candidate})
       endif()
     endforeach()
-  endif()
+    if(_ouster_pkg_targets)
+      target_link_libraries(${target} ${visibility} ${_ouster_pkg_targets})
+    elseif(COMMAND ament_target_dependencies)
+      ament_target_dependencies(${target} ${visibility} ${_pkg})
+    elseif(DEFINED ${_pkg}_INCLUDE_DIRS OR
+           DEFINED ${_pkg}_LIBRARIES OR
+           DEFINED ${_pkg}_DEFINITIONS OR
+           DEFINED ${_pkg}_LIBRARY_DIRS OR
+           DEFINED ${_pkg}_LINK_FLAGS)
+      if(${_pkg}_DEFINITIONS)
+        target_compile_definitions(${target} ${visibility}
+          ${${_pkg}_DEFINITIONS})
+      endif()
+      if(${_pkg}_INCLUDE_DIRS)
+        target_include_directories(${target} SYSTEM ${visibility}
+          ${${_pkg}_INCLUDE_DIRS})
+      endif()
+      if(${_pkg}_LIBRARY_DIRS)
+        target_link_directories(${target} ${visibility}
+          ${${_pkg}_LIBRARY_DIRS})
+      endif()
+      if(${_pkg}_LIBRARIES)
+        target_link_libraries(${target} ${visibility} ${${_pkg}_LIBRARIES})
+      endif()
+      if(${_pkg}_LINK_FLAGS)
+        target_link_options(${target} ${visibility} ${${_pkg}_LINK_FLAGS})
+      endif()
+    else()
+      message(FATAL_ERROR
+        "No CMake linkage metadata found for dependency '${_pkg}'")
+    endif()
+  endforeach()
 endfunction()
 
 # ==== Options ====
@@ -118,18 +147,19 @@ set(ouster_ros_library_deps
   tf2_eigen
 )
 
-ouster_ros_target_link_dependencies(ouster_ros_library
+_ouster_link_ament_deps(ouster_ros_library PUBLIC
   ${ouster_ros_library_deps}
 )
 
 target_link_libraries(ouster_ros_library
-  # PUBLIC (unsupported)
+  PUBLIC
     ouster_build
     OusterSDK::ouster_sensor
     pcl_common
-  # PRIVATE (unsupported)
-  ${OUSTER_TARGET_LINKS}
-  ${OpenCV_LIBS}
+    # Installed os_ros.h templates call OpenCV.
+    ${OpenCV_LIBS}
+  PRIVATE
+    ${OUSTER_TARGET_LINKS}
 )
 
 # helper method to construct ouster-ros components
@@ -146,7 +176,7 @@ function(create_ros2_component
       "OUSTER_ROS_BUILDING_DLL"
   )
 
-  ouster_ros_target_link_dependencies(${component_lib_name}
+  _ouster_link_ament_deps(${component_lib_name} PUBLIC
     rclcpp
     class_loader
     rclcpp_components
@@ -158,7 +188,8 @@ function(create_ros2_component
   )
 
   target_link_libraries(${component_lib_name}
-    ouster_ros_library
+    PUBLIC
+      ouster_ros_library
   )
 
 endfunction()
@@ -167,7 +198,7 @@ endfunction()
 # ==== os_sensor_component ====
 create_ros2_component(os_sensor_component
   "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp"
-  "std_srvs"
+  "std_srvs;lifecycle_msgs"
 )
 rclcpp_components_register_node(os_sensor_component
   PLUGIN "ouster_ros::OusterSensor"
@@ -177,7 +208,7 @@ rclcpp_components_register_node(os_sensor_component
 # ==== os_replay_component ====
 create_ros2_component(os_replay_component
   "src/os_sensor_node_base.cpp;src/os_replay_node.cpp"
-  ""
+  "lifecycle_msgs"
 )
 rclcpp_components_register_node(os_replay_component
   PLUGIN "ouster_ros::OusterReplay"
@@ -207,7 +238,7 @@ rclcpp_components_register_node(os_image_component
 # ==== os_driver_component ====
 create_ros2_component(os_driver_component
   "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp"
-  "std_srvs"
+  "std_srvs;lifecycle_msgs"
 )
 rclcpp_components_register_node(os_driver_component
   PLUGIN "ouster_ros::OusterDriver"
@@ -306,8 +337,14 @@ install(
     share/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include) 
-ament_export_dependencies(rosidl_default_runtime)
+ament_export_include_directories(include)
 ament_export_libraries(ouster_ros_library)
-ament_export_dependencies(${ouster_ros_library_deps})
+ament_export_dependencies(
+  ${ouster_ros_library_deps}
+  rclcpp_lifecycle
+  lifecycle_msgs
+  Eigen3
+  PCL
+  OpenCV
+)
 ament_package()
