@@ -139,9 +139,6 @@ include_directories(
 add_compile_definitions(EIGEN_MPL2_ONLY)
 
 set(OUSTER_TARGET_LINKS ouster_client)
-if (BUILD_PCAP)
-  list(APPEND OUSTER_TARGET_LINKS ouster_pcap)
-endif()
 
 add_library(ouster_ros_library SHARED
   src/impl/file_util.cpp
@@ -261,8 +258,10 @@ if (BUILD_PCAP)
 # ==== os_pcap_component ====
 create_ros2_component(os_pcap_component
   "src/os_sensor_node_base.cpp;src/os_pcap_node.cpp"
-  ""
+  "lifecycle_msgs"
 )
+# os_pcap_node.cpp calls PcapReader directly.
+target_link_libraries(os_pcap_component PRIVATE OusterSDK::ouster_pcap)
 rclcpp_components_register_node(os_pcap_component
   PLUGIN "ouster_ros::OusterPcap"
   EXECUTABLE os_pcap
@@ -271,30 +270,29 @@ endif()
 
 # ==== Test ====
 if(BUILD_TESTING)
+  # OusterSDK's FindGTest can prevent ament_add_gtest from creating the target.
+  # Use CMake's finder here, then restore the module path.
+  set(_ouster_ros_saved_cmake_module_path "${CMAKE_MODULE_PATH}")
+  list(REMOVE_ITEM CMAKE_MODULE_PATH
+    "${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake")
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
-    src/os_ros.cpp
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
   )
-  # ament_add_gtest() silently skips creating the target (with just a
-  # warning) when gtest itself isn't available on the system, even though
-  # find_package(ament_cmake_gtest) above already succeeded.
   if(TARGET ${PROJECT_NAME}_test)
-    ouster_ros_target_link_dependencies(${PROJECT_NAME}_test
-      rclcpp
-      ouster_sensor_msgs
-    )
-    target_include_directories(${PROJECT_NAME}_test PUBLIC
+    target_include_directories(${PROJECT_NAME}_test PRIVATE
       ${_ouster_ros_INCLUDE_DIRS}
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
     )
-    target_link_libraries(${PROJECT_NAME}_test ouster_ros_library)
+    # Avoid mixing the plain and keyword link signatures used across distros.
+    set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
+      LINK_LIBRARIES ouster_ros_library)
   endif()
+  set(CMAKE_MODULE_PATH "${_ouster_ros_saved_cmake_module_path}")
 endif()
 
 
