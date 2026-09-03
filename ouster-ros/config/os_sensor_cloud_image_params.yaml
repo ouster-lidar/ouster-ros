@@ -63,8 +63,12 @@ ouster/os_pinhole:
     panel_pitches_deg: [0.0] # one value is broadcast to every panel
     panel_hfovs_deg: [90.0]
     panel_widths: [256]
-    panel_heights: [0] # 0 = derive height from the lidar vertical field of view
-    panel_vfovs_deg: [0.0] # 0 = derive from metadata beam altitude angles
+    panel_heights: [0] # 0 = derive height from VFOV with square pixels
+    panel_vfovs_deg: [0.0] # with auto height, 0 = fit metadata beam angles;
+                            # with fixed height, 0 = keep square pixels
+    crop_to_valid_region: true # crop unsupported outer pixels; CameraInfo ROI
+                               # records the exact crop in full-panel coordinates
     parent_frame: os_lidar
     optical_frame_template: '{ns}/panels/{name}_optical_frame'
-    azimuth_offset_deg: 0.0
+    azimuth_offset_deg: 0.0 # destaggered column-zero azimuth in parent_frame;
+                            # leave zero for the native lidar frame

@@ -3,11 +3,13 @@
 
 /**
  * @file pinhole_processor.h
- * @brief Resamples destaggered lidar images into pinhole panels.
+ * @brief Resamples destaggered lidar images into calibrated pinhole panels.
  *
  * range_image retains os_image's radial-range encoding: uint16 with 4 mm per
  * increment. depth_image is calibrated optical-axis depth in metres (32FC1)
- * for standard ROS depth consumers.
+ * for standard ROS depth consumers. When requested, unsupported outer pixels
+ * are physically cropped and CameraInfo.roi records that crop in full-panel
+ * coordinates.
  */
 
 #pragma once
@@ -56,8 +58,9 @@ class PinholeProcessor {
         double pitch_rad = 0.0;     // up positive (about panel-yawed +Y)
         double hfov_rad = M_PI / 2.0;
         uint32_t width = 256;
-        uint32_t height = 0;        // 0: auto-fit lidar VFOV at square pixels
-        double vfov_rad = 0.0;      // used when height is zero
+        uint32_t height = 0;        // 0: auto-fit VFOV at square pixels
+        double vfov_rad = 0.0;      // 0: derive/retain square pixels
+        bool crop_to_valid_region = true;
     };
 
     using pixel_type = uint16_t;
@@ -74,11 +77,16 @@ class PinholeProcessor {
         std::map<std::string, std::shared_ptr<sensor_msgs::msg::Image>>
             depth_images;
         sensor_msgs::msg::CameraInfo camera_info;
-        // LUT in destaggered space:
-        //   r_src(u, v) = source row (-1 means outside lidar VFOV)
+        // LUT in source space. Its dimensions match the emitted (possibly
+        // cropped) images, while CameraInfo.roi maps its pixels back into the
+        // configured full-panel coordinates:
+        //   r_src(u, v) = source row (-1 means unsupported)
         //   v_src(u, v) = source destaggered column
+        //   raw_v_src(u, v) = source staggered/raw column
         Eigen::Array<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> r_src;
         Eigen::Array<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> v_src;
+        Eigen::Array<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
+            raw_v_src;
         // depth = raw_range * depth_scale + depth_offset, in metres.
         Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
             depth_scale;
@@ -96,14 +104,17 @@ class PinholeProcessor {
                      double azimuth_offset_columns,
                      PostProcessingFn func)
         : info_(info),
-          azimuth_offset_columns_(0.0),
+          azimuth_offset_rad_(0.0),
           post_processing_fn_(func) {
         if (panel_configs.empty()) {
             throw std::invalid_argument("at least one panel is required");
         }
         const auto xyz_lut = make_lidar_xyz_lut(info_);
-        azimuth_offset_columns_ = normalize_columns(
+        const double normalized_offset_columns = normalize_columns(
             azimuth_offset_columns, info_.format.columns_per_frame);
+        azimuth_offset_rad_ =
+            normalized_offset_columns * 2.0 * M_PI /
+            static_cast<double>(info_.format.columns_per_frame);
         std::string ns = lidar_namespace;
         while (!ns.empty() && ns.front() == '/') ns.erase(0, 1);
 
@@ -195,13 +206,13 @@ class PinholeProcessor {
         if (!std::isfinite(fx) || fx <= 0.0) {
             throw std::invalid_argument("panel focal length out of range");
         }
-        const double fy = fx;  // square pixels
+        double fy = fx;
 
         uint32_t ph = cfg.height;
         if (ph == 0) {
             const double vfov_rad = (cfg.vfov_rad > 0.0)
                 ? cfg.vfov_rad
-                : derive_lidar_vfov_rad();
+                : derive_lidar_vfov_rad(cfg.pitch_rad);
             double ph_d = std::round(2.0 * fy * std::tan(0.5 * vfov_rad));
             if (!std::isfinite(ph_d) || ph_d < 1.0) ph_d = 1.0;
             const uint64_t max_height = std::min<uint64_t>(
@@ -210,6 +221,16 @@ class PinholeProcessor {
                 ph_d = static_cast<double>(max_height);
             }
             ph = static_cast<uint32_t>(ph_d);
+        } else if (cfg.vfov_rad > 0.0) {
+            // Supplying both dimensions and both fields of view defines a
+            // fully independent vertical focal length. Leave vfov at zero to
+            // request square pixels instead.
+            fy = static_cast<double>(ph) /
+                 (2.0 * std::tan(0.5 * cfg.vfov_rad));
+            if (!std::isfinite(fy) || fy <= 0.0) {
+                throw std::invalid_argument(
+                    "panel vertical focal length out of range");
+            }
         }
 
         const uint64_t panel_pixels = static_cast<uint64_t>(pw) * ph;
@@ -221,8 +242,12 @@ class PinholeProcessor {
         }
         total_panel_pixels += panel_pixels;
 
-        const double cx = static_cast<double>(pw) / 2.0;
-        const double cy = static_cast<double>(ph) / 2.0;
+        // OpenCV/ROS pixel coordinates address pixel centres at integer
+        // coordinates. Put the principal point at the centre of that grid;
+        // for an even dimension it therefore lies between the two middle
+        // pixels. The configured FOV continues to span the outer pixel edges.
+        const double cx = 0.5 * static_cast<double>(pw - 1);
+        const double cy = 0.5 * static_cast<double>(ph - 1);
 
         out->camera_info.header.frame_id = out->optical_frame_id;
         out->camera_info.width = pw;
@@ -233,22 +258,23 @@ class PinholeProcessor {
         out->camera_info.r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
         out->camera_info.p = {fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0,
                               0.0, 0.0, 1.0, 0.0};
-        out->camera_info.roi.x_offset = 0;
-        out->camera_info.roi.y_offset = 0;
-        out->camera_info.roi.width = pw;
-        out->camera_info.roi.height = ph;
-        out->camera_info.roi.do_rectify = false;
+        compute_lut(*out, xyz_lut, fx, fy, cx, cy, pw, ph);
+        apply_valid_crop(*out, cfg.crop_to_valid_region, pw, ph);
+
+        const uint32_t output_width = out->camera_info.roi.width;
+        const uint32_t output_height = out->camera_info.roi.height;
 
         const auto channel_topic_map = channel_topic_map_for(info_.num_returns());
         for (const auto& kv : channel_topic_map) {
             auto img = std::make_shared<sensor_msgs::msg::Image>();
             img->header.frame_id = out->optical_frame_id;
-            img->width = pw;
-            img->height = ph;
+            img->width = output_width;
+            img->height = output_height;
             img->encoding = sensor_msgs::image_encodings::MONO16;
             img->is_bigendian = 0;
-            img->step = pw * sizeof(pixel_type);
-            img->data.assign(static_cast<size_t>(img->step) * ph, 0);
+            img->step = output_width * sizeof(pixel_type);
+            img->data.assign(static_cast<size_t>(img->step) * output_height,
+                             0);
             out->images[kv.first] = img;
         }
 
@@ -256,12 +282,12 @@ class PinholeProcessor {
         for (const auto& kv : depth_topic_map) {
             auto img = std::make_shared<sensor_msgs::msg::Image>();
             img->header.frame_id = out->optical_frame_id;
-            img->width = pw;
-            img->height = ph;
+            img->width = output_width;
+            img->height = output_height;
             img->encoding = sensor_msgs::image_encodings::TYPE_32FC1;
             img->is_bigendian = 0;
-            img->step = pw * sizeof(float);
-            img->data.resize(static_cast<size_t>(img->step) * ph);
+            img->step = output_width * sizeof(float);
+            img->data.resize(static_cast<size_t>(img->step) * output_height);
             const float invalid_depth =
                 std::numeric_limits<float>::quiet_NaN();
             for (size_t offset = 0; offset < img->data.size();
@@ -272,7 +298,6 @@ class PinholeProcessor {
             out->depth_images[kv.first] = img;
         }
 
-        compute_lut(*out, xyz_lut, fx, fy, cx, cy, pw, ph);
         return out;
     }
 
@@ -282,6 +307,7 @@ class PinholeProcessor {
                      uint32_t ph) const {
         out.r_src.resize(ph, pw);
         out.v_src.resize(ph, pw);
+        out.raw_v_src.resize(ph, pw);
         out.depth_scale.resize(ph, pw);
         out.depth_offset.resize(ph, pw);
 
@@ -289,8 +315,13 @@ class PinholeProcessor {
         const uint32_t H = info_.format.pixels_per_column;
         const uint32_t W = info_.format.columns_per_frame;
 
-        const double cosy = std::cos(out.yaw_rad);
-        const double siny = std::sin(out.yaw_rad);
+        // azimuth_offset_rad_ says where SDK/destaggered column zero points in
+        // the advertised parent frame. Convert the configured parent-frame
+        // panel yaw back into SDK lidar coordinates before selecting samples
+        // or projecting their optical-axis depth.
+        const double lidar_yaw = out.yaw_rad - azimuth_offset_rad_;
+        const double cosy = std::cos(lidar_yaw);
+        const double siny = std::sin(lidar_yaw);
         // Positive pitch tilts the panel's forward axis toward lidar +Z.
         const double cosp = std::cos(out.pitch_rad);
         const double sinp = std::sin(out.pitch_rad);
@@ -298,15 +329,30 @@ class PinholeProcessor {
         const double forward_y = siny * cosp;
         const double forward_z = sinp;
 
-        // Permit one beam spacing at the vertical field-of-view boundary.
-        double beam_spacing_deg = 0.0;
-        if (alts.size() >= 2) {
-            auto [min_it, max_it] =
-                std::minmax_element(alts.begin(), alts.end());
-            beam_spacing_deg = (*max_it - *min_it) /
-                               static_cast<double>(alts.size() - 1);
+        // A nearest-neighbour sample owns the angular cell extending halfway
+        // to its neighbour. Use the actual edge spacings rather than an
+        // average across potentially nonuniform beam altitude angles.
+        std::vector<double> sorted_alts(alts.begin(), alts.end());
+        std::sort(sorted_alts.begin(), sorted_alts.end());
+        const double min_alt = sorted_alts.front();
+        const double max_alt = sorted_alts.back();
+        double lower_half_spacing = 0.25;
+        double upper_half_spacing = 0.25;
+        for (size_t i = 1; i < sorted_alts.size(); ++i) {
+            if (sorted_alts[i] > min_alt) {
+                lower_half_spacing = 0.5 * (sorted_alts[i] - min_alt);
+                break;
+            }
         }
-        const double snap_tol_deg = std::max(beam_spacing_deg, 0.5);
+        for (size_t i = sorted_alts.size(); i > 1; --i) {
+            if (sorted_alts[i - 2] < max_alt) {
+                upper_half_spacing =
+                    0.5 * (max_alt - sorted_alts[i - 2]);
+                break;
+            }
+        }
+        const double min_supported_elev = min_alt - lower_half_spacing;
+        const double max_supported_elev = max_alt + upper_half_spacing;
 
         for (uint32_t u = 0; u < ph; ++u) {
             for (uint32_t v = 0; v < pw; ++v) {
@@ -341,26 +387,39 @@ class PinholeProcessor {
                         r_src = static_cast<int32_t>(r);
                     }
                 }
-                if (best_diff > snap_tol_deg) r_src = -1;
+                if (elev_deg < min_supported_elev ||
+                    elev_deg > max_supported_elev) {
+                    r_src = -1;
+                }
 
                 // Destaggered column index advances clockwise in lidar_frame:
                 // col = (column_zero_azimuth - azimuth) * W / (2*pi).
                 const double az_norm = normalize_radians(azimuth);
                 const double v_dest = normalize_columns(
-                    azimuth_offset_columns_ -
-                        az_norm * static_cast<double>(W) / (2.0 * M_PI),
-                    W);
+                    -az_norm * static_cast<double>(W) / (2.0 * M_PI), W);
                 // v_dest is in [0, W) but rounding can land exactly on W;
                 // wrap around the panorama seam instead of clamping to W-1.
                 const int32_t v_src = wrap_index(
                     std::lround(v_dest), static_cast<int32_t>(W));
 
-                const int32_t valid_r =
+                int32_t valid_r =
                     (r_src >= 0 && r_src < static_cast<int32_t>(H))
                         ? r_src
                         : -1;
-                out.r_src(u, v) = valid_r;
                 out.v_src(u, v) = v_src;
+
+                int32_t raw_v = -1;
+                if (valid_r >= 0) {
+                    raw_v = destaggered_to_raw_column(
+                        v_src, info_.format.pixel_shift_by_row[valid_r],
+                        static_cast<int32_t>(W));
+                    if (!raw_column_in_window(raw_v)) {
+                        valid_r = -1;
+                        raw_v = -1;
+                    }
+                }
+                out.r_src(u, v) = valid_r;
+                out.raw_v_src(u, v) = raw_v;
 
                 if (valid_r < 0) {
                     out.depth_scale(u, v) =
@@ -369,9 +428,6 @@ class PinholeProcessor {
                     continue;
                 }
 
-                const int32_t raw_v = destaggered_to_raw_column(
-                    v_src, info_.format.pixel_shift_by_row[valid_r],
-                    static_cast<int32_t>(W));
                 const Eigen::Index source_index =
                     static_cast<Eigen::Index>(valid_r) * W + raw_v;
                 out.depth_scale(u, v) = static_cast<float>(
@@ -386,11 +442,87 @@ class PinholeProcessor {
         }
     }
 
-    double derive_lidar_vfov_rad() const {
+    void apply_valid_crop(PanelOutput& out, bool crop_to_valid_region,
+                          uint32_t full_width, uint32_t full_height) const {
+        uint32_t min_u = full_height;
+        uint32_t min_v = full_width;
+        uint32_t max_u = 0;
+        uint32_t max_v = 0;
+        bool found_valid_pixel = false;
+        for (uint32_t u = 0; u < full_height; ++u) {
+            for (uint32_t v = 0; v < full_width; ++v) {
+                if (out.r_src(u, v) < 0) continue;
+                found_valid_pixel = true;
+                min_u = std::min(min_u, u);
+                min_v = std::min(min_v, v);
+                max_u = std::max(max_u, u);
+                max_v = std::max(max_v, v);
+            }
+        }
+        if (!found_valid_pixel && crop_to_valid_region) {
+            throw std::invalid_argument(
+                "panel '" + out.name +
+                "' frustum does not overlap the configured lidar data");
+        }
+
+        if (!crop_to_valid_region) {
+            min_u = 0;
+            min_v = 0;
+            max_u = full_height - 1;
+            max_v = full_width - 1;
+        }
+
+        const uint32_t output_height = max_u - min_u + 1;
+        const uint32_t output_width = max_v - min_v + 1;
+        out.camera_info.roi.x_offset = min_v;
+        out.camera_info.roi.y_offset = min_u;
+        out.camera_info.roi.width = output_width;
+        out.camera_info.roi.height = output_height;
+        // The generated image is already rectified. The ROI is a crop in that
+        // rectified full-panel coordinate system, so no separate rectified ROI
+        // needs to be calculated.
+        out.camera_info.roi.do_rectify = false;
+
+        if (min_u == 0 && min_v == 0 && output_height == full_height &&
+            output_width == full_width) {
+            return;
+        }
+
+        const Eigen::Index row = static_cast<Eigen::Index>(min_u);
+        const Eigen::Index col = static_cast<Eigen::Index>(min_v);
+        const Eigen::Index rows = static_cast<Eigen::Index>(output_height);
+        const Eigen::Index cols = static_cast<Eigen::Index>(output_width);
+        out.r_src = out.r_src.block(row, col, rows, cols).eval();
+        out.v_src = out.v_src.block(row, col, rows, cols).eval();
+        out.raw_v_src = out.raw_v_src.block(row, col, rows, cols).eval();
+        out.depth_scale = out.depth_scale.block(row, col, rows, cols).eval();
+        out.depth_offset = out.depth_offset.block(row, col, rows, cols).eval();
+    }
+
+    bool raw_column_in_window(int32_t column) const {
+        const auto& window = info_.format.column_window;
+        return window.first <= window.second
+                   ? column >= window.first && column <= window.second
+                   : column >= window.first || column <= window.second;
+    }
+
+    double derive_lidar_vfov_rad(double panel_pitch_rad) const {
         const auto& alts = info_.beam_altitude_angles;
         if (alts.size() < 2) return M_PI / 2.0;  // 90-degree fallback
         auto [min_it, max_it] = std::minmax_element(alts.begin(), alts.end());
-        return (*max_it - *min_it) * M_PI / 180.0;
+        const double min_elevation = *min_it * M_PI / 180.0;
+        const double max_elevation = *max_it * M_PI / 180.0;
+        const double normalized_pitch =
+            std::remainder(panel_pitch_rad, 2.0 * M_PI);
+        const double half_vfov = std::max(
+            std::abs(max_elevation - normalized_pitch),
+            std::abs(normalized_pitch - min_elevation));
+        if (!std::isfinite(half_vfov) || half_vfov <= 0.0 ||
+            half_vfov >= M_PI_2) {
+            throw std::invalid_argument(
+                "cannot auto-fit lidar VFOV around panel pitch");
+        }
+        return 2.0 * half_vfov;
     }
 
     static std::string substitute_template(const std::string& tmpl,
@@ -580,9 +712,7 @@ class PinholeProcessor {
                 float depth = invalid_depth;
                 const int32_t r = panel.r_src(u, v);
                 if (r >= 0) {
-                    const int32_t raw_v = destaggered_to_raw_column(
-                        panel.v_src(u, v),
-                        info_.format.pixel_shift_by_row[r], W);
+                    const int32_t raw_v = panel.raw_v_src(u, v);
                     const size_t source_index =
                         static_cast<size_t>(r) * W + raw_v;
                     const uint32_t range = ranges[source_index];
@@ -643,6 +773,13 @@ class PinholeProcessor {
             throw std::invalid_argument(
                 "pixel_shift_by_row must match lidar image height");
         }
+        const auto& column_window = info.format.column_window;
+        if (column_window.first < 0 || column_window.second < 0 ||
+            column_window.first >= static_cast<int>(W) ||
+            column_window.second >= static_cast<int>(W)) {
+            throw std::invalid_argument(
+                "column_window must lie inside the lidar image width");
+        }
         if (info.beam_altitude_angles.size() != H ||
             info.beam_azimuth_angles.size() != H) {
             throw std::invalid_argument(
@@ -673,7 +810,7 @@ class PinholeProcessor {
 
    private:
     ouster::sdk::core::SensorInfo info_;
-    double azimuth_offset_columns_;
+    double azimuth_offset_rad_;
     PostProcessingFn post_processing_fn_;
     std::vector<std::shared_ptr<PanelOutput>> panels_;
 

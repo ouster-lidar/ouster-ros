@@ -81,13 +81,15 @@ class OusterPinhole : public OusterProcessingNodeBase {
                                                  std::vector<int64_t>{0});
         declare_parameter<std::vector<double>>("panel_vfovs_deg",
                                                 std::vector<double>{0.0});
+        declare_parameter("crop_to_valid_region", true);
 
         // parent_frame must use the lidar-frame convention: +X forward, +Z up.
         declare_parameter("parent_frame", "os_lidar");
         declare_parameter("optical_frame_template",
                           std::string("{ns}/panels/{name}_optical_frame"));
 
-        // Azimuth of destaggered column zero in parent_frame (CCW positive).
+        // Azimuth of SDK/destaggered column zero in parent_frame (CCW
+        // positive). Use zero when parent_frame is the native lidar frame.
         declare_parameter("azimuth_offset_deg", 0.0);
 
         static_tf_broadcaster_ = make_static_transform_broadcaster(this);
@@ -142,6 +144,8 @@ class OusterPinhole : public OusterProcessingNodeBase {
             get_parameter("panel_heights").as_integer_array();
         const auto vfovs =
             get_parameter("panel_vfovs_deg").as_double_array();
+        const bool crop_to_valid_region =
+            get_parameter("crop_to_valid_region").as_bool();
 
         if (names.empty()) {
             RCLCPP_FATAL(get_logger(),
@@ -242,6 +246,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
             cfg.width = static_cast<uint32_t>(width_i);
             cfg.height = static_cast<uint32_t>(height_i);
             cfg.vfov_rad = vfov_deg * M_PI / 180.0;
+            cfg.crop_to_valid_region = crop_to_valid_region;
             if (cfg.height > 0 &&
                 static_cast<uint64_t>(cfg.width) * cfg.height >
                     PinholeProcessor::MAX_PANEL_PIXELS) {

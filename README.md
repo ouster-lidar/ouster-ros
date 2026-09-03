@@ -256,6 +256,18 @@ driver's 4 mm radial-range encoding and is not optical-axis depth; use
 `depth_image` with `depth_image_proc`. Dual-return profiles also publish
 `depth_image2`.
 
+`panel_widths` and `panel_hfovs_deg` define the horizontal calibration. A zero
+`panel_height` derives a square-pixel height from `panel_vfovs_deg`, or from the
+metadata beam angles when both values are zero. With a fixed height, a nonzero
+vertical FOV defines `fy` independently; leave it zero to retain square pixels.
+By default, outer pixels unsupported by the lidar FOV or configured
+`column_window` are physically removed. `CameraInfo.width` and `height` retain
+the configured full-panel calibration while `CameraInfo.roi` exactly describes
+the emitted image crop. Set `crop_to_valid_region: false` to keep the configured
+image dimensions with zero/`NaN` padding instead.
+`azimuth_offset_deg` is the azimuth of destaggered column zero in
+`parent_frame`; leave it at zero when `parent_frame` is the native lidar frame.
+
 For example, convert the front panel to a point cloud with:
 
 ```bash

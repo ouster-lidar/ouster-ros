@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -56,7 +57,7 @@ TEST(PinholeProcessorTest, WrapsRoundedColumnAtPanoramaSeam) {
     PinholeProcessor::PanelConfig config;
     config.name = "seam";
     config.yaw_rad = quarter_column_azimuth;
-    config.width = 2;
+    config.width = 3;
     config.height = 1;
 
     PinholeProcessor processor(info, {config}, "{ns}/{name}", "/lidar0",
@@ -67,8 +68,171 @@ TEST(PinholeProcessorTest, WrapsRoundedColumnAtPanoramaSeam) {
     // must wrap to column zero rather than clamp to the last column.
     EXPECT_EQ(panel.v_src(0, 1), 0);
     EXPECT_EQ(panel.optical_frame_id, "lidar0/seam");
-    EXPECT_EQ(panel.camera_info.width, 2u);
+    EXPECT_EQ(panel.camera_info.width, 3u);
     EXPECT_EQ(panel.camera_info.height, 1u);
+}
+
+TEST(PinholeProcessorTest, ReportsPixelCenteredIndependentFovIntrinsics) {
+    const auto info = load_test_info();
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "configured";
+    config.hfov_rad = M_PI_2;
+    config.vfov_rad = M_PI / 3.0;
+    config.width = 8;
+    config.height = 6;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
+    const auto& panel = *processor.panels().at(0);
+
+    EXPECT_DOUBLE_EQ(panel.camera_info.k[0], 4.0);
+    EXPECT_NEAR(panel.camera_info.k[4], 3.0 / std::tan(M_PI / 6.0),
+                1e-12);
+    EXPECT_DOUBLE_EQ(panel.camera_info.k[2], 3.5);
+    EXPECT_DOUBLE_EQ(panel.camera_info.k[5], 2.5);
+    EXPECT_EQ(panel.camera_info.p[0], panel.camera_info.k[0]);
+    EXPECT_EQ(panel.camera_info.p[5], panel.camera_info.k[4]);
+    EXPECT_EQ(panel.camera_info.p[2], panel.camera_info.k[2]);
+    EXPECT_EQ(panel.camera_info.p[6], panel.camera_info.k[5]);
+    EXPECT_EQ(panel.camera_info.roi.x_offset, 0u);
+    EXPECT_EQ(panel.camera_info.roi.y_offset, 0u);
+    EXPECT_EQ(panel.camera_info.roi.width, 8u);
+    EXPECT_EQ(panel.camera_info.roi.height, 6u);
+    ASSERT_FALSE(panel.images.empty());
+    EXPECT_EQ(panel.images.begin()->second->width, 8u);
+    EXPECT_EQ(panel.images.begin()->second->height, 6u);
+}
+
+TEST(PinholeProcessorTest, CropsToSourceSupportAndReportsFullPanelRoi) {
+    auto info = load_test_info();
+    const int width = static_cast<int>(info.format.columns_per_frame);
+    info.format.column_window = {width / 2 - 24, width / 2 + 24};
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "rear_crop";
+    config.yaw_rad = M_PI;
+    config.width = 80;
+    config.height = 16;
+    config.crop_to_valid_region = true;
+
+    PinholeProcessor::OutputType output;
+    auto process = PinholeProcessor::create(
+        info, {config}, "{name}", "", 0.0,
+        [&output](PinholeProcessor::OutputType& panels) { output = panels; });
+    ouster::sdk::core::LidarScan scan(info);
+    scan.field<uint32_t>(ouster::sdk::core::ChanField::RANGE)
+        .setConstant(10000);
+    scan.field<uint32_t>(ouster::sdk::core::ChanField::RANGE2)
+        .setConstant(20000);
+    process(scan, 0, rclcpp::Time{int64_t{1}, RCL_ROS_TIME});
+
+    ASSERT_EQ(output.size(), 1u);
+    const auto& panel = *output.front();
+    const auto& roi = panel.camera_info.roi;
+
+    EXPECT_EQ(panel.camera_info.width, 80u);
+    EXPECT_EQ(panel.camera_info.height, 16u);
+    EXPECT_GT(roi.x_offset, 0u);
+    EXPECT_LT(roi.width, panel.camera_info.width);
+    EXPECT_LE(roi.x_offset + roi.width, panel.camera_info.width);
+    EXPECT_LE(roi.y_offset + roi.height, panel.camera_info.height);
+    ASSERT_FALSE(panel.images.empty());
+    EXPECT_EQ(panel.images.begin()->second->width, roi.width);
+    EXPECT_EQ(panel.images.begin()->second->height, roi.height);
+    EXPECT_EQ(panel.r_src.cols(), static_cast<Eigen::Index>(roi.width));
+    EXPECT_EQ(panel.r_src.rows(), static_cast<Eigen::Index>(roi.height));
+
+    bool found_valid_pixel = false;
+    for (Eigen::Index u = 0; u < panel.r_src.rows(); ++u) {
+        for (Eigen::Index v = 0; v < panel.r_src.cols(); ++v) {
+            if (panel.r_src(u, v) < 0) continue;
+            found_valid_pixel = true;
+            EXPECT_GE(panel.raw_v_src(u, v),
+                      info.format.column_window.first);
+            EXPECT_LE(panel.raw_v_src(u, v),
+                      info.format.column_window.second);
+        }
+    }
+    EXPECT_TRUE(found_valid_pixel);
+
+    // image_geometry applies the ROI offset to the full-resolution K/P. The
+    // resulting principal point is therefore expressed in emitted pixels.
+    EXPECT_DOUBLE_EQ(panel.camera_info.k[2] - roi.x_offset,
+                     0.5 * (panel.camera_info.width - 1) - roi.x_offset);
+    EXPECT_DOUBLE_EQ(panel.camera_info.k[5] - roi.y_offset,
+                     0.5 * (panel.camera_info.height - 1) - roi.y_offset);
+}
+
+TEST(PinholeProcessorTest, CropsAcrossAWrappedColumnWindow) {
+    auto info = load_test_info();
+    const int width = static_cast<int>(info.format.columns_per_frame);
+    info.format.column_window = {width - 24, 24};
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "front_wrap";
+    config.width = 80;
+    config.height = 16;
+    config.crop_to_valid_region = true;
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
+    const auto& panel = *processor.panels().at(0);
+    EXPECT_LT(panel.camera_info.roi.width, panel.camera_info.width);
+
+    for (Eigen::Index u = 0; u < panel.r_src.rows(); ++u) {
+        for (Eigen::Index v = 0; v < panel.r_src.cols(); ++v) {
+            if (panel.r_src(u, v) < 0) continue;
+            const int32_t raw_v = panel.raw_v_src(u, v);
+            EXPECT_TRUE(raw_v >= info.format.column_window.first ||
+                        raw_v <= info.format.column_window.second);
+        }
+    }
+}
+
+TEST(PinholeProcessorTest, CanKeepPaddingWithoutClaimingAnImageCrop) {
+    auto info = load_test_info();
+    const int width = static_cast<int>(info.format.columns_per_frame);
+    info.format.column_window = {width / 2 - 24, width / 2 + 24};
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "rear_padded";
+    config.yaw_rad = M_PI;
+    config.width = 80;
+    config.height = 16;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
+    const auto& panel = *processor.panels().at(0);
+
+    EXPECT_EQ(panel.camera_info.roi.x_offset, 0u);
+    EXPECT_EQ(panel.camera_info.roi.y_offset, 0u);
+    EXPECT_EQ(panel.camera_info.roi.width, panel.camera_info.width);
+    EXPECT_EQ(panel.camera_info.roi.height, panel.camera_info.height);
+    EXPECT_EQ(panel.r_src.cols(), 80);
+    EXPECT_EQ(panel.r_src.rows(), 16);
+    EXPECT_GT((panel.r_src < 0).count(), 0);
+}
+
+TEST(PinholeProcessorTest, CanKeepAWhollyUnsupportedPaddedPanel) {
+    const auto info = load_test_info();
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "sky";
+    config.pitch_rad = 80.0 * M_PI / 180.0;
+    config.width = 1;
+    config.height = 1;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
+    const auto& panel = *processor.panels().at(0);
+    EXPECT_EQ(panel.camera_info.roi.width, 1u);
+    EXPECT_EQ(panel.camera_info.roi.height, 1u);
+    EXPECT_EQ(panel.r_src(0, 0), -1);
+
+    config.crop_to_valid_region = true;
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
 }
 
 TEST(PinholeProcessorTest, ClampsAutoHeightBeforeAllocating) {
@@ -86,6 +250,31 @@ TEST(PinholeProcessorTest, ClampsAutoHeightBeforeAllocating) {
     EXPECT_EQ(panel.camera_info.height, 8192u);
     EXPECT_EQ(panel.r_src.rows(), 8192);
     EXPECT_EQ(panel.r_src.cols(), 1);
+}
+
+TEST(PinholeProcessorTest, AutoHeightCoversAsymmetricVfovAroundPitch) {
+    const auto info = load_test_info();
+    const auto [min_altitude, max_altitude] = std::minmax_element(
+        info.beam_altitude_angles.begin(), info.beam_altitude_angles.end());
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "pitched";
+    config.pitch_rad = 10.0 * M_PI / 180.0;
+    config.hfov_rad = M_PI_2;
+    config.width = 256;
+    config.height = 0;
+    config.vfov_rad = 0.0;
+    config.crop_to_valid_region = false;
+
+    const double half_vfov = std::max(
+        std::abs(*max_altitude * M_PI / 180.0 - config.pitch_rad),
+        std::abs(config.pitch_rad - *min_altitude * M_PI / 180.0));
+    const uint32_t expected_height = static_cast<uint32_t>(
+        std::round(2.0 * 128.0 * std::tan(half_vfov)));
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
+    EXPECT_EQ(processor.panels().front()->camera_info.height,
+              expected_height);
 }
 
 TEST(PinholeProcessorTest, RejectsPanelAbovePixelBudget) {
@@ -116,8 +305,8 @@ TEST(PinholeProcessorTest, CardinalPanelCentersTrackLidarAxes) {
         PinholeProcessor::PanelConfig config;
         config.name = name;
         config.yaw_rad = yaw;
-        config.width = 4;
-        config.height = 2;
+        config.width = 5;
+        config.height = 3;
         configs.push_back(config);
     }
 
@@ -154,6 +343,79 @@ TEST(PinholeProcessorTest, CardinalPanelCentersTrackLidarAxes) {
                   "lidar0/" + cardinal_panels[i].first);
         EXPECT_DOUBLE_EQ(panel.camera_info.k[0], panel.camera_info.k[4]);
     }
+}
+
+TEST(PinholeProcessorTest, SelectedLidarPointsReprojectNearPanelPixels) {
+    const auto info = load_test_info();
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "oblique";
+    config.yaw_rad = 0.37;
+    config.pitch_rad = 0.08;
+    config.hfov_rad = M_PI_2;
+    config.vfov_rad = 50.0 * M_PI / 180.0;
+    config.width = 257;
+    config.height = 129;
+    config.crop_to_valid_region = false;
+
+    const double azimuth_offset_rad = 0.21;
+    const double azimuth_offset_columns =
+        azimuth_offset_rad * info.format.columns_per_frame / (2.0 * M_PI);
+    PinholeProcessor processor(info, {config}, "{name}", "",
+                               azimuth_offset_columns, nullptr);
+    const auto& panel = *processor.panels().at(0);
+    const auto xyz_lut = ouster::sdk::core::make_xyz_lut(
+        info.format.columns_per_frame, info.format.pixels_per_column,
+        ouster::sdk::core::RANGE_UNIT, info.beam_to_lidar_transform,
+        ouster::sdk::core::mat4d::Identity(), info.beam_azimuth_angles,
+        info.beam_altitude_angles);
+
+    // Compare in SDK lidar coordinates. The advertised parent frame rotates
+    // SDK column zero by azimuth_offset_rad, so its panel yaw is offset here.
+    const double lidar_yaw = config.yaw_rad - azimuth_offset_rad;
+    const double cosy = std::cos(lidar_yaw);
+    const double siny = std::sin(lidar_yaw);
+    const double cosp = std::cos(config.pitch_rad);
+    const double sinp = std::sin(config.pitch_rad);
+    const Eigen::Vector3d optical_x{siny, -cosy, 0.0};
+    const Eigen::Vector3d optical_y{cosy * sinp, siny * sinp, -cosp};
+    const Eigen::Vector3d optical_z{cosy * cosp, siny * cosp, sinp};
+
+    size_t checked = 0;
+    for (const uint32_t u : {16u, 32u, 64u, 96u, 112u}) {
+        for (const uint32_t v : {16u, 64u, 128u, 192u, 240u}) {
+            const int32_t row = panel.r_src(u, v);
+            const int32_t raw_col = panel.raw_v_src(u, v);
+            if (row < 0 || raw_col < 0) continue;
+            const Eigen::Index source_index =
+                static_cast<Eigen::Index>(row) *
+                    info.format.columns_per_frame +
+                raw_col;
+            const Eigen::Vector3d source_direction =
+                xyz_lut.direction.row(source_index).matrix().transpose();
+            const Eigen::Vector3d point =
+                (10000.0 * xyz_lut.direction.row(source_index) +
+                 xyz_lut.offset.row(source_index))
+                    .matrix()
+                    .transpose();
+            const double optical_depth = optical_z.dot(point);
+            ASSERT_GT(optical_depth, 0.0);
+            const double projected_u =
+                panel.camera_info.k[0] * optical_x.dot(point) /
+                    optical_depth +
+                panel.camera_info.k[2];
+            const double projected_v =
+                panel.camera_info.k[4] * optical_y.dot(point) /
+                    optical_depth +
+                panel.camera_info.k[5];
+            EXPECT_NEAR(projected_u, static_cast<double>(v), 1.0);
+            EXPECT_NEAR(projected_v, static_cast<double>(u), 1.0);
+            EXPECT_NEAR(panel.depth_scale(u, v),
+                        optical_z.dot(source_direction), 1e-7);
+            ++checked;
+        }
+    }
+    EXPECT_GE(checked, 10u);
 }
 
 TEST(PinholeProcessorTest, ProducesCalibratedMetricOpticalDepth) {
