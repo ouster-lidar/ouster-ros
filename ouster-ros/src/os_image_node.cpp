@@ -275,10 +275,12 @@ class OusterImage : public OusterProcessingNodeBase {
                         "CameraInfo needs at least two distinct beam altitude "
                         "angles; using a full-height fallback");
         }
-        if (result.used_full_roi_fallback) {
-            RCLCPP_INFO(get_logger(),
-                        "CameraInfo ROI wraps the image seam; using the full "
-                        "panorama");
+        if (result.has_partial_column_window) {
+            RCLCPP_WARN(
+                get_logger(),
+                "sensor uses a partial column_window; os_image retains the "
+                "full destaggered raster with zero-filled unsupported pixels, "
+                "so CameraInfo ROI remains full resolution");
         }
         camera_info_msg_ = std::move(result.camera_info);
 

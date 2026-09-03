@@ -17,7 +17,7 @@ namespace ouster_ros {
 struct PanoramaCameraInfoResult {
     sensor_msgs::msg::CameraInfo camera_info;
     bool used_vertical_fallback = false;
-    bool used_full_roi_fallback = false;
+    bool has_partial_column_window = false;
 };
 
 inline PanoramaCameraInfoResult make_panorama_camera_info(
@@ -63,43 +63,20 @@ inline PanoramaCameraInfoResult make_panorama_camera_info(
     camera_info.p = {fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0,
                      0.0, 0.0, 1.0, 0.0};
 
-    const auto set_full_roi = [&camera_info, width, height]() {
-        camera_info.roi.x_offset = 0;
-        camera_info.roi.y_offset = 0;
-        camera_info.roi.width = width;
-        camera_info.roi.height = height;
-    };
-
     const auto& column_window = sensor_info.format.column_window;
-    const bool full_column_window =
-        column_window.first == 0 &&
-        column_window.second == static_cast<int>(width) - 1;
-    if (full_column_window) {
-        set_full_roi();
-    } else {
-        int min_shift = 0;
-        int max_shift = 0;
-        const auto& shifts = sensor_info.format.pixel_shift_by_row;
-        if (!shifts.empty()) {
-            const auto [min_value, max_value] =
-                std::minmax_element(shifts.begin(), shifts.end());
-            min_shift = *min_value;
-            max_shift = *max_value;
-        }
+    result.has_partial_column_window =
+        column_window.first != 0 ||
+        column_window.second != static_cast<int>(width) - 1;
 
-        const int x0 = column_window.first + min_shift;
-        const int x1 = column_window.second + max_shift;
-        if (column_window.first <= column_window.second && x0 >= 0 &&
-            x1 < static_cast<int>(width)) {
-            camera_info.roi.x_offset = static_cast<uint32_t>(x0);
-            camera_info.roi.y_offset = 0;
-            camera_info.roi.width = static_cast<uint32_t>(x1 - x0 + 1);
-            camera_info.roi.height = height;
-        } else {
-            result.used_full_roi_fallback = true;
-            set_full_roi();
-        }
-    }
+    // ImageProcessor always emits the complete H x W destaggered raster. A
+    // partial raw column_window becomes a different shifted interval on each
+    // image row, with zeros outside those intervals; one rectangular ROI
+    // cannot describe that support. Advertising a smaller ROI would also be
+    // incorrect because the associated Image is not physically cropped.
+    camera_info.roi.x_offset = 0;
+    camera_info.roi.y_offset = 0;
+    camera_info.roi.width = width;
+    camera_info.roi.height = height;
     camera_info.roi.do_rectify = false;
     return result;
 }

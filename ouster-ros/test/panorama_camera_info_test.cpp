@@ -35,7 +35,7 @@ TEST(PanoramaCameraInfoTest, UsesBeamAltitudeIntrinsicsAndFullRoi) {
         static_cast<double>(info.format.pixels_per_column - 1) / vfov;
 
     EXPECT_FALSE(result.used_vertical_fallback);
-    EXPECT_FALSE(result.used_full_roi_fallback);
+    EXPECT_FALSE(result.has_partial_column_window);
     EXPECT_EQ(camera_info.header.frame_id,
               "os_lidar_panorama_optical_frame");
     EXPECT_DOUBLE_EQ(camera_info.k[0],
@@ -48,7 +48,7 @@ TEST(PanoramaCameraInfoTest, UsesBeamAltitudeIntrinsicsAndFullRoi) {
     EXPECT_EQ(camera_info.roi.height, info.format.pixels_per_column);
 }
 
-TEST(PanoramaCameraInfoTest, BoundsDestaggeredColumnWindow) {
+TEST(PanoramaCameraInfoTest, KeepsFullRoiForZeroPaddedPartialWindow) {
     auto info = load_panorama_test_info();
     info.format.column_window = {100, 200};
     info.format.pixel_shift_by_row.assign(
@@ -56,19 +56,20 @@ TEST(PanoramaCameraInfoTest, BoundsDestaggeredColumnWindow) {
 
     const auto result = make_panorama_camera_info(info, "optical_frame");
 
-    EXPECT_FALSE(result.used_full_roi_fallback);
-    EXPECT_EQ(result.camera_info.roi.x_offset, 110u);
-    EXPECT_EQ(result.camera_info.roi.width, 101u);
+    EXPECT_TRUE(result.has_partial_column_window);
+    EXPECT_EQ(result.camera_info.roi.x_offset, 0u);
+    EXPECT_EQ(result.camera_info.roi.width, info.format.columns_per_frame);
+    EXPECT_EQ(result.camera_info.roi.height, info.format.pixels_per_column);
 }
 
-TEST(PanoramaCameraInfoTest, UsesFullRoiWhenWindowWraps) {
+TEST(PanoramaCameraInfoTest, KeepsFullRoiWhenPartialWindowWraps) {
     auto info = load_panorama_test_info();
     info.format.column_window = {
         static_cast<int>(info.format.columns_per_frame) - 20, 20};
 
     const auto result = make_panorama_camera_info(info, "optical_frame");
 
-    EXPECT_TRUE(result.used_full_roi_fallback);
+    EXPECT_TRUE(result.has_partial_column_window);
     EXPECT_EQ(result.camera_info.roi.x_offset, 0u);
     EXPECT_EQ(result.camera_info.roi.width, info.format.columns_per_frame);
 }
