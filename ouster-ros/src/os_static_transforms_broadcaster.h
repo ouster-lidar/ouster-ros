@@ -8,15 +8,35 @@
 
 #pragma once
 
+#if __has_include(<tf2_ros/static_transform_broadcaster.hpp>)
+#include <tf2_ros/static_transform_broadcaster.hpp>
+#else
 #include <tf2_ros/static_transform_broadcaster.h>
+#endif
+
+#if __has_include(<tf2_ros/version.h>)
+#include <tf2_ros/version.h>
+#define OUSTER_ROS_TF2_HAS_REQUIRED_INTERFACES \
+    TF2_ROS_VERSION_GTE(0, 45, 0)
+#else
+#define OUSTER_ROS_TF2_HAS_REQUIRED_INTERFACES 0
+#endif
 
 namespace ouster_ros {
 
 template <typename NodeT>
 class OusterStaticTransformsBroadcaster {
    public:
+    // tf2_ros 0.45 added RequiredInterfaces and deprecated the NodeT overload.
     explicit OusterStaticTransformsBroadcaster(NodeT& parent)
+#if OUSTER_ROS_TF2_HAS_REQUIRED_INTERFACES
+        : node(parent),
+          tf_bcast(tf2_ros::StaticTransformBroadcaster::RequiredInterfaces(
+              parent.get_node_parameters_interface(),
+              parent.get_node_topics_interface())) {}
+#else
         : node(parent), tf_bcast(parent) {}
+#endif
 
     void declare_parameters() {
         node.declare_parameter("sensor_frame", "os_sensor");
@@ -80,3 +100,5 @@ class OusterStaticTransformsBroadcaster {
 };
 
 }  // namespace ouster_ros
+
+#undef OUSTER_ROS_TF2_HAS_REQUIRED_INTERFACES
