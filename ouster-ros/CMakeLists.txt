@@ -15,11 +15,15 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common)
+# 'filters' is needed for pcl::VoxelGrid, used by the SLAM map processor
+# (BUILD_MAPPING); libpcl-all-dev (an existing build dependency) already
+# ships it, so this doesn't add a new system dependency.
+find_package(PCL REQUIRED COMPONENTS common filters)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -84,11 +88,22 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(BUILD_VIZ "Turn off building VIZ" OFF)
 option(BUILD_PCAP "Turn off building PCAP" OFF)
-option(BUILD_OSF "Turn off building OSF" OFF)
 option(BUILD_MAPPING "Turn off building MAPPING" OFF)
+# ouster_mapping (the SLAM engine) unconditionally links OusterSDK::ouster_osf.
+if(BUILD_MAPPING)
+  set(BUILD_OSF ON CACHE BOOL "Turn off building OSF" FORCE)
+else()
+  option(BUILD_OSF "Turn off building OSF" OFF)
+endif()
 find_package(OusterSDK REQUIRED)
 
 set(BUILD_SHARED_LIBS ${_SAVE_BUILD_SHARED_LIBS})
+
+if(BUILD_MAPPING)
+  # pulls in ouster/slam_engine.h et al. for the SLAM LidarScanProcessor
+  # (src/slam_processor.h), wired into os_cloud when proc_mask contains SLAM.
+  include_directories(ouster-sdk/ouster_mapping/include)
+endif()
 
 # catkin adds all include dirs to a single variable, don't try to use targets
 include_directories(
@@ -187,12 +202,19 @@ rclcpp_components_register_node(os_replay_component
 # ==== os_cloud_component ====
 create_ros2_component(os_cloud_component
   "src/os_processing_node_base.cpp;src/os_cloud_node.cpp"
-  "tf2_ros"
+  "tf2_ros;nav_msgs"
 )
 rclcpp_components_register_node(os_cloud_component
   PLUGIN "ouster_ros::OusterCloud"
   EXECUTABLE os_cloud
 )
+if(BUILD_MAPPING)
+  # enables os_cloud_node.cpp's "SLAM" proc_mask token (src/slam_processor.h):
+  # lidar odometry, trajectory and an accumulated/downsampled map via the
+  # ouster-sdk SLAMEngine.
+  target_compile_definitions(os_cloud_component PRIVATE OUSTER_ROS_BUILD_MAPPING)
+  target_link_libraries(os_cloud_component OusterSDK::ouster_mapping pcl_filters)
+endif()
 
 # ==== os_image_component ====
 create_ros2_component(os_image_component
