@@ -6,7 +6,8 @@
  * @brief Resamples destaggered lidar images into pinhole panels.
  *
  * range_image retains os_image's radial-range encoding: uint16 with 4 mm per
- * increment. It is not optical-axis depth for depth_image_proc.
+ * increment. depth_image is calibrated optical-axis depth in metres (32FC1)
+ * for standard ROS depth consumers.
  */
 
 #pragma once
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <map>
@@ -34,6 +36,7 @@
 
 #include "ouster/lidar_scan.h"
 #include "ouster/image_processing.h"
+#include "ouster/xyzlut.h"
 #include "lidar_packet_handler.h"
 
 namespace ouster_ros {
@@ -65,12 +68,22 @@ class PinholeProcessor {
         double yaw_rad = 0.0;
         double pitch_rad = 0.0;
         std::map<std::string, std::shared_ptr<sensor_msgs::msg::Image>> images;
+        // Metric optical-axis depth images keyed by RANGE / RANGE2. These are
+        // separate from images because the other outputs are uint16 display
+        // images while depth is 32FC1 in metres.
+        std::map<std::string, std::shared_ptr<sensor_msgs::msg::Image>>
+            depth_images;
         sensor_msgs::msg::CameraInfo camera_info;
         // LUT in destaggered space:
         //   r_src(u, v) = source row (-1 means outside lidar VFOV)
         //   v_src(u, v) = source destaggered column
         Eigen::Array<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> r_src;
         Eigen::Array<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> v_src;
+        // depth = raw_range * depth_scale + depth_offset, in metres.
+        Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
+            depth_scale;
+        Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
+            depth_offset;
     };
 
     using OutputType = std::vector<std::shared_ptr<PanelOutput>>;
@@ -83,14 +96,20 @@ class PinholeProcessor {
                      double azimuth_offset_columns,
                      PostProcessingFn func)
         : info_(info),
-          azimuth_offset_columns_(azimuth_offset_columns),
+          azimuth_offset_columns_(0.0),
           post_processing_fn_(func) {
+        if (panel_configs.empty()) {
+            throw std::invalid_argument("at least one panel is required");
+        }
+        const auto xyz_lut = make_lidar_xyz_lut(info_);
+        azimuth_offset_columns_ = normalize_columns(
+            azimuth_offset_columns, info_.format.columns_per_frame);
         std::string ns = lidar_namespace;
         while (!ns.empty() && ns.front() == '/') ns.erase(0, 1);
 
         uint64_t total_panel_pixels = 0;
         for (const auto& cfg : panel_configs) {
-            auto panel = build_panel(cfg, ns, optical_frame_template,
+            auto panel = build_panel(cfg, ns, optical_frame_template, xyz_lut,
                                      total_panel_pixels);
             panels_.push_back(panel);
         }
@@ -109,6 +128,10 @@ class PinholeProcessor {
 
     static std::map<std::string, std::string> channel_topics(int n_returns) {
         return channel_topic_map_for(n_returns);
+    }
+
+    static std::map<std::string, std::string> depth_topics(int n_returns) {
+        return depth_topic_map_for(n_returns);
     }
 
     static LidarScanProcessor create(
@@ -132,6 +155,7 @@ class PinholeProcessor {
     std::shared_ptr<PanelOutput> build_panel(
         const PanelConfig& cfg, const std::string& ns,
         const std::string& optical_frame_template,
+        const ouster::sdk::core::XYZLut& xyz_lut,
         uint64_t& total_panel_pixels) {
         auto out = std::make_shared<PanelOutput>();
         out->name = cfg.name;
@@ -139,6 +163,16 @@ class PinholeProcessor {
         out->pitch_rad = cfg.pitch_rad;
         out->optical_frame_id = optical_frame_id(
             optical_frame_template, ns, cfg.name);
+
+        if (cfg.name.empty()) {
+            throw std::invalid_argument("panel name must not be empty");
+        }
+        if (out->optical_frame_id.empty()) {
+            throw std::invalid_argument("panel optical frame must not be empty");
+        }
+        if (!std::isfinite(cfg.yaw_rad) || !std::isfinite(cfg.pitch_rad)) {
+            throw std::invalid_argument("panel yaw and pitch must be finite");
+        }
 
         const uint32_t pw = cfg.width;
         if (pw == 0 || pw > MAX_PANEL_DIMENSION) {
@@ -158,6 +192,9 @@ class PinholeProcessor {
 
         const double half_hfov = 0.5 * cfg.hfov_rad;
         const double fx = static_cast<double>(pw) / (2.0 * std::tan(half_hfov));
+        if (!std::isfinite(fx) || fx <= 0.0) {
+            throw std::invalid_argument("panel focal length out of range");
+        }
         const double fy = fx;  // square pixels
 
         uint32_t ph = cfg.height;
@@ -215,14 +252,38 @@ class PinholeProcessor {
             out->images[kv.first] = img;
         }
 
-        compute_lut(*out, fx, fy, cx, cy, pw, ph);
+        const auto depth_topic_map = depth_topic_map_for(info_.num_returns());
+        for (const auto& kv : depth_topic_map) {
+            auto img = std::make_shared<sensor_msgs::msg::Image>();
+            img->header.frame_id = out->optical_frame_id;
+            img->width = pw;
+            img->height = ph;
+            img->encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            img->is_bigendian = 0;
+            img->step = pw * sizeof(float);
+            img->data.resize(static_cast<size_t>(img->step) * ph);
+            const float invalid_depth =
+                std::numeric_limits<float>::quiet_NaN();
+            for (size_t offset = 0; offset < img->data.size();
+                 offset += sizeof(float)) {
+                std::memcpy(img->data.data() + offset, &invalid_depth,
+                            sizeof(float));
+            }
+            out->depth_images[kv.first] = img;
+        }
+
+        compute_lut(*out, xyz_lut, fx, fy, cx, cy, pw, ph);
         return out;
     }
 
-    void compute_lut(PanelOutput& out, double fx, double fy, double cx,
-                     double cy, uint32_t pw, uint32_t ph) const {
+    void compute_lut(PanelOutput& out,
+                     const ouster::sdk::core::XYZLut& xyz_lut, double fx,
+                     double fy, double cx, double cy, uint32_t pw,
+                     uint32_t ph) const {
         out.r_src.resize(ph, pw);
         out.v_src.resize(ph, pw);
+        out.depth_scale.resize(ph, pw);
+        out.depth_offset.resize(ph, pw);
 
         const auto& alts = info_.beam_altitude_angles;  // degrees, top to bottom
         const uint32_t H = info_.format.pixels_per_column;
@@ -233,6 +294,9 @@ class PinholeProcessor {
         // Positive pitch tilts the panel's forward axis toward lidar +Z.
         const double cosp = std::cos(out.pitch_rad);
         const double sinp = std::sin(out.pitch_rad);
+        const double forward_x = cosy * cosp;
+        const double forward_y = siny * cosp;
+        const double forward_z = sinp;
 
         // Permit one beam spacing at the vertical field-of-view boundary.
         double beam_spacing_deg = 0.0;
@@ -281,26 +345,43 @@ class PinholeProcessor {
 
                 // Destaggered column index advances clockwise in lidar_frame:
                 // col = (column_zero_azimuth - azimuth) * W / (2*pi).
-                double az_norm = azimuth;
-                while (az_norm < 0.0) az_norm += 2.0 * M_PI;
-                while (az_norm >= 2.0 * M_PI) az_norm -= 2.0 * M_PI;
-                double v_dest = azimuth_offset_columns_ -
-                                az_norm * static_cast<double>(W) /
-                                (2.0 * M_PI);
-                while (v_dest < 0.0) v_dest += static_cast<double>(W);
-                while (v_dest >= static_cast<double>(W)) {
-                    v_dest -= static_cast<double>(W);
-                }
+                const double az_norm = normalize_radians(azimuth);
+                const double v_dest = normalize_columns(
+                    azimuth_offset_columns_ -
+                        az_norm * static_cast<double>(W) / (2.0 * M_PI),
+                    W);
                 // v_dest is in [0, W) but rounding can land exactly on W;
                 // wrap around the panorama seam instead of clamping to W-1.
-                int32_t v_src = static_cast<int32_t>(std::lround(v_dest));
-                v_src %= static_cast<int32_t>(W);
-                if (v_src < 0) v_src += static_cast<int32_t>(W);
+                const int32_t v_src = wrap_index(
+                    std::lround(v_dest), static_cast<int32_t>(W));
 
-                out.r_src(u, v) = (r_src >= 0 && r_src < static_cast<int32_t>(H))
-                                      ? r_src
-                                      : -1;
+                const int32_t valid_r =
+                    (r_src >= 0 && r_src < static_cast<int32_t>(H))
+                        ? r_src
+                        : -1;
+                out.r_src(u, v) = valid_r;
                 out.v_src(u, v) = v_src;
+
+                if (valid_r < 0) {
+                    out.depth_scale(u, v) =
+                        std::numeric_limits<float>::quiet_NaN();
+                    out.depth_offset(u, v) = 0.0f;
+                    continue;
+                }
+
+                const int32_t raw_v = destaggered_to_raw_column(
+                    v_src, info_.format.pixel_shift_by_row[valid_r],
+                    static_cast<int32_t>(W));
+                const Eigen::Index source_index =
+                    static_cast<Eigen::Index>(valid_r) * W + raw_v;
+                out.depth_scale(u, v) = static_cast<float>(
+                    forward_x * xyz_lut.direction(source_index, 0) +
+                    forward_y * xyz_lut.direction(source_index, 1) +
+                    forward_z * xyz_lut.direction(source_index, 2));
+                out.depth_offset(u, v) = static_cast<float>(
+                    forward_x * xyz_lut.offset(source_index, 0) +
+                    forward_y * xyz_lut.offset(source_index, 1) +
+                    forward_z * xyz_lut.offset(source_index, 2));
             }
         }
     }
@@ -343,6 +424,16 @@ class PinholeProcessor {
         return m;
     }
 
+    static std::map<std::string, std::string> depth_topic_map_for(
+        int n_returns) {
+        std::map<std::string, std::string> m {
+            {ChanField::RANGE, "depth_image"}};
+        if (n_returns == 2) {
+            m[ChanField::RANGE2] = "depth_image2";
+        }
+        return m;
+    }
+
     void process(const ouster::sdk::core::LidarScan& scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         process_return(scan, /*return_index=*/0);
@@ -350,6 +441,9 @@ class PinholeProcessor {
 
         for (auto& panel : panels_) {
             for (auto& kv : panel->images) kv.second->header.stamp = msg_ts;
+            for (auto& kv : panel->depth_images) {
+                kv.second->header.stamp = msg_ts;
+            }
             panel->camera_info.header.stamp = msg_ts;
         }
         if (post_processing_fn_) post_processing_fn_(panels_);
@@ -398,8 +492,10 @@ class PinholeProcessor {
 
         for (size_t u = 0; u < H; ++u) {
             for (size_t v = 0; v < W; ++v) {
-                const size_t vv = (v + W - px_offset[u]) % W;
-                const size_t idx = u * W + vv;
+                const int32_t raw_v = destaggered_to_raw_column(
+                    static_cast<int32_t>(v), px_offset[u],
+                    static_cast<int32_t>(W));
+                const size_t idx = u * W + static_cast<size_t>(raw_v);
                 auto r = (rg[idx] + 0b10) >> 2;
                 range_dest(u, v) = r > pixel_value_max ? 0 : r;
                 signal_f(u, v) = static_cast<float>(sg[idx]);
@@ -440,6 +536,10 @@ class PinholeProcessor {
                 if (img_it == panel->images.end()) continue;
                 sample_panel(*img_it->second, *chan_img.second, *panel);
             }
+            auto depth_it = panel->depth_images.find(range_ch);
+            if (depth_it != panel->depth_images.end()) {
+                sample_depth_panel(*depth_it->second, range, *panel);
+            }
         }
     }
 
@@ -448,7 +548,6 @@ class PinholeProcessor {
                       const PanelOutput& panel) const {
         const uint32_t pw = out.width;
         const uint32_t ph = out.height;
-        pixel_type* dst = reinterpret_cast<pixel_type*>(out.data.data());
         for (uint32_t u = 0; u < ph; ++u) {
             for (uint32_t v = 0; v < pw; ++v) {
                 const int32_t r = panel.r_src(u, v);
@@ -457,9 +556,119 @@ class PinholeProcessor {
                 if (r >= 0) {
                     val = src(r, c);
                 }
-                dst[u * pw + v] = val;
+                const size_t output_offset =
+                    (static_cast<size_t>(u) * pw + v) * sizeof(pixel_type);
+                std::memcpy(out.data.data() + output_offset, &val,
+                            sizeof(pixel_type));
             }
         }
+    }
+
+    void sample_depth_panel(
+        sensor_msgs::msg::Image& out,
+        const ouster::sdk::core::img_t<uint32_t>& raw_range,
+        const PanelOutput& panel) const {
+        const uint32_t pw = out.width;
+        const uint32_t ph = out.height;
+        const int32_t W = static_cast<int32_t>(info_.format.columns_per_frame);
+        const auto* ranges = raw_range.data();
+        const float invalid_depth =
+            std::numeric_limits<float>::quiet_NaN();
+
+        for (uint32_t u = 0; u < ph; ++u) {
+            for (uint32_t v = 0; v < pw; ++v) {
+                float depth = invalid_depth;
+                const int32_t r = panel.r_src(u, v);
+                if (r >= 0) {
+                    const int32_t raw_v = destaggered_to_raw_column(
+                        panel.v_src(u, v),
+                        info_.format.pixel_shift_by_row[r], W);
+                    const size_t source_index =
+                        static_cast<size_t>(r) * W + raw_v;
+                    const uint32_t range = ranges[source_index];
+                    if (range != 0) {
+                        const float candidate =
+                            static_cast<float>(range) *
+                                panel.depth_scale(u, v) +
+                            panel.depth_offset(u, v);
+                        if (std::isfinite(candidate) && candidate > 0.0f) {
+                            depth = candidate;
+                        }
+                    }
+                }
+                const size_t output_offset =
+                    (static_cast<size_t>(u) * pw + v) * sizeof(float);
+                std::memcpy(out.data.data() + output_offset, &depth,
+                            sizeof(float));
+            }
+        }
+    }
+
+    static int32_t wrap_index(int64_t value, int32_t modulus) {
+        int64_t wrapped = value % modulus;
+        if (wrapped < 0) wrapped += modulus;
+        return static_cast<int32_t>(wrapped);
+    }
+
+    static int32_t destaggered_to_raw_column(int32_t column, int shift,
+                                              int32_t width) {
+        return wrap_index(static_cast<int64_t>(column) - shift, width);
+    }
+
+    static double normalize_columns(double value, uint32_t width) {
+        if (!std::isfinite(value) || width == 0) {
+            throw std::invalid_argument("invalid azimuth offset or width");
+        }
+        const double period = static_cast<double>(width);
+        double normalized = std::fmod(value, period);
+        if (normalized < 0.0) normalized += period;
+        return normalized;
+    }
+
+    static double normalize_radians(double value) {
+        double normalized = std::fmod(value, 2.0 * M_PI);
+        if (normalized < 0.0) normalized += 2.0 * M_PI;
+        return normalized;
+    }
+
+    static void validate_sensor_info(
+        const ouster::sdk::core::SensorInfo& info) {
+        const auto H = info.format.pixels_per_column;
+        const auto W = info.format.columns_per_frame;
+        if (H == 0 || W == 0 ||
+            W > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+            throw std::invalid_argument("invalid lidar image dimensions");
+        }
+        if (info.format.pixel_shift_by_row.size() != H) {
+            throw std::invalid_argument(
+                "pixel_shift_by_row must match lidar image height");
+        }
+        if (info.beam_altitude_angles.size() != H ||
+            info.beam_azimuth_angles.size() != H) {
+            throw std::invalid_argument(
+                "pinhole panels require one beam angle per lidar row");
+        }
+        const auto finite = [](const auto& values) {
+            return std::all_of(values.begin(), values.end(),
+                               [](double value) {
+                                   return std::isfinite(value);
+                               });
+        };
+        if (!finite(info.beam_altitude_angles) ||
+            !finite(info.beam_azimuth_angles) ||
+            !info.beam_to_lidar_transform.allFinite()) {
+            throw std::invalid_argument("lidar calibration must be finite");
+        }
+    }
+
+    static ouster::sdk::core::XYZLut make_lidar_xyz_lut(
+        const ouster::sdk::core::SensorInfo& info) {
+        validate_sensor_info(info);
+        return ouster::sdk::core::make_xyz_lut(
+            info.format.columns_per_frame, info.format.pixels_per_column,
+            ouster::sdk::core::RANGE_UNIT, info.beam_to_lidar_transform,
+            ouster::sdk::core::mat4d::Identity(), info.beam_azimuth_angles,
+            info.beam_altitude_angles);
     }
 
    private:

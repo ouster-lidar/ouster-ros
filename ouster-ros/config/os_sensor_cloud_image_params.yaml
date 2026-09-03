@@ -55,7 +55,8 @@ ouster/os_image:
                       # this is empty, <frame_id>_panorama_optical_frame is used
 ouster/os_pinhole:
   ros__parameters:
-    # range_image is uint16 radial range at 4 mm/LSB, not optical-axis depth
+    # range_image is uint16 radial range at 4 mm/LSB; depth_image is 32FC1
+    # optical-axis depth in metres and pairs with each panel's camera_info
     use_system_default_qos: false # needs to match os_sensor
     panel_names: [front, left, rear, right]
     panel_yaws_deg: [0.0, 90.0, 180.0, 270.0]
