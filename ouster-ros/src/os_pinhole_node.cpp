@@ -289,6 +289,9 @@ class OusterPinhole : public OusterProcessingNodeBase {
         }
         const auto azimuth_offset_deg =
             get_parameter("azimuth_offset_deg").as_double();
+        if (!std::isfinite(azimuth_offset_deg)) {
+            throw std::runtime_error("azimuth_offset_deg must be finite");
+        }
         const double W = static_cast<double>(info.format.columns_per_frame);
         const double azimuth_offset_columns =
             azimuth_offset_deg * W / 360.0;
@@ -310,12 +313,21 @@ class OusterPinhole : public OusterProcessingNodeBase {
         panel_pubs_.clear();
         const auto channel_topics =
             PinholeProcessor::channel_topics(info.num_returns());
+        const auto depth_topics =
+            PinholeProcessor::depth_topics(info.num_returns());
         for (const auto& cfg : panel_configs) {
             PanelPublishers pp;
             for (const auto& kv : channel_topics) {
                 const std::string image_topic =
                     "panels/" + cfg.name + "/" + kv.second;
                 pp.image_pubs[kv.first] =
+                    create_publisher<sensor_msgs::msg::Image>(
+                        image_topic, selected_qos);
+            }
+            for (const auto& kv : depth_topics) {
+                const std::string image_topic =
+                    "panels/" + cfg.name + "/" + kv.second;
+                pp.depth_pubs[kv.first] =
                     create_publisher<sensor_msgs::msg::Image>(
                         image_topic, selected_qos);
             }
@@ -374,6 +386,12 @@ class OusterPinhole : public OusterProcessingNodeBase {
             for (auto& kv : panel->images) {
                 auto it = pp.image_pubs.find(kv.first);
                 if (it != pp.image_pubs.end() && kv.second) {
+                    it->second->publish(*kv.second);
+                }
+            }
+            for (auto& kv : panel->depth_images) {
+                auto it = pp.depth_pubs.find(kv.first);
+                if (it != pp.depth_pubs.end() && kv.second) {
                     it->second->publish(*kv.second);
                 }
             }
@@ -442,6 +460,9 @@ class OusterPinhole : public OusterProcessingNodeBase {
         std::map<std::string,
                  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
             image_pubs;
+        std::map<std::string,
+                 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr>
+            depth_pubs;
         rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr
             camera_info_pub;
     };

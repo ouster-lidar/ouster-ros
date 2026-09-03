@@ -249,8 +249,21 @@ With a sensor or replay already publishing `metadata` and `lidar_packets`, run:
 ros2 launch ouster_ros pinhole.launch.py
 ```
 
-The default parameters publish four cardinal panels. Panel range images retain
-the driver's 4 mm radial-range encoding; they are not optical-axis depth images.
+The default parameters publish four cardinal panels. Each panel includes a
+matching `camera_info`, a `32FC1` `depth_image` in metres for standard ROS depth
+consumers, and the driver's display images. The `range_image` retains the
+driver's 4 mm radial-range encoding and is not optical-axis depth; use
+`depth_image` with `depth_image_proc`. Dual-return profiles also publish
+`depth_image2`.
+
+For example, convert the front panel to a point cloud with:
+
+```bash
+ros2 run depth_image_proc point_cloud_xyz_node --ros-args \
+    -r image_rect:=/ouster/panels/front/depth_image \
+    -r camera_info:=/ouster/panels/front/camera_info \
+    -r points:=/ouster/panels/front/points
+```
 
 #### Multicast Mode (experimental)
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
