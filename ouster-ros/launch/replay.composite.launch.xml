@@ -89,6 +89,31 @@
   <arg name="mask_path" default="" description="path to an image file that will be used to
    mask parts of the pointcloud}"/>
 
+  <!-- the following slam_*/odom_frame/publish_slam_tf args only take effect
+       when proc_mask includes SLAM and ouster_ros was built with
+       -DBUILD_MAPPING=ON; they feed the ouster-sdk SLAMEngine to publish
+       lidar odometry, a trajectory path and an accumulated map -->
+  <arg name="odom_frame" default="odom" description="fixed reference frame
+    the SLAM odom/trajectory/map topics and TF transform are published in"/>
+  <arg name="publish_slam_tf" default="true" description="broadcast a TF
+    transform from odom_frame to sensor_frame for every SLAM pose"/>
+  <arg name="slam_min_range" default="0.5" description="range gate (meters)
+    applied to points used for SLAM registration and map accumulation"/>
+  <arg name="slam_max_range" default="75.0" description="range gate (meters)
+    applied to points used for SLAM registration and map accumulation"/>
+  <arg name="slam_voxel_size" default="0.0" description="voxel size (meters)
+    used internally by the SLAM backend for registration; 0.0 lets it
+    auto-estimate from the data"/>
+  <arg name="slam_deskew_method" default="auto" description="motion-
+    compensation method used by the SLAM backend; 'auto' lets it choose
+    automatically"/>
+  <arg name="slam_map_voxel_size" default="0.2" description="leaf size
+    (meters) of the VoxelGrid filter used to downsample the accumulated map
+    published on the map topic"/>
+  <arg name="slam_map_publish_every_n" default="1" description="only
+    accumulate/republish the map every Nth processed scan, to bound the
+    cost of the VoxelGrid filter"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
@@ -115,6 +140,14 @@
         <param name="v_reduction" value="$(var v_reduction)"/>
         <param name="mask_path" value="$(var mask_path)"/>
         <param name="min_scan_valid_columns_ratio" value="$(var min_scan_valid_columns_ratio)"/>
+        <param name="odom_frame" value="$(var odom_frame)"/>
+        <param name="publish_slam_tf" value="$(var publish_slam_tf)"/>
+        <param name="slam_min_range" value="$(var slam_min_range)"/>
+        <param name="slam_max_range" value="$(var slam_max_range)"/>
+        <param name="slam_voxel_size" value="$(var slam_voxel_size)"/>
+        <param name="slam_deskew_method" value="$(var slam_deskew_method)"/>
+        <param name="slam_map_voxel_size" value="$(var slam_map_voxel_size)"/>
+        <param name="slam_map_publish_every_n" value="$(var slam_map_publish_every_n)"/>
       </composable_node>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterImage" name="os_image">
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>

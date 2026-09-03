@@ -18,6 +18,7 @@
   <depend>ouster_sensor_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>std_srvs</depend>
   <depend>tf2_ros</depend>
   <depend>pcl_conversions</depend>
@@ -31,6 +32,14 @@
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>libtins-dev</build_depend>
   <build_depend>libzip-dev</build_depend>
+
+  <!-- only needed when building with -DBUILD_MAPPING=ON, which enables the
+       SLAM LidarScanProcessor (src/slam_processor.h, proc_mask=SLAM) -->
+  <build_depend>libceres-dev</build_depend>
+  <build_depend>libflatbuffers-dev</build_depend>
+  <build_depend>libpng-dev</build_depend>
+  <build_depend>zlib1g-dev</build_depend>
+  <build_depend>robin-map-dev</build_depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>launch</exec_depend>

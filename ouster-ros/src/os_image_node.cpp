@@ -51,6 +51,12 @@ class OusterImage : public OusterProcessingNodeBase {
     }
 
     void metadata_handler(const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
+        if (metadata_msg->data.empty()) {
+            RCLCPP_WARN(get_logger(),
+                        "OusterImage: received empty sensor metadata, "
+                        "ignoring");
+            return;
+        }
         RCLCPP_INFO(get_logger(),
                     "OusterImage: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);

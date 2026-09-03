@@ -26,6 +26,12 @@
 #include "laser_scan_processor.h"
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
+#ifdef OUSTER_ROS_BUILD_MAPPING
+#include "slam_processor.h"
+#include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#endif
 
 namespace ouster_ros {
 
@@ -69,10 +75,26 @@ class OusterCloud : public OusterProcessingNodeBase {
         declare_parameter("v_reduction", 1);
         declare_parameter("min_scan_valid_columns_ratio", 0.0);
         declare_parameter("mask_path", "");
+#ifdef OUSTER_ROS_BUILD_MAPPING
+        declare_parameter("odom_frame", "odom");
+        declare_parameter("publish_slam_tf", true);
+        declare_parameter("slam_min_range", 0.5);
+        declare_parameter("slam_max_range", 75.0);
+        declare_parameter("slam_voxel_size", 0.0);
+        declare_parameter("slam_deskew_method", "auto");
+        declare_parameter("slam_map_voxel_size", 0.2);
+        declare_parameter("slam_map_publish_every_n", 1);
+#endif
     }
 
     void metadata_handler(
         const std_msgs::msg::String::ConstSharedPtr& metadata_msg) {
+        if (metadata_msg->data.empty()) {
+            RCLCPP_WARN(get_logger(),
+                        "OusterCloud: received empty sensor metadata, "
+                        "ignoring");
+            return;
+        }
         RCLCPP_INFO(get_logger(),
                     "OusterCloud: retrieved new sensor metadata!");
         info = ouster::sdk::core::SensorInfo(metadata_msg->data);
@@ -215,7 +237,64 @@ class OusterCloud : public OusterProcessingNodeBase {
                 }));
         }
 
-        if (impl::check_token(tokens, "PCL") || impl::check_token(tokens, "SCAN")) {
+#ifdef OUSTER_ROS_BUILD_MAPPING
+        if (impl::check_token(tokens, "SLAM")) {
+            odom_pub = create_publisher<nav_msgs::msg::Odometry>(
+                "odom", selected_qos);
+            trajectory_pub = create_publisher<nav_msgs::msg::Path>(
+                "trajectory", rclcpp::QoS(rclcpp::KeepLast(1)));
+            map_pub = create_publisher<sensor_msgs::msg::PointCloud2>(
+                "map", rclcpp::QoS(rclcpp::KeepLast(1)));
+
+            auto odom_frame = get_parameter("odom_frame").as_string();
+            auto publish_slam_tf = get_parameter("publish_slam_tf").as_bool();
+            auto slam_min_range = get_parameter("slam_min_range").as_double();
+            auto slam_max_range = get_parameter("slam_max_range").as_double();
+            auto slam_voxel_size = get_parameter("slam_voxel_size").as_double();
+            auto slam_deskew_method =
+                get_parameter("slam_deskew_method").as_string();
+            auto slam_map_voxel_size =
+                get_parameter("slam_map_voxel_size").as_double();
+            auto slam_map_publish_every_n = static_cast<int>(
+                get_parameter("slam_map_publish_every_n").as_int());
+
+            if (publish_slam_tf && !slam_tf_bcast) {
+                slam_tf_bcast =
+                    std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+            }
+
+            processors.push_back(SlamProcessor::create(
+                info, odom_frame, tf_bcast.sensor_frame_id(), slam_min_range,
+                slam_max_range, slam_voxel_size, slam_deskew_method,
+                slam_map_voxel_size, slam_map_publish_every_n,
+                [this, publish_slam_tf](SlamProcessor::OutputType output) {
+                    odom_pub->publish(*output.odom);
+                    trajectory_pub->publish(*output.trajectory);
+                    if (output.map) map_pub->publish(*output.map);
+                    if (publish_slam_tf) {
+                        geometry_msgs::msg::TransformStamped tf_msg;
+                        tf_msg.header = output.odom->header;
+                        tf_msg.child_frame_id = output.odom->child_frame_id;
+                        tf_msg.transform.translation.x =
+                            output.odom->pose.pose.position.x;
+                        tf_msg.transform.translation.y =
+                            output.odom->pose.pose.position.y;
+                        tf_msg.transform.translation.z =
+                            output.odom->pose.pose.position.z;
+                        tf_msg.transform.rotation =
+                            output.odom->pose.pose.orientation;
+                        slam_tf_bcast->sendTransform(tf_msg);
+                    }
+                }));
+        }
+#endif
+
+        if (impl::check_token(tokens, "PCL") ||
+            impl::check_token(tokens, "SCAN")
+#ifdef OUSTER_ROS_BUILD_MAPPING
+            || impl::check_token(tokens, "SLAM")
+#endif
+        ) {
             lidar_packet_handler = LidarPacketHandler::create(
                 info, processors, timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
@@ -233,7 +312,11 @@ class OusterCloud : public OusterProcessingNodeBase {
 
         if (impl::check_token(tokens, "PCL") ||
             impl::check_token(tokens, "SCAN") ||
-            impl::check_token(tokens, "TLM")) {
+            impl::check_token(tokens, "TLM")
+#ifdef OUSTER_ROS_BUILD_MAPPING
+            || impl::check_token(tokens, "SLAM")
+#endif
+        ) {
             lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets",
                 rclcpp::QoS(selected_qos).keep_last(lidar_packets_per_frame(info)),
@@ -274,6 +357,13 @@ class OusterCloud : public OusterProcessingNodeBase {
 
     rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
     TelemetryHandler::HandlerType telemetry_handler;
+
+#ifdef OUSTER_ROS_BUILD_MAPPING
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr trajectory_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_pub;
+    std::unique_ptr<tf2_ros::TransformBroadcaster> slam_tf_bcast;
+#endif
 };
 
 }  // namespace ouster_ros

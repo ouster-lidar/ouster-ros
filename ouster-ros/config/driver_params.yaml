@@ -92,8 +92,11 @@ ouster/os_driver:
     # broadcast the TF transforms for the imu/sensor/lidar frames. Prevent the
     # driver from broadcasting TF transforms by setting this parameter to False.
     pub_static_tf: true
-    # proc_mask[optional]: use any combination of the 6 flags IMG, PCL, IMU, SCAN
-    # RAW and TLM to enable or disable their respective messages.
+    # proc_mask[optional]: use any combination of the flags IMG, PCL, IMU, SCAN,
+    # RAW, TLM and SLAM to enable or disable their respective messages. SLAM
+    # requires the driver to have been built with -DBUILD_MAPPING=ON (off by
+    # default) and is not included by default below; see the slam_* and
+    # odom_frame/publish_slam_tf params further down.
     proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
@@ -185,6 +188,35 @@ ouster/os_driver:
     # mask_path[optional]: path to an image file that will be used to mask parts of the
     # pointcloud.
     mask_path: ''
+    # the following slam_*/odom_frame/publish_slam_tf params only take effect when
+    # proc_mask includes SLAM and the driver was built with -DBUILD_MAPPING=ON.
+    # They feed the ouster-sdk SLAMEngine (kiss backend) to publish lidar
+    # odometry (odom topic), a trajectory path (trajectory topic) and a
+    # downsampled, accumulated map point cloud (map topic).
+    #
+    # odom_frame[optional]: fixed reference frame the odom/trajectory/map
+    # topics and the SLAM TF transform are published in.
+    odom_frame: odom
+    # publish_slam_tf[optional]: broadcast a TF transform from odom_frame to
+    # sensor_frame for every estimated pose.
+    publish_slam_tf: true
+    # slam_min_range/slam_max_range[optional]: range gate (meters) applied to
+    # points used for SLAM registration and map accumulation. Independent of
+    # the PCL processor's own min_range/max_range above.
+    slam_min_range: 0.5
+    slam_max_range: 75.0
+    # slam_voxel_size[optional]: voxel size (meters) used internally by the
+    # SLAM backend for registration; 0.0 lets it auto-estimate from the data.
+    slam_voxel_size: 0.0
+    # slam_deskew_method[optional]: motion-compensation method used by the
+    # SLAM backend; 'auto' lets it choose automatically.
+    slam_deskew_method: auto
+    # slam_map_voxel_size[optional]: leaf size (meters) of the VoxelGrid filter
+    # used to downsample the accumulated map published on the map topic.
+    slam_map_voxel_size: 0.2
+    # slam_map_publish_every_n[optional]: only accumulate/republish the map
+    # every Nth processed scan, to bound the cost of the VoxelGrid filter.
+    slam_map_publish_every_n: 1
     # nmea_in_polarity[optional]: polarity for NMEA UART input; possible values:
     # - ACTIVE_HIGH
     # - ACTIVE_LOW
