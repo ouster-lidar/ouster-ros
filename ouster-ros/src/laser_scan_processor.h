@@ -29,6 +29,7 @@ class LaserScanProcessor {
         : frame(frame_id),
           ld_mode(info.config.lidar_mode.value()),
           ring_(ring),
+          no_return_is_inf_(no_return_is_inf),
           pixel_shift_by_row(info.format.pixel_shift_by_row),
           scan_msgs(info.num_returns()),
           post_processing_fn(func) {

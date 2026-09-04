@@ -104,7 +104,7 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const rclcpp::Time& timestamp,
     const std::string &frame,
     const ouster::sdk::core::LidarMode lidar_mode,
-    const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
+    const std::vector<int>& pixel_shift_by_row,
     const int return_index);
 
 /**
