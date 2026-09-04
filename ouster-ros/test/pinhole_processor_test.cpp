@@ -1354,13 +1354,19 @@ TEST(PinholeProcessorTest,
                                   max_reprojection_error);
 }
 
-TEST(PinholeProcessorTest, ProcessesEverySdkDecodedRangeProfile) {
+TEST(PinholeProcessorTest, AccountsForEverySdkLidarProfile) {
     using Profile = ouster::sdk::core::UDPProfileLidar;
-    const std::array<Profile, 11> profiles{
+    // Keep this list exhaustive for the SDK pinned by ouster-ros. UNKNOWN is
+    // invalid, OFF intentionally has no lidar pixels, and FIVE_WORD_PIXEL is
+    // the SDK's raw-word debug profile. Every production range profile must
+    // reach the common pinhole path below.
+    const std::array<Profile, 14> profiles{
+        Profile::UNKNOWN,
         Profile::LEGACY,
         Profile::RNG19_RFL8_SIG16_NIR16_DUAL,
         Profile::RNG19_RFL8_SIG16_NIR16,
         Profile::RNG15_RFL8_NIR8,
+        Profile::FIVE_WORD_PIXEL,
         Profile::FUSA_RNG15_RFL8_NIR8_DUAL,
         Profile::RNG15_RFL8_NIR8_DUAL,
         Profile::RNG15_RFL8_NIR8_ZONE16,
@@ -1368,13 +1374,39 @@ TEST(PinholeProcessorTest, ProcessesEverySdkDecodedRangeProfile) {
         Profile::RNG15_RFL8_WIN8,
         Profile::RNG19_RFL8_SIG16_NIR16_RGB16,
         Profile::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL,
+        Profile::OFF,
     };
 
+    size_t production_profiles_processed = 0;
     for (const auto profile : profiles) {
         SCOPED_TRACE(ouster::sdk::core::to_string(profile));
         auto info = load_test_info();
         info.format.udp_profile_lidar = profile;
+        if (profile == Profile::UNKNOWN) {
+            EXPECT_THROW(
+                {
+                    const ouster::sdk::core::LidarScan unknown_scan{info};
+                    (void)unknown_scan;
+                },
+                std::invalid_argument);
+            continue;
+        }
+
         ouster::sdk::core::LidarScan scan(info);
+        if (profile == Profile::FIVE_WORD_PIXEL) {
+            EXPECT_FALSE(scan.has_field(ouster::sdk::core::ChanField::RANGE));
+            EXPECT_TRUE(
+                scan.has_field(ouster::sdk::core::ChanField::RAW32_WORD1));
+            EXPECT_TRUE(
+                scan.has_field(ouster::sdk::core::ChanField::RAW32_WORD5));
+            continue;
+        }
+        if (profile == Profile::OFF) {
+            EXPECT_FALSE(scan.has_field(ouster::sdk::core::ChanField::RANGE));
+            continue;
+        }
+
+        ++production_profiles_processed;
         ASSERT_TRUE(scan.has_field(ouster::sdk::core::ChanField::RANGE));
         scan.field<uint32_t>(ouster::sdk::core::ChanField::RANGE)
             .setConstant(10000);
@@ -1414,6 +1446,7 @@ TEST(PinholeProcessorTest, ProcessesEverySdkDecodedRangeProfile) {
                          2, 4)));
         }
     }
+    EXPECT_EQ(production_profiles_processed, 11u);
 }
 
 TEST(PinholeProcessorTest, RgbPanelPublicationIsExplicitAndProfileGated) {
