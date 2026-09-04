@@ -3,6 +3,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
+#include <string_view>
+
 #include "ouster_ros/os_point.h"
 #include "ouster_ros/color_point.h"
 #include "ouster_ros/sensor_point_types.h"
@@ -58,7 +60,9 @@ constexpr auto make_lidar_scan_tuple() {
 
 /**
  * @brief maps the fields of a LidarScan object to the elements of the supplied
- * tuple in the same order.
+ * tuple in the same order. WINDOW is optional because the SDK omits it from
+ * scans produced by firmware older than 3.2. A null tuple entry represents
+ * that missing field.
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table,
           typename Tuple>
@@ -72,7 +76,13 @@ void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarSca
             std::remove_pointer_t<std::tuple_element_t<Index, Tuple>>>;
         static_assert(std::is_same_v<ElementType, FieldType>,
                       "tuple element, field element types mismatch!");
-        std::get<Index>(tp) = ls.field<FieldType>(Table[Index].first).data();
+        const auto field_name = Table[Index].first;
+        const bool missing_optional_window =
+            std::string_view{field_name} == ChanField::WINDOW &&
+            !ls.has_field(field_name);
+        std::get<Index>(tp) = missing_optional_window
+                                  ? nullptr
+                                  : ls.field<FieldType>(field_name).data();
         map_lidar_scan_fields_to_tuple<Index + 1, N, Table>(tp, ls);
     }
 }
@@ -103,7 +113,10 @@ constexpr auto make_lidar_scan_tuple(const ouster::sdk::core::LidarScan& ls) {
 template <std::size_t Index, typename PointT, typename Tuple>
 void copy_lidar_scan_fields_to_point(PointT& pt, const Tuple& tp, int idx) {
     if constexpr (Index < std::tuple_size_v<Tuple>) {
-        point::get<5 + Index>(pt) = std::get<Index>(tp)[idx];
+        using PointFieldType =
+            std::remove_reference_t<decltype(point::get<5 + Index>(pt))>;
+        const auto* field = std::get<Index>(tp);
+        point::get<5 + Index>(pt) = field ? field[idx] : PointFieldType{};
         copy_lidar_scan_fields_to_point<Index + 1>(pt, tp, idx);
     } else {
         unused_variable(pt);
