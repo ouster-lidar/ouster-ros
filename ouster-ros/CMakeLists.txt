@@ -286,6 +286,7 @@ if(BUILD_TESTING)
   list(REMOVE_ITEM CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake")
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
@@ -304,6 +305,7 @@ if(BUILD_TESTING)
     set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
       LINK_LIBRARIES ouster_ros_library)
   endif()
+  add_launch_test(test/camera_nodes_launch_test.py TIMEOUT 90)
   set(CMAKE_MODULE_PATH "${_ouster_ros_saved_cmake_module_path}")
 endif()
 
