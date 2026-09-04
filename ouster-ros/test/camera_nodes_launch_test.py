@@ -1,4 +1,3 @@
-# Copyright 2026 John Cameron Furey
 # SPDX-License-Identifier: BSD-3-Clause
 
 """End-to-end packet tests for the ROS camera processing nodes."""
