@@ -3,9 +3,13 @@
 /**:
   ros__parameters:
     use_system_default_qos: false
+    # 0 accepts partial startup scans; 1 requires every lidar column.
+    min_scan_valid_columns_ratio: 0.0
 
     # Four overlapping horizon views plus a zenith view cover the OSDome
     # hemisphere without placing straight up at a pinhole singularity.
+    # With parent_frame=os_lidar, yaw 0 points toward the external connector;
+    # names describe parent-frame axes, not a particular vehicle mounting.
     panel_names: [front, left, rear, right, top]
     panel_yaws_deg: [0.0, 90.0, 180.0, 270.0, 0.0]
     panel_pitches_deg: [0.0, 0.0, 0.0, 0.0, 90.0]

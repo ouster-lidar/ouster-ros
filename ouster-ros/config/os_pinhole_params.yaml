@@ -6,9 +6,13 @@
 /**:
   ros__parameters:
     use_system_default_qos: false
+    # 0 accepts partial startup scans; 1 requires every lidar column.
+    min_scan_valid_columns_ratio: 0.0
 
     # Arrays with one value are broadcast to every panel. Otherwise, supply
     # one value per panel_names entry (panel_yaws_deg is always per panel).
+    # With parent_frame=os_lidar, yaw 0 points toward the external connector;
+    # names describe parent-frame axes, not a particular vehicle mounting.
     panel_names: [front, left, rear, right]
     panel_yaws_deg: [0.0, 90.0, 180.0, 270.0]
     panel_pitches_deg: [0.0]
@@ -44,7 +48,7 @@
     publish_rgb: false
 
     # parent_frame must be co-located with the native lidar measurement frame,
-    # use +X forward/+Z up, and differ from it by yaw only.
+    # use +Z up, and differ from it by yaw only.
     parent_frame: os_lidar
     optical_frame_template: '{ns}/panels/{name}_optical_frame'
     azimuth_offset_deg: 0.0 # CCW yaw of native lidar +X in parent_frame

@@ -260,6 +260,15 @@ driver's 4 mm radial-range encoding and is not optical-axis depth; use
 `depth_image` with `depth_image_proc`. Dual-return profiles also publish
 `depth_image2`.
 
+The default panel names are relative to `os_lidar`, not to a vehicle or the
+sensor housing. Ouster defines lidar yaw 0 / native +X toward the external
+connector, with positive yaw counter-clockwise when viewed from above. Thus a
+vehicle with the connector facing rear would use
+`panel_yaws_deg: [180, 270, 0, 90]` for vehicle
+`[front, left, rear, right]`; a connector facing forward uses the default
+`[0, 90, 180, 270]`. See Ouster's
+[coordinate-system documentation](https://docs.ouster.com/sensor-docs/coordinate-system).
+
 REV8 RGB is opt-in so color conversion, tone mapping, and image bandwidth remain
 disabled by default. Set `publish_rgb: true` and configure the sensor with an
 RGB lidar packet profile to add an `rgb_image` (`rgb8`) for each panel. Setting
@@ -291,6 +300,12 @@ image dimensions with zero/`NaN` padding instead. If a configured panel has no
 overlap at all, automatic cropping rejects it rather than advertising an empty
 image; remove or reorient that panel for the active `column_window`, or disable
 cropping only when an all-invalid padded panel is intentional.
+
+`min_scan_valid_columns_ratio` controls whether an incomplete revolution is
+processed. Its default of `0.0` matches the other driver processing nodes and
+can publish partially populated startup frames; missing samples remain zero in
+display images and `NaN` in depth. Set it to `1.0` to require every column, or
+choose an intermediate ratio when some packet loss is acceptable.
 
 To request an exact output crop, set all four ROI arrays in the parameter file.
 Coordinates are in the configured full-panel canvas, before any crop:

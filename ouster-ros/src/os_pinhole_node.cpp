@@ -104,7 +104,9 @@ class OusterPinhole : public OusterProcessingNodeBase {
         // REV8 color conversion and tone mapping are intentionally opt-in.
         declare_parameter("publish_rgb", false);
 
-        // parent_frame must use the lidar-frame convention: +X forward, +Z up.
+        // parent_frame must be co-located with the native lidar frame, use
+        // +Z up, and differ from it by yaw only. Native lidar +X points toward
+        // the sensor's external connector, not the housing-forward direction.
         declare_parameter("parent_frame", "os_lidar");
         declare_parameter("optical_frame_template",
                           std::string("{ns}/panels/{name}_optical_frame"));
