@@ -68,7 +68,9 @@ ouster/os_pinhole:
                             # with fixed height, 0 = keep square pixels
     crop_to_valid_region: true # crop unsupported outer pixels; CameraInfo ROI
                                # records the exact crop in full-panel coordinates
+    publish_rgb: false # REV8 only: opt in to RGB conversion, tone mapping, and
+                       # a panel rgb_image when using an RGB lidar profile
     parent_frame: os_lidar
     optical_frame_template: '{ns}/panels/{name}_optical_frame'
-    azimuth_offset_deg: 0.0 # destaggered column-zero azimuth in parent_frame;
-                            # leave zero for the native lidar frame
+    azimuth_offset_deg: 0.0 # CCW yaw of native lidar +X in parent_frame;
+                            # leave zero when parent_frame is os_lidar

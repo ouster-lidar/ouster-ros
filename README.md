@@ -256,6 +256,11 @@ driver's 4 mm radial-range encoding and is not optical-axis depth; use
 `depth_image` with `depth_image_proc`. Dual-return profiles also publish
 `depth_image2`.
 
+REV8 RGB is opt-in so color conversion, tone mapping, and image bandwidth remain
+disabled by default. Set `publish_rgb: true` and configure the sensor with an
+RGB lidar packet profile to add an `rgb_image` (`rgb8`) for each panel. Setting
+the option on a non-RGB profile has no effect.
+
 `panel_widths` and `panel_hfovs_deg` define the horizontal calibration. A zero
 `panel_height` derives a square-pixel height from `panel_vfovs_deg`, or from the
 metadata beam angles when both values are zero. With a fixed height, a nonzero
@@ -265,8 +270,30 @@ By default, outer pixels unsupported by the lidar FOV or configured
 the configured full-panel calibration while `CameraInfo.roi` exactly describes
 the emitted image crop. Set `crop_to_valid_region: false` to keep the configured
 image dimensions with zero/`NaN` padding instead.
-`azimuth_offset_deg` is the azimuth of destaggered column zero in
-`parent_frame`; leave it at zero when `parent_frame` is the native lidar frame.
+`azimuth_offset_deg` is the counter-clockwise yaw of the native lidar +X axis
+in `parent_frame`; leave it at zero when `parent_frame` is the native lidar
+frame. It is not a destaggered-column offset: calibrated beam azimuths and
+destagger shifts differ across products and firmware versions.
+
+An OSDome needs a top-facing view in addition to the four horizon views. The
+included preset uses explicit, bounded fields of view so that zenith is at the
+centre of a pinhole panel rather than at the singular edge of the side panels:
+
+```bash
+ros2 launch ouster_ros pinhole.launch.py \
+    params_file:="$(ros2 pkg prefix ouster_ros)/share/ouster_ros/config/os_pinhole_dome_params.yaml"
+```
+
+The pinhole depth image is a calibrated nearest-neighbour resampling of the
+lidar returns, not an exact subset of the raw point cloud. Back-projecting it
+with `depth_image_proc` preserves the selected return's optical-axis depth to
+floating-point precision, but X/Y lie on the output pixel-centre ray. They
+usually differ from the raw XYZ point by up to roughly half the sensor/output
+angular sampling interval, with metric error growing with range. Multiple
+pixels can select the same return and some returns may be omitted. Use the raw
+cloud when exact XYZ, ring, timestamp, intensity, or one-point-per-return
+identity matters. Also note that custom raw-cloud range, mask, or vertical
+reduction filters are not applied to these panel images.
 
 For example, convert the front panel to a point cloud with:
 

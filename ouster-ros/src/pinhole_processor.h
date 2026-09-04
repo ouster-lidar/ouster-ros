@@ -24,6 +24,7 @@
 #include <Eigen/Core>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -71,8 +72,8 @@ class PinholeProcessor {
         double pitch_rad = 0.0;
         std::map<std::string, std::shared_ptr<sensor_msgs::msg::Image>> images;
         // Metric optical-axis depth images keyed by RANGE / RANGE2. These are
-        // separate from images because the other outputs are uint16 display
-        // images while depth is 32FC1 in metres.
+        // separate from images because monochrome display outputs are uint16,
+        // optional RGB is RGB8, and depth is 32FC1 in metres.
         std::map<std::string, std::shared_ptr<sensor_msgs::msg::Image>>
             depth_images;
         sensor_msgs::msg::CameraInfo camera_info;
@@ -101,10 +102,11 @@ class PinholeProcessor {
                      const std::string& optical_frame_template,
                      const std::string& lidar_namespace,
                      double azimuth_offset_columns,
-                     PostProcessingFn func)
+                     PostProcessingFn func, bool publish_rgb = false)
         : info_(info),
           azimuth_offset_rad_(0.0),
-          post_processing_fn_(func) {
+          post_processing_fn_(func),
+          has_rgb_(publish_rgb && profile_has_rgb(info)) {
         if (panel_configs.empty()) {
             throw std::invalid_argument("at least one panel is required");
         }
@@ -136,8 +138,11 @@ class PinholeProcessor {
                                    panel_name);
     }
 
-    static std::map<std::string, std::string> channel_topics(int n_returns) {
-        return channel_topic_map_for(n_returns);
+    static std::map<std::string, std::string> channel_topics(
+        const ouster::sdk::core::SensorInfo& info,
+        bool publish_rgb = false) {
+        return channel_topic_map_for(info.num_returns(),
+                                     publish_rgb && profile_has_rgb(info));
     }
 
     static std::map<std::string, std::string> depth_topics(int n_returns) {
@@ -150,10 +155,10 @@ class PinholeProcessor {
         const std::string& optical_frame_template,
         const std::string& lidar_namespace,
         double azimuth_offset_columns,
-        PostProcessingFn func) {
+        PostProcessingFn func, bool publish_rgb = false) {
         auto handler = std::make_shared<PinholeProcessor>(
             info, panel_configs, optical_frame_template, lidar_namespace,
-            azimuth_offset_columns, func);
+            azimuth_offset_columns, func, publish_rgb);
         return [handler](const ouster::sdk::core::LidarScan& scan,
                          uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
@@ -263,15 +268,21 @@ class PinholeProcessor {
         const uint32_t output_width = out->camera_info.roi.width;
         const uint32_t output_height = out->camera_info.roi.height;
 
-        const auto channel_topic_map = channel_topic_map_for(info_.num_returns());
+        const auto channel_topic_map = channel_topic_map_for(
+            info_.num_returns(), has_rgb_);
         for (const auto& kv : channel_topic_map) {
             auto img = std::make_shared<sensor_msgs::msg::Image>();
             img->header.frame_id = out->optical_frame_id;
             img->width = output_width;
             img->height = output_height;
-            img->encoding = sensor_msgs::image_encodings::MONO16;
             img->is_bigendian = 0;
-            img->step = output_width * sizeof(pixel_type);
+            if (kv.first == ChanField::RGB) {
+                img->encoding = sensor_msgs::image_encodings::RGB8;
+                img->step = output_width * 3 * sizeof(uint8_t);
+            } else {
+                img->encoding = sensor_msgs::image_encodings::MONO16;
+                img->step = output_width * sizeof(pixel_type);
+            }
             img->data.assign(static_cast<size_t>(img->step) * output_height,
                              0);
             out->images[kv.first] = img;
@@ -314,8 +325,8 @@ class PinholeProcessor {
         const uint32_t H = info_.format.pixels_per_column;
         const uint32_t W = info_.format.columns_per_frame;
 
-        // azimuth_offset_rad_ says where SDK/destaggered column zero points in
-        // the advertised parent frame. Convert the configured parent-frame
+        // azimuth_offset_rad_ says where the native SDK lidar +X axis points
+        // in the advertised parent frame. Convert the configured parent-frame
         // panel yaw back into SDK lidar coordinates before selecting samples
         // or projecting their optical-axis depth.
         const double lidar_yaw = out.yaw_rad - azimuth_offset_rad_;
@@ -391,32 +402,41 @@ class PinholeProcessor {
                     r_src = -1;
                 }
 
-                // Destaggered column index advances clockwise in lidar_frame:
-                // col = (column_zero_azimuth - azimuth) * W / (2*pi).
+                // Select the raw measurement column from the calibrated beam
+                // azimuth. pixel_shift_by_row is an image destaggering offset,
+                // not a geometric substitute for beam_azimuth_angles; the two
+                // differ substantially for some products and firmware.
+                // make_xyz_lut defines a raw point's azimuth as:
+                //   -raw_col * 2*pi/W - beam_azimuth[row].
                 const double az_norm = normalize_radians(azimuth);
-                const double v_dest = normalize_columns(
-                    -az_norm * static_cast<double>(W) / (2.0 * M_PI), W);
-                // v_dest is in [0, W) but rounding can land exactly on W;
-                // wrap around the panorama seam instead of clamping to W-1.
-                const int32_t v_src = wrap_index(
-                    std::lround(v_dest), static_cast<int32_t>(W));
-
                 int32_t valid_r =
                     (r_src >= 0 && r_src < static_cast<int32_t>(H))
                         ? r_src
                         : -1;
-                out.v_src(u, v) = v_src;
 
                 int32_t raw_v = -1;
+                int32_t v_src = 0;
                 if (valid_r >= 0) {
-                    raw_v = destaggered_to_raw_column(
-                        v_src, info_.format.pixel_shift_by_row[valid_r],
+                    const double beam_azimuth_rad =
+                        info_.beam_azimuth_angles[valid_r] * M_PI / 180.0;
+                    const double raw_column = normalize_columns(
+                        -(az_norm + beam_azimuth_rad) *
+                            static_cast<double>(W) / (2.0 * M_PI),
+                        W);
+                    // raw_column is in [0, W), but rounding can land on W.
+                    raw_v = wrap_index(std::lround(raw_column),
+                                       static_cast<int32_t>(W));
+                    // The display channels are sampled after SDK-compatible
+                    // destaggering, whose output column v reads raw v-shift.
+                    v_src = raw_to_destaggered_column(
+                        raw_v, info_.format.pixel_shift_by_row[valid_r],
                         static_cast<int32_t>(W));
                     if (!raw_column_in_window(raw_v)) {
                         valid_r = -1;
                         raw_v = -1;
                     }
                 }
+                out.v_src(u, v) = v_src;
                 out.r_src(u, v) = valid_r;
                 out.raw_v_src(u, v) = raw_v;
 
@@ -540,8 +560,17 @@ class PinholeProcessor {
         return out;
     }
 
+    static bool profile_has_rgb(
+        const ouster::sdk::core::SensorInfo& info) {
+        using Profile = ouster::sdk::core::UDPProfileLidar;
+        return info.format.udp_profile_lidar ==
+                   Profile::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+               info.format.udp_profile_lidar ==
+                   Profile::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+    }
+
     static std::map<std::string, std::string> channel_topic_map_for(
-        int n_returns) {
+        int n_returns, bool has_rgb) {
         std::map<std::string, std::string> m {
             {ChanField::RANGE, "range_image"},
             {ChanField::SIGNAL, "signal_image"},
@@ -552,6 +581,7 @@ class PinholeProcessor {
             m[ChanField::SIGNAL2] = "signal_image2";
             m[ChanField::REFLECTIVITY2] = "reflec_image2";
         }
+        if (has_rgb) m[ChanField::RGB] = "rgb_image";
         return m;
     }
 
@@ -672,6 +702,25 @@ class PinholeProcessor {
                 sample_depth_panel(*depth_it->second, range, *panel);
             }
         }
+
+        // LidarPacketHandler tone-maps native float16 color into these three
+        // uint8 fields once per scan. RGB is common to both lidar returns, so
+        // resample it only while processing the first return.
+        if (first && has_rgb_) {
+            const auto red = impl::get_or_fill_zero<uint8_t>(
+                ChanField::R_U8, lidar_scan);
+            const auto green = impl::get_or_fill_zero<uint8_t>(
+                ChanField::G_U8, lidar_scan);
+            const auto blue = impl::get_or_fill_zero<uint8_t>(
+                ChanField::B_U8, lidar_scan);
+            for (auto& panel : panels_) {
+                const auto rgb_it = panel->images.find(ChanField::RGB);
+                if (rgb_it != panel->images.end()) {
+                    sample_rgb_panel(*rgb_it->second, red, green, blue,
+                                     *panel);
+                }
+            }
+        }
     }
 
     void sample_panel(sensor_msgs::msg::Image& out,
@@ -691,6 +740,36 @@ class PinholeProcessor {
                     (static_cast<size_t>(u) * pw + v) * sizeof(pixel_type);
                 std::memcpy(out.data.data() + output_offset, &val,
                             sizeof(pixel_type));
+            }
+        }
+    }
+
+    void sample_rgb_panel(
+        sensor_msgs::msg::Image& out,
+        const ouster::sdk::core::img_t<uint8_t>& red,
+        const ouster::sdk::core::img_t<uint8_t>& green,
+        const ouster::sdk::core::img_t<uint8_t>& blue,
+        const PanelOutput& panel) const {
+        const uint32_t pw = out.width;
+        const uint32_t ph = out.height;
+        const int32_t W =
+            static_cast<int32_t>(info_.format.columns_per_frame);
+        for (uint32_t u = 0; u < ph; ++u) {
+            for (uint32_t v = 0; v < pw; ++v) {
+                std::array<uint8_t, 3> rgb{0, 0, 0};
+                const int32_t r = panel.r_src(u, v);
+                const int32_t raw_v = panel.raw_v_src(u, v);
+                if (r >= 0 && raw_v >= 0) {
+                    const size_t source_index =
+                        static_cast<size_t>(r) * W + raw_v;
+                    rgb = {red.data()[source_index],
+                           green.data()[source_index],
+                           blue.data()[source_index]};
+                }
+                const size_t output_offset =
+                    (static_cast<size_t>(u) * pw + v) * rgb.size();
+                std::memcpy(out.data.data() + output_offset, rgb.data(),
+                            rgb.size());
             }
         }
     }
@@ -742,6 +821,11 @@ class PinholeProcessor {
     static int32_t destaggered_to_raw_column(int32_t column, int shift,
                                               int32_t width) {
         return wrap_index(static_cast<int64_t>(column) - shift, width);
+    }
+
+    static int32_t raw_to_destaggered_column(int32_t column, int shift,
+                                              int32_t width) {
+        return wrap_index(static_cast<int64_t>(column) + shift, width);
     }
 
     static double normalize_columns(double value, uint32_t width) {
@@ -811,6 +895,7 @@ class PinholeProcessor {
     ouster::sdk::core::SensorInfo info_;
     double azimuth_offset_rad_;
     PostProcessingFn post_processing_fn_;
+    bool has_rgb_;
     std::vector<std::shared_ptr<PanelOutput>> panels_;
 
     ouster::sdk::core::image::AutoExposure signal_ae_;
