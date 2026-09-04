@@ -99,6 +99,7 @@ class OusterSensor : public OusterSensorNodeBase {
     // helper methods for parsing individual config fields from ros parameters
     void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
+    void parse_columns_per_packet(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_imu_and_settings(ouster::sdk::core::SensorConfig& config);
     void parse_lidar_mode(ouster::sdk::core::SensorConfig& config);
     void parse_timestamp_mode(ouster::sdk::core::SensorConfig& config);
@@ -130,8 +131,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::string load_config_file(const std::string& config_file);
 
     // fill in values that could not be parsed from metadata
-    void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info,
-                                    ouster::sdk::core::LidarMode specified_lidar_mode);
+    void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info);
 
     void allocate_buffers();
 

@@ -28,8 +28,13 @@
     RNG15_RFL8_NIR8_DUAL (FW3.2+),
     RNG15_RFL8_WIN8 (FW3.2+),
     RNG15_RFL8_NIR8_ZONE16 (FW3.2+),
-    RNG19_RFL8_SIG16_NIR16_ZONE16 (FW3.2+)
+    RNG19_RFL8_SIG16_NIR16_ZONE16 (FW3.2+),
+    RNG19_RFL8_SIG16_NIR16_RGB16 (FW4.0+)
+    RNG19_RFL8_SIG16_NIR16_RGB16_DUAL (FW4.0+)
     }"/>
+  <!-- columns_per_packet is only available with FW4.0 -->
+  <arg name="columns_per_packet" default="0"
+    description="number of columns per packet; possible values: {1, 2, 4, 8, 16, 32, 64}; (0 is unset)"/>
   <!-- ACCEL32_GYRO32_NMEA is only available with FW3.2 -->
   <arg name="udp_profile_imu" default=""
     description="imu packet profile; possible values: {
@@ -38,7 +43,7 @@
     }"/>
   <!-- Only set this parameter when working with FW3.2 -->
   <arg name="imu_packets_per_frame" default="0"
-    description="number of IMU packets per frame; possible values: {1, 2, 4, 8}"/>
+    description="number of IMU packets per frame; possible values: {1, 2, 4, 8}; (0 is unset)"/>
   <!-- Only set this parameter when working with FW3.1 -->
   <arg name="gyro_fsr" default=""
     description="gyro full scale range (requires FW3.1+); possible values: {
@@ -110,7 +115,10 @@
     xyz,
     xyzi,
     o_xyzi,
-    xyzir
+    xyzir,
+    xyzrgb,
+    xyzrgba,
+    color_point
     }"/>
 
   <arg name="organized" default="true"
@@ -202,6 +210,7 @@
         <param name="lidar_port" value="$(var lidar_port)"/>
         <param name="imu_port" value="$(var imu_port)"/>
         <param name="udp_profile_lidar" value="$(var udp_profile_lidar)"/>
+        <param name="columns_per_packet" value="$(var columns_per_packet)"/>
         <param name="udp_profile_imu" value="$(var udp_profile_imu)"/>
         <param name="imu_packets_per_frame" value="$(var imu_packets_per_frame)"/>
         <param name="gyro_fsr" value="$(var gyro_fsr)"/>

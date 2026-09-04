@@ -37,7 +37,7 @@ class OusterCloud : public OusterProcessingNodeBase {
    public:
     OUSTER_ROS_PUBLIC
     explicit OusterCloud(const rclcpp::NodeOptions& options)
-        : OusterProcessingNodeBase("os_cloud", options), tf_bcast(this) {
+        : OusterProcessingNodeBase("os_cloud", options), tf_bcast(*this) {
         on_init();
     }
 
@@ -91,10 +91,10 @@ class OusterCloud : public OusterProcessingNodeBase {
 
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
-        rclcpp::QoS system_default_qos = rclcpp::SystemDefaultsQoS();
-        rclcpp::QoS sensor_data_qos = rclcpp::SensorDataQoS();
-        auto selected_qos =
-            use_system_default_qos ? system_default_qos : sensor_data_qos;
+        rclcpp::QoS selected_qos =
+            use_system_default_qos ?
+                static_cast<rclcpp::QoS>(rclcpp::SystemDefaultsQoS()) :
+                static_cast<rclcpp::QoS>(rclcpp::SensorDataQoS());
 
         auto proc_mask = get_parameter("proc_mask").as_string();
         auto tokens = impl::parse_tokens(proc_mask, '|');
@@ -106,7 +106,8 @@ class OusterCloud : public OusterProcessingNodeBase {
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
             imu_packet_sub = create_subscription<PacketMsg>(
-                "imu_packets", selected_qos,
+                "imu_packets",
+                rclcpp::QoS(selected_qos).keep_last(info.format.imu_packets_per_frame),
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     if (imu_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
@@ -234,7 +235,8 @@ class OusterCloud : public OusterProcessingNodeBase {
             impl::check_token(tokens, "SCAN") ||
             impl::check_token(tokens, "TLM")) {
             lidar_packet_sub = create_subscription<PacketMsg>(
-                "lidar_packets", selected_qos,
+                "lidar_packets",
+                rclcpp::QoS(selected_qos).keep_last(lidar_packets_per_frame(info)),
                 [this](const PacketMsg::ConstSharedPtr msg) {
                     // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                     // Need to redefine the Packet object and allow use of array_views
