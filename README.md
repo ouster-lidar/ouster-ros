@@ -249,6 +249,10 @@ With a sensor or replay already publishing `metadata` and `lidar_packets`, run:
 ros2 launch ouster_ros pinhole.launch.py
 ```
 
+Copy `config/os_pinhole_params.yaml` for application-specific settings and pass
+it as `params_file:=<path>`. The file is namespace-agnostic, so the same panel
+configuration also works with `ouster_ns:=<namespace>`.
+
 The default parameters publish four cardinal panels. Each panel includes a
 matching `camera_info`, a `32FC1` `depth_image` in metres for standard ROS depth
 consumers, and the driver's display images. The `range_image` retains the
@@ -259,7 +263,21 @@ driver's 4 mm radial-range encoding and is not optical-axis depth; use
 REV8 RGB is opt-in so color conversion, tone mapping, and image bandwidth remain
 disabled by default. Set `publish_rgb: true` and configure the sensor with an
 RGB lidar packet profile to add an `rgb_image` (`rgb8`) for each panel. Setting
-the option on a non-RGB profile has no effect.
+the option on a non-RGB profile produces a warning and no RGB publisher.
+
+Every output can be selected independently with `publish_range_image[2]`,
+`publish_signal_image[2]`, `publish_reflec_image[2]`,
+`publish_nearir_image`, `publish_depth_image[2]`, `publish_rgb`, and
+`publish_camera_info`. The bracketed `[2]` denotes separate return-1 and
+return-2 booleans (for example, `publish_depth_image` and
+`publish_depth_image2`); return-2 settings are ignored on single-return
+profiles. Disabled outputs have no publisher or image buffer, and avoid their
+channel-specific processing. Only `RANGE`/`RANGE2` contain distance, so signal,
+reflectivity, and near-IR cannot be selected as depth sources. A depth topic can
+be enabled while its 4 mm range display topic is disabled. If a requested
+display channel is absent from the active UDP profile (for example, `SIGNAL` in
+a low-bandwidth profile), the node warns and does not create a misleading
+all-zero publisher for it.
 
 `panel_widths` and `panel_hfovs_deg` define the horizontal calibration. A zero
 `panel_height` derives a square-pixel height from `panel_vfovs_deg`, or from the
@@ -269,7 +287,29 @@ By default, outer pixels unsupported by the lidar FOV or configured
 `column_window` are physically removed. `CameraInfo.width` and `height` retain
 the configured full-panel calibration while `CameraInfo.roi` exactly describes
 the emitted image crop. Set `crop_to_valid_region: false` to keep the configured
-image dimensions with zero/`NaN` padding instead.
+image dimensions with zero/`NaN` padding instead. If a configured panel has no
+overlap at all, automatic cropping rejects it rather than advertising an empty
+image; remove or reorient that panel for the active `column_window`, or disable
+cropping only when an all-invalid padded panel is intentional.
+
+To request an exact output crop, set all four ROI arrays in the parameter file.
+Coordinates are in the configured full-panel canvas, before any crop:
+
+```yaml
+panel_roi_x_offsets: [32]
+panel_roi_y_offsets: [8]
+panel_roi_widths: [192]
+panel_roi_heights: [48]
+```
+
+A one-element array applies to every panel; otherwise each array must contain
+one value per `panel_names` entry. An explicit ROI takes precedence over
+`crop_to_valid_region`. It changes only which calibrated pixels are emitted:
+the node preserves the full-canvas intrinsics in `K`/`P`, publishes the exact
+rectangle in `CameraInfo.roi`, and sizes every paired image to that rectangle.
+The node rejects incomplete, empty, out-of-bounds, or wholly unsupported ROIs
+instead of publishing mismatched image geometry. Pixels inside a valid ROI that
+fall outside lidar support remain zero in display images and `NaN` in depth.
 `azimuth_offset_deg` is the counter-clockwise yaw of the native lidar +X axis
 in `parent_frame`; leave it at zero when `parent_frame` is the native lidar
 frame. It is not a destaggered-column offset: calibrated beam azimuths and

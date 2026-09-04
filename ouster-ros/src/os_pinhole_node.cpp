@@ -80,7 +80,27 @@ class OusterPinhole : public OusterProcessingNodeBase {
                                                  std::vector<int64_t>{0});
         declare_parameter<std::vector<double>>("panel_vfovs_deg",
                                                 std::vector<double>{0.0});
+        // These four arrays form one optional setting. Each value may be
+        // broadcast or specified once per panel, just like panel dimensions.
+        declare_parameter<std::vector<int64_t>>(
+            "panel_roi_x_offsets", std::vector<int64_t>{});
+        declare_parameter<std::vector<int64_t>>(
+            "panel_roi_y_offsets", std::vector<int64_t>{});
+        declare_parameter<std::vector<int64_t>>(
+            "panel_roi_widths", std::vector<int64_t>{});
+        declare_parameter<std::vector<int64_t>>(
+            "panel_roi_heights", std::vector<int64_t>{});
         declare_parameter("crop_to_valid_region", true);
+        declare_parameter("publish_range_image", true);
+        declare_parameter("publish_range_image2", true);
+        declare_parameter("publish_signal_image", true);
+        declare_parameter("publish_signal_image2", true);
+        declare_parameter("publish_reflec_image", true);
+        declare_parameter("publish_reflec_image2", true);
+        declare_parameter("publish_nearir_image", true);
+        declare_parameter("publish_depth_image", true);
+        declare_parameter("publish_depth_image2", true);
+        declare_parameter("publish_camera_info", true);
         // REV8 color conversion and tone mapping are intentionally opt-in.
         declare_parameter("publish_rgb", false);
 
@@ -117,12 +137,22 @@ class OusterPinhole : public OusterProcessingNodeBase {
             auto parsed_format =
                 std::make_shared<ouster::sdk::core::PacketFormat>(
                     ouster::sdk::core::get_format(parsed_info));
-            info = std::move(parsed_info);
+            info = parsed_info;
             packet_format = std::move(parsed_format);
             create_publishers_subscribers();
             broadcast_static_transforms();
             mark_metadata_active(metadata_msg->data);
         } catch (const std::exception& e) {
+            // Never keep decoding against the last successful calibration
+            // after receiving a different metadata message that could not be
+            // activated. An idle node is safer than credible but stale
+            // camera geometry.
+            begin_pipeline_update();
+            lidar_packet_sub_.reset();
+            lidar_packet_handler_ = nullptr;
+            lidar_packet_buffer_.reset();
+            panel_pubs_.clear();
+            packet_format.reset();
             invalidate_active_metadata();
             RCLCPP_ERROR_STREAM(
                 get_logger(),
@@ -146,6 +176,14 @@ class OusterPinhole : public OusterProcessingNodeBase {
             get_parameter("panel_heights").as_integer_array();
         const auto vfovs =
             get_parameter("panel_vfovs_deg").as_double_array();
+        const auto roi_x_offsets =
+            get_parameter("panel_roi_x_offsets").as_integer_array();
+        const auto roi_y_offsets =
+            get_parameter("panel_roi_y_offsets").as_integer_array();
+        const auto roi_widths =
+            get_parameter("panel_roi_widths").as_integer_array();
+        const auto roi_heights =
+            get_parameter("panel_roi_heights").as_integer_array();
         const bool crop_to_valid_region =
             get_parameter("crop_to_valid_region").as_bool();
 
@@ -186,6 +224,22 @@ class OusterPinhole : public OusterProcessingNodeBase {
         check_len(widths, "panel_widths");
         check_len(heights, "panel_heights");
         check_len(vfovs, "panel_vfovs_deg");
+        check_len(roi_x_offsets, "panel_roi_x_offsets");
+        check_len(roi_y_offsets, "panel_roi_y_offsets");
+        check_len(roi_widths, "panel_roi_widths");
+        check_len(roi_heights, "panel_roi_heights");
+
+        const bool has_explicit_roi = !roi_x_offsets.empty();
+        if (has_explicit_roi != !roi_y_offsets.empty() ||
+            has_explicit_roi != !roi_widths.empty() ||
+            has_explicit_roi != !roi_heights.empty()) {
+            RCLCPP_FATAL(
+                get_logger(),
+                "OusterPinhole: an explicit ROI requires all four of "
+                "panel_roi_x_offsets, panel_roi_y_offsets, "
+                "panel_roi_widths, and panel_roi_heights.");
+            throw std::runtime_error("incomplete panel ROI configuration");
+        }
 
         auto pick = [&](const auto& vec, size_t i, auto fallback) {
             if (vec.empty()) return fallback;
@@ -249,6 +303,40 @@ class OusterPinhole : public OusterProcessingNodeBase {
             cfg.height = static_cast<uint32_t>(height_i);
             cfg.vfov_rad = vfov_deg * M_PI / 180.0;
             cfg.crop_to_valid_region = crop_to_valid_region;
+            if (has_explicit_roi) {
+                const int64_t x = pick(roi_x_offsets, i, int64_t{0});
+                const int64_t y = pick(roi_y_offsets, i, int64_t{0});
+                const int64_t roi_width =
+                    pick(roi_widths, i, int64_t{0});
+                const int64_t roi_height =
+                    pick(roi_heights, i, int64_t{0});
+                const bool invalid_value =
+                    x < 0 || y < 0 || roi_width <= 0 || roi_height <= 0 ||
+                    x > PinholeProcessor::MAX_PANEL_DIMENSION ||
+                    y > PinholeProcessor::MAX_PANEL_DIMENSION ||
+                    roi_width > PinholeProcessor::MAX_PANEL_DIMENSION ||
+                    roi_height > PinholeProcessor::MAX_PANEL_DIMENSION;
+                const bool outside_known_canvas =
+                    !invalid_value &&
+                    (static_cast<uint64_t>(x) + roi_width > cfg.width ||
+                     (cfg.height > 0 &&
+                      static_cast<uint64_t>(y) + roi_height > cfg.height));
+                if (invalid_value || outside_known_canvas) {
+                    RCLCPP_FATAL(
+                        get_logger(),
+                        "OusterPinhole: panel '%s' ROI [%ld, %ld, %ld, "
+                        "%ld] must be non-empty and lie inside its "
+                        "configured full-panel canvas.",
+                        cfg.name.c_str(), static_cast<long>(x),
+                        static_cast<long>(y), static_cast<long>(roi_width),
+                        static_cast<long>(roi_height));
+                    throw std::runtime_error("panel ROI out of range");
+                }
+                cfg.roi = PinholeProcessor::ROIConfig{
+                    static_cast<uint32_t>(x), static_cast<uint32_t>(y),
+                    static_cast<uint32_t>(roi_width),
+                    static_cast<uint32_t>(roi_height)};
+            }
             if (cfg.height > 0 &&
                 static_cast<uint64_t>(cfg.width) * cfg.height >
                     PinholeProcessor::MAX_PANEL_PIXELS) {
@@ -276,7 +364,59 @@ class OusterPinhole : public OusterProcessingNodeBase {
             get_parameter("ptp_utc_tai_offset").as_double();
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
-        const bool publish_rgb = get_parameter("publish_rgb").as_bool();
+        PinholeProcessor::OutputConfig output_config;
+        output_config.range = {
+            get_parameter("publish_range_image").as_bool(),
+            get_parameter("publish_range_image2").as_bool()};
+        output_config.signal = {
+            get_parameter("publish_signal_image").as_bool(),
+            get_parameter("publish_signal_image2").as_bool()};
+        output_config.reflectivity = {
+            get_parameter("publish_reflec_image").as_bool(),
+            get_parameter("publish_reflec_image2").as_bool()};
+        output_config.near_ir =
+            get_parameter("publish_nearir_image").as_bool();
+        output_config.depth = {
+            get_parameter("publish_depth_image").as_bool(),
+            get_parameter("publish_depth_image2").as_bool()};
+        output_config.rgb = get_parameter("publish_rgb").as_bool();
+        const auto requested_output_config = output_config;
+        output_config = PinholeProcessor::effective_output_config(
+            info, requested_output_config);
+        const auto profile_name = ouster::sdk::core::to_string(
+            info.format.udp_profile_lidar);
+        const auto warn_if_unavailable =
+            [this, &profile_name](bool requested, bool effective,
+                                  const char* topic) {
+                if (requested && !effective) {
+                    RCLCPP_WARN(
+                        get_logger(),
+                        "OusterPinhole: '%s' was requested but is unavailable "
+                        "in lidar UDP profile %s; no publisher will be created.",
+                        topic, profile_name.c_str());
+                }
+            };
+        warn_if_unavailable(requested_output_config.range[0],
+                            output_config.range[0], "range_image");
+        warn_if_unavailable(requested_output_config.signal[0],
+                            output_config.signal[0], "signal_image");
+        warn_if_unavailable(requested_output_config.reflectivity[0],
+                            output_config.reflectivity[0], "reflec_image");
+        warn_if_unavailable(requested_output_config.near_ir,
+                            output_config.near_ir, "nearir_image");
+        if (info.num_returns() == 2) {
+            warn_if_unavailable(requested_output_config.range[1],
+                                output_config.range[1], "range_image2");
+            warn_if_unavailable(requested_output_config.signal[1],
+                                output_config.signal[1], "signal_image2");
+            warn_if_unavailable(requested_output_config.reflectivity[1],
+                                output_config.reflectivity[1],
+                                "reflec_image2");
+        }
+        warn_if_unavailable(requested_output_config.rgb, output_config.rgb,
+                            "rgb_image");
+        publish_camera_info_ =
+            get_parameter("publish_camera_info").as_bool();
         rclcpp::QoS selected_qos = use_system_default_qos
                                        ? rclcpp::QoS(rclcpp::SystemDefaultsQoS())
                                        : rclcpp::QoS(rclcpp::SensorDataQoS());
@@ -316,14 +456,27 @@ class OusterPinhole : public OusterProcessingNodeBase {
                 [this](PinholeProcessor::OutputType& panels) {
                     publish_panels(panels);
                 },
-                publish_rgb)
+                output_config)
         };
 
         panel_pubs_.clear();
         const auto channel_topics =
-            PinholeProcessor::channel_topics(info, publish_rgb);
+            PinholeProcessor::channel_topics(info, output_config);
         const auto depth_topics =
-            PinholeProcessor::depth_topics(info.num_returns());
+            PinholeProcessor::depth_topics(info.num_returns(), output_config);
+        if (!publish_camera_info_ &&
+            (output_config.depth[0] ||
+             (info.num_returns() == 2 && output_config.depth[1]))) {
+            RCLCPP_WARN(get_logger(),
+                        "depth publication is enabled while "
+                        "publish_camera_info is false; consumers will need "
+                        "calibration from another source");
+        }
+        if (channel_topics.empty() && depth_topics.empty() &&
+            !publish_camera_info_) {
+            RCLCPP_WARN(get_logger(),
+                        "all pinhole image and CameraInfo outputs are disabled");
+        }
         for (const auto& cfg : panel_configs) {
             PanelPublishers pp;
             for (const auto& kv : channel_topics) {
@@ -340,18 +493,20 @@ class OusterPinhole : public OusterProcessingNodeBase {
                     create_publisher<sensor_msgs::msg::Image>(
                         image_topic, selected_qos);
             }
-            const std::string ci_topic =
-                "panels/" + cfg.name + "/camera_info";
-            pp.camera_info_pub =
-                create_publisher<sensor_msgs::msg::CameraInfo>(ci_topic,
-                                                                selected_qos);
+            if (publish_camera_info_) {
+                const std::string ci_topic =
+                    "panels/" + cfg.name + "/camera_info";
+                pp.camera_info_pub =
+                    create_publisher<sensor_msgs::msg::CameraInfo>(
+                        ci_topic, selected_qos);
+            }
             panel_pubs_.push_back(std::move(pp));
         }
 
         lidar_packet_handler_ = LidarPacketHandler::create(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-            static_cast<float>(min_ratio), publish_rgb);
+            static_cast<float>(min_ratio), output_config.rgb);
         lidar_packet_buffer_ =
             std::make_unique<LidarPacket>(packet_format->lidar_packet_size);
         lidar_packet_buffer_->format = packet_format;
@@ -360,7 +515,8 @@ class OusterPinhole : public OusterProcessingNodeBase {
             "lidar_packets",
             rclcpp::QoS(selected_qos).keep_last(
                 lidar_packets_per_frame(info)),
-            [this, pipeline_generation](const PacketMsg::ConstSharedPtr msg) {
+            [this, pipeline_generation](
+                const PacketMsg::ConstSharedPtr& msg) {
                 std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
                 if (!pipeline_is_current(pipeline_generation) ||
                     !lidar_packet_handler_ || !lidar_packet_buffer_) {
@@ -480,6 +636,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
     std::vector<PinholeProcessor::PanelConfig> panel_configs_for_tf_;
     std::string lidar_namespace_for_tf_;
     std::string optical_frame_template_for_tf_;
+    bool publish_camera_info_ = true;
 
     // Reverse destruction order stops callbacks, joins the scan worker, then
     // releases the buffer and publishers used by that worker.

@@ -66,8 +66,25 @@ ouster/os_pinhole:
     panel_heights: [0] # 0 = derive height from VFOV with square pixels
     panel_vfovs_deg: [0.0] # with auto height, 0 = fit metadata beam angles;
                             # with fixed height, 0 = keep square pixels
+    # Optional exact output crop in full-panel pixels. Set all four arrays;
+    # one value broadcasts to every panel, otherwise use one per panel.
+    # panel_roi_x_offsets: [32]
+    # panel_roi_y_offsets: [8]
+    # panel_roi_widths: [192]
+    # panel_roi_heights: [48]
     crop_to_valid_region: true # crop unsupported outer pixels; CameraInfo ROI
                                # records the exact crop in full-panel coordinates
+    # Channels absent from the UDP profile are omitted with a warning.
+    publish_range_image: true
+    publish_range_image2: true # ignored for a single-return profile
+    publish_signal_image: true
+    publish_signal_image2: true
+    publish_reflec_image: true
+    publish_reflec_image2: true
+    publish_nearir_image: true
+    publish_depth_image: true # depth comes only from RANGE, not intensity data
+    publish_depth_image2: true
+    publish_camera_info: true
     publish_rgb: false # REV8 only: opt in to RGB conversion, tone mapping, and
                        # a panel rgb_image when using an RGB lidar profile
     parent_frame: os_lidar
