@@ -81,14 +81,17 @@ class OusterPinhole : public OusterProcessingNodeBase {
         declare_parameter<std::vector<double>>("panel_vfovs_deg",
                                                 std::vector<double>{0.0});
         declare_parameter("crop_to_valid_region", true);
+        // REV8 color conversion and tone mapping are intentionally opt-in.
+        declare_parameter("publish_rgb", false);
 
         // parent_frame must use the lidar-frame convention: +X forward, +Z up.
         declare_parameter("parent_frame", "os_lidar");
         declare_parameter("optical_frame_template",
                           std::string("{ns}/panels/{name}_optical_frame"));
 
-        // Azimuth of SDK/destaggered column zero in parent_frame (CCW
-        // positive). Use zero when parent_frame is the native lidar frame.
+        // CCW yaw of the native SDK lidar +X axis in parent_frame. There is
+        // no single geometric "destaggered column zero" because each beam
+        // has its own calibrated azimuth correction.
         declare_parameter("azimuth_offset_deg", 0.0);
 
         static_tf_broadcaster_ = make_static_transform_broadcaster(this);
@@ -273,6 +276,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
             get_parameter("ptp_utc_tai_offset").as_double();
         bool use_system_default_qos =
             get_parameter("use_system_default_qos").as_bool();
+        const bool publish_rgb = get_parameter("publish_rgb").as_bool();
         rclcpp::QoS selected_qos = use_system_default_qos
                                        ? rclcpp::QoS(rclcpp::SystemDefaultsQoS())
                                        : rclcpp::QoS(rclcpp::SensorDataQoS());
@@ -311,12 +315,13 @@ class OusterPinhole : public OusterProcessingNodeBase {
                 azimuth_offset_columns,
                 [this](PinholeProcessor::OutputType& panels) {
                     publish_panels(panels);
-                })
+                },
+                publish_rgb)
         };
 
         panel_pubs_.clear();
         const auto channel_topics =
-            PinholeProcessor::channel_topics(info.num_returns());
+            PinholeProcessor::channel_topics(info, publish_rgb);
         const auto depth_topics =
             PinholeProcessor::depth_topics(info.num_returns());
         for (const auto& cfg : panel_configs) {
@@ -346,7 +351,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
         lidar_packet_handler_ = LidarPacketHandler::create(
             info, processors, timestamp_mode,
             static_cast<int64_t>(ptp_utc_tai_offset * 1e+9),
-            static_cast<float>(min_ratio), /*process_rgb=*/false);
+            static_cast<float>(min_ratio), publish_rgb);
         lidar_packet_buffer_ =
             std::make_unique<LidarPacket>(packet_format->lidar_packet_size);
         lidar_packet_buffer_->format = packet_format;
