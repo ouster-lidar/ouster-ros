@@ -207,7 +207,6 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const LidarScan& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const LidarMode ld_mode,
-    const uint16_t ring, bool no_return_is_inf,
     const std::vector<int>& pixel_shift_by_row,
     const int return_index) {
     sensor_msgs::msg::LaserScan msg;
@@ -244,7 +243,7 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
 
         float r = rg[src_idx] * ouster::sdk::core::RANGE_UNIT;
         if (rg[src_idx] == 0) {
-            r = no_return_is_inf ? std::numeric_limits<float>::infinity() : 0.0f;
+            r = std::numeric_limits<float>::infinity();
         }
         msg.ranges[tgt_idx] = r;
 

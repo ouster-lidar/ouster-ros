@@ -25,7 +25,7 @@ class LaserScanProcessor {
    public:
     LaserScanProcessor(const ouster::sdk::core::SensorInfo& info,
                        const std::string& frame_id, uint16_t ring,
-                       bool no_return_is_inf, PostProcessingFn func)
+                       PostProcessingFn func)
         : frame(frame_id),
           ld_mode(info.config.lidar_mode.value()),
           ring_(ring),
@@ -51,7 +51,7 @@ class LaserScanProcessor {
         for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] =
                 lidar_scan_to_laser_scan_msg(lidar_scan, msg_ts, frame, ld_mode,
-                                             ring_, no_return_is_inf_, pixel_shift_by_row, i);
+                                             ring_, pixel_shift_by_row, i);
         }
 
         if (post_processing_fn) post_processing_fn(scan_msgs);
@@ -60,10 +60,9 @@ class LaserScanProcessor {
    public:
     static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame, uint16_t ring,
-                                     bool no_return_is_inf,
                                      PostProcessingFn func) {
         auto handler =
-            std::make_shared<LaserScanProcessor>(info, frame, ring, no_return_is_inf, func);
+            std::make_shared<LaserScanProcessor>(info, frame, ring, func);
 
         return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
@@ -75,7 +74,6 @@ class LaserScanProcessor {
     std::string frame;
     ouster::sdk::core::LidarMode ld_mode;
     uint16_t ring_;
-    bool no_return_is_inf_;
     std::vector<int> pixel_shift_by_row;
     OutputType scan_msgs;
     PostProcessingFn post_processing_fn;

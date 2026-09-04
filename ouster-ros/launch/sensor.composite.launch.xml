@@ -151,9 +151,6 @@
     use this parameter in conjunction with the SCAN flag
     and choose a value the range [0, sensor_beams_count)"/>
 
-  <arg name="no_return_is_inf" default="false" description="
-    if true, laserscans with no return values will be set to infinity instead of 0."/>
-
   <arg name="point_type" default="original" description="point type for the generated point cloud;
    available options: {
     original,
