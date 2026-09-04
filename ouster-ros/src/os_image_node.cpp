@@ -94,11 +94,22 @@ class OusterImage : public OusterProcessingNodeBase {
             auto parsed_format =
                 std::make_shared<ouster::sdk::core::PacketFormat>(
                     ouster::sdk::core::get_format(parsed_info));
-            info = std::move(parsed_info);
+            info = parsed_info;
             packet_format = std::move(parsed_format);
             create_publishers_subscribers(info.num_returns());
             mark_metadata_active(metadata_msg->data);
         } catch (const std::exception& e) {
+            // A different metadata message means the old decoder can no
+            // longer be assumed to match incoming packets. Stop it before
+            // reporting the failure so stale calibration cannot produce
+            // plausible-looking images while waiting for valid metadata.
+            begin_pipeline_update();
+            lidar_packet_sub.reset();
+            lidar_packet_handler = nullptr;
+            lidar_packet_buffer.reset();
+            image_pubs.clear();
+            camera_info_pub_.reset();
+            packet_format.reset();
             invalidate_active_metadata();
             RCLCPP_ERROR_STREAM(
                 get_logger(),
@@ -215,7 +226,8 @@ class OusterImage : public OusterProcessingNodeBase {
         lidar_packet_sub = create_subscription<PacketMsg>(
                 "lidar_packets",
                 rclcpp::QoS(selected_qos).keep_last(lidar_packets_per_frame(info)),
-                [this, pipeline_generation](const PacketMsg::ConstSharedPtr msg) {
+                [this, pipeline_generation](
+                    const PacketMsg::ConstSharedPtr& msg) {
                     std::lock_guard<std::mutex> pipeline_lock(pipeline_mutex);
                     if (!pipeline_is_current(pipeline_generation) ||
                         !lidar_packet_handler || !lidar_packet_buffer) {

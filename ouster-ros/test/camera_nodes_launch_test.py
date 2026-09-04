@@ -79,6 +79,12 @@ def generate_test_description():
             'panel_widths': [64],
             'panel_heights': [32],
             'panel_vfovs_deg': [60.0],
+            'panel_roi_x_offsets': [8],
+            'panel_roi_y_offsets': [12],
+            'panel_roi_widths': [48],
+            'panel_roi_heights': [12],
+            'publish_signal_image': False,
+            'publish_reflec_image2': False,
             'parent_frame': 'test_lidar',
         },
     )
@@ -360,6 +366,16 @@ class TestCameraNodes(unittest.TestCase):
             'os_pinhole must not publish RGB unless explicitly enabled on an '
             'RGB profile',
         )
+        self.assertFalse(
+            self.node.get_publishers_info_by_topic(
+                '/camera_test/panels/front/signal_image'),
+            'a disabled first-return image must not have a publisher',
+        )
+        self.assertFalse(
+            self.node.get_publishers_info_by_topic(
+                '/camera_test/panels/front/reflec_image2'),
+            'a disabled second-return image must not have a publisher',
+        )
 
         # Receiving the same metadata again must be an idempotent no-op, not a
         # pipeline replacement.
@@ -409,7 +425,7 @@ class TestCameraNodes(unittest.TestCase):
                                pinhole_info.k[4], places=12)
         self.assertAlmostEqual(31.5, pinhole_info.k[2], places=12)
         self.assertAlmostEqual(15.5, pinhole_info.k[5], places=12)
-        self.assertEqual((0, 0, 64, 32), (
+        self.assertEqual((8, 12, 48, 12), (
             pinhole_info.roi.x_offset,
             pinhole_info.roi.y_offset,
             pinhole_info.roi.width,
@@ -418,10 +434,10 @@ class TestCameraNodes(unittest.TestCase):
         self.assertEqual('mono16', pinhole_range.encoding)
         self.assertEqual('32FC1', pinhole_depth.encoding)
         self.assertEqual('32FC1', pinhole_depth2.encoding)
-        self.assertEqual((64, 32), (pinhole_depth.width,
+        self.assertEqual((48, 12), (pinhole_depth.width,
                                     pinhole_depth.height))
-        self.assertEqual(64 * 4, pinhole_depth.step)
-        self.assertEqual(64 * 32 * 4, len(pinhole_depth.data))
+        self.assertEqual(48 * 4, pinhole_depth.step)
+        self.assertEqual(48 * 12 * 4, len(pinhole_depth.data))
         self.assertEqual(pinhole_frame, pinhole_range.header.frame_id)
         self.assertEqual(pinhole_frame, pinhole_depth.header.frame_id)
         self.assertEqual(pinhole_frame, pinhole_depth2.header.frame_id)
@@ -491,7 +507,21 @@ class TestCameraNodes(unittest.TestCase):
         invalid_metadata = String()
         invalid_metadata.data = '{not valid sensor metadata'
         metadata_pub.publish(invalid_metadata)
-        time.sleep(0.2)
+        self._spin_until(
+            lambda: packet_pub.get_subscription_count() == 0,
+            10.0,
+            'camera nodes kept a stale packet pipeline after bad metadata',
+        )
+        inactive_counts = dict(received_counts)
+        publish_frame()
+        quiet_deadline = time.monotonic() + 0.4
+        while time.monotonic() < quiet_deadline:
+            rclpy.spin_once(self.node, timeout_sec=0.05)
+        self.assertEqual(
+            inactive_counts,
+            dict(received_counts),
+            'camera output continued while metadata was invalid',
+        )
         metadata_pub.publish(active_metadata)
         self._spin_until(
             lambda: transform_counts.get(pinhole_tf_key, 0) >

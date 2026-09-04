@@ -19,6 +19,7 @@
 
 #include "ouster_ros/impl/file_util.h"
 #include "../src/pinhole_processor.h"
+#include "../src/image_processor.h"
 #include "../src/point_cloud_processor_factory.h"
 
 namespace ouster_ros {
@@ -235,6 +236,26 @@ TEST(PinholeProcessorTest, WrapsRoundedColumnAtPanoramaSeam) {
     EXPECT_EQ(panel.camera_info.height, 1u);
 }
 
+TEST(PinholeProcessorTest, NearestBeamTieKeepsLowestSourceRow) {
+    auto info = load_test_info();
+    std::fill(info.beam_altitude_angles.begin(),
+              info.beam_altitude_angles.end(), 30.0);
+    info.beam_altitude_angles.at(3) = 1.0;
+    info.beam_altitude_angles.at(17) = -1.0;
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "tie";
+    config.width = 1;
+    config.height = 1;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor processor(info, {config}, "{name}", "", 0.0,
+                               nullptr);
+    // The optical-axis ray is exactly halfway between rows 3 and 17. Match
+    // the original row-order search by retaining the lower source index.
+    EXPECT_EQ(processor.panels().front()->r_src(0, 0), 3);
+}
+
 TEST(PinholeProcessorTest, ReportsPixelCenteredIndependentFovIntrinsics) {
     const auto info = load_test_info();
 
@@ -325,6 +346,90 @@ TEST(PinholeProcessorTest, CropsToSourceSupportAndReportsFullPanelRoi) {
                      0.5 * (panel.camera_info.width - 1) - roi.x_offset);
     EXPECT_DOUBLE_EQ(panel.camera_info.k[5] - roi.y_offset,
                      0.5 * (panel.camera_info.height - 1) - roi.y_offset);
+}
+
+TEST(PinholeProcessorTest, AppliesExactExplicitRoiWithoutChangingIntrinsics) {
+    const auto info = load_test_info();
+
+    PinholeProcessor::PanelConfig full_config;
+    full_config.name = "configured_roi";
+    full_config.hfov_rad = M_PI_2;
+    full_config.vfov_rad = M_PI / 3.0;
+    full_config.width = 80;
+    full_config.height = 40;
+    full_config.crop_to_valid_region = false;
+
+    PinholeProcessor full_processor(
+        info, {full_config}, "{name}", "", 0.0, nullptr);
+    const auto& full_panel = *full_processor.panels().at(0);
+
+    auto roi_config = full_config;
+    // Explicit ROI is authoritative even when automatic cropping is enabled.
+    roi_config.crop_to_valid_region = true;
+    roi_config.roi = PinholeProcessor::ROIConfig{7, 11, 31, 17};
+    PinholeProcessor roi_processor(
+        info, {roi_config}, "{name}", "", 0.0, nullptr);
+    const auto& panel = *roi_processor.panels().at(0);
+
+    EXPECT_EQ(panel.camera_info.width, 80u);
+    EXPECT_EQ(panel.camera_info.height, 40u);
+    EXPECT_EQ(panel.camera_info.roi.x_offset, 7u);
+    EXPECT_EQ(panel.camera_info.roi.y_offset, 11u);
+    EXPECT_EQ(panel.camera_info.roi.width, 31u);
+    EXPECT_EQ(panel.camera_info.roi.height, 17u);
+    EXPECT_EQ(panel.camera_info.k, full_panel.camera_info.k);
+    EXPECT_EQ(panel.camera_info.p, full_panel.camera_info.p);
+    ASSERT_FALSE(panel.images.empty());
+    EXPECT_EQ(panel.images.begin()->second->width, 31u);
+    EXPECT_EQ(panel.images.begin()->second->height, 17u);
+    ASSERT_FALSE(panel.depth_images.empty());
+    EXPECT_EQ(panel.depth_images.begin()->second->width, 31u);
+    EXPECT_EQ(panel.depth_images.begin()->second->height, 17u);
+
+    const auto expected_rows = full_panel.r_src.block(11, 7, 17, 31);
+    const auto expected_columns = full_panel.raw_v_src.block(11, 7, 17, 31);
+    EXPECT_TRUE((panel.r_src == expected_rows).all());
+    EXPECT_TRUE((panel.raw_v_src == expected_columns).all());
+
+    // This is the same ROI adjustment image_geometry applies. It must retain
+    // the ray from the corresponding full-canvas pixel.
+    EXPECT_DOUBLE_EQ(panel.camera_info.p[2] -
+                         panel.camera_info.roi.x_offset,
+                     full_panel.camera_info.p[2] - 7.0);
+    EXPECT_DOUBLE_EQ(panel.camera_info.p[6] -
+                         panel.camera_info.roi.y_offset,
+                     full_panel.camera_info.p[6] - 11.0);
+}
+
+TEST(PinholeProcessorTest, RejectsInvalidExplicitRois) {
+    const auto info = load_test_info();
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "invalid_roi";
+    config.width = 80;
+    config.height = 40;
+    config.crop_to_valid_region = false;
+
+    config.roi = PinholeProcessor::ROIConfig{0, 0, 0, 1};
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
+
+    config.roi = PinholeProcessor::ROIConfig{79, 0, 2, 1};
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
+
+    config.roi = PinholeProcessor::ROIConfig{0, 39, 1, 2};
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
+
+    config.pitch_rad = 80.0 * M_PI / 180.0;
+    config.roi = PinholeProcessor::ROIConfig{0, 0, 1, 1};
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
 }
 
 TEST(PinholeProcessorTest, CropsAcrossAWrappedColumnWindow) {
@@ -1383,6 +1488,11 @@ TEST(PinholeProcessorTest, AccountsForEverySdkLidarProfile) {
         auto info = load_test_info();
         info.format.udp_profile_lidar = profile;
         if (profile == Profile::UNKNOWN) {
+            PinholeProcessor::PanelConfig config;
+            config.name = "unknown";
+            EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "",
+                                          0.0, nullptr),
+                         std::invalid_argument);
             EXPECT_THROW(
                 {
                     const ouster::sdk::core::LidarScan unknown_scan{info};
@@ -1399,15 +1509,38 @@ TEST(PinholeProcessorTest, AccountsForEverySdkLidarProfile) {
                 scan.has_field(ouster::sdk::core::ChanField::RAW32_WORD1));
             EXPECT_TRUE(
                 scan.has_field(ouster::sdk::core::ChanField::RAW32_WORD5));
+            PinholeProcessor::PanelConfig config;
+            config.name = "raw_debug";
+            EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "",
+                                          0.0, nullptr),
+                         std::invalid_argument);
             continue;
         }
         if (profile == Profile::OFF) {
             EXPECT_FALSE(scan.has_field(ouster::sdk::core::ChanField::RANGE));
+            PinholeProcessor::PanelConfig config;
+            config.name = "off";
+            EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "",
+                                          0.0, nullptr),
+                         std::invalid_argument);
             continue;
         }
 
         ++production_profiles_processed;
         ASSERT_TRUE(scan.has_field(ouster::sdk::core::ChanField::RANGE));
+        const auto image_topics = PinholeProcessor::channel_topics(info);
+        const std::array<std::string, 7> display_channels{
+            ouster::sdk::core::ChanField::RANGE,
+            ouster::sdk::core::ChanField::SIGNAL,
+            ouster::sdk::core::ChanField::REFLECTIVITY,
+            ouster::sdk::core::ChanField::NEAR_IR,
+            ouster::sdk::core::ChanField::RANGE2,
+            ouster::sdk::core::ChanField::SIGNAL2,
+            ouster::sdk::core::ChanField::REFLECTIVITY2};
+        for (const auto& channel : display_channels) {
+            EXPECT_EQ(image_topics.count(channel) != 0,
+                      scan.has_field(channel));
+        }
         scan.field<uint32_t>(ouster::sdk::core::ChanField::RANGE)
             .setConstant(10000);
         if (info.num_returns() == 2) {
@@ -1422,6 +1555,7 @@ TEST(PinholeProcessorTest, AccountsForEverySdkLidarProfile) {
         config.width = 9;
         config.height = 5;
         config.crop_to_valid_region = false;
+        config.roi = PinholeProcessor::ROIConfig{1, 1, 7, 3};
         PinholeProcessor::OutputType output;
         auto process = PinholeProcessor::create(
             info, {config}, "{name}", "", 0.0,
@@ -1433,20 +1567,247 @@ TEST(PinholeProcessorTest, AccountsForEverySdkLidarProfile) {
         ASSERT_EQ(output.size(), 1u);
         ASSERT_EQ(output.front()->depth_images.size(),
                   static_cast<size_t>(info.num_returns()));
+        EXPECT_EQ(output.front()->camera_info.roi.x_offset, 1u);
+        EXPECT_EQ(output.front()->camera_info.roi.y_offset, 1u);
+        EXPECT_EQ(output.front()->camera_info.roi.width, 7u);
+        EXPECT_EQ(output.front()->camera_info.roi.height, 3u);
         EXPECT_TRUE(std::isfinite(
             depth_at(*output.front()
                           ->depth_images.at(
                               ouster::sdk::core::ChanField::RANGE),
-                     2, 4)));
+                     1, 3)));
         if (info.num_returns() == 2) {
             EXPECT_TRUE(std::isfinite(
                 depth_at(*output.front()
                               ->depth_images.at(
                                   ouster::sdk::core::ChanField::RANGE2),
-                         2, 4)));
+                         1, 3)));
         }
     }
     EXPECT_EQ(production_profiles_processed, 11u);
+}
+
+TEST(PinholeProcessorTest, ExplicitRoiIsIndependentOfNativeLidarWidth) {
+    const std::array<uint32_t, 4> native_widths{512, 1024, 2048, 4096};
+    for (const uint32_t native_width : native_widths) {
+        SCOPED_TRACE(native_width);
+        auto info = load_test_info();
+        info.format.columns_per_frame = native_width;
+        info.format.column_window = {
+            0, static_cast<int>(native_width) - 1};
+
+        PinholeProcessor::PanelConfig config;
+        config.name = "front";
+        config.width = 65;
+        config.height = 33;
+        config.crop_to_valid_region = true;
+        config.roi = PinholeProcessor::ROIConfig{7, 5, 51, 23};
+
+        PinholeProcessor processor(
+            info, {config}, "{name}", "", 0.0, nullptr);
+        const auto& panel = *processor.panels().front();
+        EXPECT_EQ(panel.camera_info.width, 65u);
+        EXPECT_EQ(panel.camera_info.height, 33u);
+        EXPECT_EQ(panel.camera_info.roi.x_offset, 7u);
+        EXPECT_EQ(panel.camera_info.roi.y_offset, 5u);
+        EXPECT_EQ(panel.camera_info.roi.width, 51u);
+        EXPECT_EQ(panel.camera_info.roi.height, 23u);
+        EXPECT_EQ(panel.r_src.rows(), 23);
+        EXPECT_EQ(panel.r_src.cols(), 51);
+        for (Eigen::Index row = 0; row < panel.raw_v_src.rows(); ++row) {
+            for (Eigen::Index column = 0;
+                 column < panel.raw_v_src.cols(); ++column) {
+                const int32_t raw_column = panel.raw_v_src(row, column);
+                if (raw_column < 0) continue;
+                EXPECT_LT(raw_column, static_cast<int32_t>(native_width));
+            }
+        }
+    }
+}
+
+TEST(PinholeProcessorTest,
+     PublishesOnlySelectedChannelsAndKeepsDepthIndependentOfDisplayRange) {
+    auto info = load_test_info();
+    info.format.udp_profile_lidar =
+        ouster::sdk::core::UDPProfileLidar::
+            RNG19_RFL8_SIG16_NIR16_DUAL;
+
+    PinholeProcessor::OutputConfig outputs;
+    outputs.range = {false, false};
+    outputs.signal = {false, true};
+    outputs.reflectivity = {false, false};
+    outputs.near_ir = false;
+    outputs.depth = {false, true};
+    outputs.rgb = false;
+
+    const auto image_topics =
+        PinholeProcessor::channel_topics(info, outputs);
+    ASSERT_EQ(image_topics.size(), 1u);
+    EXPECT_EQ(image_topics.at(ouster::sdk::core::ChanField::SIGNAL2),
+              "signal_image2");
+    const auto depth_topics =
+        PinholeProcessor::depth_topics(info.num_returns(), outputs);
+    ASSERT_EQ(depth_topics.size(), 1u);
+    EXPECT_EQ(depth_topics.at(ouster::sdk::core::ChanField::RANGE2),
+              "depth_image2");
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "front";
+    config.width = 33;
+    config.height = 17;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor::OutputType output;
+    auto process = PinholeProcessor::create(
+        info, {config}, "{name}", "", 0.0,
+        [&output](PinholeProcessor::OutputType& panels) {
+            output = panels;
+        },
+        outputs);
+    ouster::sdk::core::LidarScan scan(info);
+    auto signal2 = scan.field<uint16_t>(
+        ouster::sdk::core::ChanField::SIGNAL2);
+    auto range2 = scan.field<uint32_t>(
+        ouster::sdk::core::ChanField::RANGE2);
+    for (Eigen::Index row = 0; row < signal2.rows(); ++row) {
+        for (Eigen::Index column = 0; column < signal2.cols(); ++column) {
+            const uint32_t index = static_cast<uint32_t>(
+                row * signal2.cols() + column);
+            signal2(row, column) =
+                static_cast<uint16_t>(1u + index % 60000u);
+            range2(row, column) = 1000u + index % 100000u;
+        }
+    }
+
+    const rclcpp::Time stamp{int64_t{123456789}, RCL_ROS_TIME};
+    process(scan, 0, stamp);
+
+    ASSERT_EQ(output.size(), 1u);
+    const auto& panel = *output.front();
+    ASSERT_EQ(panel.images.size(), 1u);
+    ASSERT_EQ(panel.depth_images.size(), 1u);
+    const auto& signal_image =
+        *panel.images.at(ouster::sdk::core::ChanField::SIGNAL2);
+    const auto& depth_image =
+        *panel.depth_images.at(ouster::sdk::core::ChanField::RANGE2);
+    EXPECT_EQ(panel.images.count(ouster::sdk::core::ChanField::RANGE2), 0u);
+    EXPECT_EQ(panel.depth_images.count(
+                  ouster::sdk::core::ChanField::RANGE),
+              0u);
+    EXPECT_EQ(rclcpp::Time(signal_image.header.stamp), stamp);
+    EXPECT_EQ(rclcpp::Time(depth_image.header.stamp), stamp);
+
+    size_t nonzero_signal_pixels = 0;
+    size_t finite_depth_pixels = 0;
+    for (uint32_t row = 0; row < signal_image.height; ++row) {
+        for (uint32_t column = 0; column < signal_image.width; ++column) {
+            if (mono16_at(signal_image, row, column) != 0) {
+                ++nonzero_signal_pixels;
+            }
+            const float depth = depth_at(depth_image, row, column);
+            if (std::isfinite(depth) && depth > 0.0f) {
+                ++finite_depth_pixels;
+            }
+        }
+    }
+    EXPECT_GT(nonzero_signal_pixels, 0u);
+    EXPECT_GT(finite_depth_pixels, 0u);
+}
+
+TEST(PinholeProcessorTest,
+     OptimizedPanelSamplingMatchesTheExistingDestaggeredImages) {
+    auto info = load_test_info();
+    info.format.udp_profile_lidar =
+        ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16;
+
+    ouster::sdk::core::LidarScan scan(info);
+    auto range =
+        scan.field<uint32_t>(ouster::sdk::core::ChanField::RANGE);
+    auto signal =
+        scan.field<uint16_t>(ouster::sdk::core::ChanField::SIGNAL);
+    auto reflectivity =
+        scan.field<uint8_t>(ouster::sdk::core::ChanField::REFLECTIVITY);
+    auto near_ir =
+        scan.field<uint16_t>(ouster::sdk::core::ChanField::NEAR_IR);
+    for (Eigen::Index row = 0; row < range.rows(); ++row) {
+        for (Eigen::Index column = 0; column < range.cols(); ++column) {
+            const uint32_t index = static_cast<uint32_t>(
+                row * range.cols() + column);
+            range(row, column) =
+                index % 97u == 0u ? 0u : 1000u + index % 200000u;
+            signal(row, column) =
+                static_cast<uint16_t>(1u + (index * 17u) % 65534u);
+            reflectivity(row, column) =
+                static_cast<uint8_t>((index * 29u) % 256u);
+            near_ir(row, column) =
+                static_cast<uint16_t>(1u + (index * 43u) % 65534u);
+        }
+    }
+
+    ImageProcessor::OutputType panorama_output;
+    auto panorama_process = ImageProcessor::create(
+        info, "panorama", "",
+        [&panorama_output](ImageProcessor::OutputType images) {
+            panorama_output = std::move(images);
+        });
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "oblique";
+    config.yaw_rad = 0.23;
+    config.pitch_rad = 0.07;
+    config.hfov_rad = 100.0 * M_PI / 180.0;
+    config.vfov_rad = 45.0 * M_PI / 180.0;
+    config.width = 91;
+    config.height = 41;
+    config.crop_to_valid_region = false;
+    PinholeProcessor::OutputType panel_output;
+    auto panel_process = PinholeProcessor::create(
+        info, {config}, "{name}", "", 0.0,
+        [&panel_output](PinholeProcessor::OutputType& panels) {
+            panel_output = panels;
+        });
+
+    const rclcpp::Time stamp{int64_t{987654321}, RCL_ROS_TIME};
+    panorama_process(scan, 0, stamp);
+    panel_process(scan, 0, stamp);
+
+    ASSERT_EQ(panel_output.size(), 1u);
+    const auto& panel = *panel_output.front();
+    const std::array<std::string, 4> channels{
+        ouster::sdk::core::ChanField::RANGE,
+        ouster::sdk::core::ChanField::SIGNAL,
+        ouster::sdk::core::ChanField::REFLECTIVITY,
+        ouster::sdk::core::ChanField::NEAR_IR};
+    size_t valid_pixels = 0;
+    size_t invalid_pixels = 0;
+    for (uint32_t row = 0; row < panel.r_src.rows(); ++row) {
+        for (uint32_t column = 0; column < panel.r_src.cols(); ++column) {
+            const int32_t source_row = panel.r_src(row, column);
+            const int32_t source_column = panel.v_src(row, column);
+            for (const auto& channel : channels) {
+                ASSERT_NE(panel.images.find(channel), panel.images.end());
+                ASSERT_NE(panorama_output.find(channel),
+                          panorama_output.end());
+                const uint16_t actual =
+                    mono16_at(*panel.images.at(channel), row, column);
+                if (source_row < 0) {
+                    EXPECT_EQ(actual, 0u);
+                } else {
+                    EXPECT_EQ(actual,
+                              mono16_at(*panorama_output.at(channel),
+                                        static_cast<uint32_t>(source_row),
+                                        static_cast<uint32_t>(source_column)));
+                }
+            }
+            if (source_row < 0) {
+                ++invalid_pixels;
+            } else {
+                ++valid_pixels;
+            }
+        }
+    }
+    EXPECT_GT(valid_pixels, 0u);
+    EXPECT_GT(invalid_pixels, 0u);
 }
 
 TEST(PinholeProcessorTest, RgbPanelPublicationIsExplicitAndProfileGated) {
@@ -1718,8 +2079,18 @@ TEST(PinholeProcessorTest, SupportsBundledFirmwareMetadataSchemas) {
     for (const auto& filename : filenames) {
         SCOPED_TRACE(filename);
         const auto info = load_test_info(filename);
-        EXPECT_NO_THROW(PinholeProcessor(info, {config}, "{name}", "",
-                                         0.0, nullptr));
+        if (info.format.udp_profile_lidar ==
+            ouster::sdk::core::UDPProfileLidar::OFF) {
+            // Some otherwise-valid metadata fixtures were recorded while
+            // lidar output was disabled. Schema compatibility must not be
+            // mistaken for a range image that can actually be generated.
+            EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "",
+                                          0.0, nullptr),
+                         std::invalid_argument);
+        } else {
+            EXPECT_NO_THROW(PinholeProcessor(info, {config}, "{name}", "",
+                                             0.0, nullptr));
+        }
     }
 }
 
@@ -1756,8 +2127,9 @@ TEST(PinholeProcessorTest,
     config.width = 4;
     config.height = 2;
     config.crop_to_valid_region = false;
-    EXPECT_NO_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
-                                     nullptr));
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr),
+                 std::invalid_argument);
 
     const ouster::sdk::core::LidarScan scan(info);
     EXPECT_FALSE(

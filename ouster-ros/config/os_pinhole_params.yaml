@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Namespace-agnostic defaults for pinhole.launch.py. Copy this file to define
+# application-specific panels; the /** selector keeps it valid when ouster_ns
+# is changed.
+/**:
+  ros__parameters:
+    use_system_default_qos: false
+
+    # Arrays with one value are broadcast to every panel. Otherwise, supply
+    # one value per panel_names entry (panel_yaws_deg is always per panel).
+    panel_names: [front, left, rear, right]
+    panel_yaws_deg: [0.0, 90.0, 180.0, 270.0]
+    panel_pitches_deg: [0.0]
+    panel_hfovs_deg: [90.0]
+    panel_widths: [256]
+    panel_heights: [0] # 0 = derive height from VFOV with square pixels
+    panel_vfovs_deg: [0.0] # 0 = metadata VFOV for auto height, or square pixels
+
+    # Optional exact output crop in full-panel pixels. To enable it, uncomment
+    # all four arrays. One value broadcasts; otherwise use one per panel.
+    # panel_roi_x_offsets: [32]
+    # panel_roi_y_offsets: [8]
+    # panel_roi_widths: [192]
+    # panel_roi_heights: [48]
+    # A wholly unsupported panel is rejected; tailor panels to column_window.
+    crop_to_valid_region: true # ignored when an explicit ROI is configured
+
+    # Each flag controls exactly the named topic. Return-2 flags have no effect
+    # on a single-return profile. Depth is derived only from RANGE/RANGE2 and
+    # does not require publishing the corresponding range_image display topic.
+    # A requested channel absent from the UDP profile is omitted with a warning.
+    publish_range_image: true
+    publish_range_image2: true
+    publish_signal_image: true
+    publish_signal_image2: true
+    publish_reflec_image: true
+    publish_reflec_image2: true
+    publish_nearir_image: true
+    publish_depth_image: true
+    publish_depth_image2: true
+    publish_camera_info: true
+    # REV8 only: opt in when using an RGB lidar packet profile.
+    publish_rgb: false
+
+    # parent_frame must be co-located with the native lidar measurement frame,
+    # use +X forward/+Z up, and differ from it by yaw only.
+    parent_frame: os_lidar
+    optical_frame_template: '{ns}/panels/{name}_optical_frame'
+    azimuth_offset_deg: 0.0 # CCW yaw of native lidar +X in parent_frame
