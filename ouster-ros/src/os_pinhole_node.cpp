@@ -606,6 +606,7 @@ class OusterPinhole : public OusterProcessingNodeBase {
         const std::vector<PinholeProcessor::PanelConfig>& panel_configs,
         const std::string& frame_template,
         const std::string& lidar_namespace) {
+        const auto parent_frame = get_parameter("parent_frame").as_string();
         std::string ns = lidar_namespace;
         while (!ns.empty() && ns.front() == '/') ns.erase(0, 1);
 
@@ -619,6 +620,10 @@ class OusterPinhole : public OusterProcessingNodeBase {
                              "non-empty and unique (invalid frame: '%s').",
                              frame.c_str());
                 throw std::runtime_error("invalid optical frame ID");
+            }
+            if (frame == parent_frame) {
+                throw std::runtime_error(
+                    "optical_frame must differ from parent_frame");
             }
         }
     }

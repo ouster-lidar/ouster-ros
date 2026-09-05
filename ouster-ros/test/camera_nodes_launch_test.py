@@ -115,8 +115,22 @@ def generate_test_description():
             ('metadata', '/camera_test/metadata'),
         ],
     )
+    pinhole_same_frame = _camera_node(
+        'os_pinhole',
+        'pinhole_same_frame',
+        'os_pinhole',
+        {
+            **common,
+            'panel_names': ['front'],
+            'panel_yaws_deg': [0.0],
+            'panel_widths': [64],
+            'panel_heights': [32],
+            'parent_frame': 'pinhole_same_frame/front_optical_frame',
+            'optical_frame_template': '{ns}/{name}_optical_frame',
+        },
+    )
 
-    actions = [pinhole, image_enabled, image_default]
+    actions = [pinhole, image_enabled, image_default, pinhole_same_frame]
     if EnableRmwIsolation is not None:
         actions.insert(0, EnableRmwIsolation())
     actions.append(launch_testing.actions.ReadyToTest())
@@ -127,6 +141,7 @@ def generate_test_description():
             'pinhole': pinhole,
             'image_enabled': image_enabled,
             'image_default': image_default,
+            'pinhole_same_frame': pinhole_same_frame,
         },
     )
 
@@ -544,12 +559,59 @@ class TestCameraNodes(unittest.TestCase):
         self.node.destroy_publisher(packet_pub)
         self.node.destroy_publisher(metadata_pub)
 
+    def test_rejects_parent_frame_as_optical_frame(
+            self, proc_output, pinhole_same_frame):
+        static_qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=100,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        transforms = []
+        tf_sub = self.node.create_subscription(
+            TFMessage, '/tf_static',
+            lambda message: transforms.extend(message.transforms), static_qos)
+        metadata_pub = self.node.create_publisher(
+            String, '/pinhole_same_frame/metadata', static_qos)
+        try:
+            self._spin_until(
+                lambda: metadata_pub.get_subscription_count() == 1,
+                15.0,
+                'invalid-frame node did not discover the metadata publisher',
+            )
+            metadata_pub.publish(String(
+                data=METADATA_PATH.read_text(encoding='utf-8')))
+            proc_output.assertWaitFor(
+                'optical_frame must differ from parent_frame',
+                process=pinhole_same_frame,
+                timeout=10.0,
+            )
+
+            # Allow graph and transient-local TF discovery to settle before
+            # checking that the rejected configuration never became active.
+            quiet_deadline = time.monotonic() + 0.4
+            while time.monotonic() < quiet_deadline:
+                rclpy.spin_once(self.node, timeout_sec=0.05)
+            self.assertFalse(self.node.get_subscriptions_info_by_topic(
+                '/pinhole_same_frame/lidar_packets'))
+            for topic in ('range_image', 'depth_image', 'camera_info'):
+                self.assertFalse(self.node.get_publishers_info_by_topic(
+                    '/pinhole_same_frame/panels/front/' + topic))
+            self.assertFalse(any(
+                transform.child_frame_id ==
+                'pinhole_same_frame/front_optical_frame'
+                for transform in transforms))
+        finally:
+            self.node.destroy_subscription(tf_sub)
+            self.node.destroy_publisher(metadata_pub)
+
 
 @launch_testing.post_shutdown_test()
 class TestCameraNodeShutdown(unittest.TestCase):
 
     def test_processes_exit_cleanly(
-            self, proc_info, pinhole, image_enabled, image_default):
-        for process in (pinhole, image_enabled, image_default):
+            self, proc_info, pinhole, image_enabled, image_default,
+            pinhole_same_frame):
+        for process in (pinhole, image_enabled, image_default, pinhole_same_frame):
             launch_testing.asserts.assertExitCodes(
                 proc_info, allowable_exit_codes=[0], process=process)
