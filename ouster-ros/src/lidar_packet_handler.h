@@ -94,7 +94,8 @@ class LidarPacketHandler {
                        const std::vector<LidarScanProcessor>& handlers,
                        const std::string& timestamp_mode,
                        int64_t ptp_utc_tai_offset,
-                       float min_scan_valid_columns_ratio)
+                       float min_scan_valid_columns_ratio,
+                       bool process_rgb = true)
         : ring_buffer(LIDAR_SCAN_COUNT),
           lidar_scan_handlers{handlers},
           ptp_utc_tai_offset_(ptp_utc_tai_offset),
@@ -113,8 +114,12 @@ class LidarPacketHandler {
             mutexes[i] = std::make_unique<std::mutex>();
         }
 
-        if (info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
-            info.format.udp_profile_lidar == ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL) {
+        const bool profile_has_rgb =
+            info.format.udp_profile_lidar ==
+                ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16 ||
+            info.format.udp_profile_lidar ==
+                ouster::sdk::core::UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
+        if (process_rgb && profile_has_rgb) {
             has_rgb_ = true;
             uint32_t H = info.format.pixels_per_column;
             uint32_t W = info.format.columns_per_frame;
@@ -217,10 +222,10 @@ class LidarPacketHandler {
         const ouster::sdk::core::SensorInfo& info,
         const std::vector<LidarScanProcessor>& handlers,
         const std::string& timestamp_mode, int64_t ptp_utc_tai_offset,
-        float min_scan_valid_columns_ratio) {
+        float min_scan_valid_columns_ratio, bool process_rgb = true) {
         auto handler = std::make_shared<LidarPacketHandler>(
             info, handlers, timestamp_mode, ptp_utc_tai_offset,
-            min_scan_valid_columns_ratio);
+            min_scan_valid_columns_ratio, process_rgb);
         return [handler](const ouster::sdk::core::LidarPacket& lidar_packet) {
             if (handler->lidar_packet_accumlator(lidar_packet)) {
                 handler->ring_buffer_has_elements.notify_one();

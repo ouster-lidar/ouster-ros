@@ -28,6 +28,7 @@
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
         - [PCAP Replay Mode](#pcap-replay-mode)
+      - [Pinhole Panels](#pinhole-panels)
       - [Multicast Mode (experimental)](#multicast-mode-experimental)
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
@@ -238,6 +239,124 @@ ros2 launch ouster_ros replay.launch.xml    \
 ros2 launch ouster_ros replay_pcap.launch.xml   \
     pcap_file:=<path to ouster pcap file>       \
     metadata:=<json file name>              # required
+```
+
+#### Pinhole Panels
+
+With a sensor or replay already publishing `metadata` and `lidar_packets`, run:
+
+```bash
+ros2 launch ouster_ros pinhole.launch.py
+```
+
+Copy `config/os_pinhole_params.yaml` for application-specific settings and pass
+it as `params_file:=<path>`. The file is namespace-agnostic, so the same panel
+configuration also works with `ouster_ns:=<namespace>`.
+
+The default parameters publish four cardinal panels. Each panel includes a
+matching `camera_info`, a `32FC1` `depth_image` in metres for standard ROS depth
+consumers, and the driver's display images. The `range_image` retains the
+driver's 4 mm radial-range encoding and is not optical-axis depth; use
+`depth_image` with `depth_image_proc`. Dual-return profiles also publish
+`depth_image2`.
+
+The default panel names are relative to `os_lidar`, not to a vehicle or the
+sensor housing. Ouster defines lidar yaw 0 / native +X toward the external
+connector, with positive yaw counter-clockwise when viewed from above. Thus a
+vehicle with the connector facing rear would use
+`panel_yaws_deg: [180, 270, 0, 90]` for vehicle
+`[front, left, rear, right]`; a connector facing forward uses the default
+`[0, 90, 180, 270]`. See Ouster's
+[coordinate-system documentation](https://docs.ouster.com/sensor-docs/coordinate-system).
+
+REV8 RGB is opt-in so color conversion, tone mapping, and image bandwidth remain
+disabled by default. Set `publish_rgb: true` and configure the sensor with an
+RGB lidar packet profile to add an `rgb_image` (`rgb8`) for each panel. Setting
+the option on a non-RGB profile produces a warning and no RGB publisher.
+
+Every output can be selected independently with `publish_range_image[2]`,
+`publish_signal_image[2]`, `publish_reflec_image[2]`,
+`publish_nearir_image`, `publish_depth_image[2]`, `publish_rgb`, and
+`publish_camera_info`. The bracketed `[2]` denotes separate return-1 and
+return-2 booleans (for example, `publish_depth_image` and
+`publish_depth_image2`); return-2 settings are ignored on single-return
+profiles. Disabled outputs have no publisher or image buffer, and avoid their
+channel-specific processing. Only `RANGE`/`RANGE2` contain distance, so signal,
+reflectivity, and near-IR cannot be selected as depth sources. A depth topic can
+be enabled while its 4 mm range display topic is disabled. If a requested
+display channel is absent from the active UDP profile (for example, `SIGNAL` in
+a low-bandwidth profile), the node warns and does not create a misleading
+all-zero publisher for it.
+
+`panel_widths` and `panel_hfovs_deg` define the horizontal calibration. A zero
+`panel_height` derives a square-pixel height from `panel_vfovs_deg`, or from the
+metadata beam angles when both values are zero. With a fixed height, a nonzero
+vertical FOV defines `fy` independently; leave it zero to retain square pixels.
+By default, outer pixels unsupported by the lidar FOV or configured
+`column_window` are physically removed. `CameraInfo.width` and `height` retain
+the configured full-panel calibration while `CameraInfo.roi` exactly describes
+the emitted image crop. Set `crop_to_valid_region: false` to keep the configured
+image dimensions with zero/`NaN` padding instead. If a configured panel has no
+overlap at all, automatic cropping rejects it rather than advertising an empty
+image; remove or reorient that panel for the active `column_window`, or disable
+cropping only when an all-invalid padded panel is intentional.
+
+`min_scan_valid_columns_ratio` controls whether an incomplete revolution is
+processed. Its default of `0.0` matches the other driver processing nodes and
+can publish partially populated startup frames; missing samples remain zero in
+display images and `NaN` in depth. Set it to `1.0` to require every column, or
+choose an intermediate ratio when some packet loss is acceptable.
+
+To request an exact output crop, set all four ROI arrays in the parameter file.
+Coordinates are in the configured full-panel canvas, before any crop:
+
+```yaml
+panel_roi_x_offsets: [32]
+panel_roi_y_offsets: [8]
+panel_roi_widths: [192]
+panel_roi_heights: [48]
+```
+
+A one-element array applies to every panel; otherwise each array must contain
+one value per `panel_names` entry. An explicit ROI takes precedence over
+`crop_to_valid_region`. It changes only which calibrated pixels are emitted:
+the node preserves the full-canvas intrinsics in `K`/`P`, publishes the exact
+rectangle in `CameraInfo.roi`, and sizes every paired image to that rectangle.
+The node rejects incomplete, empty, out-of-bounds, or wholly unsupported ROIs
+instead of publishing mismatched image geometry. Pixels inside a valid ROI that
+fall outside lidar support remain zero in display images and `NaN` in depth.
+`azimuth_offset_deg` is the counter-clockwise yaw of the native lidar +X axis
+in `parent_frame`; leave it at zero when `parent_frame` is the native lidar
+frame. It is not a destaggered-column offset: calibrated beam azimuths and
+destagger shifts differ across products and firmware versions.
+
+An OSDome needs a top-facing view in addition to the four horizon views. The
+included preset uses explicit, bounded fields of view so that zenith is at the
+centre of a pinhole panel rather than at the singular edge of the side panels:
+
+```bash
+ros2 launch ouster_ros pinhole.launch.py \
+    params_file:="$(ros2 pkg prefix ouster_ros)/share/ouster_ros/config/os_pinhole_dome_params.yaml"
+```
+
+The pinhole depth image is a calibrated nearest-neighbour resampling of the
+lidar returns, not an exact subset of the raw point cloud. Back-projecting it
+with `depth_image_proc` preserves the selected return's optical-axis depth to
+floating-point precision, but X/Y lie on the output pixel-centre ray. They
+usually differ from the raw XYZ point by up to roughly half the sensor/output
+angular sampling interval, with metric error growing with range. Multiple
+pixels can select the same return and some returns may be omitted. Use the raw
+cloud when exact XYZ, ring, timestamp, intensity, or one-point-per-return
+identity matters. Also note that custom raw-cloud range, mask, or vertical
+reduction filters are not applied to these panel images.
+
+For example, convert the front panel to a point cloud with:
+
+```bash
+ros2 run depth_image_proc point_cloud_xyz_node --ros-args \
+    -r image_rect:=/ouster/panels/front/depth_image \
+    -r camera_info:=/ouster/panels/front/camera_info \
+    -r points:=/ouster/panels/front/points
 ```
 
 #### Multicast Mode (experimental)
