@@ -89,6 +89,11 @@
   <arg name="mask_path" default="" description="path to an image file that will be used to
    mask parts of the pointcloud}"/>
 
+  <arg name="publish_camera_info" default="false"
+    description="publish a display-only equirectangular CameraInfo approximation"/>
+  <arg name="camera_optical_frame" default=""
+    description="os_image optical frame; derived from lidar_frame when CameraInfo is enabled and this is empty"/>
+
   <group>
     <push-ros-namespace namespace="$(var ouster_ns)"/>
     <node if="$(var _use_metadata_file)" pkg="ouster_ros" exec="os_replay" name="os_replay" output="screen">
@@ -120,6 +125,9 @@
         <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
         <param name="proc_mask" value="$(var proc_mask)"/>
         <param name="mask_path" value="$(var mask_path)"/>
+        <param name="frame_id" value="$(var lidar_frame)"/>
+        <param name="publish_camera_info" value="$(var publish_camera_info)"/>
+        <param name="optical_frame" value="$(var camera_optical_frame)"/>
       </composable_node>
     </node_container>
   </group>

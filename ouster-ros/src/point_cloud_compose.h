@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #pragma once
 
 #include <pcl_conversions/pcl_conversions.h>
@@ -134,10 +136,14 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
     int w = static_cast<int>(ls.w);
 
     for (auto u = 0; u < h; u += rows_step) {
-        const auto row_shift = pixel_shift_by_row[u];
+        // Metadata shifts may be signed. Normalize once per row so the
+        // division-free inner loop also remains robust to equivalent shifts
+        // outside one image width.
+        const auto row_shift =
+            (w + pixel_shift_by_row[u] % w) % w;
         for (auto v = 0; v < w; ++v) {   // TODO[UN]: consider cols_step in future
             // equivalent to (v + w - row_shift) % w, but avoids a division
-            // per pixel since v and row_shift are both already in [0, w)
+            // per pixel since v and normalized row_shift are in [0, w)
             const auto v_shift =
                 destagger ? (v >= row_shift ? v - row_shift : v + w - row_shift)
                           : v;

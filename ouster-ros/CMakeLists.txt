@@ -236,11 +236,21 @@ rclcpp_components_register_node(os_cloud_component
 # ==== os_image_component ====
 create_ros2_component(os_image_component
   "src/os_processing_node_base.cpp;src/os_image_node.cpp"
-  ""
+  "tf2;tf2_ros"
 )
 rclcpp_components_register_node(os_image_component
   PLUGIN "ouster_ros::OusterImage"
   EXECUTABLE os_image
+)
+
+# ==== os_pinhole_component ====
+create_ros2_component(os_pinhole_component
+  "src/os_processing_node_base.cpp;src/os_pinhole_node.cpp"
+  "tf2;tf2_ros"
+)
+rclcpp_components_register_node(os_pinhole_component
+  PLUGIN "ouster_ros::OusterPinhole"
+  EXECUTABLE os_pinhole
 )
 
 # ==== os_driver_component ====
@@ -276,12 +286,15 @@ if(BUILD_TESTING)
   list(REMOVE_ITEM CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/ouster-sdk/cmake")
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
   ament_add_gtest(${PROJECT_NAME}_test
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
+    test/panorama_camera_info_test.cpp
+    test/pinhole_processor_test.cpp
   )
   if(TARGET ${PROJECT_NAME}_test)
     target_include_directories(${PROJECT_NAME}_test PRIVATE
@@ -292,6 +305,7 @@ if(BUILD_TESTING)
     set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
       LINK_LIBRARIES ouster_ros_library)
   endif()
+  add_launch_test(test/camera_nodes_launch_test.py TIMEOUT 90)
   set(CMAKE_MODULE_PATH "${_ouster_ros_saved_cmake_module_path}")
 endif()
 
@@ -303,6 +317,7 @@ set(OUSTER_INSTALL_TARGETS
   os_replay_component
   os_cloud_component
   os_image_component
+  os_pinhole_component
   os_driver_component
 )
 if (BUILD_PCAP)

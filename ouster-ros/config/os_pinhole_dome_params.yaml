@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+/**:
+  ros__parameters:
+    use_system_default_qos: false
+    # 0 accepts partial startup scans; 1 requires every lidar column.
+    min_scan_valid_columns_ratio: 0.0
+
+    # Four overlapping horizon views plus a zenith view cover the OSDome
+    # hemisphere without placing straight up at a pinhole singularity.
+    # With parent_frame=os_lidar, yaw 0 points toward the external connector;
+    # names describe parent-frame axes, not a particular vehicle mounting.
+    panel_names: [front, left, rear, right, top]
+    panel_yaws_deg: [0.0, 90.0, 180.0, 270.0, 0.0]
+    panel_pitches_deg: [0.0, 0.0, 0.0, 0.0, 90.0]
+    panel_hfovs_deg: [100.0, 100.0, 100.0, 100.0, 120.0]
+    panel_vfovs_deg: [100.0, 100.0, 100.0, 100.0, 120.0]
+    panel_widths: [256]
+    panel_heights: [256]
+    crop_to_valid_region: true
+    publish_range_image: true
+    publish_range_image2: true
+    publish_signal_image: true
+    publish_signal_image2: true
+    publish_reflec_image: true
+    publish_reflec_image2: true
+    publish_nearir_image: true
+    publish_depth_image: true
+    publish_depth_image2: true
+    publish_camera_info: true
+    publish_rgb: false # opt in when the REV8 sensor uses an RGB lidar profile
+
+    parent_frame: os_lidar
+    optical_frame_template: '{ns}/panels/{name}_optical_frame'
+    azimuth_offset_deg: 0.0 # CCW yaw of native lidar +X in parent_frame
