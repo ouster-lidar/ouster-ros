@@ -322,7 +322,7 @@ void OusterSensor::save_metadata() {
     }
 }
 
-// param init_id_reset is overriden to true when force_reinit is true
+// param init_id_reset is overridden to true when force_reinit is true
 void OusterSensor::reset_sensor(bool force_reinit, bool init_id_reset) {
     if (!sensor_connection_active) {
         RCLCPP_WARN(get_logger(),
@@ -1089,7 +1089,7 @@ void OusterSensor::read_lidar_packet(ouster::sdk::sensor::Client& cli,
     if (ouster::sdk::sensor::read_lidar_packet(cli, lidar_packet)) {
         read_lidar_packet_errors = 0;
         if (!is_legacy_lidar_profile(info) && init_id_changed(pf, lidar_packet)) {
-            // TODO: short circut reset if no breaking changes occured?
+            // TODO: short circuit reset if no breaking changes occurred?
             RCLCPP_WARN(get_logger(), "sensor init_id has changed! reactivating..");
             reset_sensor(false);
         }

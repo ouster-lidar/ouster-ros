@@ -79,7 +79,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void save_metadata();
 
-    // param init_id_reset is overriden to true when force_reinit is true
+    // param init_id_reset is overridden to true when force_reinit is true
     void reset_sensor(bool force_reinit, bool init_id_reset = false);
 
     // TODO: need to notify dependent node(s) of the update

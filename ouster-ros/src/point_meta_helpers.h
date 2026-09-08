@@ -33,7 +33,7 @@ namespace ouster_ros {
     inline constexpr bool has_##member##_v = has_##member<C>::value;
 
 /**
- * @brief A template that can be used to silence unused varaiables warning.
+ * @brief A template that can be used to silence unused variables warning.
  */
 template<typename T> inline void unused_variable(const T&) {}
 
@@ -152,7 +152,7 @@ inline constexpr auto& get<4, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { ret
 template <>
 inline constexpr auto& get<5, pcl::PointXYZRGBA>(pcl::PointXYZRGBA& point) { return point.b; }
 
-// TODO: create a generalized vardiac templates of apply and enumerate functions
+// TODO: create a generalized variadic templates of apply and enumerate functions
 
 /**
  * @brief Iterates the elements of a point (compile time) applying a lambda

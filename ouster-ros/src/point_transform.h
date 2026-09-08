@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * @file point_transform.h
- * @brief Implements the main transform_point method used to convert point from
+ * @brief Implements the main transform_point method used to convert points from
  * a source pcl point format usually sensor native point representation to other
  * pcl point formats such as Velodyne XYZIR or pcl::XYZ, pcl::XYZI, ... 
  */
