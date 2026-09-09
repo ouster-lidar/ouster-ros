@@ -5,6 +5,9 @@ Changelog
 [UNRELEASED]
 ============
 * improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* [BUGFIX]: ``TIME_FROM_ROS_TIME`` stamped every point cloud one full frame period early
+  (regression since the count-based scan completion in 0.14.0); stamps are now derived
+  from the scan's own packet arrival times.
 
 ouster_ros v0.15.2
 ==================
