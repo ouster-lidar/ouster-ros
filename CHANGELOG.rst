@@ -7,6 +7,9 @@ Changelog
 * Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
+* [BUGFIX]: ``TIME_FROM_ROS_TIME`` stamped every point cloud one full frame period early
+  (regression since the count-based scan completion in 0.14.0); stamps are now derived
+  from the scan's own packet arrival times.
 
 ouster_ros v0.15.2
 ==================
