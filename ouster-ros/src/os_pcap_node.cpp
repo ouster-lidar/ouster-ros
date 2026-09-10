@@ -193,6 +193,7 @@ class OusterPcap : public OusterSensorNodeBase {
         auto& pf = ouster::sdk::core::get_format(info);
         lidar_packet.buf.resize(pf.lidar_packet_size);
         imu_packet.buf.resize(pf.imu_packet_size);
+        zone_packet.buf.resize(pf.zone_packet_size);
     }
 
     void create_publishers() {
@@ -208,6 +209,9 @@ class OusterPcap : public OusterSensorNodeBase {
         imu_packet_pub = create_publisher<PacketMsg>(
             "imu_packets",
             rclcpp::QoS(selected_qos).keep_last(info.format.imu_packets_per_frame));
+        if (info.format.zone_monitoring_enabled)
+            zone_packet_pub = create_publisher<PacketMsg>(
+                "zone_packets", rclcpp::QoS(selected_qos).keep_last(1));
     }
 
     void open_pcap(const std::string& pcap_file) {
@@ -274,6 +278,11 @@ class OusterPcap : public OusterSensorNodeBase {
                 std::memcpy(lidar_packet.buf.data(), pcap.current_data(),
                             pf.lidar_packet_size);
                 lidar_packet_pub->publish(lidar_packet);
+            } else if (zone_packet_pub &&
+                       packet_info.dst_port == info.config.udp_port_zm) {
+                std::memcpy(zone_packet.buf.data(), pcap.current_data(),
+                            pf.zone_packet_size);
+                zone_packet_pub->publish(zone_packet);
             } else {
                 RCLCPP_WARN_STREAM_THROTTLE(get_logger(), *get_clock(), 1,
                     "unknown packet /w port:" << packet_info.dst_port);
@@ -301,8 +310,10 @@ class OusterPcap : public OusterSensorNodeBase {
     std::shared_ptr<PcapReader> pcap;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet;
     ouster_sensor_msgs::msg::PacketMsg imu_packet;
+    ouster_sensor_msgs::msg::PacketMsg zone_packet;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr imu_packet_pub;
+    rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr zone_packet_pub;
     bool loop;
     double progress_update_freq;
     std::atomic<bool> packet_read_active = {false};

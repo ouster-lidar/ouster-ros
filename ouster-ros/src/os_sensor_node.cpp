@@ -17,6 +17,7 @@
 #include "os_sensor_node.h"
 #include <ouster/metadata.h>
 #include "ouster_ros/impl/file_util.h"
+#include "zone_packet_source.h"
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
@@ -27,6 +28,7 @@ using namespace std::chrono_literals;
 
 using ouster::sdk::core::ImuPacket;
 using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::ZonePacket;
 using ouster::sdk::core::UDPProfileLidar;
 using ouster::sdk::core::UDPProfileIMU;
 using ouster::sdk::core::LidarMode;
@@ -70,6 +72,7 @@ OusterSensor::OusterSensor(const rclcpp::NodeOptions& options)
 OusterSensor::~OusterSensor() {
     RCLCPP_DEBUG(get_logger(), "OusterSensor::~OusterSensor() called");
     stop_sensor_connection_thread();
+    stop_zone_connection_thread();
 }
 
 void OusterSensor::declare_parameters() {
@@ -82,6 +85,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("mtp_main", false);
     declare_parameter("lidar_port", 0);
     declare_parameter("imu_port", 0);
+    declare_parameter("zone_port", 0);
     declare_parameter("lidar_mode", "");
     declare_parameter("timestamp_mode", "");
     declare_parameter("udp_profile_lidar", "");
@@ -197,6 +201,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
     create_publishers();
     allocate_buffers();
     start_sensor_connection_thread();
+    start_zone_connection_thread();
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -212,6 +217,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_deactivate(
     RCLCPP_DEBUG(get_logger(), "on_deactivate() is called.");
     LifecycleNode::on_deactivate(state);
     stop_sensor_connection_thread();
+    stop_zone_connection_thread();
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -242,6 +248,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_shutdown(
 
     if (state.label() == "active") {
         stop_sensor_connection_thread();
+        stop_zone_connection_thread();
     }
 
     // whether state was 'active' or 'inactive' do cleanup
@@ -548,6 +555,39 @@ void OusterSensor::parse_udp_dest_and_ports(SensorConfig& config) {
     } else {
         config.udp_port_imu = imu_port;
     }
+}
+
+namespace {
+bool is_zone_monitoring_profile(UDPProfileLidar profile) {
+    return profile == UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16 ||
+           profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16;
+}
+}  // namespace
+
+void OusterSensor::parse_zone_dest_and_port(SensorConfig& config) {
+    auto zone_port = get_parameter("zone_port").as_int();
+    if (zone_port < 0 || zone_port > 65535) {
+        auto error_msg =
+            "Invalid zone port number! port value should be in the range "
+            "[0, 65535].";
+        RCLCPP_FATAL_STREAM(get_logger(), error_msg);
+        throw std::runtime_error(error_msg);
+    }
+
+    // only forward the zone monitoring settings to the sensor when zone
+    // monitoring was actually asked for, either through a lidar profile that
+    // carries zone data or by explicitly picking a zone port. sensors that
+    // don't support the feature have no use for these config params.
+    bool zone_profile_requested =
+        config.udp_profile_lidar &&
+        is_zone_monitoring_profile(config.udp_profile_lidar.value());
+    if (!zone_profile_requested && zone_port == 0) return;
+
+    // a zone port of zero leaves the sensor on the zone monitoring port it is
+    // already configured with
+    if (zone_port != 0) config.udp_port_zm = static_cast<uint16_t>(zone_port);
+
+    if (config.udp_dest) config.udp_dest_zm = config.udp_dest;
 }
 
 void OusterSensor::parse_udp_profile_lidar(SensorConfig& config) {
@@ -897,6 +937,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     SensorConfig config;
     parse_udp_dest_and_ports(config);
     parse_udp_profile_lidar(config);
+    parse_zone_dest_and_port(config);
     parse_columns_per_packet(config);
     parse_udp_profile_imu_and_settings(config);
     parse_lidar_mode(config);
@@ -1040,6 +1081,9 @@ void OusterSensor::create_publishers() {
     imu_packet_pub = create_publisher<PacketMsg>(
         "imu_packets",
         rclcpp::QoS(selected_qos).keep_last(info.format.imu_packets_per_frame));
+    if (zone_monitoring_port())
+        zone_packet_pub = create_publisher<PacketMsg>(
+            "zone_packets", rclcpp::QoS(selected_qos).keep_last(1));
 }
 
 void OusterSensor::allocate_buffers() {
@@ -1051,6 +1095,9 @@ void OusterSensor::allocate_buffers() {
     imu_packet.buf.resize(pf.imu_packet_size);
     imu_packet.format = packet_format;
     imu_packet_msg.buf.resize(pf.imu_packet_size);
+    zone_packet.buf.resize(pf.zone_packet_size);
+    zone_packet.format = packet_format;
+    zone_packet_msg.buf.resize(pf.zone_packet_size);
 }
 
 bool OusterSensor::init_id_changed(const PacketFormat& pf,
@@ -1134,10 +1181,13 @@ void OusterSensor::cleanup() {
     sensor_client.reset();
     lidar_packet_pub.reset();
     imu_packet_pub.reset();
+    zone_packet_pub.reset();
     get_metadata_srv.reset();
     get_config_srv.reset();
     set_config_srv.reset();
     sensor_connection_thread.reset();
+    zone_packet_source.reset();
+    zone_connection_thread.reset();
 }
 
 void OusterSensor::connection_loop(ouster::sdk::sensor::Client& cli,
@@ -1181,6 +1231,70 @@ void OusterSensor::stop_sensor_connection_thread() {
     }
 }
 
+std::optional<int> OusterSensor::zone_monitoring_port() const {
+    if (!info.format.zone_monitoring_enabled) return std::nullopt;
+    auto port = info.config.udp_port_zm.value_or(0);
+    if (port == 0) return std::nullopt;
+    return static_cast<int>(port);
+}
+
+void OusterSensor::start_zone_connection_thread() {
+    auto port = zone_monitoring_port();
+    if (!port) {
+        RCLCPP_INFO(get_logger(),
+                    "zone monitoring is not enabled on the sensor, "
+                    "no zone packets will be published");
+        return;
+    }
+
+    try {
+        zone_packet_source = std::make_unique<ZonePacketSource>(
+            port.value(), info.config.udp_dest_zm.value_or(""), mtp_dest);
+    } catch (const std::exception& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(),
+                            "failed to listen for zone monitoring packets, "
+                            "details: " << ex.what());
+        return;
+    }
+
+    RCLCPP_INFO_STREAM(get_logger(),
+                       "listening for zone monitoring packets on port "
+                           << port.value());
+
+    read_zone_packet_errors = 0;
+    zone_connection_active = true;
+    zone_connection_thread = std::make_unique<std::thread>([this]() {
+        RCLCPP_DEBUG(get_logger(), "zone_connection_thread active.");
+        while (rclcpp::ok() && zone_connection_active) {
+            auto status = zone_packet_source->read(zone_packet);
+            if (status == ZonePacketSource::ReadStatus::PACKET) {
+                read_zone_packet_errors = 0;
+                on_zone_packet_msg(zone_packet);
+            } else if (status == ZonePacketSource::ReadStatus::ERROR &&
+                       ++read_zone_packet_errors >
+                           max_read_zone_packet_errors) {
+                RCLCPP_ERROR(get_logger(),
+                             "maximum number of allowed errors while reading "
+                             "zone monitoring packets reached, giving up on "
+                             "the zone monitoring stream");
+                break;
+            }
+        }
+        RCLCPP_DEBUG(get_logger(), "zone_connection_thread done.");
+    });
+}
+
+void OusterSensor::stop_zone_connection_thread() {
+    RCLCPP_DEBUG(get_logger(), "zone_connection_thread stopping.");
+    if (zone_connection_thread != nullptr &&
+        zone_connection_thread->joinable()) {
+        zone_connection_active = false;
+        zone_connection_thread->join();
+    }
+    zone_connection_thread.reset();
+    zone_packet_source.reset();
+}
+
 void OusterSensor::on_lidar_packet_msg(const LidarPacket&) {
     static_cast<std::vector<uint8_t>&>(lidar_packet_msg.buf)
         .swap(lidar_packet.buf);
@@ -1191,6 +1305,12 @@ void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
     static_cast<std::vector<uint8_t>&>(imu_packet_msg.buf)
         .swap(imu_packet.buf);
     imu_packet_pub->publish(imu_packet_msg);
+}
+
+void OusterSensor::on_zone_packet_msg(const ZonePacket&) {
+    static_cast<std::vector<uint8_t>&>(zone_packet_msg.buf)
+        .swap(zone_packet.buf);
+    zone_packet_pub->publish(zone_packet_msg);
 }
 
 }  // namespace ouster_ros

@@ -21,7 +21,10 @@
 
 #include <tf2_eigen/tf2_eigen.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <limits>
+#include <map>
 #include <string>
 #include <vector>
 #include <regex>
@@ -31,7 +34,10 @@ namespace ouster_ros {
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::msg::Telemetry;
+using ouster_sensor_msgs::msg::ZoneState;
+using ouster_sensor_msgs::msg::ZoneStatus;
 using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::ZonePacket;
 using ouster::sdk::core::LidarScan;
 using ouster::sdk::core::LidarMode;
 using ouster::sdk::core::cf_type;
@@ -262,6 +268,56 @@ Telemetry lidar_packet_to_telemetry_msg(
     telemetry.thermal_shutdown = pf.thermal_shutdown(lidar_packet.buf.data());
     telemetry.shot_limiting = pf.shot_limiting(lidar_packet.buf.data());
     return telemetry;
+}
+
+std::map<uint8_t, std::string> get_zone_labels(const SensorInfo& info) {
+    std::map<uint8_t, std::string> zone_labels;
+    if (!info.zone_set) return zone_labels;
+    for (const auto& kv : info.zone_set->zones) {
+        // zone ids reported within a zone monitoring packet are 8 bits wide
+        if (kv.first > std::numeric_limits<uint8_t>::max()) continue;
+        zone_labels[static_cast<uint8_t>(kv.first)] = kv.second.label;
+    }
+    return zone_labels;
+}
+
+ZoneStatus zone_packet_to_zone_status_msg(
+    const ZonePacket& zone_packet, const std::string& frame,
+    const rclcpp::Time& timestamp,
+    const std::map<uint8_t, std::string>& zone_labels) {
+    ZoneStatus zone_status;
+    zone_status.header.stamp = timestamp;
+    zone_status.header.frame_id = frame;
+    zone_status.timestamp = zone_packet.timestamp();
+    const auto zoneset_hash = zone_packet.live_zoneset_hash();
+    std::copy(zoneset_hash.begin(), zoneset_hash.end(),
+              zone_status.zoneset_hash.begin());
+
+    const auto zone_states = zone_packet.zone_states();
+    zone_status.zones.resize(static_cast<size_t>(zone_states.size()));
+    for (Eigen::Index i = 0; i < zone_states.size(); ++i) {
+        const auto& zone_state = zone_states(i, 0);
+        auto& zone = zone_status.zones[static_cast<size_t>(i)];
+        zone.live = zone_state.live != 0;
+        zone.id = zone_state.id;
+        if (zone.live) {
+            auto label = zone_labels.find(zone_state.id);
+            if (label != zone_labels.end()) zone.label = label->second;
+        }
+        zone.error_flags = zone_state.error_flags;
+        zone.trigger_type = zone_state.trigger_type;
+        zone.trigger_status = zone_state.trigger_status;
+        zone.triggered_frames = zone_state.triggered_frames;
+        zone.count = zone_state.count;
+        zone.occlusion_count = zone_state.occlusion_count;
+        zone.invalid_count = zone_state.invalid_count;
+        zone.max_count = zone_state.max_count;
+        zone.min_range = zone_state.min_range;
+        zone.max_range = zone_state.max_range;
+        zone.mean_range = zone_state.mean_range;
+    }
+
+    return zone_status;
 }
 
 }  // namespace ouster_ros

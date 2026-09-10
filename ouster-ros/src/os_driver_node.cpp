@@ -23,12 +23,15 @@
 #include "image_processor.h"
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
+#include "zone_packet_handler.h"
+#include "zone_marker_handler.h"
 
 namespace ouster_ros {
 
 namespace ChanField = ouster::sdk::core::ChanField;
 using ouster::sdk::core::LidarPacket;
 using ouster::sdk::core::ImuPacket;
+using ouster::sdk::core::ZonePacket;
 using ouster::sdk::core::SensorInfo;
 
 class OusterDriver : public OusterSensor {
@@ -38,7 +41,7 @@ class OusterDriver : public OusterSensor {
         : OusterSensor("os_driver", options), tf_bcast(*this) {
         tf_bcast.declare_parameters();
         tf_bcast.parse_parameters();
-        declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW|TLM");
+        declare_parameter("proc_mask", "IMU|PCL|SCAN|IMG|RAW|TLM|ZONE");
         declare_parameter("scan_ring", 0);
         declare_parameter("ptp_utc_tai_offset", -37.0);
         declare_parameter("point_type", "original");
@@ -83,6 +86,25 @@ class OusterDriver : public OusterSensor {
             imu_packet_handler = ImuPacketHandler::create(
                 info, tf_bcast.imu_frame_id(), timestamp_mode,
                 static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+        }
+
+        if (impl::check_token(tokens, "ZONE")) {
+            if (info.format.zone_monitoring_enabled) {
+                zone_pub = create_publisher<ouster_sensor_msgs::msg::ZoneStatus>(
+                    "zone", selected_qos);
+                zone_marker_pub =
+                    create_publisher<visualization_msgs::msg::MarkerArray>(
+                        "zone_markers", selected_qos);
+                zone_packet_handler = ZonePacketHandler::create(
+                    info, tf_bcast.sensor_frame_id(), timestamp_mode,
+                    static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                zone_marker_handler = ZoneMarkerHandler::create(
+                    info, tf_bcast.sensor_frame_id());
+            } else {
+                RCLCPP_INFO(get_logger(),
+                    "zone monitoring is not enabled on the sensor, "
+                    "no zone messages will be published");
+            }
         }
 
         auto min_scan_valid_columns_ratio = get_parameter("min_scan_valid_columns_ratio").as_double();
@@ -264,9 +286,25 @@ class OusterDriver : public OusterSensor {
             OusterSensor::on_imu_packet_msg(imu_packet);
     }
 
+    virtual void on_zone_packet_msg(const ZonePacket& zone_packet) override {
+        if (zone_packet_handler) {
+            auto zone_status = zone_packet_handler(zone_packet);
+            zone_pub->publish(zone_status);
+            if (zone_marker_handler)
+                zone_marker_pub->publish(zone_marker_handler(zone_status));
+        }
+
+        if (publish_raw)
+            OusterSensor::on_zone_packet_msg(zone_packet);
+    }
+
     virtual void cleanup() override {
         imu_packet_handler = nullptr;
         lidar_packet_handler = nullptr;
+        zone_packet_handler = nullptr;
+        zone_marker_handler = nullptr;
+        zone_pub.reset();
+        zone_marker_pub.reset();
         imu_pub.reset();
         for (auto p : lidar_pubs) p.reset();
         for (auto p : scan_pubs) p.reset();
@@ -292,6 +330,12 @@ class OusterDriver : public OusterSensor {
 
     rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
     TelemetryHandler::HandlerType telemetry_handler;
+
+    rclcpp::Publisher<ouster_sensor_msgs::msg::ZoneStatus>::SharedPtr zone_pub;
+    ZonePacketHandler::HandlerType zone_packet_handler;
+
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr zone_marker_pub;
+    ZoneMarkerHandler::HandlerType zone_marker_handler;
 };
 
 }  // namespace ouster_ros
