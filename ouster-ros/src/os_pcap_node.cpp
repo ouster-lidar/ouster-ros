@@ -270,16 +270,19 @@ class OusterPcap : public OusterSensorNodeBase {
 
         while (rclcpp::ok() && packet_read_active && payload_size) {
             auto start = high_resolution_clock::now();
-            if (packet_info.dst_port == info.config.udp_port_imu) {
+            if (packet_info.dst_port == info.config.udp_port_imu &&
+                payload_size == pf.imu_packet_size) {
                 std::memcpy(imu_packet.buf.data(), pcap.current_data(),
                             pf.imu_packet_size);
                 imu_packet_pub->publish(imu_packet);
-            } else if (packet_info.dst_port == info.config.udp_port_lidar) {
+            } else if (packet_info.dst_port == info.config.udp_port_lidar &&
+                       payload_size == pf.lidar_packet_size) {
                 std::memcpy(lidar_packet.buf.data(), pcap.current_data(),
                             pf.lidar_packet_size);
                 lidar_packet_pub->publish(lidar_packet);
             } else if (zone_packet_pub &&
-                       packet_info.dst_port == info.config.udp_port_zm) {
+                       packet_info.dst_port == info.config.udp_port_zm &&
+                       payload_size == pf.zone_packet_size) {
                 std::memcpy(zone_packet.buf.data(), pcap.current_data(),
                             pf.zone_packet_size);
                 zone_packet_pub->publish(zone_packet);

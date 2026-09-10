@@ -5,10 +5,10 @@ Changelog
 [UNRELEASED]
 ============
 * Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
-* Receive and publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets``.
-* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone``
-  using a custom ROS message ``ouster_sensor_msgs/msg/ZoneStatus``.
-* ZM packet processing can be enabled through the new ``ZONE`` ``proc_mask`` flag and the new ``zone_port`` parameter.
+* Consume raw sensor zone monitoring (ZM) packets.
+* Publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets`` when ``RAW`` ``proc_mask`` is set.
+* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone`` when ``ZONE`` ``proc_mask`` is set.
+  - Zone status are represented using custom ROS messages ``ouster_sensor_msgs/msg/ZoneStatus`` and ``ouster_sensor_msgs/msg/ZoneState``.
 * Visualize zone monitoring state: when the sensor metadata carries a zone set, the driver renders each zone's STL geometry
   as a ``visualization_msgs/msg/MarkerArray`` on ``/ouster/zone_markers`` (which has a translucent mesh and a text label per zone).
   - Each marker is colored green/red/orange to reflect the zone's clear/triggered/error status.
