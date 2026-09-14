@@ -26,12 +26,15 @@
 #include "laser_scan_processor.h"
 #include "point_cloud_processor_factory.h"
 #include "telemetry_handler.h"
+#include "zone_packet_handler.h"
+#include "zone_marker_handler.h"
 
 namespace ouster_ros {
 
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster::sdk::core::ImuPacket;
 using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::ZonePacket;
 
 class OusterCloud : public OusterProcessingNodeBase {
    public:
@@ -122,6 +125,38 @@ class OusterCloud : public OusterProcessingNodeBase {
                         }
                     }
                 });
+        }
+
+        if (impl::check_token(tokens, "ZONE")) {
+            if (info.format.zone_monitoring_enabled) {
+                zone_pub = create_publisher<ouster_sensor_msgs::msg::ZoneStatus>(
+                    "zone", selected_qos);
+                zone_marker_pub =
+                    create_publisher<visualization_msgs::msg::MarkerArray>(
+                        "zone_markers", selected_qos);
+                zone_packet_handler = ZonePacketHandler::create(
+                    info, tf_bcast.sensor_frame_id(), timestamp_mode,
+                    static_cast<int64_t>(ptp_utc_tai_offset * 1e+9));
+                zone_marker_handler = ZoneMarkerHandler::create(
+                    info, tf_bcast.sensor_frame_id());
+                zone_packet_sub = create_subscription<PacketMsg>(
+                    "zone_packets", rclcpp::QoS(selected_qos).keep_last(1),
+                    [this](const PacketMsg::ConstSharedPtr msg) {
+                        // TODO[UN]: this is not ideal since we can't reuse the msg buffer
+                        // Need to redefine the Packet object and allow use of array_views
+                        ZonePacket zone_packet(msg->buf.size());
+                        zone_packet.format = packet_format;
+                        zone_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
+                        memcpy(zone_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        auto zone_status = zone_packet_handler(zone_packet);
+                        zone_pub->publish(zone_status);
+                        zone_marker_pub->publish(zone_marker_handler(zone_status));
+                    });
+            } else {
+                RCLCPP_INFO(get_logger(),
+                    "zone monitoring is not enabled on the sensor, "
+                    "no zone messages will be published");
+            }
         }
 
         auto min_scan_valid_columns_ratio = get_parameter("min_scan_valid_columns_ratio").as_double();
@@ -274,6 +309,13 @@ class OusterCloud : public OusterProcessingNodeBase {
 
     rclcpp::Publisher<ouster_sensor_msgs::msg::Telemetry>::SharedPtr telemetry_pub;
     TelemetryHandler::HandlerType telemetry_handler;
+
+    rclcpp::Subscription<PacketMsg>::SharedPtr zone_packet_sub;
+    rclcpp::Publisher<ouster_sensor_msgs::msg::ZoneStatus>::SharedPtr zone_pub;
+    ZonePacketHandler::HandlerType zone_packet_handler;
+
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr zone_marker_pub;
+    ZoneMarkerHandler::HandlerType zone_marker_handler;
 };
 
 }  // namespace ouster_ros

@@ -9,6 +9,8 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PacketMsg.msg"
   "msg/Telemetry.msg"
+  "msg/ZoneState.msg"
+  "msg/ZoneStatus.msg"
   "srv/GetConfig.srv"
   "srv/SetConfig.srv"
   "srv/GetMetadata.srv"

@@ -22,11 +22,13 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 
 #include <chrono>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/msg/telemetry.hpp"
+#include "ouster_sensor_msgs/msg/zone_status.hpp"
 #include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
@@ -118,6 +120,31 @@ ouster_sensor_msgs::msg::Telemetry lidar_packet_to_telemetry_msg(
     const ouster::sdk::core::LidarPacket& lidar_packet,
     const rclcpp::Time& timestamp,
     const ouster::sdk::core::PacketFormat& pf);
+
+/**
+ * Collect the labels of the zones defined by the zone set of the sensor, if
+ * the sensor metadata carries one
+ * @param[in] info sensor_info
+ * @return a map of zone id to the label assigned to that zone; empty when the
+ * metadata doesn't carry a zone set
+ */
+std::map<uint8_t, std::string> get_zone_labels(
+    const ouster::sdk::core::SensorInfo& info);
+
+/**
+ * Parse a ZonePacket and generate the ZoneStatus message
+ * @param[in] zone_packet zone monitoring packet to parse the zone states from
+ * @param[in] frame the frame to set in the resulting ROS message
+ * @param[in] timestamp the timestamp to give the resulting ROS message
+ * @param[in] zone_labels zone id to zone label map, as returned by
+ * get_zone_labels
+ * @return ROS message with fields populated from the packet
+ */
+ouster_sensor_msgs::msg::ZoneStatus zone_packet_to_zone_status_msg(
+    const ouster::sdk::core::ZonePacket& zone_packet,
+    const std::string& frame,
+    const rclcpp::Time& timestamp,
+    const std::map<uint8_t, std::string>& zone_labels);
 
 namespace impl {
 
