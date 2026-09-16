@@ -135,16 +135,8 @@ class LidarPacketHandler {
             }
         }
 
-        lidar_scans_processing_thread = std::make_unique<std::thread>([this]() {
-            while (lidar_scans_processing_active) {
-                process_scans();
-            }
-            RCLCPP_DEBUG(rclcpp::get_logger(getName()),
-                         "lidar_scans_processing_thread done.");
-        });
-
         // initialize time handlers
-        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info.config.lidar_mode.value());
+        scan_col_ts_spacing_ns = compute_scan_col_ts_spacing_ns(info);
         compute_scan_ts = [this](const auto& ts_v) {
             return compute_scan_ts_0(ts_v);
         };
@@ -198,6 +190,17 @@ class LidarPacketHandler {
                 }
                 return result;
             }};
+
+        // Finish every initialization step that can throw before starting the
+        // worker. Unwinding a partially constructed handler with a joinable
+        // std::thread would terminate the process instead of rejecting metadata.
+        lidar_scans_processing_thread = std::make_unique<std::thread>([this]() {
+            while (lidar_scans_processing_active) {
+                process_scans();
+            }
+            RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                         "lidar_scans_processing_thread done.");
+        });
     }
 
     LidarPacketHandler(const LidarPacketHandler&) = delete;
@@ -434,9 +437,14 @@ class LidarPacketHandler {
         return true;
     }
 
-    static double compute_scan_col_ts_spacing_ns(ouster::sdk::core::LidarMode ld_mode) {
-        const auto scan_width = ouster::sdk::core::n_cols_of_lidar_mode(ld_mode);
-        const auto scan_frequency = ouster::sdk::core::frequency_of_lidar_mode(ld_mode);
+    static double compute_scan_col_ts_spacing_ns(
+        const ouster::sdk::core::SensorInfo& info) {
+        const auto scan_width = info.format.columns_per_frame;
+        const auto scan_frequency = info.format.fps;
+        if (scan_width == 0 || scan_frequency == 0) {
+            throw std::invalid_argument(
+                "sensor metadata has zero columns_per_frame or fps");
+        }
         const double one_sec_in_ns = 1e+9;
         return one_sec_in_ns / (scan_width * scan_frequency);
     }

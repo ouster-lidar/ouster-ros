@@ -612,6 +612,7 @@ class TestCameraNodeShutdown(unittest.TestCase):
     def test_processes_exit_cleanly(
             self, proc_info, pinhole, image_enabled, image_default,
             pinhole_same_frame):
-        for process in (pinhole, image_enabled, image_default, pinhole_same_frame):
+        for process in (
+                pinhole, image_enabled, image_default, pinhole_same_frame):
             launch_testing.asserts.assertExitCodes(
                 proc_info, allowable_exit_codes=[0], process=process)
