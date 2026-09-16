@@ -42,6 +42,7 @@
 #include "ouster/image_processing.h"
 #include "ouster/xyzlut.h"
 #include "lidar_packet_handler.h"
+#include "image_pixel.h"
 
 namespace ouster_ros {
 
@@ -1018,15 +1019,12 @@ class PinholeProcessor {
         const PanelOutput& panel) const {
         const uint32_t pw = out.width;
         const uint32_t ph = out.height;
-        constexpr float pixel_value_max =
-            static_cast<float>(std::numeric_limits<pixel_type>::max());
         for (uint32_t u = 0; u < ph; ++u) {
             for (uint32_t v = 0; v < pw; ++v) {
                 const int32_t r = panel.r_src(u, v);
                 pixel_type val = 0;
                 if (r >= 0) {
-                    val = static_cast<pixel_type>(
-                        src(r, panel.v_src(u, v)) * pixel_value_max);
+                    val = impl::display_to_mono16(src(r, panel.v_src(u, v)));
                 }
                 const size_t output_offset =
                     (static_cast<size_t>(u) * pw + v) * sizeof(pixel_type);

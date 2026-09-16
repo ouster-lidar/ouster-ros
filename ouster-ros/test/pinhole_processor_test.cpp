@@ -1715,6 +1715,69 @@ TEST(PinholeProcessorTest,
 }
 
 TEST(PinholeProcessorTest,
+     SaturatesSparseDisplaySamplesBeforeAutoExposureInitializes) {
+    using namespace ouster::sdk::core;
+    auto info = load_test_info();
+    info.format.udp_profile_lidar = UDPProfileLidar::RNG19_RFL8_SIG16_NIR16;
+
+    PinholeProcessor::PanelConfig config;
+    config.name = "front";
+    config.width = 3;
+    config.height = 1;
+    config.crop_to_valid_region = false;
+
+    PinholeProcessor::OutputConfig outputs;
+    outputs.range = {false, false};
+    outputs.depth = {false, false};
+    PinholeProcessor::OutputType panels;
+    auto process = PinholeProcessor::create(
+        info, {config}, "{name}", "", 0.0,
+        [&panels](PinholeProcessor::OutputType& output) { panels = output; },
+        outputs);
+    ImageProcessor::OutputType panorama;
+    auto process_panorama = ImageProcessor::create(
+        info, "panorama", "",
+        [&panorama](ImageProcessor::OutputType output) { panorama = output; });
+
+    LidarScan scan(info);
+    auto signal = scan.field<uint16_t>(ChanField::SIGNAL);
+    auto reflectivity = scan.field<uint8_t>(ChanField::REFLECTIVITY);
+    auto near_ir = scan.field<uint16_t>(ChanField::NEAR_IR);
+    signal.setZero();
+    reflectivity.setZero();
+    near_ir.setZero();
+    process(scan, 0, rclcpp::Time(0, 0));
+    process_panorama(scan, 0, rclcpp::Time(0, 0));
+    ASSERT_EQ(panels.size(), 1u);
+    const auto& panel = *panels.front();
+    const auto source_row = panel.r_src(0, 1);
+    const auto source_column = panel.raw_v_src(0, 1);
+    ASSERT_GE(source_row, 0);
+    ASSERT_GE(source_column, 0);
+
+    // A sparse startup/partial scan has too few samples for SDK auto-exposure,
+    // which leaves these raw values above one instead of normalizing them.
+    signal(source_row, source_column) = 2500u;
+    reflectivity(source_row, source_column) = 17u;
+    near_ir(source_row, source_column) = 2500u;
+    process(scan, 0, rclcpp::Time(1, 0));
+
+    process_panorama(scan, 0, rclcpp::Time(1, 0));
+    for (const auto& channel :
+         {ChanField::SIGNAL, ChanField::REFLECTIVITY, ChanField::NEAR_IR}) {
+        SCOPED_TRACE(channel);
+        const auto& image = *panel.images.at(channel);
+        EXPECT_EQ(mono16_at(image, 0, 1),
+                  std::numeric_limits<uint16_t>::max());
+        EXPECT_EQ(mono16_at(image, 0, 0), 0u);
+        EXPECT_EQ(mono16_at(image, 0, 2), 0u);
+        EXPECT_EQ(mono16_at(*panorama.at(channel), source_row,
+                           panel.v_src(0, 1)),
+                  std::numeric_limits<uint16_t>::max());
+    }
+}
+
+TEST(PinholeProcessorTest,
      OptimizedPanelSamplingMatchesTheExistingDestaggeredImages) {
     auto info = load_test_info();
     info.format.udp_profile_lidar =
