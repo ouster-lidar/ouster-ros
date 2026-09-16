@@ -520,29 +520,119 @@ TEST(PinholeProcessorTest, ClampsAutoHeightBeforeAllocating) {
     EXPECT_EQ(panel.r_src.cols(), 1);
 }
 
-TEST(PinholeProcessorTest, AutoHeightCoversAsymmetricVfovAroundPitch) {
+TEST(PinholeProcessorTest, AutoHeightCoversBeamsAcrossHorizontalFov) {
     const auto info = load_test_info();
-    const auto [min_altitude, max_altitude] = std::minmax_element(
-        info.beam_altitude_angles.begin(), info.beam_altitude_angles.end());
+    for (double pitch_deg : {-10.0, 0.0, 10.0, 370.0}) {
+        for (double hfov_deg : {60.0, 90.0, 120.0}) {
+            SCOPED_TRACE(::testing::Message()
+                         << "pitch=" << pitch_deg << " hfov=" << hfov_deg);
+            PinholeProcessor::PanelConfig config;
+            config.name = "auto";
+            config.pitch_rad = pitch_deg * M_PI / 180.0;
+            config.hfov_rad = hfov_deg * M_PI / 180.0;
+            config.crop_to_valid_region = false;
+            PinholeProcessor processor(info, {config}, "{name}", "", 0.0,
+                                       nullptr);
+            const auto& ci = processor.panels().front()->camera_info;
+            double min_v = std::numeric_limits<double>::infinity();
+            double max_v = -min_v;
+            // Independently project the calibrated beam circles into the
+            // camera. Every ray inside its horizontal FOV must also fit
+            // vertically; checking the centre column alone misses seams.
+            for (double altitude_deg : info.beam_altitude_angles) {
+                const double altitude = altitude_deg * M_PI / 180.0;
+                for (int i = 0; i < 7200; ++i) {
+                    const double azimuth = i * 2.0 * M_PI / 7200;
+                    const double x = std::cos(altitude) * std::cos(azimuth);
+                    const double y = std::cos(altitude) * std::sin(azimuth);
+                    const double z = std::sin(altitude);
+                    const double forward = x * std::cos(config.pitch_rad) +
+                                           z * std::sin(config.pitch_rad);
+                    if (forward <= 0.0) continue;
+                    const double u = ci.k[2] - ci.k[0] * y / forward;
+                    if (u < -0.5 || u > ci.width - 0.5) continue;
+                    const double down = x * std::sin(config.pitch_rad) -
+                                        z * std::cos(config.pitch_rad);
+                    const double v = ci.k[5] + ci.k[4] * down / forward;
+                    min_v = std::min(min_v, v);
+                    max_v = std::max(max_v, v);
+                }
+            }
+            EXPECT_GE(min_v, -0.5 - 1e-9);
+            EXPECT_LE(max_v, ci.height - 0.5 + 1e-9);
+            // Also guard against fitting by needlessly enlarging the image.
+            EXPECT_LT(std::min(min_v + 0.5, ci.height - 0.5 - max_v), 1.0);
+            EXPECT_DOUBLE_EQ(ci.k[0], ci.k[4]);
+        }
+    }
+}
 
+TEST(PinholeProcessorTest, AutoHeightCoversWideSensorAtPanelSeams) {
+    auto info = load_test_info();
+    for (size_t i = 0; i < info.beam_altitude_angles.size(); ++i) {
+        info.beam_altitude_angles[i] = -45.0 +
+            90.0 * i / (info.beam_altitude_angles.size() - 1);
+    }
     PinholeProcessor::PanelConfig config;
-    config.name = "pitched";
-    config.pitch_rad = 10.0 * M_PI / 180.0;
-    config.hfov_rad = M_PI_2;
-    config.width = 256;
-    config.height = 0;
-    config.vfov_rad = 0.0;
+    config.name = "wide";
     config.crop_to_valid_region = false;
-
-    const double half_vfov = std::max(
-        std::abs(*max_altitude * M_PI / 180.0 - config.pitch_rad),
-        std::abs(config.pitch_rad - *min_altitude * M_PI / 180.0));
-    const uint32_t expected_height = static_cast<uint32_t>(
-        std::round(2.0 * 128.0 * std::tan(half_vfov)));
-
     PinholeProcessor processor(info, {config}, "{name}", "", 0.0, nullptr);
-    EXPECT_EQ(processor.panels().front()->camera_info.height,
-              expected_height);
+    const auto& panel = *processor.panels().front();
+    EXPECT_GE(panel.camera_info.height, 363u);
+    EXPECT_LE(panel.camera_info.height, 364u);
+    // The outermost beams must remain selectable in both edge columns.
+    for (Eigen::Index col : {Eigen::Index{0}, panel.r_src.cols() - 1}) {
+        EXPECT_GT((panel.r_src.col(col) == 0).count(), 0);
+        EXPECT_GT((panel.r_src.col(col) ==
+                   static_cast<int>(info.beam_altitude_angles.size() - 1)).count(),
+                  0);
+    }
+}
+
+TEST(PinholeProcessorTest, AutoHeightFitsUpwardAndDownwardPanels) {
+    for (double sign : {-1.0, 1.0}) {
+        auto info = make_synthetic_dome_info();
+        for (size_t i = 0; i < info.beam_altitude_angles.size(); ++i) {
+            info.beam_altitude_angles[i] = sign *
+                (20.0 + 67.0 * i / (info.beam_altitude_angles.size() - 1));
+        }
+        PinholeProcessor::PanelConfig config;
+        config.name = "pole";
+        config.pitch_rad = sign * M_PI_2;
+        config.crop_to_valid_region = false;
+        PinholeProcessor processor(info, {config}, "{name}", "", 0.0,
+                                   nullptr);
+        const auto& panel = *processor.panels().front();
+        // The 20-degree beam projects to both vertical sides of a camera
+        // looking along +/-Z. Its radius is f*cot(20 degrees).
+        EXPECT_EQ(panel.camera_info.height, 704u);
+        const double radius = panel.camera_info.k[4] /
+                              std::tan(20.0 * M_PI / 180.0);
+        EXPECT_GE(panel.camera_info.k[5] - radius, -0.5);
+        EXPECT_LE(panel.camera_info.k[5] + radius,
+                  panel.camera_info.height - 0.5);
+    }
+}
+
+TEST(PinholeProcessorTest, UnboundedAutoProjectionRequiresExplicitSize) {
+    auto info = make_synthetic_dome_info();
+    for (size_t i = 0; i < info.beam_altitude_angles.size(); ++i) {
+        info.beam_altitude_angles[i] =
+            10.0 + 40.0 * i / (info.beam_altitude_angles.size() - 1);
+    }
+    PinholeProcessor::PanelConfig config;
+    config.name = "horizon";
+    config.pitch_rad = 60.0 * M_PI / 180.0;
+    config.crop_to_valid_region = false;
+    EXPECT_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                  nullptr), std::invalid_argument);
+    config.height = 256;
+    EXPECT_NO_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                     nullptr));
+    config.height = 0;
+    config.vfov_rad = M_PI_2;
+    EXPECT_NO_THROW(PinholeProcessor(info, {config}, "{name}", "", 0.0,
+                                     nullptr));
 }
 
 TEST(PinholeProcessorTest, RejectsPanelAbovePixelBudget) {

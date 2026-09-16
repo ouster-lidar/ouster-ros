@@ -290,7 +290,12 @@ all-zero publisher for it.
 
 `panel_widths` and `panel_hfovs_deg` define the horizontal calibration. A zero
 `panel_height` derives a square-pixel height from `panel_vfovs_deg`, or from the
-metadata beam angles when both values are zero. With a fixed height, a nonzero
+metadata beam angles when both values are zero. Metadata fitting accounts for
+panel pitch and horizontal FOV, including the extreme beams at panel seams;
+the resulting image can be taller than it is wide. A beam band that reaches
+the camera plane cannot be fitted to a finite height: set an explicit height
+or VFOV in that case. Automatic sizes remain subject to the panel pixel budget.
+With a fixed height, a nonzero
 vertical FOV defines `fy` independently; leave it zero to retain square pixels.
 By default, outer pixels unsupported by the lidar FOV or configured
 `column_window` are physically removed. `CameraInfo.width` and `height` retain

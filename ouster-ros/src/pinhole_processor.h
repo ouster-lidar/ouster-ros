@@ -327,10 +327,13 @@ class PinholeProcessor {
 
         uint32_t ph = cfg.height;
         if (ph == 0) {
-            const double vfov_rad = (cfg.vfov_rad > 0.0)
-                ? cfg.vfov_rad
-                : derive_lidar_vfov_rad(cfg.pitch_rad);
-            double ph_d = std::round(2.0 * fy * std::tan(0.5 * vfov_rad));
+            // An explicit VFOV spans the outer pixel edges. Metadata fitting
+            // must also cover the beam circles at the horizontal panel edges,
+            // where their vertical projection differs from the centre column.
+            double ph_d = cfg.vfov_rad > 0.0
+                ? std::round(2.0 * fy * std::tan(0.5 * cfg.vfov_rad))
+                : std::ceil(2.0 * fy * derive_lidar_vertical_slope(
+                      cfg.pitch_rad, half_hfov));
             if (!std::isfinite(ph_d) || ph_d < 1.0) ph_d = 1.0;
             const uint64_t max_height = std::min<uint64_t>(
                 MAX_PANEL_DIMENSION, MAX_PANEL_PIXELS / pw);
@@ -719,9 +722,10 @@ class PinholeProcessor {
                    : column >= window.first || column <= window.second;
     }
 
-    double derive_lidar_vfov_rad(double panel_pitch_rad) const {
+    double derive_lidar_vertical_slope(double panel_pitch_rad,
+                                       double half_hfov) const {
         const auto& alts = info_.beam_altitude_angles;
-        if (alts.size() < 2) return M_PI / 2.0;  // 90-degree fallback
+        if (alts.size() < 2) return 1.0 / std::cos(half_hfov);
         auto [min_it, max_it] = std::minmax_element(alts.begin(), alts.end());
         const double min_elevation = *min_it * M_PI / 180.0;
         const double max_elevation = *max_it * M_PI / 180.0;
@@ -735,7 +739,46 @@ class PinholeProcessor {
             throw std::invalid_argument(
                 "cannot auto-fit lidar VFOV around panel pitch");
         }
-        return 2.0 * half_vfov;
+        const double cosp = std::cos(normalized_pitch);
+        const double sinp = std::sin(normalized_pitch);
+        // If the beam band reaches a vertical camera-plane direction, its
+        // projection is unbounded. Require an explicit height/VFOV instead.
+        const double horizon_elevation = std::asin(cosp);
+        for (double elevation : {horizon_elevation, -horizon_elevation}) {
+            if (min_elevation <= elevation && elevation <= max_elevation) {
+                throw std::invalid_argument(
+                    "cannot auto-fit unbounded lidar projection; "
+                    "set panel height or VFOV explicitly");
+            }
+        }
+
+        double max_slope = 0.0;
+        // Elevation contours have their vertical extrema on the centre line
+        // or the horizontal FOV edges. For a camera ray (q, t, 1), with t up,
+        // sin(elevation) = (sin(pitch) + t*cos(pitch))/sqrt(1+q*q+t*t).
+        // Substitute t = sqrt(1+q*q)*tan(beta) to solve both intersections,
+        // including the opposite side of an upward/downward-facing panel.
+        for (double elevation : {min_elevation, max_elevation}) {
+            for (double q : {0.0, std::tan(half_hfov)}) {
+                const double scale = std::hypot(1.0, q);
+                const double radius = std::hypot(cosp, sinp / scale);
+                const double value = std::sin(elevation) / radius;
+                if (std::abs(value) > 1.0) continue;
+                const double angle = std::asin(value);
+                const double offset = std::atan2(sinp / scale, cosp);
+                for (double beta : {angle - offset, M_PI - angle - offset}) {
+                    beta = std::remainder(beta, 2.0 * M_PI);
+                    if (std::abs(beta) >= M_PI_2) continue;
+                    max_slope = std::max(max_slope,
+                                        std::abs(scale * std::tan(beta)));
+                }
+            }
+        }
+        if (!std::isfinite(max_slope) || max_slope <= 0.0) {
+            throw std::invalid_argument(
+                "cannot auto-fit lidar projection around panel pitch");
+        }
+        return max_slope;
     }
 
     static std::string substitute_template(const std::string& tmpl,
