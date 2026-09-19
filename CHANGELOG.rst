@@ -15,6 +15,8 @@ Changelog
   - ``min_distance`` (sensor field ``min_range_threshold_cm``)
 * [BUGFIX] Correct the order of ``FLAGS`` field.
 * Enable varying columns per packet.
+* [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
+  - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
 
 ouster_ros v0.14.0
 ==================
