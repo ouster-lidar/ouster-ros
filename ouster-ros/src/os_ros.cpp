@@ -50,6 +50,11 @@ size_t get_beams_count(const SensorInfo& info) {
     return info.beam_azimuth_angles.size();
 }
 
+size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info) {
+    auto lidar_packets_per_frame = info.format.lidar_packets_per_frame();
+    return lidar_packets_per_frame > 0 ? lidar_packets_per_frame : 10;
+}
+
 std::string topic_for_return(const std::string& base, int idx) {
     return idx == 0 ? base : base + std::to_string(idx + 1);
 }
@@ -182,7 +187,7 @@ void warn_mask_resized(int image_cols, int image_rows,
                        int scan_height, int scan_width) {
     auto logger = rclcpp::get_logger("ouster_ros");
     RCLCPP_WARN_STREAM(logger, "Mask image has size (" << image_cols << "x" << image_rows << ")"
-                       << " but incoming scans has size (" << scan_height << "x" << scan_width << ")."
+                       << " but incoming scans has size (" << scan_width << "x" << scan_height << ")."
                        << " Resizing mask to match the scans size.");    
 }
 

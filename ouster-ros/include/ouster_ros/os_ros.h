@@ -40,7 +40,7 @@ bool is_legacy_lidar_profile(const ouster::sdk::core::SensorInfo& info);
 
 
 /**
- * Gets the number beams based on supplied sensor_info
+ * Gets the number of beams based on supplied sensor_info
  * @param[in] info sensor_info
  * @return number of beams a sensor has
  */
@@ -53,6 +53,12 @@ size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
  * @return number of returns
  */
 std::string topic_for_return(const std::string& topic_base, int return_idx);
+
+/** Computes lidar packet count per LidarScan (per column_azimuth)
+ * @param[in] info sensor_info
+ * @return number of raw packets required to hold a LidarScan
+*/
+size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info);
 
 /**
  * Parse an imu packet message into a ROS imu message
@@ -69,8 +75,8 @@ std::vector<sensor_msgs::msg::Imu> packet_to_imu_msgs(
     const ouster::sdk::core::SensorInfo& sensor_info);
 
 /**
- * Convert transformation matrix return by sensor to ROS transform
- * @param[in] mat transformation matrix return by sensor
+ * Convert transformation matrix returned by sensor to ROS transform
+ * @param[in] mat transformation matrix returned by sensor
  * @param[in] frame the parent frame of the published transform
  * @param[in] child_frame the child frame of the published transform
  * @param[in] timestamp value to set as the timestamp of the generated
@@ -83,7 +89,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 
 
 /**
- * Convert transformation matrix return by sensor to ROS transform
+ * Convert transformation matrix returned by sensor to ROS transform
  * @param[in] ls lidar scan object
  * @param[in] timestamp value to set as the timestamp of the generated
  * @param[in] frame the parent frame of the generated laser scan message

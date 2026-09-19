@@ -71,7 +71,7 @@ class PointCloudProcessor {
 
         mask = impl::load_mask<uint32_t>(
                     mask_path,
-                    info.format.pixels_per_column / rows_step,
+                    info.format.pixels_per_column,
                     info.format.columns_per_frame);
     }
 

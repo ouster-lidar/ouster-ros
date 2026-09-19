@@ -4,6 +4,13 @@ Changelog
 
 [UNRELEASED]
 ============
+* improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
+  - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
+
+ouster_ros v0.15.2
+==================
+* [BUGFIX] fix improper scaling of mask image when row step is not 1.
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 * Add launch file, driver params, and os_sensor_node support for additional sensor configuration
@@ -15,8 +22,15 @@ Changelog
   - ``min_distance`` (sensor field ``min_range_threshold_cm``)
 * [BUGFIX] Correct the order of ``FLAGS`` field.
 * Enable varying columns per packet.
-* [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
-  - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
+* Add support for Rev8 and the new RGB profiles
+* Add a ``columns_per_packet`` configuration property to launch file params.
+* Extend driver list of point types to include color capable types:
+  - ``pcl::XYZRGB``
+  - ``pcl::XYZRGBA``
+  - ``ouster_ros::ColorPoint`` same as ``ouster_ros::Point`` but adds color info.
+* Enable tone mapping for RGB images.
+* Override the QoS Depth for packet topic whether when using System Defaults or not.
+* Enable building the driver for ROS2 Lyrical distro.
 
 ouster_ros v0.14.0
 ==================

@@ -14,14 +14,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          - ros_distro: iron
         ros_distro:
           - rolling
           - humble
-          - iron
           - jazzy
           - kilted
+          - lyrical
         rmw_imp:
           - rmw_fastrtps_cpp
           - rmw_cyclonedds_cpp
