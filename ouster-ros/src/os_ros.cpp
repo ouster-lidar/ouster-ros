@@ -212,7 +212,8 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     const LidarScan& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const LidarMode ld_mode,
-    const uint16_t ring, const std::vector<int>& pixel_shift_by_row,
+    const uint16_t ring, bool nan_is_inf,
+    const std::vector<int>& pixel_shift_by_row,
     const int return_index) {
     sensor_msgs::msg::LaserScan msg;
     msg.header.stamp = timestamp;
@@ -245,7 +246,13 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
         auto v_shift = (v + ls.w - pixel_shift_by_row[u] + ls.w / 2) % ls.w;
         auto src_idx = u * ls.w + v_shift;
         auto tgt_idx = ls.w - 1 - v;
-        msg.ranges[tgt_idx] = rg[src_idx] * ouster::sdk::core::RANGE_UNIT;
+
+        float r = rg[src_idx] * ouster::sdk::core::RANGE_UNIT;
+        if (rg[src_idx] == 0) {
+            r = nan_is_inf ? std::numeric_limits<float>::infinity() : std::numeric_limits<float>::quiet_NaN();
+        }
+        msg.ranges[tgt_idx] = r;
+
         msg.intensities[tgt_idx] = static_cast<float>(sg[src_idx]);
     }
 
