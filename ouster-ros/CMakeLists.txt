@@ -280,6 +280,7 @@ if(BUILD_TESTING)
     test/test_main.cpp
     test/lock_free_ring_buffer_test.cpp
     test/point_accessor_test.cpp
+    test/lidar_ros_time_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
   )

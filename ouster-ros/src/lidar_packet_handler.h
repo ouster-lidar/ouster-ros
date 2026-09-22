@@ -18,7 +18,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "lock_free_ring_buffer.h"
-#include <optional>
+#include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <mutex>
 #include <condition_variable>
@@ -417,23 +418,27 @@ class LidarPacketHandler {
         }
 
         if (first_packet_idx < 0) {
-            // should never happen: the batcher only completes a scan once all
-            // of its packet timestamps are set
+            // Zero host timestamps cannot trigger count-based completion, but
+            // a packet from the next frame can still release this scan.
             RCLCPP_WARN_ONCE(rclcpp::get_logger(getName()),
                              "lidar scan carries no packet timestamps; falling "
                              "back to the completing packet's arrival time");
-            lidar_scan_estimated_msg_ts =
-                rclcpp::Time(lidar_packet.host_timestamp) -
-                rclcpp::Duration(
-                    0, std::lround(scan_col_ts_spacing_ns * lidar_scan.w));
+            const auto arrival_ns =
+                rclcpp::Time(lidar_packet.host_timestamp).nanoseconds();
+            const auto frame_duration_ns =
+                std::llround(scan_col_ts_spacing_ns * lidar_scan.w);
+            lidar_scan_estimated_msg_ts = rclcpp::Time(
+                std::max<int64_t>(0, arrival_ns - frame_duration_ns));
             return true;
         }
 
-        lidar_scan_estimated_msg_ts =
-            rclcpp::Time(packet_ts[first_packet_idx]) -
-            rclcpp::Duration(0, std::lround(scan_col_ts_spacing_ns *
-                                            first_packet_idx *
-                                            pf.columns_per_packet));
+        const auto arrival_ns =
+            rclcpp::Time(packet_ts[first_packet_idx]).nanoseconds();
+        const auto leading_duration_ns = std::llround(
+            scan_col_ts_spacing_ns * first_packet_idx * pf.columns_per_packet);
+        // Extrapolation can cross zero when the ROS clock has just started.
+        lidar_scan_estimated_msg_ts = rclcpp::Time(
+            std::max<int64_t>(0, arrival_ns - leading_duration_ns));
         return true;
     }
 
