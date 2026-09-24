@@ -52,6 +52,7 @@ class PointCloudProcessor {
           pc_msgs(info.num_returns()),
           scan_to_cloud_fn(scan_to_cloud_fn_),
           post_processing_fn(post_processing_fn_) {
+        validate_pixel_shift_by_row(info);
         for (size_t i = 0; i < pc_msgs.size(); ++i)
             pc_msgs[i] = std::make_shared<sensor_msgs::msg::PointCloud2>();
         ouster::sdk::core::mat4d additional_transform =
@@ -76,6 +77,30 @@ class PointCloudProcessor {
     }
 
    private:
+    // scan_to_cloud_f relies on every pixel shift being within [-w, w) to
+    // avoid a per-pixel modulo, reject metadata that violates this up front
+    void validate_pixel_shift_by_row(
+        const ouster::sdk::core::SensorInfo& info) const {
+        const int w = static_cast<int>(info.format.columns_per_frame);
+        const int h = static_cast<int>(info.format.pixels_per_column);
+        if (static_cast<int>(pixel_shift_by_row.size()) != h) {
+            throw std::invalid_argument(
+                "pixel_shift_by_row size (" +
+                std::to_string(pixel_shift_by_row.size()) +
+                ") does not match pixels_per_column (" + std::to_string(h) +
+                ")");
+        }
+        for (size_t u = 0; u < pixel_shift_by_row.size(); ++u) {
+            const auto shift = pixel_shift_by_row[u];
+            if (shift < -w || shift >= w) {
+                throw std::invalid_argument(
+                    "pixel_shift_by_row[" + std::to_string(u) + "] = " +
+                    std::to_string(shift) + " is outside the valid range [" +
+                    std::to_string(-w) + ", " + std::to_string(w) + ")");
+            }
+        }
+    }
+
     template <typename T>
     void pcl_toROSMsg(const ouster_ros::Cloud<T>& pcl_cloud,
                       sensor_msgs::msg::PointCloud2& cloud) {

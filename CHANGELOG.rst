@@ -4,7 +4,7 @@ Changelog
 
 [UNRELEASED]
 ============
-* improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
 
