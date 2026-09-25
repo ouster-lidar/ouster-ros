@@ -17,6 +17,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 
 #include "ouster/image_processing.h"
+#include "image_pixel.h"
 
 namespace ouster_ros {
 
@@ -233,13 +234,13 @@ class ImageProcessor {
 
         // copy data into image messages
         signal_image_map =
-            (signal_image_eigen * pixel_value_max).cast<pixel_type>();
+            signal_image_eigen.unaryExpr(&impl::display_to_mono16);
         reflec_image_map =
-            (reflec_image_eigen * pixel_value_max).cast<pixel_type>();
+            reflec_image_eigen.unaryExpr(&impl::display_to_mono16);
 
         if (first) {
             nearir_image_map =
-                (nearir_image_eigen * pixel_value_max).cast<pixel_type>();
+                nearir_image_eigen.unaryExpr(&impl::display_to_mono16);
         }
 
         if (has_mask) {
