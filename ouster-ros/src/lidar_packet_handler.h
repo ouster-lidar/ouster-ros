@@ -18,7 +18,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "lock_free_ring_buffer.h"
-#include <optional>
+#include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <mutex>
 #include <condition_variable>
@@ -370,21 +371,6 @@ class LidarPacketHandler {
         return scan_ns;
     }
 
-    uint16_t packet_col_index(const ouster::sdk::core::PacketFormat& pf,
-                              const uint8_t* lidar_buf) {
-        return pf.col_measurement_id(pf.nth_col(0, lidar_buf));
-    }
-
-    rclcpp::Time extrapolate_frame_ts(const ouster::sdk::core::PacketFormat& pf,
-                                      const uint8_t* lidar_buf,
-                                      const rclcpp::Time current_time) {
-        auto curr_scan_first_arrived_idx = packet_col_index(pf, lidar_buf);
-        auto delta_time = rclcpp::Duration(
-            0,
-            std::lround(scan_col_ts_spacing_ns * curr_scan_first_arrived_idx));
-        return current_time - delta_time;
-    }
-
     bool lidar_handler_sensor_time(const ouster::sdk::core::PacketFormat&,
                                    const ouster::sdk::core::LidarPacket& lidar_packet,
                                    ouster::sdk::core::LidarScan& lidar_scan) {
@@ -409,23 +395,50 @@ class LidarPacketHandler {
         return true;
     }
 
+    // Stamp the scan from the host arrival times of its own packets. The
+    // previous implementation reused a timestamp extrapolated when the previous
+    // scan completed, which assumed the completing packet was the first packet
+    // of the next frame. The SDK's ScanBatcher now completes a scan on that
+    // scan's own last packet, so that extrapolation landed a full frame early.
     bool lidar_handler_ros_time(const ouster::sdk::core::PacketFormat& pf,
                                 const ouster::sdk::core::LidarPacket& lidar_packet,
                                 ouster::sdk::core::LidarScan& lidar_scan) {
-        auto packet_receive_time = rclcpp::Time(lidar_packet.host_timestamp);
-
-        if (!lidar_handler_ros_time_frame_ts) {
-            lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
-                pf, lidar_packet.buf.data(),
-                packet_receive_time);  // first point cloud time
-        }
-
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts.value();
-        // set time for next point cloud msg
-        lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
-            pf, lidar_packet.buf.data(), packet_receive_time);
+
+        // arrival of the scan's first received packet, walked back to packet 0
+        // in case the leading packet(s) of the scan were lost
+        const auto packet_ts = lidar_scan.packet_timestamp();
+        int first_packet_idx = -1;
+        for (int i = 0; i < packet_ts.rows(); ++i) {
+            if (packet_ts[i] != 0) {
+                first_packet_idx = i;
+                break;
+            }
+        }
+
+        if (first_packet_idx < 0) {
+            // Zero host timestamps cannot trigger count-based completion, but
+            // a packet from the next frame can still release this scan.
+            RCLCPP_WARN_ONCE(rclcpp::get_logger(getName()),
+                             "lidar scan carries no packet timestamps; falling "
+                             "back to the completing packet's arrival time");
+            const auto arrival_ns =
+                rclcpp::Time(lidar_packet.host_timestamp).nanoseconds();
+            const auto frame_duration_ns =
+                std::llround(scan_col_ts_spacing_ns * lidar_scan.w);
+            lidar_scan_estimated_msg_ts = rclcpp::Time(
+                std::max<int64_t>(0, arrival_ns - frame_duration_ns));
+            return true;
+        }
+
+        const auto arrival_ns =
+            rclcpp::Time(packet_ts[first_packet_idx]).nanoseconds();
+        const auto leading_duration_ns = std::llround(
+            scan_col_ts_spacing_ns * first_packet_idx * pf.columns_per_packet);
+        // Extrapolation can cross zero when the ROS clock has just started.
+        lidar_scan_estimated_msg_ts = rclcpp::Time(
+            std::max<int64_t>(0, arrival_ns - leading_duration_ns));
         return true;
     }
 
@@ -447,8 +460,6 @@ class LidarPacketHandler {
 
     uint64_t lidar_scan_estimated_ts;
     rclcpp::Time lidar_scan_estimated_msg_ts;
-
-    std::optional<rclcpp::Time> lidar_handler_ros_time_frame_ts;
 
     int last_scan_last_nonzero_idx = -1;
     uint64_t last_scan_last_nonzero_value = 0;
