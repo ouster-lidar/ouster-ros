@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include <gtest/gtest.h>
 #include <ouster/lidar_scan.h>
 
@@ -67,10 +69,10 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
 
     for (auto src_idx = 0U; src_idx < SAMPLES; ++src_idx) {
         copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
-        EXPECT_EQ(point::get<5>(pt), range(0, src_idx));
-        EXPECT_EQ(point::get<6>(pt), signal(0, src_idx));
-        EXPECT_EQ(point::get<7>(pt), reflect(0, src_idx));
-        EXPECT_EQ(point::get<8>(pt), near_ir(0, src_idx));
+        EXPECT_EQ(point::get<5>(pt), range.data()[src_idx]);
+        EXPECT_EQ(point::get<6>(pt), signal.data()[src_idx]);
+        EXPECT_EQ(point::get<7>(pt), reflect.data()[src_idx]);
+        EXPECT_EQ(point::get<8>(pt), near_ir.data()[src_idx]);
     }
 }
 
