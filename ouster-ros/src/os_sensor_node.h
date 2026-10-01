@@ -139,6 +139,8 @@ class OusterSensor : public OusterSensorNodeBase {
     // fill in values that could not be parsed from metadata
     void populate_metadata_defaults(ouster::sdk::core::SensorInfo& info);
 
+    bool fetch_zone_set(ouster::sdk::core::SensorInfo& info);
+
     void allocate_buffers();
 
     bool init_id_changed(const ouster::sdk::core::PacketFormat& pf,

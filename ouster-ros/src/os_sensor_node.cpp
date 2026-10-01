@@ -16,6 +16,7 @@
 
 #include "os_sensor_node.h"
 #include <ouster/metadata.h>
+#include <ouster/sensor_http.h>
 #include "ouster_ros/impl/file_util.h"
 #include "zone_packet_source.h"
 
@@ -298,9 +299,61 @@ void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
     // TODO: revist when *min_version* is changed
     populate_metadata_defaults(info);
 
+    // the sensor's regular metadata blob doesn't carry the zone monitor
+    // config (used to render zone markers); it lives behind a separate
+    // endpoint and has to be merged in explicitly. Refresh the cached
+    // metadata string too, so it keeps flowing to downstream processing
+    // nodes (os_cloud/os_image) over /ouster/metadata, and to the metadata
+    // file/GetMetadata service.
+    if (fetch_zone_set(info)) {
+        try {
+            cached_metadata = info.to_json_string();
+        } catch (const std::exception& e) {
+            RCLCPP_WARN_STREAM(
+                get_logger(),
+                "failed to fold the zone monitor configuration into the "
+                "cached metadata, zone markers may not be available to "
+                "downstream nodes, details: "
+                    << e.what());
+        }
+    }
+
     publish_metadata();
     save_metadata();
     metadata_updated(info);
+}
+
+bool OusterSensor::fetch_zone_set(ouster::sdk::core::SensorInfo& info) {
+    // metadata already carries a zone set (e.g. loaded from a saved metadata
+    // file that had one folded in already)
+    if (info.zone_set) return false;
+
+    try {
+        auto http_client = ouster::sdk::sensor::SensorHttp::create(sensor_hostname);
+        if (http_client->firmware_version() < ouster::sdk::core::Version(3, 2, 0)) {
+            // zone monitoring config endpoint requires FW 3.2+
+            return false;
+        }
+
+        auto zone_set_zip = http_client->get_zone_monitor_config_zip();
+        info.zone_set = ouster::sdk::core::ZoneSet(std::move(zone_set_zip));
+        RCLCPP_INFO(get_logger(),
+                    "retrieved zone monitor configuration from the sensor");
+        return true;
+    } catch (const std::exception& e) {
+        std::string what = e.what();
+        if (what.find("[404]") != std::string::npos) {
+            RCLCPP_DEBUG(get_logger(),
+                        "no zone monitor configuration found on the sensor");
+        } else {
+            RCLCPP_WARN_STREAM(
+                get_logger(),
+                "failed to retrieve zone monitor configuration, zone markers "
+                "will not be available, details: "
+                    << what);
+        }
+        return false;
+    }
 }
 
 void OusterSensor::save_metadata() {
