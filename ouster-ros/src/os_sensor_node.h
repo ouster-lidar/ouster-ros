@@ -26,6 +26,7 @@
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/srv/get_config.hpp"
 #include "ouster_sensor_msgs/srv/set_config.hpp"
+#include "ouster_sensor_msgs/srv/set_zone_monitor_live_ids.hpp"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/os_sensor_node_base.h"
 
@@ -95,6 +96,8 @@ class OusterSensor : public OusterSensorNodeBase {
     void create_get_config_service();
 
     void create_set_config_service();
+
+    void create_set_zone_monitor_live_ids_service();
 
     std::shared_ptr<ouster::sdk::sensor::Client> create_sensor_client(
         const std::string& hostname, const ouster::sdk::core::SensorConfig& config);
@@ -199,6 +202,8 @@ class OusterSensor : public OusterSensorNodeBase {
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::SetConfig>::SharedPtr set_config_srv;
+    rclcpp::Service<ouster_sensor_msgs::srv::SetZoneMonitorLiveIds>::SharedPtr
+        set_zone_monitor_live_ids_srv;
 
     std::atomic<bool> sensor_connection_active = {false};
     std::unique_ptr<std::thread> sensor_connection_thread;

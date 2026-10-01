@@ -19,6 +19,9 @@ Changelog
   when it isn't already present (live sensor case), so zone markers can be rendered without a pre-baked metadata file.
 * Add the ``zone_monitor_config_file`` parameter: uploads and applies a zone monitor configuration zip file to a
   live sensor on startup (FW3.2+), reinitializing the sensor so the new zones take effect.
+* Add the ``set_zone_monitor_live_ids`` service (``ouster_sensor_msgs/srv/SetZoneMonitorLiveIds``) to switch which
+  zones of the sensor's zone set are currently active/live at runtime, without reconfiguring the zone set or
+  reinitializing the sensor (FW3.2+).
 
 ouster_ros v0.15.2
 ==================

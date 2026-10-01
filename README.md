@@ -362,6 +362,20 @@ a path to a zone monitor configuration zip file (as produced by the Ouster SDK's
 the sensor, applies it as the active configuration, and reinitializes the sensor so
 the new zones take effect; requires sensor FW3.2+.
 
+Which of the zone set's configured zones are currently active can be switched at
+runtime, without reconfiguring the zone set or reinitializing the sensor, via the
+`ouster_sensor_msgs/srv/SetZoneMonitorLiveIds` service on `/ouster/set_zone_monitor_live_ids`:
+
+```bash
+ros2 service call /ouster/set_zone_monitor_live_ids \
+  ouster_sensor_msgs/srv/SetZoneMonitorLiveIds "{zone_ids: [0, 2]}"
+```
+
+`zone_ids` lists the zones (by id, from the uploaded zone set) to make live; any
+configured zone whose id is omitted is made inactive. The response reports
+`success`, the `live_ids` read back from the sensor after the switch, and an error
+`message` on failure. Requires sensor FW3.2+.
+
 When the sensor metadata carries a zone set (the STL geometry describing each
 zone's shape), the driver also renders that geometry as
 `visualization_msgs/msg/MarkerArray` markers on `/ouster/zone_markers`, one
