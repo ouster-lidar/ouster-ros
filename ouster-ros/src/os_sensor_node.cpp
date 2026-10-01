@@ -26,6 +26,7 @@
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
 using ouster_sensor_msgs::srv::SetConfig;
+using ouster_sensor_msgs::srv::SetZoneMonitorLiveIds;
 
 using std::to_string;
 using namespace std::chrono_literals;
@@ -464,6 +465,39 @@ void OusterSensor::create_set_config_service() {
         });
 
     RCLCPP_INFO(get_logger(), "set_config service created");
+}
+
+void OusterSensor::create_set_zone_monitor_live_ids_service() {
+    set_zone_monitor_live_ids_srv = create_service<SetZoneMonitorLiveIds>(
+        "set_zone_monitor_live_ids",
+        [this](const std::shared_ptr<SetZoneMonitorLiveIds::Request> request,
+               std::shared_ptr<SetZoneMonitorLiveIds::Response> response) {
+            response->success = false;
+            response->live_ids.clear();
+            response->message = "";
+
+            try {
+                auto http_client =
+                    ouster::sdk::sensor::SensorHttp::create(sensor_hostname);
+                http_client->set_zone_monitor_live_ids(request->zone_ids);
+                response->live_ids = http_client->get_zone_monitor_live_ids();
+                response->success = true;
+                RCLCPP_INFO_STREAM(
+                    get_logger(),
+                    "zone monitor live zones switched successfully, "
+                    "live zone count: " << response->live_ids.size());
+            } catch (const std::exception& e) {
+                response->message = e.what();
+                RCLCPP_ERROR_STREAM(
+                    get_logger(),
+                    "failed to switch zone monitor live zones, details: "
+                        << e.what());
+            }
+
+            return response->success;
+        });
+
+    RCLCPP_INFO(get_logger(), "set_zone_monitor_live_ids service created");
 }
 
 std::unique_ptr<ouster::sdk::sensor::SensorPacketSource>
@@ -1164,6 +1198,7 @@ void OusterSensor::create_services() {
     create_get_metadata_service();
     create_get_config_service();
     create_set_config_service();
+    create_set_zone_monitor_live_ids_service();
 }
 
 void OusterSensor::create_publishers() {
