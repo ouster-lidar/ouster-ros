@@ -355,6 +355,13 @@ parameter and is a no-op on sensors that don't stream zone data. The zone monito
 port can be selected through the `zone_port` parameter; when left at 0 the driver
 uses the port the sensor is already configured with.
 
+A zone set (the zone geometry and trigger configuration) can be uploaded and applied
+to a live sensor at startup via the `zone_monitor_config_file` parameter, which takes
+a path to a zone monitor configuration zip file (as produced by the Ouster SDK's
+`ZoneSet::save`/zone monitoring examples). On startup the driver pushes the zip to
+the sensor, applies it as the active configuration, and reinitializes the sensor so
+the new zones take effect; requires sensor FW3.2+.
+
 When the sensor metadata carries a zone set (the STL geometry describing each
 zone's shape), the driver also renders that geometry as
 `visualization_msgs/msg/MarkerArray` markers on `/ouster/zone_markers`, one

@@ -24,5 +24,17 @@ bool write_text_to_file(const std::string& file_path,
     return true;
 }
 
+std::vector<uint8_t> read_binary_file(const std::string& file_path) {
+    std::ifstream ifs(file_path, std::ios::binary | std::ios::ate);
+    if (ifs.fail()) return {};
+    auto size = ifs.tellg();
+    if (size <= 0) return {};
+    std::vector<uint8_t> buf(static_cast<size_t>(size));
+    ifs.seekg(0);
+    ifs.read(reinterpret_cast<char*>(buf.data()), size);
+    if (ifs.fail()) return {};
+    return buf;
+}
+
 } // namespace impl
 } // namespace ouster_ros

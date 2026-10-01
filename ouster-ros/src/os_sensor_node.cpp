@@ -80,6 +80,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("sensor_hostname", "");
     declare_parameter("lidar_ip", "");      // community driver param
     declare_parameter("metadata", "");
+    declare_parameter("zone_monitor_config_file", "");
     declare_parameter("udp_dest", "");
     declare_parameter("computer_ip", "");   // community driver param
     declare_parameter("mtp_dest", "");
@@ -141,6 +142,14 @@ bool OusterSensor::start() {
         // Only reset udp_dest if auto_udp was allowed on startup
         if (auto_udp_allowed) config.udp_dest.reset();
         if (!configure_sensor(sensor_hostname, config))
+            return false;
+    }
+
+    auto zone_monitor_config_file =
+        get_parameter("zone_monitor_config_file").as_string();
+    if (is_arg_set(zone_monitor_config_file)) {
+        if (!upload_zone_monitor_config(sensor_hostname,
+                                        zone_monitor_config_file))
             return false;
     }
 
@@ -1081,6 +1090,39 @@ bool OusterSensor::configure_sensor(
 
     RCLCPP_INFO_STREAM(get_logger(),
                        "Sensor " << hostname << " configured successfully");
+    return true;
+}
+
+bool OusterSensor::upload_zone_monitor_config(const std::string& hostname,
+                                              const std::string& zip_file) {
+    auto zip_bytes = impl::read_binary_file(zip_file);
+    if (zip_bytes.empty()) {
+        RCLCPP_ERROR_STREAM(
+            get_logger(),
+            "failed to read zone monitor configuration file: " << zip_file);
+        return false;
+    }
+
+    try {
+        auto http_client = ouster::sdk::sensor::SensorHttp::create(hostname);
+        RCLCPP_INFO_STREAM(get_logger(),
+                           "Uploading zone monitor configuration from "
+                               << zip_file << " to sensor " << hostname
+                               << "...");
+        http_client->set_zone_monitor_config_zip(zip_bytes);
+        http_client->apply_zone_monitor_staged_config_to_active();
+        http_client->reinitialize();
+        RCLCPP_INFO(get_logger(),
+                    "zone monitor configuration uploaded and applied "
+                    "successfully");
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR_STREAM(
+            get_logger(),
+            "failed to upload zone monitor configuration, details: "
+                << e.what());
+        return false;
+    }
+
     return true;
 }
 

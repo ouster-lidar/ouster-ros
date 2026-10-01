@@ -15,6 +15,10 @@ Changelog
   as a ``visualization_msgs/msg/MarkerArray`` on ``/ouster/zone_markers`` (which has a translucent mesh and a text label per zone).
   - Each marker is colored green/red/orange to reflect the zone's clear/triggered/error status.
   - Driver RVIZ config updated to include a ``MarkerArray`` display for this topic.
+* Retrieve the zone monitor configuration from the sensor and fold it into the published/cached metadata
+  when it isn't already present (live sensor case), so zone markers can be rendered without a pre-baked metadata file.
+* Add the ``zone_monitor_config_file`` parameter: uploads and applies a zone monitor configuration zip file to a
+  live sensor on startup (FW3.2+), reinitializing the sensor so the new zones take effect.
 
 ouster_ros v0.15.2
 ==================

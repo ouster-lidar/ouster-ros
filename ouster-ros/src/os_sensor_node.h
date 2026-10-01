@@ -134,6 +134,11 @@ class OusterSensor : public OusterSensorNodeBase {
     bool configure_sensor(const std::string& hostname,
                           ouster::sdk::core::SensorConfig& config);
 
+    // uploads, applies and reinitializes the sensor with the zone monitor
+    // configuration contained in the given zip file
+    bool upload_zone_monitor_config(const std::string& hostname,
+                                    const std::string& zip_file);
+
     std::string load_config_file(const std::string& config_file);
 
     // fill in values that could not be parsed from metadata
