@@ -35,6 +35,7 @@
       - [SetConfig](#setconfig)
       - [Reset](#reset)
     - [Driver Parameters](#driver-parameters)
+    - [Zone Monitoring](#zone-monitoring)
   - [License](#license)
 
 
@@ -45,7 +46,8 @@ Upon launch the driver will configure and connect to the selected sensor device,
 driver will handle incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS
 messages on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports
 dual return and it was configured to use this capability, then another topic will published under the
-name `/ouster/points2` which corresponds to the second point cloud.
+name `/ouster/points2` which corresponds to the second point cloud. Sensors that are configured for
+[zone monitoring](#zone-monitoring) additionally publish the state of their zones on `/ouster/zone`.
 
 
 ## Supported Devices
@@ -329,6 +331,41 @@ Other notable parameters include:
 
 This is not a comprehenisve list of all the parameters that the driver supports
 for more detailed list please refer to the `config/driver_params.yaml` file.
+
+### Zone Monitoring
+Sensors that are configured with a zone set and one of the zone monitoring lidar
+profiles (`RNG15_RFL8_NIR8_ZONE16` or `RNG19_RFL8_SIG16_NIR16_ZONE16`) emit a zone
+monitoring (ZM) packet per frame on a dedicated UDP port. The driver receives these
+packets, republishes them unparsed on `/ouster/zone_packets` and publishes the
+decoded state as an `ouster_sensor_msgs/msg/ZoneStatus` message on `/ouster/zone`:
+
+```bash
+ros2 topic echo /ouster/zone
+```
+
+Every message carries the measurement timestamp, the hash of the live zone set and
+the state of all 16 zone monitoring slots. Configured zones have `live` set to true,
+the remaining slots are empty; `trigger_status` tells whether a zone alert is
+currently asserted, and `count`/`min_range`/`max_range`/`mean_range` report what the
+sensor detected inside the zone. Refer to `ouster-sensor-msgs/msg/ZoneState.msg` for
+the full field list.
+
+Zone monitoring processing is controlled by the `ZONE` flag of the `proc_mask`
+parameter and is a no-op on sensors that don't stream zone data. The zone monitoring
+port can be selected through the `zone_port` parameter; when left at 0 the driver
+uses the port the sensor is already configured with.
+
+When the sensor metadata carries a zone set (the STL geometry describing each
+zone's shape), the driver also renders that geometry as
+`visualization_msgs/msg/MarkerArray` markers on `/ouster/zone_markers`, one
+translucent mesh plus a text label per configured zone, positioned in the
+`sensor_frame` tf frame. Marker color tracks the live zone status on every
+update: green while clear, red while a zone's alert is asserted, and orange if
+the zone reports an error flag (missing data, low confidence, or an obscured
+view). The text label shows the zone's name (or id, if unlabeled), its current
+trigger state, and its live point count. Both `config/viz.rviz` and
+`config/viz-reliable.rviz` include a `MarkerArray` display already pointed at
+this topic.
 
 For further detailed instructions about the driver refer to the [main guide](./docs/index.rst)
 

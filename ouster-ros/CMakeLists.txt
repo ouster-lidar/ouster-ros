@@ -16,6 +16,7 @@ find_package(lifecycle_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(ouster_sensor_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -226,7 +227,7 @@ rclcpp_components_register_node(os_replay_component
 # ==== os_cloud_component ====
 create_ros2_component(os_cloud_component
   "src/os_processing_node_base.cpp;src/os_cloud_node.cpp"
-  "tf2_ros"
+  "tf2_ros;visualization_msgs"
 )
 rclcpp_components_register_node(os_cloud_component
   PLUGIN "ouster_ros::OusterCloud"
@@ -246,7 +247,7 @@ rclcpp_components_register_node(os_image_component
 # ==== os_driver_component ====
 create_ros2_component(os_driver_component
   "src/os_sensor_node_base.cpp;src/os_sensor_node.cpp;src/os_driver_node.cpp"
-  "std_srvs;lifecycle_msgs;tf2_ros"
+  "std_srvs;lifecycle_msgs;tf2_ros;visualization_msgs"
 )
 rclcpp_components_register_node(os_driver_component
   PLUGIN "ouster_ros::OusterDriver"
@@ -282,13 +283,28 @@ if(BUILD_TESTING)
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
+    test/zone_packet_handler_test.cpp
+    test/zone_marker_handler_test.cpp
   )
   if(TARGET ${PROJECT_NAME}_test)
     target_include_directories(${PROJECT_NAME}_test PRIVATE
       ${_ouster_ros_INCLUDE_DIRS}
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
+    target_compile_definitions(${PROJECT_NAME}_test PRIVATE
+      OUSTER_ROS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
+    # zone_marker_handler_test.cpp exercises the visualization_msgs-based
+    # marker builder, which isn't otherwise a dependency of ouster_ros_library.
     # Avoid mixing the plain and keyword link signatures used across distros.
+    if(TARGET visualization_msgs::visualization_msgs)
+      set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
+        LINK_LIBRARIES visualization_msgs::visualization_msgs)
+    else()
+      target_include_directories(${PROJECT_NAME}_test SYSTEM PRIVATE
+        ${visualization_msgs_INCLUDE_DIRS})
+      set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
+        LINK_LIBRARIES ${visualization_msgs_LIBRARIES})
+    endif()
     set_property(TARGET ${PROJECT_NAME}_test APPEND PROPERTY
       LINK_LIBRARIES ouster_ros_library)
   endif()

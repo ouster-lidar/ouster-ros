@@ -4,13 +4,21 @@ Changelog
 
 [UNRELEASED]
 ============
-* Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
+* Receive and publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets``.
+* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone``
+  using a custom ROS message ``ouster_sensor_msgs/msg/ZoneStatus``.
+* ZM packet processing can be enabled through the new ``ZONE`` ``proc_mask`` flag and the new ``zone_port`` parameter.
+* Visualize zone monitoring state: when the sensor metadata carries a zone set, the driver renders each zone's STL geometry
+  as a ``visualization_msgs/msg/MarkerArray`` on ``/ouster/zone_markers`` (which has a translucent mesh and a text label per zone).
+  - Each marker is colored green/red/orange to reflect the zone's clear/triggered/error status.
+  - Driver RVIZ config updated to include a ``MarkerArray`` display for this topic.
 
 ouster_ros v0.15.2
 ==================
-* [BUGFIX] fix improper scaling of mask image when row step is not 1.
+* [BUGFIX] Fix improper scaling of mask image when row step is not 1.
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 * Add launch file, driver params, and os_sensor_node support for additional sensor configuration

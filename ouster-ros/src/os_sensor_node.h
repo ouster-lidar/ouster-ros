@@ -17,6 +17,7 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <memory>
 #include <optional>
 
 #include <ouster/client.h>
@@ -32,6 +33,8 @@
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace ouster_ros {
+
+class ZonePacketSource;
 
 class OusterSensor : public OusterSensorNodeBase {
    public:
@@ -63,6 +66,8 @@ class OusterSensor : public OusterSensorNodeBase {
     virtual void on_lidar_packet_msg(const ouster::sdk::core::LidarPacket& lidar_packet);
 
     virtual void on_imu_packet_msg(const ouster::sdk::core::ImuPacket& imu_packet);
+
+    virtual void on_zone_packet_msg(const ouster::sdk::core::ZonePacket& zone_packet);
 
     virtual void cleanup();
 
@@ -98,6 +103,7 @@ class OusterSensor : public OusterSensorNodeBase {
 
     // helper methods for parsing individual config fields from ros parameters
     void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
+    void parse_zone_dest_and_port(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
     void parse_columns_per_packet(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_imu_and_settings(ouster::sdk::core::SensorConfig& config);
@@ -157,6 +163,14 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void stop_sensor_connection_thread();
 
+    // returns the zone monitoring port to listen on, or nullopt when the
+    // sensor isn't streaming zone monitoring data
+    std::optional<int> zone_monitoring_port() const;
+
+    void start_zone_connection_thread();
+
+    void stop_zone_connection_thread();
+
     bool get_active_config_no_throw(const std::string& sensor_hostname,
                                     ouster::sdk::core::SensorConfig& config);
 
@@ -168,10 +182,13 @@ class OusterSensor : public OusterSensorNodeBase {
     std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet_msg;
     ouster_sensor_msgs::msg::PacketMsg imu_packet_msg;
+    ouster_sensor_msgs::msg::PacketMsg zone_packet_msg;
     ouster::sdk::core::LidarPacket lidar_packet;
     ouster::sdk::core::ImuPacket imu_packet;
+    ouster::sdk::core::ZonePacket zone_packet;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr imu_packet_pub;
+    rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr zone_packet_pub;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::GetConfig>::SharedPtr get_config_srv;
     rclcpp::Service<ouster_sensor_msgs::srv::SetConfig>::SharedPtr set_config_srv;
@@ -184,6 +201,10 @@ class OusterSensor : public OusterSensorNodeBase {
 
     std::atomic<bool> lidar_packets_processing_thread_active = {false};
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
+
+    std::unique_ptr<ZonePacketSource> zone_packet_source;
+    std::atomic<bool> zone_connection_active = {false};
+    std::unique_ptr<std::thread> zone_connection_thread;
 
     bool persist_config = false;
     bool force_sensor_reinit = false;
@@ -200,6 +221,9 @@ class OusterSensor : public OusterSensorNodeBase {
     // TODO: add as a ros parameter
     const int max_read_imu_packet_errors = 60;
     int read_imu_packet_errors = 0;
+    // TODO: add as a ros parameter
+    const int max_read_zone_packet_errors = 60;
+    int read_zone_packet_errors = 0;
 
     const int MIN_AZW = 0;
     const int MAX_AZW = 360000;

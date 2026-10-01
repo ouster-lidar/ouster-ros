@@ -78,6 +78,12 @@ ouster/os_driver:
     # use 0 as the port value then the first available port number will be
     # assigned.
     imu_port: 0
+    # zone_port[optional]: port on which the sensor should send zone monitoring
+    # data, value should be in the range [0, 65535]. Leave at 0 to keep the
+    # port the sensor is already configured with. Only relevant when the
+    # selected udp_profile_lidar carries zone monitoring data
+    # (RNG15_RFL8_NIR8_ZONE16 or RNG19_RFL8_SIG16_NIR16_ZONE16).
+    zone_port: 0
     # sensor_frame[optional]: name to use when referring to the sensor frame.
     sensor_frame: os_sensor
     # lidar_frame[optional]: name to use when referring to the lidar frame.
@@ -92,9 +98,10 @@ ouster/os_driver:
     # broadcast the TF transforms for the imu/sensor/lidar frames. Prevent the
     # driver from broadcasting TF transforms by setting this parameter to False.
     pub_static_tf: true
-    # proc_mask[optional]: use any combination of the 6 flags IMG, PCL, IMU, SCAN
-    # RAW and TLM to enable or disable their respective messages.
-    proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM
+    # proc_mask[optional]: use any combination of the 7 flags IMG, PCL, IMU, SCAN
+    # RAW, TLM and ZONE to enable or disable their respective messages. The ZONE
+    # flag has an effect only when zone monitoring is configured on the sensor.
+    proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM|ZONE
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
     # to select which beam of the LidarScan to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
