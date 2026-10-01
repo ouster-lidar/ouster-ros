@@ -23,13 +23,13 @@ Changelog
 * Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
-* Receive and publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets``.
-* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone``
-  using a custom ROS message ``ouster_sensor_msgs/msg/ZoneStatus``.
-* ZM packet processing can be enabled through the new ``ZONE`` ``proc_mask`` flag and the new ``zone_port`` parameter.
-  - ``zone_port`` follows the same convention as ``lidar_port`` and ``imu_port``: ``-1`` (default) keeps the port
-    currently set on the sensor and ``0`` disables the zone monitoring stream.
+* Consume raw sensor zone monitoring (ZM) packets.
   - ``os_sensor`` receives ZM packets through the same ``SensorPacketSource`` used for lidar and imu packets.
+  - New ``zone_port`` parameter which follows the same convention as ``lidar_port`` and ``imu_port``: ``-1`` (default)
+    keeps the port currently set on the sensor and ``0`` disables the zone monitoring stream.
+* Publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets`` when ``RAW`` ``proc_mask`` is set.
+* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone`` when ``ZONE`` ``proc_mask`` is set.
+  - Zone status are represented using custom ROS messages ``ouster_sensor_msgs/msg/ZoneStatus`` and ``ouster_sensor_msgs/msg/ZoneState``.
 * Visualize zone monitoring state: when the sensor metadata carries a zone set, the driver renders each zone's STL geometry
   as a ``visualization_msgs/msg/MarkerArray`` on ``/ouster/zone_markers`` (which has a translucent mesh and a text label per zone).
   - Each marker is colored green/red/orange to reflect the zone's clear/triggered/error status.
