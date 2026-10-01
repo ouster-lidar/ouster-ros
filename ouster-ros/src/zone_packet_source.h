@@ -173,6 +173,7 @@ class ZonePacketSource {
             mreq.imr_interface.s_addr = htonl(INADDR_ANY);
         } else if (inet_pton(AF_INET, mtp_dest.c_str(), &mreq.imr_interface) !=
                    1) {
+            ouster::sdk::sensor::impl::socket_close(sock_fd);
             throw std::runtime_error(
                 "invalid multicast interface address for the zone monitoring "
                 "socket: " + mtp_dest);
