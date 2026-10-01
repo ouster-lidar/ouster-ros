@@ -4,13 +4,28 @@ Changelog
 
 [UNRELEASED]
 ============
-* Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
+* Consume raw sensor zone monitoring (ZM) packets.
+* Publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets`` when ``RAW`` ``proc_mask`` is set.
+* Process zone monitoring (ZM) packets and publish the decoded state of all 16 zones to the topic ``/ouster/zone`` when ``ZONE`` ``proc_mask`` is set.
+  - Zone status are represented using custom ROS messages ``ouster_sensor_msgs/msg/ZoneStatus`` and ``ouster_sensor_msgs/msg/ZoneState``.
+* Visualize zone monitoring state: when the sensor metadata carries a zone set, the driver renders each zone's STL geometry
+  as a ``visualization_msgs/msg/MarkerArray`` on ``/ouster/zone_markers`` (which has a translucent mesh and a text label per zone).
+  - Each marker is colored green/red/orange to reflect the zone's clear/triggered/error status.
+  - Driver RVIZ config updated to include a ``MarkerArray`` display for this topic.
+* Retrieve the zone monitor configuration from the sensor and fold it into the published/cached metadata
+  when it isn't already present (live sensor case), so zone markers can be rendered without a pre-baked metadata file.
+* Add the ``zone_monitor_config_file`` parameter: uploads and applies a zone monitor configuration zip file to a
+  live sensor on startup (FW3.2+), reinitializing the sensor so the new zones take effect.
+* Add the ``set_zone_monitor_live_ids`` service (``ouster_sensor_msgs/srv/SetZoneMonitorLiveIds``) to switch which
+  zones of the sensor's zone set are currently active/live at runtime, without reconfiguring the zone set or
+  reinitializing the sensor (FW3.2+).
 
 ouster_ros v0.15.2
 ==================
-* [BUGFIX] fix improper scaling of mask image when row step is not 1.
+* [BUGFIX] Fix improper scaling of mask image when row step is not 1.
 * [BUGFIX]: Add the missing ``ament_cmake_gtest`` to the dependencies.
 * Use ``add_compile_definitions`` instead of ``add_definitions`` to set the ``EIGEN_MPL2_ONLY`` flag.
 * Add launch file, driver params, and os_sensor_node support for additional sensor configuration
