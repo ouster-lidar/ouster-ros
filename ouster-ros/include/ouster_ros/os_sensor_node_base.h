@@ -10,6 +10,7 @@
 
 #include <string>
 #include <chrono>
+#include <mutex>
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
@@ -39,6 +40,10 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
 
     void publish_metadata();
 
+    std::string cached_metadata_snapshot() const;
+
+    void set_cached_metadata(std::string metadata);
+
     void display_lidar_info(const ouster::sdk::core::SensorInfo& info);
 
     static std::string transition_id_to_string(uint8_t transition_id);
@@ -57,8 +62,11 @@ class OusterSensorNodeBase : public rclcpp_lifecycle::LifecycleNode {
 
     ouster::sdk::core::SensorInfo info;
     rclcpp::Service<ouster_sensor_msgs::srv::GetMetadata>::SharedPtr get_metadata_srv;
-    std::string cached_metadata;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr metadata_pub;
+
+   private:
+    mutable std::mutex cached_metadata_mutex;
+    std::string cached_metadata;
 };
 
 }  // namespace ouster_ros
