@@ -139,7 +139,10 @@ bool OusterSensor::start() {
             return false;
     }
 
-    reset_last_init_id = true;
+    {
+        std::lock_guard<std::mutex> lock(reset_state_mutex);
+        reset_last_init_id = true;
+    }
     sensor_client = create_sensor_client(sensor_hostname, config);
     if (!sensor_client)
         return false;
@@ -192,7 +195,7 @@ LifecycleNodeInterface::CallbackReturn OusterSensor::on_activate(
     const rclcpp_lifecycle::State& state) {
     RCLCPP_DEBUG(get_logger(), "on_activate() is called.");
     LifecycleNode::on_activate(state);
-    if (cached_metadata.empty())
+    if (cached_metadata_snapshot().empty())
         update_metadata(*sensor_client);
     create_publishers();
     allocate_buffers();
@@ -273,21 +276,23 @@ std::string OusterSensor::get_sensor_hostname() {
 }
 
 void OusterSensor::update_metadata(ouster::sdk::sensor::Client& cli) {
+    std::string metadata;
     try {
-        cached_metadata = ouster::sdk::sensor::get_metadata(cli, 60);
+        metadata = ouster::sdk::sensor::get_metadata(cli, 60);
     } catch (const std::exception& e) {
         RCLCPP_ERROR_STREAM(get_logger(),
                             "ouster::sdk::sensor::get_metadata exception: " << e.what());
-        cached_metadata.clear();
+        metadata.clear();
     }
 
-    if (cached_metadata.empty()) {
+    set_cached_metadata(metadata);
+    if (metadata.empty()) {
         const auto error_msg = "Failed to collect sensor metadata";
         RCLCPP_ERROR(get_logger(), error_msg);
         throw std::runtime_error(error_msg);
     }
 
-    info = ouster::sdk::core::SensorInfo(cached_metadata);
+    info = ouster::sdk::core::SensorInfo(metadata);
     // TODO: revist when *min_version* is changed
     populate_metadata_defaults(info);
 
@@ -308,7 +313,7 @@ void OusterSensor::save_metadata() {
 
     // write metadata file. If metadata_path is relative, will use cwd
     // (usually ~/.ros)
-    if (impl::write_text_to_file(meta_file, cached_metadata)) {
+    if (impl::write_text_to_file(meta_file, cached_metadata_snapshot())) {
         RCLCPP_INFO_STREAM(get_logger(),
                            "Wrote sensor metadata to " << meta_file);
     } else {
@@ -331,8 +336,11 @@ void OusterSensor::reset_sensor(bool force_reinit, bool init_id_reset) {
         return;
     }
 
-    force_sensor_reinit = force_reinit;
-    reset_last_init_id = force_reinit ? true : init_id_reset;
+    {
+        std::lock_guard<std::mutex> lock(reset_state_mutex);
+        force_sensor_reinit = force_reinit;
+        reset_last_init_id = force_reinit ? true : init_id_reset;
+    }
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
         lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP,
@@ -351,8 +359,11 @@ void OusterSensor::reactivate_sensor(bool init_id_reset) {
         return;
     }
 
-    reset_last_init_id = init_id_reset;
-    cached_metadata.clear();
+    {
+        std::lock_guard<std::mutex> lock(reset_state_mutex);
+        reset_last_init_id = init_id_reset;
+    }
+    set_cached_metadata({});
     auto request_transitions = std::vector<uint8_t>{
         lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE,
         lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE};
@@ -947,8 +958,13 @@ uint8_t OusterSensor::compose_config_flags(
         config_flags |= ouster::sdk::sensor::CONFIG_UDP_DEST_AUTO;
     }
 
-    if (force_sensor_reinit) {
+    bool force_reinit = false;
+    {
+        std::lock_guard<std::mutex> lock(reset_state_mutex);
+        force_reinit = force_sensor_reinit;
         force_sensor_reinit = false;
+    }
+    if (force_reinit) {
         RCLCPP_INFO(get_logger(), "Forcing sensor to reinitialize");
         config_flags |= ouster::sdk::sensor::CONFIG_FORCE_REINIT;
     }
@@ -1056,6 +1072,7 @@ void OusterSensor::allocate_buffers() {
 bool OusterSensor::init_id_changed(const PacketFormat& pf,
                                    const LidarPacket& lidar_packet) {
     uint32_t current_init_id = pf.init_id(lidar_packet.buf.data());
+    std::lock_guard<std::mutex> lock(reset_state_mutex);
     if (!last_init_id) {
         last_init_id = current_init_id + 1;
     }

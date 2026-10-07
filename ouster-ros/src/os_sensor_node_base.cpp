@@ -9,6 +9,7 @@
 #include "ouster_ros/os_sensor_node_base.h"
 #include <ouster/impl/build.h>
 #include <fstream>
+#include <utility>
 #include <lifecycle_msgs/msg/transition.hpp>
 
 using namespace std::string_literals;
@@ -32,8 +33,9 @@ void OusterSensorNodeBase::create_get_metadata_service() {
         "get_metadata",
         [this](const std::shared_ptr<GetMetadata::Request>,
                std::shared_ptr<GetMetadata::Response> response) {
-            response->metadata = cached_metadata;
-            return cached_metadata.size() > 0;
+            auto metadata = cached_metadata_snapshot();
+            response->metadata = metadata;
+            return !metadata.empty();
         });
 
     RCLCPP_INFO(get_logger(), "get_metadata service created");
@@ -49,8 +51,18 @@ void OusterSensorNodeBase::create_metadata_pub() {
 
 void OusterSensorNodeBase::publish_metadata() {
     std_msgs::msg::String metadata_msg;
-    metadata_msg.data = cached_metadata;
+    metadata_msg.data = cached_metadata_snapshot();
     metadata_pub->publish(metadata_msg);
+}
+
+std::string OusterSensorNodeBase::cached_metadata_snapshot() const {
+    std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+    return cached_metadata;
+}
+
+void OusterSensorNodeBase::set_cached_metadata(std::string metadata) {
+    std::lock_guard<std::mutex> lock(cached_metadata_mutex);
+    cached_metadata = std::move(metadata);
 }
 
 void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {

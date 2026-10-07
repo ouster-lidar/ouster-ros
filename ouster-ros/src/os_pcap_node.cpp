@@ -178,11 +178,12 @@ class OusterPcap : public OusterSensorNodeBase {
 
     void load_metadata_from_file(const std::string& meta_file) {
         try {
-            cached_metadata = impl::read_text_file(meta_file);
-            info = ouster::sdk::core::SensorInfo(cached_metadata);
+            auto metadata = impl::read_text_file(meta_file);
+            set_cached_metadata(metadata);
+            info = ouster::sdk::core::SensorInfo(metadata);
             display_lidar_info(info);
         } catch (const std::runtime_error& e) {
-            cached_metadata.clear();
+            set_cached_metadata({});
             RCLCPP_ERROR_STREAM(
                 get_logger(),
                 "Error when running in replay mode: " << e.what());

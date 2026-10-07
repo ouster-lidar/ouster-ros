@@ -17,6 +17,7 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <optional>
 
 #include <ouster/client.h>
@@ -186,6 +187,7 @@ class OusterSensor : public OusterSensorNodeBase {
     std::unique_ptr<std::thread> lidar_packets_processing_thread;
 
     bool persist_config = false;
+    std::mutex reset_state_mutex;
     bool force_sensor_reinit = false;
     bool auto_udp_allowed = false;
     bool reset_last_init_id = true;
