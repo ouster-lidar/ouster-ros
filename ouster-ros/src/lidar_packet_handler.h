@@ -400,9 +400,14 @@ class LidarPacketHandler {
                                        ouster::sdk::core::LidarScan& lidar_scan) {
         if (!(*scan_batcher)(lidar_packet, lidar_scan)) return false;
         auto ts_v = lidar_scan.timestamp();
-        for (int i = 0; i < ts_v.rows(); ++i)
-            ts_v[i] = impl::ts_safe_offset_add(ts_v[i], ptp_utc_tai_offset_);
-        lidar_scan_estimated_ts = compute_scan_ts(ts_v);
+        for (int i = 0; i < ts_v.rows(); ++i) {
+            if (ts_v[i] != 0) {
+                ts_v[i] = impl::ts_safe_offset_add(
+                    ts_v[i], ptp_utc_tai_offset_);
+            }
+        }
+
+lidar_scan_estimated_ts = compute_scan_ts(ts_v);
         lidar_scan_estimated_msg_ts =
             rclcpp::Time(lidar_scan_estimated_ts);
 
