@@ -102,9 +102,9 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Build position independent code." ON)
 set(_ouster_ros_INCLUDE_DIRS
   include
   ouster-sdk/ouster_sensor/include
-  ouster-sdk/ouster_client/include
+  ouster-sdk/ouster_core/include
   ouster-sdk/ouster_pcap/include
-  ouster-sdk/ouster_client/include/optional-lite
+  ouster-sdk/ouster_core/include/optional-lite
 )
 
 # ==== Libraries ====
@@ -119,7 +119,7 @@ find_package(OusterSDK REQUIRED)
 
 # Keep warnings enabled for the ROS wrapper while suppressing known warnings
 # from vendored SDK sources.
-foreach(_sdk_target ouster_client ouster_sensor ouster_pcap ouster_osf ouster_viz)
+foreach(_sdk_target ouster_core ouster_algorithm ouster_sensor ouster_pcap ouster_osf ouster_viz)
   if(TARGET ${_sdk_target} AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${_sdk_target} PRIVATE
       -Wno-pedantic
@@ -138,7 +138,7 @@ include_directories(
 # use only MPL-licensed parts of eigen
 add_compile_definitions(EIGEN_MPL2_ONLY)
 
-set(OUSTER_TARGET_LINKS ouster_client)
+set(OUSTER_TARGET_LINKS OusterSDK::ouster_core)
 
 add_library(ouster_ros_library SHARED
   src/impl/file_util.cpp
@@ -326,8 +326,8 @@ install(
 
 install(
   DIRECTORY
-    ouster-sdk/ouster_client/include/ouster
-    ouster-sdk/ouster_client/include/optional-lite/nonstd
+    ouster-sdk/ouster_core/include/ouster
+    ouster-sdk/ouster_core/include/optional-lite/nonstd
   DESTINATION include
 )
 

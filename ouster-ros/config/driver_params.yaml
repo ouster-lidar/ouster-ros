@@ -6,9 +6,9 @@ ouster/os_driver:
     # udp_dest[optional]: hostname or multicast group IP where the sensor will
     # send UDP data packets.
     udp_dest: ''
-    # mtp_dest[optional]: hostname IP address for receiving data packets via
-    # multicast, by default it is INADDR_ANY, so packets will be received on
-    # first available network interface.
+    # mtp_dest[optional]: advanced override, IP address of the local interface
+    # for receiving multicast data packets. By default the interface that
+    # routes to the sensor is used.
     mtp_dest: ''
     # mtp_main[optional]: if true, then configure and reinit the sensor,
     # otherwise start client with active configuration of sensor
@@ -70,14 +70,12 @@ ouster/os_driver:
     # metadata[optional]: path to save metadata file to, if left empty a file
     # with the sensor hostname or ip will be created in ~/.ros folder.
     metadata: ''
-    # lidar_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first available port number will be
-    # assigned.
-    lidar_port: 0
-    # imu_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first available port number will be
-    # assigned.
-    imu_port: 0
+    # lidar_port[optional]: port value should be in the range [0, 65535]. A value of
+    # 0 disables lidar data, set to -1 to leave the sensor port unchanged (default).
+    lidar_port: -1
+    # imu_port[optional]: port value should be in the range [0, 65535]. A value of
+    # 0 disables imu data, set to -1 to leave the sensor port unchanged (default).
+    imu_port: -1
     # sensor_frame[optional]: name to use when referring to the sensor frame.
     sensor_frame: os_sensor
     # lidar_frame[optional]: name to use when referring to the lidar frame.

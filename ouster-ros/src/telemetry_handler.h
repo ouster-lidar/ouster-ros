@@ -25,7 +25,7 @@ class TelemetryHandler {
                                    const ouster::sdk::core::PacketFormat& pf) {
         // scan for the first non-zero column ts
         uint64_t ts = 0;
-        for (int icol = 0; icol < pf.columns_per_packet; ++icol) {
+        for (uint32_t icol = 0; icol < pf.columns_per_packet; ++icol) {
             ts = pf.col_timestamp(pf.nth_col(icol, lidar_packet.buf.data()));
             if (ts != 0)
                 break;

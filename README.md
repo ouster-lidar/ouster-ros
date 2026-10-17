@@ -28,7 +28,7 @@
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
         - [PCAP Replay Mode](#pcap-replay-mode)
-      - [Multicast Mode (experimental)](#multicast-mode-experimental)
+      - [Multicast Mode](#multicast-mode)
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
       - [GetConfig](#getconfig)
@@ -220,6 +220,16 @@ ros2 launch ouster_ros record.launch.xml    \
     metadata:=<json file name>              # optional
 ```
 
+To record from a sensor that is streaming over multicast, pass the same **udp_dest** group used
+by the main node and leave **mtp_main** at its default (**false**). In this case the recorder does
+not configure the sensor, it only adopts the sensor's active configuration, so the main node
+(see [Multicast Mode](#multicast-mode)) must already be running:
+```bash
+ros2 launch ouster_ros record.launch.xml    \
+    sensor_hostname:=<sensor host name>     \
+    udp_dest:=<multicast group ip (ipv4)>
+```
+
 #### Replay Mode
 > Note
 > As of package version 8.1, specifiying metadata file is optional if the bag file being replayed
@@ -240,35 +250,36 @@ ros2 launch ouster_ros replay_pcap.launch.xml   \
     metadata:=<json file name>              # required
 ```
 
-#### Multicast Mode (experimental)
+#### Multicast Mode
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
-sensor (live) to multiple active clients. You initiate this mode by using `sensor_mtp.launch.xml`
+sensor (live) to multiple active clients. You initiate this mode by using `sensor.launch.xml`
 file to start the node. You will need to specify a valid multicast group for the **udp_dest**
 argument which the sensor is going to broadcast data to it. You will also need to set **mtp_main**
 argument to **true**, this is need to configure the sensor with the specified **udp_dest** and any
-other sensor settings. You can control on which ip (IP4 only) you wish to receive the data on this
-machine from the multicast group using the **mtp_dest** argument as follows:
+other sensor settings. The data is received on the interface of this machine that routes to the sensor.
 ```bash
-roslaunch ouster_ros sensor_mtp.launch.xml  \
+ros2 launch ouster_ros sensor.launch.xml   \
     sensor_hostname:=<sensor host name>     \
     udp_dest:=<multicast group ip (ipv4)>   \
-    mtp_main:=true                          \
-    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+    mtp_main:=true
 ```
 Using a different machine that belongs to the same netwok subnet, you can start another instance of
 the client to start receiving sensor messages through the multicast group as shown below (note that
-**mtp_main** is set to **false**):
+**mtp_main** is left **false**):
 ```bash
-roslaunch ouster_ros sensor_mtp.launch.xml  \
+ros2 launch ouster_ros sensor.launch.xml   \
     sensor_hostname:=<sensor host name>     \
-    udp_dest:=<multicast group ip (ipv4)>   \
-    mtp_main:=false                         \
-    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+    udp_dest:=<multicast group ip (ipv4)>
 ```
 
-> **Note:** 
-> In both cases the **mtp_dest** is optional and if left unset the client will utilize the first
-available interface.
+> **Note:**
+> Only one node should be started with **mtp_main:=true**. All other clients (including the
+recorder, see [Recording Mode](#recording-mode)) must be started after it, since they rely on the
+configuration it applied to the sensor.
+
+> **Note:**
+> For advanced setups you can override the receiving interface by setting **mtp_dest** to the IP
+(IP4 only) of the local interface; when unset, the interface routing to the sensor is used.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal

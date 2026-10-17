@@ -4,6 +4,14 @@ Changelog
 
 [UNRELEASED]
 ============
+* [BREAKING]: ``lidar_port`` and ``imu_port`` no longer use ``0`` to request a randomly assigned port.
+  - A value of ``0`` is now passed to the sensor as is, which disables the corresponding data stream.
+  - The default value of both parameters is now ``-1`` (unspecified), which keeps the ports currently
+    set on the sensor without attempting to change them.
+* [BREAKING]: Removed ``sensor_mtp.launch.xml``, use ``sensor.launch.xml`` instead which now exposes the
+  multicast parameters ``mtp_dest`` and ``mtp_main``. The parameters are now also available in ``sensor.launch.xml``.
+* Multicast clients now receive data on the interface that routes to the sensor by default;
+  ``mtp_dest`` is optional and only needed as an advanced override.
 * Update the ouster-sdk submodule to v1.0.1 (``sdk-1.0.1/ouster-ros-0.15.0`` branch):
   - Link against ``ouster_core`` (formerly ``ouster_client``) and use the new module-scoped headers.
   - ``os_sensor`` now receives packets through ``SensorPacketSource``, replacing the removed

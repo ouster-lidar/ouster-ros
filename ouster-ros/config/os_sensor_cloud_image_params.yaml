@@ -17,8 +17,8 @@ ouster/os_sensor:
     gyro_fsr: ''
     accel_fsr: ''
     metadata: ''
-    lidar_port: 0
-    imu_port: 0
+    lidar_port: -1
+    imu_port: -1
     use_system_default_qos: false
     azimuth_window_start: 0
     azimuth_window_end: 360000

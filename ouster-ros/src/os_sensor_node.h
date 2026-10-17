@@ -19,7 +19,8 @@
 #include <atomic>
 #include <optional>
 
-#include <ouster/client.h>
+#include <ouster/sensor/client.h>
+#include <ouster/sensor/sensor_packet_source.h>
 
 #include <std_srvs/srv/empty.hpp>
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
@@ -73,7 +74,10 @@ class OusterSensor : public OusterSensorNodeBase {
 
     std::string get_sensor_hostname();
 
-    void update_metadata(ouster::sdk::sensor::Client& client);
+    // collect metadata from the sensor over http
+    void update_metadata();
+
+    void update_metadata(const ouster::sdk::core::SensorInfo& sensor_info);
 
     void metadata_updated(const ouster::sdk::core::SensorInfo& info);
 
@@ -91,12 +95,22 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void create_set_config_service();
 
-    std::shared_ptr<ouster::sdk::sensor::Client> create_sensor_client(
+    std::unique_ptr<ouster::sdk::sensor::SensorPacketSource> create_sensor_packet_source(
         const std::string& hostname, const ouster::sdk::core::SensorConfig& config);
+
+    // returns the local IPv4 address of the interface used to reach the
+    // sensor, or an empty string if it can't be determined
+    std::string resolve_interface_to_sensor(const std::string& hostname);
+
+    void join_multicast_group_on_interface(
+        ouster::sdk::sensor::SensorPacketSource& source,
+        const std::string& group, const std::string& interface_address);
 
     ouster::sdk::core::SensorConfig parse_config_from_ros_parameters();
 
     // helper methods for parsing individual config fields from ros parameters
+    void parse_udp_port(const std::string& param_name,
+                        ouster::sdk::core::optional<uint16_t>& port);
     void parse_udp_dest_and_ports(ouster::sdk::core::SensorConfig& config);
     void parse_udp_profile_lidar(ouster::sdk::core::SensorConfig& config);
     void parse_columns_per_packet(ouster::sdk::core::SensorConfig& config);
@@ -140,17 +154,17 @@ class OusterSensor : public OusterSensorNodeBase {
 
     void handle_poll_client_error();
 
-    void read_lidar_packet(ouster::sdk::sensor::Client& client,
+    void read_lidar_packet(ouster::sdk::core::Packet& packet,
                            const ouster::sdk::core::PacketFormat& pf);
 
     void handle_lidar_packet(const ouster::sdk::core::LidarPacket& lidar_packet);
 
-    void read_imu_packet(ouster::sdk::sensor::Client& client,
+    void read_imu_packet(ouster::sdk::core::Packet& packet,
                          const ouster::sdk::core::PacketFormat& pf);
 
     void handle_imu_packet(const ouster::sdk::core::ImuPacket& imu_packet);
 
-    void connection_loop(ouster::sdk::sensor::Client& client,
+    void connection_loop(ouster::sdk::sensor::SensorPacketSource& source,
                          const ouster::sdk::core::PacketFormat& pf);
 
     void start_sensor_connection_thread();
@@ -165,11 +179,11 @@ class OusterSensor : public OusterSensorNodeBase {
     std::optional<ouster::sdk::core::SensorConfig> staged_config;
     std::string mtp_dest;
     bool mtp_main = false;
-    std::shared_ptr<ouster::sdk::sensor::Client> sensor_client;
+    std::unique_ptr<ouster::sdk::sensor::SensorPacketSource> sensor_source;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet_msg;
     ouster_sensor_msgs::msg::PacketMsg imu_packet_msg;
-    ouster::sdk::core::LidarPacket lidar_packet;
-    ouster::sdk::core::ImuPacket imu_packet;
+    std::unique_ptr<ouster::sdk::core::LidarPacket> lidar_packet;
+    std::unique_ptr<ouster::sdk::core::ImuPacket> imu_packet;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr lidar_packet_pub;
     rclcpp::Publisher<ouster_sensor_msgs::msg::PacketMsg>::SharedPtr imu_packet_pub;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv;
@@ -191,6 +205,8 @@ class OusterSensor : public OusterSensorNodeBase {
     bool reset_last_init_id = true;
     std::optional<uint32_t> last_init_id;
 
+    // TODO: add as a ros parameter
+    const double poll_timeout_sec = 1.0;
     // TODO: add as a ros parameter
     const int max_poll_client_error_count = 10;
     int poll_client_error_count = 0;
