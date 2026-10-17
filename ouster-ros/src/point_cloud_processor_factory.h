@@ -16,7 +16,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -30,7 +30,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
@@ -54,7 +54,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -70,7 +70,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -87,7 +87,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 
@@ -111,7 +111,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -127,7 +127,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -143,7 +143,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -159,7 +159,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int /*return_index*/) {
 
@@ -175,7 +175,7 @@ class PointCloudProcessorFactory {
                 return [organized, destagger, rows_step](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                    const ouster::sdk::core::LidarScan& ls,
+                    const ouster::sdk::core::LidarFrame& ls,
                     const std::vector<int>& pixel_shift_by_row,
                     int return_index) {
 

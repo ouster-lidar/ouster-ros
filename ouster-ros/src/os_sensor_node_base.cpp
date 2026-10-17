@@ -7,7 +7,7 @@
  */
 
 #include "ouster_ros/os_sensor_node_base.h"
-#include <ouster/impl/build.h>
+#include <ouster/core/impl/build.h>
 #include <fstream>
 #include <lifecycle_msgs/msg/transition.hpp>
 
@@ -64,7 +64,7 @@ void OusterSensorNodeBase::display_lidar_info(const SensorInfo& info) {
         "ouster client version: "
             << ouster::sdk::SDK_VERSION_FULL << "\n"
             << "product: " << info.prod_line << ", sn: " << info.sn << ", "
-            << "firmware ver: " << fw_ver.simple_version_string() << "\n"
+            << "firmware ver: " << fw_ver.to_string() << "\n"
             << "lidar mode: " << ouster::sdk::core::to_string(lidar_mode) << ", "
             << "lidar udp profile: " << ouster::sdk::core::to_string(lidar_profile) << ", "
             << "imu udp profile: " << ouster::sdk::core::to_string(imu_profile) << "\n"

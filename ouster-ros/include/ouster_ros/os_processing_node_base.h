@@ -7,7 +7,7 @@
  *
  */
 
-#include <ouster/types.h>
+#include <ouster/core/types.h>
 
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>

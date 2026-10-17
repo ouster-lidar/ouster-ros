@@ -32,7 +32,7 @@ namespace ouster_ros {
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::msg::Telemetry;
 using ouster::sdk::core::LidarPacket;
-using ouster::sdk::core::LidarScan;
+using ouster::sdk::core::LidarFrame;
 using ouster::sdk::core::LidarMode;
 using ouster::sdk::core::cf_type;
 using ouster::sdk::core::PacketFormat;
@@ -210,7 +210,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 
 // TODO: provide a method that accepts sensor_msgs::msg::LaserScan object
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
-    const LidarScan& ls, const rclcpp::Time& timestamp,
+    const LidarFrame& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const LidarMode ld_mode,
     const uint16_t ring, bool nan_is_inf,
     const std::vector<int>& pixel_shift_by_row,
@@ -223,8 +223,8 @@ sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
     msg.range_min = 0.1f;    // TODO: fill per product type
     msg.range_max = 120.0f;  // TODO: fill per product type
 
-    const auto scan_width = ouster::sdk::core::n_cols_of_lidar_mode(ld_mode);
-    const auto scan_frequency = ouster::sdk::core::frequency_of_lidar_mode(ld_mode);
+    const auto scan_width = ld_mode.columns;
+    const auto scan_frequency = ld_mode.fps;
     msg.scan_time = 1.0f / scan_frequency;
     msg.time_increment = 1.0f / (scan_width * scan_frequency);
     msg.angle_increment = 2 * M_PI / scan_width;
@@ -266,8 +266,10 @@ Telemetry lidar_packet_to_telemetry_msg(
     telemetry.header.stamp = timestamp;
     telemetry.countdown_thermal_shutdown = pf.countdown_thermal_shutdown(lidar_packet.buf.data());
     telemetry.countdown_shot_limiting = pf.countdown_shot_limiting(lidar_packet.buf.data());
-    telemetry.thermal_shutdown = pf.thermal_shutdown(lidar_packet.buf.data());
-    telemetry.shot_limiting = pf.shot_limiting(lidar_packet.buf.data());
+    telemetry.thermal_shutdown =
+        static_cast<uint8_t>(pf.thermal_shutdown(lidar_packet.buf.data()));
+    telemetry.shot_limiting =
+        static_cast<uint8_t>(pf.shot_limiting(lidar_packet.buf.data()));
     return telemetry;
 }
 

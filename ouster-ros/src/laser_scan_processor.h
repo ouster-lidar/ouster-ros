@@ -46,7 +46,7 @@ class LaserScanProcessor {
     }
 
    private:
-    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] =
@@ -65,7 +65,7 @@ class LaserScanProcessor {
         auto handler =
             std::make_shared<LaserScanProcessor>(info, frame, ring, nan_is_inf, func);
 
-        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };

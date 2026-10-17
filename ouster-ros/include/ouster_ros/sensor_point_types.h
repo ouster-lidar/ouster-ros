@@ -18,7 +18,7 @@
 #pragma once
 
 #include <pcl/point_types.h>
-#include <ouster/lidar_scan.h>
+#include <ouster/core/lidar_frame.h>
 
 namespace ouster_ros {
 

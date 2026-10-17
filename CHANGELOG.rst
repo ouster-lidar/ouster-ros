@@ -4,6 +4,11 @@ Changelog
 
 [UNRELEASED]
 ============
+* Update the ouster-sdk submodule to v1.0.1 (``sdk-1.0.1/ouster-ros-0.15.0`` branch):
+  - Link against ``ouster_core`` (formerly ``ouster_client``) and use the new module-scoped headers.
+  - ``os_sensor`` now receives packets through ``SensorPacketSource``, replacing the removed
+    ``init_client``/``mtp_init_client``/``poll_client`` API.
+  - Replace deprecated ``LidarScan``/``ScanBatcher`` usages with ``LidarFrame``/``FrameBatcher``.
 * Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.

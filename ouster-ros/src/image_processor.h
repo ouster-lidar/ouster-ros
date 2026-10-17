@@ -16,7 +16,7 @@
 
 #include <sensor_msgs/image_encodings.hpp>
 
-#include "ouster/image_processing.h"
+#include "ouster/core/image_processing.h"
 
 namespace ouster_ros {
 
@@ -92,7 +92,7 @@ class ImageProcessor {
     }
 
    private:
-    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t,
                  const rclcpp::Time& msg_ts) {
         process_return(lidar_scan, 0);
         if (info_.num_returns() == 2) process_return(lidar_scan, 1);
@@ -103,7 +103,7 @@ class ImageProcessor {
     }
 
     // TODO: this functin could be benefit of some refactor
-    void process_return(const ouster::sdk::core::LidarScan& lidar_scan, int return_index) {
+    void process_return(const ouster::sdk::core::LidarFrame& lidar_scan, int return_index) {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
@@ -258,7 +258,7 @@ class ImageProcessor {
                                      const std::string& mask_path,
                                      PostProcessingFn func) {
         auto handler = std::make_shared<ImageProcessor>(info, frame, mask_path, func);
-        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
             handler->process(lidar_scan, scan_ts, msg_ts);
         };

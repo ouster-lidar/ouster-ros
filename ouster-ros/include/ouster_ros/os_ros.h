@@ -12,8 +12,8 @@
 #define PCL_NO_PRECOMPILE
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <ouster/lidar_scan.h>
-#include <ouster/types.h>
+#include <ouster/core/lidar_frame.h>
+#include <ouster/core/types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <opencv2/opencv.hpp>
@@ -54,9 +54,9 @@ size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
  */
 std::string topic_for_return(const std::string& topic_base, int return_idx);
 
-/** Computes lidar packet count per LidarScan (per column_azimuth)
+/** Computes lidar packet count per LidarFrame (per column_azimuth)
  * @param[in] info sensor_info
- * @return number of raw packets required to hold a LidarScan
+ * @return number of raw packets required to hold a LidarFrame
 */
 size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info);
 
@@ -101,7 +101,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
  * @return ROS message suitable for publishing as a LaserScan
  */
 sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::sdk::core::LidarScan& ls,
+    const ouster::sdk::core::LidarFrame& ls,
     const rclcpp::Time& timestamp,
     const std::string &frame,
     const ouster::sdk::core::LidarMode lidar_mode,
@@ -135,7 +135,7 @@ struct read_and_cast {
 
 template <typename T>
 inline ouster::sdk::core::img_t<T> get_or_fill_zero(const std::string& field,
-                                 const ouster::sdk::core::LidarScan& ls) {
+                                 const ouster::sdk::core::LidarFrame& ls) {
     if (!ls.has_field(field)) {
         return ouster::sdk::core::img_t<T>::Zero(ls.h, ls.w);
     }

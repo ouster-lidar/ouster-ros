@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ouster/lidar_scan.h>
+#include <ouster/core/lidar_frame.h>
 
 namespace ouster {
 
@@ -13,7 +13,7 @@ namespace ouster {
  * @param[in, out] points The resulting point cloud, should be pre-allocated and
  * have the same dimensions as the direction array.
  * @param[in] range a range image in the same format as the RANGE field of a
- * LidarScan.
+ * LidarFrame.
  * @param[in] direction the direction of an xyz lut.
  * @param[in] offset the offset of an xyz lut.
  * @param[in] min_range minimum lidar range to consider (millimeters).
@@ -22,7 +22,7 @@ namespace ouster {
  * equal to or exceed the min_range and max_range values.
  *
  * @return Cartesian points where ith row is a 3D point which corresponds
- *         to ith pixel in LidarScan where i = row * w + col.
+ *         to ith pixel in LidarFrame where i = row * w + col.
  */
 template <typename T>
 void cartesianT(ouster::sdk::core::PointCloudXYZ<T>& points,

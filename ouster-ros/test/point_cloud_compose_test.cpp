@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <ouster/lidar_scan.h>
+#include <ouster/core/lidar_frame.h>
 
 // prevent clang-format from altering the location of "ouster_ros/os_ros.h", the
 // header file needs to be the first include due to PCL_NO_PRECOMPILE flag
@@ -26,6 +26,16 @@ using namespace ouster::sdk::core;
 
 // TODO: generalize the test case!
 
+namespace {
+LidarFrame make_lidar_frame(size_t w, size_t h, UDPProfileLidar profile) {
+    DataFormat format;
+    format.udp_profile_lidar = profile;
+    // firmware versions older than 3.2.1 drop the WINDOW field
+    return LidarFrame(h, w, get_field_types(format, Version(3, 2, 1)),
+                      DEFAULT_COLUMNS_PER_PACKET);
+}
+}  // namespace
+
 TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     const auto WIDTH = 5U;
     const auto HEIGHT = 3U;
@@ -33,7 +43,7 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     UDPProfileLidar lidar_udp_profile =
         UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL;
 
-    LidarScan ls(WIDTH, HEIGHT, lidar_udp_profile);
+    auto ls = make_lidar_frame(WIDTH, HEIGHT, lidar_udp_profile);
 
     auto fill_data = [](auto& img, auto base, auto count) {
         auto* p = img.data();
@@ -79,7 +89,7 @@ TEST_F(PointCloudComposeTest, ScanToCloudDestaggerHandlesNegativePixelShift) {
     const auto HEIGHT = 6;
     const auto SAMPLES = WIDTH * HEIGHT;
 
-    LidarScan ls(WIDTH, HEIGHT, UDPProfileLidar::RNG19_RFL8_SIG16_NIR16);
+    auto ls = make_lidar_frame(WIDTH, HEIGHT, UDPProfileLidar::RNG19_RFL8_SIG16_NIR16);
     auto range = ls.field<uint32_t>(ChanField::RANGE);
     for (auto i = 0; i < SAMPLES; ++i) range.data()[i] = i + 1;
 
@@ -116,7 +126,7 @@ PointCloudProcessor<Point_RNG19_RFL8_SIG16_NIR16> make_processor(
 }  // namespace
 
 TEST_F(PointCloudComposeTest, PointCloudProcessorAcceptsPixelShiftInRange) {
-    auto info = default_sensor_info(LidarMode::_512x10);
+    auto info = *SensorInfo::from_default(LidarMode::_512x10);
     const int w = static_cast<int>(info.format.columns_per_frame);
     auto& shifts = info.format.pixel_shift_by_row;
     shifts.assign(shifts.size(), 0);
@@ -126,7 +136,7 @@ TEST_F(PointCloudComposeTest, PointCloudProcessorAcceptsPixelShiftInRange) {
 }
 
 TEST_F(PointCloudComposeTest, PointCloudProcessorRejectsPixelShiftOutOfRange) {
-    auto info = default_sensor_info(LidarMode::_512x10);
+    auto info = *SensorInfo::from_default(LidarMode::_512x10);
     const int w = static_cast<int>(info.format.columns_per_frame);
     auto& shifts = info.format.pixel_shift_by_row;
     shifts.assign(shifts.size(), 0);
@@ -139,7 +149,7 @@ TEST_F(PointCloudComposeTest, PointCloudProcessorRejectsPixelShiftOutOfRange) {
 }
 
 TEST_F(PointCloudComposeTest, PointCloudProcessorRejectsPixelShiftSizeMismatch) {
-    auto info = default_sensor_info(LidarMode::_512x10);
+    auto info = *SensorInfo::from_default(LidarMode::_512x10);
     info.format.pixel_shift_by_row.pop_back();
     EXPECT_THROW(make_processor(info), std::invalid_argument);
 }
