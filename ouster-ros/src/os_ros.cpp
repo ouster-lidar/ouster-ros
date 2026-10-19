@@ -209,7 +209,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 }
 
 // TODO: provide a method that accepts sensor_msgs::msg::LaserScan object
-sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
+sensor_msgs::msg::LaserScan lidar_frame_to_laser_scan_msg(
     const LidarFrame& ls, const rclcpp::Time& timestamp,
     const std::string& frame, const LidarMode ld_mode,
     const uint16_t ring, bool nan_is_inf,

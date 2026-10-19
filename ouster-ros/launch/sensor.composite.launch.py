@@ -12,7 +12,8 @@ from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
                             ExecuteProcess, TimerAction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, FindExecutable
+from launch.substitutions import (LaunchConfiguration, FindExecutable,
+                                  EnvironmentVariable)
 
 
 def generate_launch_description():
@@ -38,6 +39,21 @@ def generate_launch_description():
 
     auto_start = LaunchConfiguration('auto_start')
     auto_start_arg = DeclareLaunchArgument('auto_start', default_value='True')
+
+    # With its default shared memory segment Fast DDS drops most point clouds
+    # sent to local subscribers, see the comments in the profile. A profile
+    # already set in the environment takes precedence. Ignored by other RMWs.
+    default_fastdds_profile = \
+        Path(ouster_ros_pkg_dir) / 'config' / 'fastdds_large_data.xml'
+    fastdds_profile = LaunchConfiguration('fastdds_profile')
+    fastdds_profile_arg = DeclareLaunchArgument(
+        'fastdds_profile',
+        default_value=EnvironmentVariable(
+            'FASTDDS_DEFAULT_PROFILES_FILE',
+            default_value=EnvironmentVariable(
+                'FASTRTPS_DEFAULT_PROFILES_FILE',
+                default_value=str(default_fastdds_profile))),
+        description='Fast DDS XML profile to use for the container process.')
 
     os_sensor = ComposableNode(
         package='ouster_ros',
@@ -75,6 +91,9 @@ def generate_launch_description():
             os_image
         ],
         output='screen',
+        # Fast DDS 3.x reads the first variable, 2.x the second
+        additional_env={'FASTDDS_DEFAULT_PROFILES_FILE': fastdds_profile,
+                        'FASTRTPS_DEFAULT_PROFILES_FILE': fastdds_profile},
     )
 
     rviz_launch_file_path = \
@@ -89,6 +108,7 @@ def generate_launch_description():
         ouster_ns_arg,
         rviz_enable_arg,
         auto_start_arg,
+        fastdds_profile_arg,
         rviz_launch,
         os_container
     ])

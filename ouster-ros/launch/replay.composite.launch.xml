@@ -81,7 +81,7 @@
     description="minimum lidar range to consider (meters)"/>
 
   <arg name="min_scan_valid_columns_ratio" default="0.0"
-    description="The minimum ratio of valid columns for processing the LidarScan [0, 1]"/>
+    description="The minimum ratio of valid columns for processing the LidarFrame [0, 1]"/>
 
   <arg name="v_reduction" default="1" description="vertical beam reduction;
    available options: {1, 2, 4, 8, 16}"/>

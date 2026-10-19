@@ -201,7 +201,7 @@ class PointCloudProcessorFactory {
     }
 
     template <typename PointT>
-    static LidarScanProcessor make_point_cloud_processor(
+    static LidarFrameProcessor make_point_cloud_processor(
         const ouster::sdk::core::SensorInfo& info, const std::string& frame,
         bool apply_lidar_to_sensor_transform,
         bool organized, bool destagger,
@@ -232,7 +232,7 @@ class PointCloudProcessorFactory {
                profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_RGB16_DUAL;
     }
 
-    static LidarScanProcessor create_point_cloud_processor(
+    static LidarFrameProcessor create_point_cloud_processor(
         const std::string& point_type, const ouster::sdk::core::SensorInfo& info,
         const std::string& frame, bool apply_lidar_to_sensor_transform,
         bool organized, bool destagger,

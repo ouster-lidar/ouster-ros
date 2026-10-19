@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * @file point_cloud_producer.h
- * @brief takes in a lidar scan object and produces a PointCloud2 message
+ * @brief takes in a lidar frame object and produces a PointCloud2 message
  */
 
 #pragma once
@@ -92,10 +92,10 @@ class ImageProcessor {
     }
 
    private:
-    void process(const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t,
                  const rclcpp::Time& msg_ts) {
-        process_return(lidar_scan, 0);
-        if (info_.num_returns() == 2) process_return(lidar_scan, 1);
+        process_return(lidar_frame, 0);
+        if (info_.num_returns() == 2) process_return(lidar_frame, 1);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
@@ -103,25 +103,25 @@ class ImageProcessor {
     }
 
     // TODO: this functin could be benefit of some refactor
-    void process_return(const ouster::sdk::core::LidarFrame& lidar_scan, int return_index) {
+    void process_return(const ouster::sdk::core::LidarFrame& lidar_frame, int return_index) {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
         auto range_channel = first ? ChanField::RANGE : ChanField::RANGE2;
         ouster::sdk::core::img_t<uint32_t> range =
-            lidar_scan.field<uint32_t>(range_channel);
+            lidar_frame.field<uint32_t>(range_channel);
 
         ouster::sdk::core::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
             impl::scan_return(ChanField::REFLECTIVITY, !first),
-            lidar_scan);
+            lidar_frame);
 
         ouster::sdk::core::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
-            impl::scan_return(ChanField::SIGNAL, !first), lidar_scan);
+            impl::scan_return(ChanField::SIGNAL, !first), lidar_frame);
 
         // TODO: note that near_ir will be processed twice for DUAL return
         // sensor
         ouster::sdk::core::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
-            impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
+            impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_frame);
 
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
@@ -169,13 +169,13 @@ class ImageProcessor {
         if (process_rgb) {
             ouster::sdk::core::img_t<uint8_t> r_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::R_U8,
-                                                lidar_scan);
+                                                lidar_frame);
             ouster::sdk::core::img_t<uint8_t> g_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::G_U8,
-                                                lidar_scan);
+                                                lidar_frame);
             ouster::sdk::core::img_t<uint8_t> b_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::B_U8,
-                                                lidar_scan);
+                                                lidar_frame);
 
             auto rgb_msg = image_msgs[ChanField::RGB];
             auto rgb_image_map =
@@ -253,14 +253,14 @@ class ImageProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
+    static LidarFrameProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame,
                                      const std::string& mask_path,
                                      PostProcessingFn func) {
         auto handler = std::make_shared<ImageProcessor>(info, frame, mask_path, func);
-        return [handler](const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
-            handler->process(lidar_scan, scan_ts, msg_ts);
+            handler->process(lidar_frame, scan_ts, msg_ts);
         };
     }
 

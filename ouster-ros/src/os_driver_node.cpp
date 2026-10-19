@@ -96,7 +96,7 @@ class OusterDriver : public OusterSensor {
 
         int num_returns = info.num_returns();
 
-        std::vector<LidarScanProcessor> processors;
+        std::vector<LidarFrameProcessor> processors;
         if (impl::check_token(tokens, "PCL")) {
             lidar_pubs.resize(num_returns);
             for (int i = 0; i < num_returns; ++i) {

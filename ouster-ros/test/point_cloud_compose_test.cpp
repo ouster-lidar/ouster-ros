@@ -36,7 +36,7 @@ LidarFrame make_lidar_frame(size_t w, size_t h, UDPProfileLidar profile) {
 }
 }  // namespace
 
-TEST_F(PointCloudComposeTest, MapLidarScanFields) {
+TEST_F(PointCloudComposeTest, MapLidarFrameFields) {
     const auto WIDTH = 5U;
     const auto HEIGHT = 3U;
     const auto SAMPLES = WIDTH * HEIGHT;
@@ -70,13 +70,13 @@ TEST_F(PointCloudComposeTest, MapLidarScanFields) {
     ouster_ros::Cloud<Point_RNG19_RFL8_SIG16_NIR16_DUAL> cloud{WIDTH, HEIGHT};
 
     auto ls_tuple =
-        make_lidar_scan_tuple<0, Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size(),
+        make_lidar_frame_tuple<0, Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size(),
                               Profile_RNG19_RFL8_SIG16_NIR16_DUAL>(ls);
 
     ouster_ros::Point_RNG19_RFL8_SIG16_NIR16_DUAL pt;
 
     for (auto src_idx = 0U; src_idx < SAMPLES; ++src_idx) {
-        copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
+        copy_lidar_frame_fields_to_point<0>(pt, ls_tuple, src_idx);
         EXPECT_EQ(point::get<5>(pt), range(0, src_idx));
         EXPECT_EQ(point::get<6>(pt), signal(0, src_idx));
         EXPECT_EQ(point::get<7>(pt), reflect(0, src_idx));

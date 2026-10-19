@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * @file point_cloud_producer.h
- * @brief takes in a lidar scan object and produces a PointCloud2 message
+ * @brief takes in a lidar frame object and produces a PointCloud2 message
  */
 
 #pragma once
@@ -106,17 +106,17 @@ class PointCloudProcessor {
         pcl_conversions::moveFromPCL(staging_pcl_pc2, cloud);
     }
 
-    void process(const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t scan_ts,
+    void process(const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t scan_ts,
                  const rclcpp::Time& msg_ts) {
         for (int i = 0; i < static_cast<int>(pc_msgs.size()); ++i) {
             auto range_channel = i == 0 ? ChanField::RANGE : ChanField::RANGE2;
-            auto range = lidar_scan.field<uint32_t>(range_channel);
+            auto range = lidar_frame.field<uint32_t>(range_channel);
             auto range_masked = mask.size() != 0 ? range * mask : range;
             ouster::cartesianT(points, range_masked, lut_direction, lut_offset,
                                min_range_, max_range_,
                                std::numeric_limits<float>::quiet_NaN());
 
-            scan_to_cloud_fn(cloud, points, scan_ts, lidar_scan,
+            scan_to_cloud_fn(cloud, points, scan_ts, lidar_frame,
                                         pixel_shift_by_row, i);
 
             pcl_toROSMsg(cloud, *pc_msgs[i]);
@@ -128,7 +128,7 @@ class PointCloudProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
+    static LidarFrameProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame,
                                      bool apply_lidar_to_sensor_transform,
                                      uint32_t min_range, uint32_t max_range,
@@ -140,9 +140,9 @@ class PointCloudProcessor {
             min_range, max_range, rows_step, mask_path,
             scan_to_cloud_fn_, post_processing_fn);
 
-        return [handler](const ouster::sdk::core::LidarFrame& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
-            handler->process(lidar_scan, scan_ts, msg_ts);
+            handler->process(lidar_frame, scan_ts, msg_ts);
         };
     }
 

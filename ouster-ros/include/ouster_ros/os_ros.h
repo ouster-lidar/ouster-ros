@@ -90,7 +90,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 
 /**
  * Convert transformation matrix returned by sensor to ROS transform
- * @param[in] ls lidar scan object
+ * @param[in] ls lidar frame object
  * @param[in] timestamp value to set as the timestamp of the generated
  * @param[in] frame the parent frame of the generated laser scan message
  * @param[in] lidar_mode lidar mode (width x frequency)
@@ -100,7 +100,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
  * @param[in] return_index index of return desired starting at 0
  * @return ROS message suitable for publishing as a LaserScan
  */
-sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
+sensor_msgs::msg::LaserScan lidar_frame_to_laser_scan_msg(
     const ouster::sdk::core::LidarFrame& ls,
     const rclcpp::Time& timestamp,
     const std::string &frame,

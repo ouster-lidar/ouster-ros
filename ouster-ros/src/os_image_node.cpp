@@ -109,7 +109,7 @@ class OusterImage : public OusterProcessingNodeBase {
 
         auto mask_path = get_parameter("mask_path").as_string();
 
-        std::vector<LidarScanProcessor> processors {
+        std::vector<LidarFrameProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
                 mask_path,

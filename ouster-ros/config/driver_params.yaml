@@ -23,7 +23,7 @@ ouster/os_driver:
     # - TIME_FROM_SYNC_PULSE_IN
     # - TIME_FROM_PTP_1588
     # - TIME_FROM_ROS_TIME: This option uses the time of reception of first
-    #                       packet of a LidarScan as the timestamp of the IMU,
+    #                       packet of a LidarFrame as the timestamp of the IMU,
     #                       PointCloud2 and LaserScan messages.
     timestamp_mode: ''
     # multipurpose_io_mode[optional]: multipurpose IO / time sync mode;
@@ -94,7 +94,7 @@ ouster/os_driver:
     # RAW and TLM to enable or disable their respective messages.
     proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
-    # to select which beam of the LidarScan to use when producing the LaserScan
+    # to select which beam of the LidarFrame to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
     scan_ring: 0
     # nan_is_inf[optional]: if true, laserscans with NaN values will
@@ -181,7 +181,7 @@ ouster/os_driver:
     # v_reduction[optional]: vertical beam reduction; available options: {1, 2, 4, 8, 16}.
     v_reduction: 1
     # min_scan_valid_columns_ratio[optional]: The minimum ratio of valid columns for
-    # processing the LidarScan [0, 1]. default is 0%
+    # processing the LidarFrame [0, 1]. default is 0%
     min_scan_valid_columns_ratio: 0.0
     # mask_path[optional]: path to an image file that will be used to mask parts of the
     # pointcloud.
