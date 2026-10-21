@@ -18,6 +18,8 @@ Changelog
 * Multicast clients now receive data on the interface that routes to the sensor by default;
   ``mtp_dest`` is optional and only needed as an advanced override.
 * [BUGFIX] Add support for firmware versions prior to 3.2 by handling missing WINDOW field in point cloud profiles.
+* Add support for ``WINDOW`` field image processing, publishing.
+  - Update RVIZ to include the ``WINDOW`` image.
 * Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.

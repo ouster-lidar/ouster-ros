@@ -282,6 +282,7 @@ if(BUILD_TESTING)
     test/point_accessor_test.cpp
     test/point_transform_test.cpp
     test/point_cloud_compose_test.cpp
+    test/image_processor_test.cpp
   )
   if(TARGET ${PROJECT_NAME}_test)
     target_include_directories(${PROJECT_NAME}_test PRIVATE

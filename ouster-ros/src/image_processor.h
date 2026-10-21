@@ -14,9 +14,13 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+#include <algorithm>
+
 #include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/msg/image.hpp>
 
 #include "ouster/core/image_processing.h"
+#include "lidar_packet_handler.h"
 
 namespace ouster_ros {
 
@@ -64,6 +68,27 @@ class ImageProcessor {
             image_msgs[ChanField::RGB] = std::make_shared<sensor_msgs::msg::Image>();
             init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
         }
+
+        has_window_ = has_window_field(info);
+
+        if (has_window_) {
+            image_msgs[ChanField::WINDOW] = std::make_shared<sensor_msgs::msg::Image>();
+            init_image_msg(*image_msgs[ChanField::WINDOW], H, W, frame);
+        }
+    }
+
+    /**
+     * @brief whether LidarFrame objects built from this SensorInfo carry the
+     * WINDOW field, i.e. whether a window image is going to be produced. The
+     * field depends on both the lidar udp profile and the firmware version
+     * (FW 3.1 and older don't send it), thus defer to ouster-sdk.
+     */
+    static bool has_window_field(const ouster::sdk::core::SensorInfo& info) {
+        const auto field_types = ouster::sdk::core::get_field_types(info);
+        return std::any_of(field_types.begin(), field_types.end(),
+                           [](const auto& ft) {
+                               return ft.name == ChanField::WINDOW;
+                           });
     }
 
    private:
@@ -96,10 +121,38 @@ class ImageProcessor {
                  const rclcpp::Time& msg_ts) {
         process_return(lidar_frame, 0);
         if (info_.num_returns() == 2) process_return(lidar_frame, 1);
+        if (has_window_) process_window(lidar_frame);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
         if (post_processing_fn) post_processing_fn(image_msgs);
+    }
+
+    // The window blockage value is published as is (no auto exposure applied)
+    // since its absolute value is what matters, the 8-bit value is stretched
+    // to the full 16-bit pixel range (x257) so that 0xff maps to 0xffff.
+    void process_window(const ouster::sdk::core::LidarFrame& lidar_frame) {
+        const uint32_t H = info_.format.pixels_per_column;
+        const uint32_t W = info_.format.columns_per_frame;
+        const auto& px_offset = info_.format.pixel_shift_by_row;
+        constexpr pixel_type scale =
+            std::numeric_limits<pixel_type>::max() /
+            std::numeric_limits<uint8_t>::max();
+
+        const uint8_t* wd = lidar_frame.field<uint8_t>(ChanField::WINDOW).data();
+        auto window_msg = image_msgs[ChanField::WINDOW];
+        auto window_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
+            (pixel_type*)window_msg->data.data(), H, W);
+
+        for (size_t u = 0; u < H; u++) {
+            for (size_t v = 0; v < W; v++) {
+                const size_t vv = (v + W - px_offset[u]) % W;
+                window_image_map(u, v) =
+                    static_cast<pixel_type>(wd[u * W + vv] * scale);
+            }
+        }
+
+        if (mask.size() != 0) window_image_map = window_image_map * mask;
     }
 
     // TODO: this functin could be benefit of some refactor
@@ -275,6 +328,7 @@ class ImageProcessor {
 
     ouster::sdk::core::img_t<pixel_type> mask;
     bool has_rgb_ = false;
+    bool has_window_ = false;
 };
 
 }  // namespace ouster_ros
