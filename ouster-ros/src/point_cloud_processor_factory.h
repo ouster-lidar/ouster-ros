@@ -11,6 +11,9 @@ class PointCloudProcessorFactory {
     static typename PointCloudProcessor<PointT>::ScanToCloudFn
     make_scan_to_cloud_fn(const ouster::sdk::core::SensorInfo& info,
                           bool organized, bool destagger, int rows_step) {
+        // firmware older than 3.2 doesn't send the WINDOW field, in which case
+        // the *_NO_WINDOW variants of the affected profiles are used instead.
+        const bool has_window = fw_has_window_field(info);
         switch (info.format.udp_profile_lidar) {
             case UDPProfileLidar::LEGACY:
                 return [organized, destagger, rows_step](
@@ -27,7 +30,7 @@ class PointCloudProcessorFactory {
                 };
 
             case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL:
-                return [organized, destagger, rows_step](
+                return [organized, destagger, rows_step, has_window](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarFrame& ls,
@@ -36,22 +39,38 @@ class PointCloudProcessorFactory {
 
                     Point_RNG19_RFL8_SIG16_NIR16_DUAL staging_pt;
                     if (return_index == 0) {
+                        if (has_window)
                         scan_to_cloud_f<
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL.size(),
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
+                        else {
+                        scan_to_cloud_f<
+                            Profile_RNG19_RFL8_SIG16_NIR16_DUAL_NO_WINDOW.size(),
+                            Profile_RNG19_RFL8_SIG16_NIR16_DUAL_NO_WINDOW>(
+                            cloud, staging_pt, points, scan_ts, ls,
+                            pixel_shift_by_row, organized, destagger, rows_step);
+                        }
                     } else {
+                        if (has_window) {
                         scan_to_cloud_f<
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN.size(),
                             Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
+                        } else {
+                            scan_to_cloud_f<
+                                Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN_NO_WINDOW.size(),
+                                Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN_NO_WINDOW>(
+                                cloud, staging_pt, points, scan_ts, ls,
+                                pixel_shift_by_row, organized, destagger, rows_step);
+                        }
                     }
                 };
 
             case UDPProfileLidar::RNG19_RFL8_SIG16_NIR16:
-                return [organized, destagger, rows_step](
+                return [organized, destagger, rows_step, has_window](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarFrame& ls,
@@ -59,11 +78,19 @@ class PointCloudProcessorFactory {
                     int /*return_index*/) {
 
                     Point_RNG19_RFL8_SIG16_NIR16 staging_pt;
-                    scan_to_cloud_f<
-                        Profile_RNG19_RFL8_SIG16_NIR16.size(),
-                        Profile_RNG19_RFL8_SIG16_NIR16>(
-                            cloud, staging_pt, points, scan_ts, ls,
-                            pixel_shift_by_row, organized, destagger, rows_step);
+                    if (has_window) {
+                        scan_to_cloud_f<
+                            Profile_RNG19_RFL8_SIG16_NIR16.size(),
+                            Profile_RNG19_RFL8_SIG16_NIR16>(
+                                cloud, staging_pt, points, scan_ts, ls,
+                                pixel_shift_by_row, organized, destagger, rows_step);
+                    } else {
+                        scan_to_cloud_f<
+                            Profile_RNG19_RFL8_SIG16_NIR16_NO_WINDOW.size(),
+                            Profile_RNG19_RFL8_SIG16_NIR16_NO_WINDOW>(
+                                cloud, staging_pt, points, scan_ts, ls,
+                                pixel_shift_by_row, organized, destagger, rows_step);
+                    }
                 };
 
             case UDPProfileLidar::RNG15_RFL8_NIR8:
@@ -84,7 +111,7 @@ class PointCloudProcessorFactory {
 
             case UDPProfileLidar::FUSA_RNG15_RFL8_NIR8_DUAL:
             case UDPProfileLidar::RNG15_RFL8_NIR8_DUAL:
-                return [organized, destagger, rows_step](
+                return [organized, destagger, rows_step, has_window](
                     ouster_ros::Cloud<PointT>& cloud,
                     const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
                     const ouster::sdk::core::LidarFrame& ls,
@@ -93,17 +120,35 @@ class PointCloudProcessorFactory {
 
                     Point_RNG15_RFL8_NIR8_DUAL staging_pt;
                     if (return_index == 0) {
+                        if (has_window) {
                         scan_to_cloud_f<
                             Profile_RNG15_RFL8_NIR8_DUAL.size(),
                             Profile_RNG15_RFL8_NIR8_DUAL>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
+                        }
+                        else {
+                        scan_to_cloud_f<
+                            Profile_RNG15_RFL8_NIR8_DUAL_NO_WINDOW.size(),
+                            Profile_RNG15_RFL8_NIR8_DUAL_NO_WINDOW>(
+                            cloud, staging_pt, points, scan_ts, ls,
+                            pixel_shift_by_row, organized, destagger, rows_step);
+
+                        }
                     } else {
+                        if (has_window) {
                         scan_to_cloud_f<
                             Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN.size(),
                             Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN>(
                             cloud, staging_pt, points, scan_ts, ls,
                             pixel_shift_by_row, organized, destagger, rows_step);
+                        } else {
+                            scan_to_cloud_f<
+                                Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN_NO_WINDOW.size(),
+                                Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN_NO_WINDOW>(
+                                cloud, staging_pt, points, scan_ts, ls,
+                                pixel_shift_by_row, organized, destagger, rows_step);
+                        }
                     }
                 };
 
@@ -217,6 +262,15 @@ class PointCloudProcessorFactory {
     }
 
    public:
+    /**
+     * @brief whether the LidarFrame built from this SensorInfo carries the
+     * WINDOW field. Mirrors the rule in ouster-sdk get_field_types: firmware
+     * older than 3.2 (including an unknown/unparsable version) has no WINDOW.
+     */
+    static bool fw_has_window_field(const ouster::sdk::core::SensorInfo& info) {
+        return !(info.get_version() < ouster::sdk::core::Version(3, 2, 0));
+    }
+
     static bool point_type_requires_intensity(const std::string& point_type) {
         return point_type == "xyzi" || point_type == "xyzir" ||
                point_type == "original" || point_type == "o_xyzi" ||
