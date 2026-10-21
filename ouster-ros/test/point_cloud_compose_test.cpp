@@ -172,32 +172,7 @@ SensorInfo make_sensor_info(UDPProfileLidar profile, const std::string& fw) {
     return info;
 }
 
-bool frame_has_window(const SensorInfo& info) {
-    for (const auto& ft : get_field_types(info))
-        if (ft.name == ChanField::WINDOW) return true;
-    return false;
-}
 }  // namespace
-
-// fw_has_window_field duplicates the version rule of ouster-sdk
-// get_field_types, make sure the two never drift apart.
-TEST_F(PointCloudComposeTest, FwHasWindowFieldMatchesSdk) {
-    const std::vector<std::string> fw_versions{
-        "ousteros-image-prod-aries-v2.5.3+20230928",
-        "ousteros-image-prod-aries-v3.1.0+20231215",
-        "ousteros-image-prod-aries-v3.2.0+20250101",
-        "ousteros-image-prod-aries-v3.2.1+20250301",
-        "",  // unknown firmware version
-    };
-    for (auto profile : WINDOW_PROFILES) {
-        for (const auto& fw : fw_versions) {
-            auto info = make_sensor_info(profile, fw);
-            EXPECT_EQ(PointCloudProcessorFactory::fw_has_window_field(info),
-                      frame_has_window(info))
-                << to_string(profile) << " fw=" << fw;
-        }
-    }
-}
 
 // FW 3.1 and older don't send WINDOW, the point cloud processor must not throw
 // and should publish window as zero; FW 3.2+ should copy the WINDOW values.

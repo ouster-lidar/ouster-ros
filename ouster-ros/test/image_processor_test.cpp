@@ -27,13 +27,13 @@ const std::string FW_3_2 = "ousteros-image-prod-aries-v3.2.0+20250101";
 }  // namespace
 
 TEST_F(ImageProcessorTest, HasWindowFieldDependsOnProfileAndFirmware) {
-    EXPECT_TRUE(ImageProcessor::has_window_field(*make_sensor_info(
+    EXPECT_TRUE(ouster_ros::impl::has_window_field(*make_sensor_info(
         UDPProfileLidar::RNG19_RFL8_SIG16_NIR16, FW_3_2)));
-    EXPECT_TRUE(ImageProcessor::has_window_field(*make_sensor_info(
+    EXPECT_TRUE(ouster_ros::impl::has_window_field(*make_sensor_info(
         UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL, FW_3_2)));
-    EXPECT_FALSE(ImageProcessor::has_window_field(*make_sensor_info(
+    EXPECT_FALSE(ouster_ros::impl::has_window_field(*make_sensor_info(
         UDPProfileLidar::RNG19_RFL8_SIG16_NIR16, FW_3_1)));
-    EXPECT_FALSE(ImageProcessor::has_window_field(*make_sensor_info(
+    EXPECT_FALSE(ouster_ros::impl::has_window_field(*make_sensor_info(
         UDPProfileLidar::LEGACY, FW_3_2)));
 }
 
@@ -51,7 +51,7 @@ TEST_F(ImageProcessorTest, WindowImageOnlyProducedWhenFieldPresent) {
     }
 }
 
-TEST_F(ImageProcessorTest, WindowImageIsDestaggeredAndScaled) {
+TEST_F(ImageProcessorTest, WindowImageIsDestaggeredMono8) {
     auto info =
         make_sensor_info(UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL, FW_3_2);
     const size_t H = info->format.pixels_per_column;
@@ -70,15 +70,16 @@ TEST_F(ImageProcessorTest, WindowImageIsDestaggeredAndScaled) {
     processor(ls, 0, rclcpp::Time());
     ASSERT_EQ(output.count(ChanField::WINDOW), 1U);
     const auto& msg = *output[ChanField::WINDOW];
-    EXPECT_EQ(msg.encoding, sensor_msgs::image_encodings::MONO16);
+    EXPECT_EQ(msg.encoding, sensor_msgs::image_encodings::MONO8);
+    ASSERT_EQ(msg.step, W);
     ASSERT_EQ(msg.width, W);
     ASSERT_EQ(msg.height, H);
 
-    const auto* px = reinterpret_cast<const uint16_t*>(msg.data.data());
+    const auto* px = msg.data.data();
     for (size_t u = 0; u < H; ++u) {
         for (size_t v = 0; v < W; ++v) {
             const size_t vv = (v + W - px_offset[u]) % W;
-            ASSERT_EQ(px[u * W + v], wd[u * W + vv] * 257)
+            ASSERT_EQ(px[u * W + v], wd[u * W + vv])
                 << "u=" << u << " v=" << v;
         }
     }

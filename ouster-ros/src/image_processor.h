@@ -69,26 +69,12 @@ class ImageProcessor {
             init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
         }
 
-        has_window_ = has_window_field(info);
+        has_window_ = impl::has_window_field(info);
 
         if (has_window_) {
             image_msgs[ChanField::WINDOW] = std::make_shared<sensor_msgs::msg::Image>();
-            init_image_msg(*image_msgs[ChanField::WINDOW], H, W, frame);
+            init_image_msg_mono8(*image_msgs[ChanField::WINDOW], H, W, frame);
         }
-    }
-
-    /**
-     * @brief whether LidarFrame objects built from this SensorInfo carry the
-     * WINDOW field, i.e. whether a window image is going to be produced. The
-     * field depends on both the lidar udp profile and the firmware version
-     * (FW 3.1 and older don't send it), thus defer to ouster-sdk.
-     */
-    static bool has_window_field(const ouster::sdk::core::SensorInfo& info) {
-        const auto field_types = ouster::sdk::core::get_field_types(info);
-        return std::any_of(field_types.begin(), field_types.end(),
-                           [](const auto& ft) {
-                               return ft.name == ChanField::WINDOW;
-                           });
     }
 
    private:
@@ -103,6 +89,17 @@ class ImageProcessor {
         // TODO: allow choosing higher image encoding representation
         msg.encoding = sensor_msgs::image_encodings::MONO16;
         msg.data.resize(W * H * sizeof(pixel_type));
+        msg.header.frame_id = frame;
+    }
+
+    // WINDOW is a uint8 field, publish it as is (no rescaling) in a MONO8 image
+    static void init_image_msg_mono8(sensor_msgs::msg::Image& msg, size_t H,
+                                     size_t W, const std::string& frame) {
+        msg.width = W;
+        msg.height = H;
+        msg.step = W * sizeof(uint8_t);
+        msg.encoding = sensor_msgs::image_encodings::MONO8;
+        msg.data.resize(W * H * sizeof(uint8_t));
         msg.header.frame_id = frame;
     }
 
@@ -128,31 +125,26 @@ class ImageProcessor {
         if (post_processing_fn) post_processing_fn(image_msgs);
     }
 
-    // The window blockage value is published as is (no auto exposure applied)
-    // since its absolute value is what matters, the 8-bit value is stretched
-    // to the full 16-bit pixel range (x257) so that 0xff maps to 0xffff.
+    // The window blockage value is published as is (no auto exposure applied
+    // and no rescaling) since its absolute 8-bit value is what matters.
     void process_window(const ouster::sdk::core::LidarFrame& lidar_frame) {
         const uint32_t H = info_.format.pixels_per_column;
         const uint32_t W = info_.format.columns_per_frame;
         const auto& px_offset = info_.format.pixel_shift_by_row;
-        constexpr pixel_type scale =
-            std::numeric_limits<pixel_type>::max() /
-            std::numeric_limits<uint8_t>::max();
-
         const uint8_t* wd = lidar_frame.field<uint8_t>(ChanField::WINDOW).data();
         auto window_msg = image_msgs[ChanField::WINDOW];
-        auto window_image_map = Eigen::Map<ouster::sdk::core::img_t<pixel_type>>(
-            (pixel_type*)window_msg->data.data(), H, W);
+        auto window_image_map = Eigen::Map<ouster::sdk::core::img_t<uint8_t>>(
+            window_msg->data.data(), H, W);
 
         for (size_t u = 0; u < H; u++) {
             for (size_t v = 0; v < W; v++) {
                 const size_t vv = (v + W - px_offset[u]) % W;
-                window_image_map(u, v) =
-                    static_cast<pixel_type>(wd[u * W + vv] * scale);
+                window_image_map(u, v) = wd[u * W + vv];
             }
         }
 
-        if (mask.size() != 0) window_image_map = window_image_map * mask;
+        if (mask.size() != 0)
+            window_image_map = window_image_map * mask.cast<uint8_t>();
     }
 
     // TODO: this functin could be benefit of some refactor

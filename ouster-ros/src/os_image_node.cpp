@@ -101,7 +101,7 @@ class OusterImage : public OusterProcessingNodeBase {
                 create_publisher<sensor_msgs::msg::Image>(it->second,
                                                             selected_qos);
         }
-        if (ImageProcessor::has_window_field(info)) {
+        if (impl::has_window_field(info)) {
             image_pubs[ChanField::WINDOW] =
                 create_publisher<sensor_msgs::msg::Image>("window_image",
                                                           selected_qos);

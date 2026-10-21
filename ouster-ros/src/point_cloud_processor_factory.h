@@ -13,7 +13,7 @@ class PointCloudProcessorFactory {
                           bool organized, bool destagger, int rows_step) {
         // firmware older than 3.2 doesn't send the WINDOW field, in which case
         // the *_NO_WINDOW variants of the affected profiles are used instead.
-        const bool has_window = fw_has_window_field(info);
+        const bool has_window = impl::has_window_field(info);
         switch (info.format.udp_profile_lidar) {
             case UDPProfileLidar::LEGACY:
                 return [organized, destagger, rows_step](
@@ -260,15 +260,6 @@ class PointCloudProcessorFactory {
     }
 
    public:
-    /**
-     * @brief whether the LidarFrame built from this SensorInfo carries the
-     * WINDOW field. Mirrors the rule in ouster-sdk get_field_types: firmware
-     * older than 3.2 (including an unknown/unparsable version) has no WINDOW.
-     */
-    static bool fw_has_window_field(const ouster::sdk::core::SensorInfo& info) {
-        return !(info.get_version() < ouster::sdk::core::Version(3, 2, 0));
-    }
-
     static bool point_type_requires_intensity(const std::string& point_type) {
         return point_type == "xyzi" || point_type == "xyzir" ||
                point_type == "original" || point_type == "o_xyzi" ||
