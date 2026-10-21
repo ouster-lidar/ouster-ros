@@ -21,6 +21,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -142,6 +143,20 @@ inline ouster::sdk::core::img_t<T> get_or_fill_zero(const std::string& field,
     ouster::sdk::core::img_t<T> result{ls.h, ls.w};
     ouster::sdk::core::impl::visit_field(ls, field, read_and_cast(), result);
     return result;
+}
+
+/**
+ * @brief whether LidarFrame objects built from this SensorInfo carry the WINDOW
+ * field. This depends on both the lidar udp profile and the firmware version
+ * (FW 3.1 and older don't send it), so ask ouster-sdk instead of duplicating
+ * its rules; it is the single source of truth for WINDOW availability.
+ */
+inline bool has_window_field(const ouster::sdk::core::SensorInfo& info) {
+    const auto field_types = ouster::sdk::core::get_field_types(info);
+    return std::any_of(field_types.begin(), field_types.end(),
+                       [](const auto& ft) {
+                           return ft.name == ouster::sdk::core::ChanField::WINDOW;
+                       });
 }
 
 /**

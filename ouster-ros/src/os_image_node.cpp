@@ -6,7 +6,8 @@
  * @brief A node to decode range, near ir and signal images from ouster
  * point cloud
  *
- * Publishes ~/range_image, ~/nearir_image, and ~/signal_image.  Please bear
+ * Publishes ~/range_image, ~/nearir_image, ~/signal_image, ~/reflec_image and
+ * ~/window_image (when the sensor provides the WINDOW field).  Please bear
  * in mind that there is rounding/clamping to display 8 bit images. For computer
  * vision applications, use higher bit depth values in /os_cloud_node/points
  */
@@ -99,6 +100,11 @@ class OusterImage : public OusterProcessingNodeBase {
             image_pubs[it->first] =
                 create_publisher<sensor_msgs::msg::Image>(it->second,
                                                             selected_qos);
+        }
+        if (impl::has_window_field(info)) {
+            image_pubs[ChanField::WINDOW] =
+                create_publisher<sensor_msgs::msg::Image>("window_image",
+                                                          selected_qos);
         }
 
         auto min_scan_valid_columns_ratio = get_parameter("min_scan_valid_columns_ratio").as_double();

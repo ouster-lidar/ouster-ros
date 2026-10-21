@@ -210,6 +210,11 @@ class OusterDriver : public OusterSensor {
                     create_publisher<sensor_msgs::msg::Image>(it->second,
                                                               selected_qos);
             }
+            if (impl::has_window_field(info)) {
+                image_pubs[ChanField::WINDOW] =
+                    create_publisher<sensor_msgs::msg::Image>("window_image",
+                                                              selected_qos);
+            }
 
             processors.push_back(ImageProcessor::create(
                 info, tf_bcast.point_cloud_frame_id(), mask_path,

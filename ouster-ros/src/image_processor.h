@@ -14,9 +14,13 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
+#include <algorithm>
+
 #include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/msg/image.hpp>
 
 #include "ouster/core/image_processing.h"
+#include "lidar_packet_handler.h"
 
 namespace ouster_ros {
 
@@ -64,6 +68,13 @@ class ImageProcessor {
             image_msgs[ChanField::RGB] = std::make_shared<sensor_msgs::msg::Image>();
             init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
         }
+
+        has_window_ = impl::has_window_field(info);
+
+        if (has_window_) {
+            image_msgs[ChanField::WINDOW] = std::make_shared<sensor_msgs::msg::Image>();
+            init_image_msg_mono8(*image_msgs[ChanField::WINDOW], H, W, frame);
+        }
     }
 
    private:
@@ -78,6 +89,17 @@ class ImageProcessor {
         // TODO: allow choosing higher image encoding representation
         msg.encoding = sensor_msgs::image_encodings::MONO16;
         msg.data.resize(W * H * sizeof(pixel_type));
+        msg.header.frame_id = frame;
+    }
+
+    // WINDOW is a uint8 field, publish it as is (no rescaling) in a MONO8 image
+    static void init_image_msg_mono8(sensor_msgs::msg::Image& msg, size_t H,
+                                     size_t W, const std::string& frame) {
+        msg.width = W;
+        msg.height = H;
+        msg.step = W * sizeof(uint8_t);
+        msg.encoding = sensor_msgs::image_encodings::MONO8;
+        msg.data.resize(W * H * sizeof(uint8_t));
         msg.header.frame_id = frame;
     }
 
@@ -96,10 +118,33 @@ class ImageProcessor {
                  const rclcpp::Time& msg_ts) {
         process_return(lidar_frame, 0);
         if (info_.num_returns() == 2) process_return(lidar_frame, 1);
+        if (has_window_) process_window(lidar_frame);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
         if (post_processing_fn) post_processing_fn(image_msgs);
+    }
+
+    // The window blockage value is published as is (no auto exposure applied
+    // and no rescaling) since its absolute 8-bit value is what matters.
+    void process_window(const ouster::sdk::core::LidarFrame& lidar_frame) {
+        const uint32_t H = info_.format.pixels_per_column;
+        const uint32_t W = info_.format.columns_per_frame;
+        const auto& px_offset = info_.format.pixel_shift_by_row;
+        const uint8_t* wd = lidar_frame.field<uint8_t>(ChanField::WINDOW).data();
+        auto window_msg = image_msgs[ChanField::WINDOW];
+        auto window_image_map = Eigen::Map<ouster::sdk::core::img_t<uint8_t>>(
+            window_msg->data.data(), H, W);
+
+        for (size_t u = 0; u < H; u++) {
+            for (size_t v = 0; v < W; v++) {
+                const size_t vv = (v + W - px_offset[u]) % W;
+                window_image_map(u, v) = wd[u * W + vv];
+            }
+        }
+
+        if (mask.size() != 0)
+            window_image_map = window_image_map * mask.cast<uint8_t>();
     }
 
     // TODO: this functin could be benefit of some refactor
@@ -275,6 +320,7 @@ class ImageProcessor {
 
     ouster::sdk::core::img_t<pixel_type> mask;
     bool has_rgb_ = false;
+    bool has_window_ = false;
 };
 
 }  // namespace ouster_ros
