@@ -12,6 +12,9 @@
 #include "../src/point_meta_helpers.h"
 #include "../src/point_cloud_compose.h"
 #include "../src/point_cloud_processor.h"
+#include "../src/point_cloud_processor_factory.h"
+
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 class PointCloudComposeTest : public ::testing::Test {
    protected:
@@ -152,4 +155,94 @@ TEST_F(PointCloudComposeTest, PointCloudProcessorRejectsPixelShiftSizeMismatch) 
     auto info = *SensorInfo::from_default(LidarMode::_512x10);
     info.format.pixel_shift_by_row.pop_back();
     EXPECT_THROW(make_processor(info), std::invalid_argument);
+}
+
+namespace {
+// profiles whose ouster-ros tables carry the WINDOW field
+const std::vector<UDPProfileLidar> WINDOW_PROFILES{
+    UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_DUAL,
+    UDPProfileLidar::RNG19_RFL8_SIG16_NIR16,
+    UDPProfileLidar::RNG15_RFL8_NIR8_DUAL,
+};
+
+SensorInfo make_sensor_info(UDPProfileLidar profile, const std::string& fw) {
+    auto info = *SensorInfo::from_default(LidarMode::_512x10);
+    info.format.udp_profile_lidar = profile;
+    info.image_rev = fw;
+    return info;
+}
+
+bool frame_has_window(const SensorInfo& info) {
+    for (const auto& ft : get_field_types(info))
+        if (ft.name == ChanField::WINDOW) return true;
+    return false;
+}
+}  // namespace
+
+// fw_has_window_field duplicates the version rule of ouster-sdk
+// get_field_types, make sure the two never drift apart.
+TEST_F(PointCloudComposeTest, FwHasWindowFieldMatchesSdk) {
+    const std::vector<std::string> fw_versions{
+        "ousteros-image-prod-aries-v2.5.3+20230928",
+        "ousteros-image-prod-aries-v3.1.0+20231215",
+        "ousteros-image-prod-aries-v3.2.0+20250101",
+        "ousteros-image-prod-aries-v3.2.1+20250301",
+        "",  // unknown firmware version
+    };
+    for (auto profile : WINDOW_PROFILES) {
+        for (const auto& fw : fw_versions) {
+            auto info = make_sensor_info(profile, fw);
+            EXPECT_EQ(PointCloudProcessorFactory::fw_has_window_field(info),
+                      frame_has_window(info))
+                << to_string(profile) << " fw=" << fw;
+        }
+    }
+}
+
+// FW 3.1 and older don't send WINDOW, the point cloud processor must not throw
+// and should publish window as zero; FW 3.2+ should copy the WINDOW values.
+TEST_F(PointCloudComposeTest, ScanToCloudHandlesFirmwareWithoutWindow) {
+    const std::vector<std::pair<std::string, bool>> fw_versions{
+        {"ousteros-image-prod-aries-v3.1.0+20231215", false},
+        {"ousteros-image-prod-aries-v3.2.0+20250101", true},
+    };
+    const std::vector<std::string> point_types{"native", "original", "xyzir"};
+    const uint8_t WINDOW_VALUE = 7;
+
+    for (auto profile : WINDOW_PROFILES) {
+        for (const auto& [fw, has_window] : fw_versions) {
+            auto info = make_sensor_info(profile, fw);
+            for (const auto& point_type : point_types) {
+                SCOPED_TRACE(to_string(profile) + " fw=" + fw +
+                             " point_type=" + point_type);
+                PointCloudProcessor_OutputType output;
+                auto processor =
+                    PointCloudProcessorFactory::create_point_cloud_processor(
+                        point_type, info, "os_lidar", false, true, true, 0,
+                        1000000, 1, "", [&output](auto msgs) { output = msgs; });
+
+                LidarFrame ls(std::make_shared<SensorInfo>(info));
+                ASSERT_EQ(ls.has_field(ChanField::WINDOW), has_window);
+                const auto samples = ls.w * ls.h;
+                auto* range = ls.field<uint32_t>(ChanField::RANGE).data();
+                std::fill(range, range + samples, 1000U);
+                if (has_window) {
+                    auto* window = ls.field<uint8_t>(ChanField::WINDOW).data();
+                    std::fill(window, window + samples, WINDOW_VALUE);
+                }
+
+                ASSERT_NO_THROW(processor(ls, 0, rclcpp::Time()));
+                ASSERT_EQ(output.size(),
+                          static_cast<size_t>(info.num_returns()));
+
+                if (point_type != "native") continue;
+                // native clouds keep a stable layout regardless of firmware
+                auto& msg = *output[0];
+                sensor_msgs::PointCloud2ConstIterator<uint8_t> it(msg, "window");
+                const uint8_t expected = has_window ? WINDOW_VALUE : 0;
+                for (size_t i = 0; i < msg.width * msg.height; ++i, ++it)
+                    ASSERT_EQ(*it, expected) << "i=" << i;
+            }
+        }
+    }
 }

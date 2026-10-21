@@ -140,6 +140,27 @@ static constexpr ChanFieldTable<6> Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETUR
     {ChanField::WINDOW, ChanFieldType::UINT8},
 }};
 
+// Firmware older than 3.2 doesn't send the WINDOW field, the following two
+// profiles are copies of Profile_RNG19_RFL8_SIG16_NIR16_DUAL and
+// Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN with WINDOW dropped. Since
+// WINDOW is the last entry the same point type can be used for both, the window
+// value is left at zero.
+static constexpr ChanFieldTable<5> Profile_RNG19_RFL8_SIG16_NIR16_DUAL_NO_WINDOW {{
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::SIGNAL, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
+    {ChanField::FLAGS, ChanFieldType::UINT8},
+}};
+
+static constexpr ChanFieldTable<5> Profile_RNG19_RFL8_SIG16_NIR16_DUAL_2ND_RETURN_NO_WINDOW {{
+    {ChanField::RANGE2, ChanFieldType::UINT32},
+    {ChanField::SIGNAL2, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
+    {ChanField::FLAGS2, ChanFieldType::UINT8},
+}};
+
 // auto=RNG19_RFL8_SIG16_NIR16_DUAL
 struct EIGEN_ALIGN16 _Point_RNG19_RFL8_SIG16_NIR16_DUAL {
     PCL_ADD_POINT4D;
@@ -218,6 +239,15 @@ static constexpr ChanFieldTable<6> Profile_RNG19_RFL8_SIG16_NIR16{{
     {ChanField::FLAGS, ChanFieldType::UINT8},
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::WINDOW, ChanFieldType::UINT8},
+}};
+
+// Profile_RNG19_RFL8_SIG16_NIR16 for firmware older than 3.2 (no WINDOW field)
+static constexpr ChanFieldTable<5> Profile_RNG19_RFL8_SIG16_NIR16_NO_WINDOW{{
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::SIGNAL, ChanFieldType::UINT16},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::FLAGS, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16
@@ -391,6 +421,22 @@ static constexpr ChanFieldTable<5> Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN {{
     {ChanField::NEAR_IR, ChanFieldType::UINT16},
     {ChanField::FLAGS2, ChanFieldType::UINT8},
     {ChanField::WINDOW, ChanFieldType::UINT8}
+}};
+
+// Profile_RNG15_RFL8_NIR8_DUAL and its 2nd return for firmware older than 3.2
+// (no WINDOW field)
+static constexpr ChanFieldTable<4> Profile_RNG15_RFL8_NIR8_DUAL_NO_WINDOW {{
+    {ChanField::RANGE, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
+    {ChanField::FLAGS, ChanFieldType::UINT8}
+}};
+
+static constexpr ChanFieldTable<4> Profile_RNG15_RFL8_NIR8_DUAL_2ND_RETURN_NO_WINDOW {{
+    {ChanField::RANGE2, ChanFieldType::UINT32},
+    {ChanField::REFLECTIVITY2, ChanFieldType::UINT8},
+    {ChanField::NEAR_IR, ChanFieldType::UINT16},
+    {ChanField::FLAGS2, ChanFieldType::UINT8}
 }};
 
 // auto=RNG19_RFL8_SIG16_NIR16_DUAL
