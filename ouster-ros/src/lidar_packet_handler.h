@@ -177,6 +177,7 @@ class LidarPacketHandler {
                                 "lidar_scans full, DROPPING PACKET");
                     return false;
                 }
+                restart_batching_on_frame_id_regression(pf, lidar_packet);
                 bool result = false;
                 {
                     std::unique_lock<std::mutex> lock(
@@ -379,6 +380,36 @@ class LidarPacketHandler {
         return scan_ns;
     }
 
+    // A packet stream that restarts without changing the sensor init_id, e.g.
+    // a recording replayed in a loop by a virtual sensor or a bag played with
+    // --loop, makes the frame id jump backwards. FrameBatcher treats those
+    // packets as late arrivals for frames it already released and drops them
+    // until the frame id passes the last released one, which for a looping
+    // recording never happens, so no further scans would be produced.
+    void restart_batching_on_frame_id_regression(
+        const ouster::sdk::core::PacketFormat& pf,
+        const ouster::sdk::core::LidarPacket& lidar_packet) {
+        const int64_t frame_id = pf.frame_id(lidar_packet.buf.data());
+        // packets of the previous frame may still arrive late
+        if (last_packet_frame_id >= 0 &&
+            pf.frame_id_difference(last_packet_frame_id, frame_id) < -1) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(getName()),
+                               "lidar frame id went back from "
+                                   << last_packet_frame_id << " to " << frame_id
+                                   << ", restarting scan batching");
+            // recreate rather than reset() the batcher so it also forgets the
+            // last released frame id, which must increase with FUSA headers
+            scan_batcher =
+                std::make_unique<ouster::sdk::core::FrameBatcher>(batcher_info);
+            compute_scan_ts = [this](const auto& ts_v) {
+                return compute_scan_ts_0(ts_v);
+            };
+            lidar_handler_ros_time_frame_ts.reset();
+            ros_time_released_frame_id = -1;
+        }
+        last_packet_frame_id = frame_id;
+    }
+
     uint16_t packet_col_index(const ouster::sdk::core::PacketFormat& pf,
                               const uint8_t* lidar_buf) {
         return pf.col_measurement_id(pf.nth_col(0, lidar_buf));
@@ -421,20 +452,29 @@ class LidarPacketHandler {
     bool lidar_handler_ros_time(const ouster::sdk::core::PacketFormat& pf,
                                 const ouster::sdk::core::LidarPacket& lidar_packet,
                                 ouster::sdk::core::LidarFrame& lidar_scan) {
-        auto packet_receive_time = rclcpp::Time(lidar_packet.host_timestamp);
-
-        if (!lidar_handler_ros_time_frame_ts) {
+        // stamp each scan with the time its first packet was received,
+        // extrapolated back to the first column of the scan. A late packet of
+        // the scan released last must not be taken as the start of the next.
+        const int64_t frame_id = pf.frame_id(lidar_packet.buf.data());
+        if (!lidar_handler_ros_time_frame_ts &&
+            (ros_time_released_frame_id < 0 ||
+             pf.frame_id_difference(ros_time_released_frame_id, frame_id) > 0)) {
             lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
                 pf, lidar_packet.buf.data(),
-                packet_receive_time);  // first point cloud time
+                rclcpp::Time(lidar_packet.host_timestamp));
         }
 
         if (!scan_batcher->batch(lidar_packet, lidar_scan)) return false;
         lidar_scan_estimated_ts = compute_scan_ts(lidar_scan.timestamp());
-        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts.value();
-        // set time for next point cloud msg
-        lidar_handler_ros_time_frame_ts = extrapolate_frame_ts(
-            pf, lidar_packet.buf.data(), packet_receive_time);
+        // no start time is recorded when the frame id restarted at the last
+        // released one (e.g. on an init_id change), fall back to the packet
+        // that completed the scan, which is normally its last one
+        lidar_scan_estimated_msg_ts = lidar_handler_ros_time_frame_ts.value_or(
+            extrapolate_frame_ts(pf, lidar_packet.buf.data(),
+                                 rclcpp::Time(lidar_packet.host_timestamp)));
+        // the next packet received starts the time of the next scan
+        lidar_handler_ros_time_frame_ts.reset();
+        ros_time_released_frame_id = lidar_scan.frame_id;
         return true;
     }
 
@@ -448,6 +488,7 @@ class LidarPacketHandler {
    private:
     std::shared_ptr<ouster::sdk::core::SensorInfo> batcher_info;
     std::unique_ptr<ouster::sdk::core::FrameBatcher> scan_batcher;
+    int64_t last_packet_frame_id = -1;
     const int LIDAR_SCAN_COUNT = 10;
     const float THROTTLE_PERCENT = 0.7f;
     LockFreeRingBuffer ring_buffer;
@@ -459,6 +500,7 @@ class LidarPacketHandler {
     rclcpp::Time lidar_scan_estimated_msg_ts;
 
     std::optional<rclcpp::Time> lidar_handler_ros_time_frame_ts;
+    int64_t ros_time_released_frame_id = -1;
 
     int last_scan_last_nonzero_idx = -1;
     uint64_t last_scan_last_nonzero_value = 0;
