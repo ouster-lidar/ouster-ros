@@ -4,6 +4,11 @@ Changelog
 
 [UNRELEASED]
 ============
+* Update the ouster-sdk submodule to v1.0.1 (``sdk-1.0.1/ouster-ros-0.15.0`` branch):
+  - Link against ``ouster_core`` (formerly ``ouster_client``) and use the new module-scoped headers.
+  - ``os_sensor`` now receives packets through ``SensorPacketSource``, replacing the removed
+    ``init_client`` / ``mtp_init_client`` / ``poll_client`` API.
+  - Replace deprecated ``LidarScan`` / ``ScanBatcher`` usages with ``LidarFrame`` / ``FrameBatcher``.
 * [BREAKING]: ``lidar_port`` and ``imu_port`` no longer use ``0`` to request a randomly assigned port.
   - A value of ``0`` is now passed to the sensor as is, which disables the corresponding data stream.
   - The default value of both parameters is now ``-1`` (unspecified), which keeps the ports currently
@@ -12,15 +17,10 @@ Changelog
   multicast parameters ``mtp_dest`` and ``mtp_main``. The parameters are now also available in ``sensor.launch.xml``.
 * Multicast clients now receive data on the interface that routes to the sensor by default;
   ``mtp_dest`` is optional and only needed as an advanced override.
-* Update the ouster-sdk submodule to v1.0.1 (``sdk-1.0.1/ouster-ros-0.15.0`` branch):
-  - Link against ``ouster_core`` (formerly ``ouster_client``) and use the new module-scoped headers.
-  - ``os_sensor`` now receives packets through ``SensorPacketSource``, replacing the removed
-    ``init_client``/``mtp_init_client``/``poll_client`` API.
-  - Replace deprecated ``LidarScan``/``ScanBatcher`` usages with ``LidarFrame``/``FrameBatcher``.
-* Improve scan_to_cloud_f efficiency by avoiding the modulo in a tight loop.
+* [BUGFIX] Add support for firmware versions prior to 3.2 by handling missing WINDOW field in point cloud profiles.
+* Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
 * [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
   - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
-* [BUGFIX] Add support for firmware versions prior to 3.2 by handling missing WINDOW field in point cloud profiles.
 
 ouster_ros v0.15.2
 ==================
