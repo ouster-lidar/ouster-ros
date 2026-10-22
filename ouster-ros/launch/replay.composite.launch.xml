@@ -4,6 +4,13 @@
 
   <arg name="loop" default="false" description="request loop playback"/>
   <arg name="play_delay" default="0" description="playback start delay in seconds"/>
+
+  <!-- With its default shared memory segment Fast DDS drops most point clouds
+    sent to local subscribers, see the comments in the profile. A profile
+    already set in the environment takes precedence. Ignored by other RMWs. -->
+  <arg name="fastdds_profile"
+    default="$(env FASTDDS_DEFAULT_PROFILES_FILE $(env FASTRTPS_DEFAULT_PROFILES_FILE $(find-pkg-share ouster_ros)/config/fastdds_large_data.xml))"
+    description="Fast DDS XML profile to use for the processing container."/>
   <arg name="play_rate" default="1.0"/>
 
   <let if="$(var loop)" name="_loop" value="--loop"/>
@@ -97,6 +104,9 @@
       <param name="use_system_default_qos" value="$(var use_system_default_qos)"/>
     </node>
     <node_container pkg="rclcpp_components" exec="component_container_mt" name="os_container" output="screen" namespace="">
+      <!-- Fast DDS 3.x reads the first variable, 2.x the second -->
+      <env name="FASTDDS_DEFAULT_PROFILES_FILE" value="$(var fastdds_profile)"/>
+      <env name="FASTRTPS_DEFAULT_PROFILES_FILE" value="$(var fastdds_profile)"/>
       <composable_node pkg="ouster_ros" plugin="ouster_ros::OusterCloud" name="os_cloud">
         <param name="sensor_frame" value="$(var sensor_frame)"/>
         <param name="lidar_frame" value="$(var lidar_frame)"/>
