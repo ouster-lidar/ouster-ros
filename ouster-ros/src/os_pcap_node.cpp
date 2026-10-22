@@ -24,12 +24,14 @@
 #include "ouster_ros/os_sensor_node_base.h"
 #include "ouster_ros/visibility_control.h"
 #include "ouster_ros/impl/file_util.h"
-#include <ouster/pcap/os_pcap.h>
+#include <ouster/pcap/pcap_packet_source.h>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
 using ouster_sensor_msgs::msg::PacketMsg;
-using ouster::sdk::pcap::PcapReader;
+using ouster::sdk::pcap::PcapPacketSource;
+using ouster::sdk::pcap::PcapPacketSourceOptions;
+using ouster::sdk::core::PacketType;
 using ouster::sdk::core::PacketFormat;
 
 namespace ouster_ros {
@@ -71,7 +73,7 @@ class OusterPcap : public OusterSensorNodeBase {
                 progress_update_freq = 0.001;
             create_metadata_pub();
             load_metadata_from_file(meta_file);
-            open_pcap(pcap_file);
+            open_pcap(pcap_file, meta_file);
             publish_metadata();
             create_get_metadata_service();
             RCLCPP_INFO(get_logger(), "Running in replay mode");
@@ -214,22 +216,59 @@ class OusterPcap : public OusterSensorNodeBase {
                 "zone_packets", rclcpp::QoS(selected_qos).keep_last(1));
     }
 
-    void open_pcap(const std::string& pcap_file) {
-        pcap.reset(new PcapReader(pcap_file));
+    void open_pcap(const std::string& pcap_file,
+                   const std::string& meta_file) {
+        pcap = std::make_unique<PcapPacketSource>(
+            pcap_file, [&meta_file](PcapPacketSourceOptions& options) {
+                options.meta = std::vector<std::string>{meta_file};
+            });
     }
 
     void start_packet_read_thread() {
         packet_read_active = true;
         packet_read_thread = std::make_unique<std::thread>([this]() {
-            auto& pf = ouster::sdk::core::get_format(info);
+            wait_for_lidar_packet_subscribers();
             do {
-                read_packets(*pcap, pf);
-                pcap->reset();
+                read_packets(*pcap);
             } while(rclcpp::ok() && packet_read_active && loop);
             RCLCPP_DEBUG(get_logger(),
                          "packet_read_thread done.");
             rclcpp::shutdown();
         });
+    }
+
+    // Packets published before the processing nodes subscribe are lost, and
+    // those nodes only subscribe once they have the metadata, so hold off the
+    // replay until the lidar_packets subscribers have shown up and settled:
+    // a node may still be completing discovery right after the first match,
+    // and several nodes (os_cloud, os_image) may subscribe one after another.
+    void wait_for_lidar_packet_subscribers() {
+        const auto timeout = 10s;
+        const auto settle_time = 500ms;
+        const auto deadline = steady_clock::now() + timeout;
+        RCLCPP_INFO(get_logger(), "waiting for subscribers to lidar_packets ...");
+        size_t count = 0;
+        auto last_change = steady_clock::now();
+        while (rclcpp::ok() && packet_read_active) {
+            auto now = steady_clock::now();
+            auto new_count = lidar_packet_pub->get_subscription_count();
+            if (new_count != count) {
+                count = new_count;
+                last_change = now;
+            } else if (count > 0 && now - last_change >= settle_time) {
+                RCLCPP_INFO_STREAM(get_logger(), "starting replay with "
+                                   << count << " lidar_packets subscriber(s)");
+                return;
+            }
+            if (now > deadline) {
+                RCLCPP_WARN_STREAM(get_logger(),
+                    "lidar_packets subscribers didn't settle within "
+                    << timeout.count() << " s (" << count
+                    << " subscribers), starting replay anyway");
+                return;
+            }
+            std::this_thread::sleep_for(50ms);
+        }
     }
 
     void stop_packet_read_thread() {
@@ -261,48 +300,57 @@ class OusterPcap : public OusterSensorNodeBase {
         imu_packet_pub->publish(imu_packet);
     }
 
-    void read_packets(PcapReader& pcap, const PacketFormat& pf) {
-        size_t payload_size = pcap.next_packet();
-        auto packet_info = pcap.current_info();
-        auto file_start = packet_info.timestamp;
-        auto last_update = file_start;
-        const auto UPDATE_PERIOD = duration_cast<microseconds>(1s / progress_update_freq);
+    void publish_packet(const ouster::sdk::core::Packet& packet,
+                        PacketMsg& msg,
+                        rclcpp::Publisher<PacketMsg>& pub) {
+        std::memcpy(msg.buf.data(), packet.buf.data(), msg.buf.size());
+        pub.publish(msg);
+    }
 
-        while (rclcpp::ok() && packet_read_active && payload_size) {
-            auto start = high_resolution_clock::now();
-            if (packet_info.dst_port == info.config.udp_port_imu &&
-                payload_size == pf.imu_packet_size) {
-                std::memcpy(imu_packet.buf.data(), pcap.current_data(),
-                            pf.imu_packet_size);
-                imu_packet_pub->publish(imu_packet);
-            } else if (packet_info.dst_port == info.config.udp_port_lidar &&
-                       payload_size == pf.lidar_packet_size) {
-                std::memcpy(lidar_packet.buf.data(), pcap.current_data(),
-                            pf.lidar_packet_size);
-                lidar_packet_pub->publish(lidar_packet);
-            } else if (zone_packet_pub &&
-                       packet_info.dst_port == info.config.udp_port_zm &&
-                       payload_size == pf.zone_packet_size) {
-                std::memcpy(zone_packet.buf.data(), pcap.current_data(),
-                            pf.zone_packet_size);
-                zone_packet_pub->publish(zone_packet);
+    void read_packets(const PcapPacketSource& source) {
+        const auto UPDATE_PERIOD =
+            duration_cast<microseconds>(1s / progress_update_freq);
+
+        bool first = true;
+        nanoseconds file_start{0}, last_update{0};
+        steady_clock::time_point replay_start;
+
+        for (auto it = source.begin();
+             it != source.end() && rclcpp::ok() && packet_read_active; ++it) {
+            auto [sensor_idx, packet] = *it;
+            if (sensor_idx != 0) continue;
+
+            const nanoseconds curr_packet_ts{packet->host_timestamp};
+            if (first) {
+                file_start = last_update = curr_packet_ts;
+                replay_start = steady_clock::now();
+                first = false;
             } else {
-                RCLCPP_WARN_STREAM_THROTTLE(get_logger(), *get_clock(), 1,
-                    "unknown packet /w port:" << packet_info.dst_port);
+                std::this_thread::sleep_until(
+                    replay_start + (curr_packet_ts - file_start));
             }
-            auto prev_packet_ts = packet_info.timestamp;
-            payload_size = pcap.next_packet();
-            packet_info = pcap.current_info();
-            auto curr_packet_ts = packet_info.timestamp;
-            auto end = high_resolution_clock::now();
-            auto dt = (curr_packet_ts - prev_packet_ts) - (end - start);
-            std::this_thread::sleep_for(dt);  // pace packet generation
+
+            switch (packet->type()) {
+                case PacketType::Imu:
+                    publish_packet(*packet, imu_packet, *imu_packet_pub);
+                    break;
+                case PacketType::Lidar:
+                    publish_packet(*packet, lidar_packet, *lidar_packet_pub);
+                    break;
+                case PacketType::Zone:
+                    if (zone_packet_pub)
+                        publish_packet(*packet, zone_packet, *zone_packet_pub);
+                    break;
+                default:
+                    RCLCPP_WARN_STREAM_THROTTLE(get_logger(), *get_clock(), 1,
+                                                "unknown packet type");
+            }
 
             if (curr_packet_ts - last_update > UPDATE_PERIOD) {
                 last_update = curr_packet_ts;
                 std::cout << "\rtime passed: "
                     << std::fixed << std::setprecision(3)
-                    << (curr_packet_ts - file_start).count() / 1e6f
+                    << (curr_packet_ts - file_start).count() / 1e9f
                     << " s" << std::flush
                     << std::endl;   // This seem to be required for ROS2
             }
@@ -310,7 +358,7 @@ class OusterPcap : public OusterSensorNodeBase {
     }
 
    private:
-    std::shared_ptr<PcapReader> pcap;
+    std::unique_ptr<PcapPacketSource> pcap;
     ouster_sensor_msgs::msg::PacketMsg lidar_packet;
     ouster_sensor_msgs::msg::PacketMsg imu_packet;
     ouster_sensor_msgs::msg::PacketMsg zone_packet;
