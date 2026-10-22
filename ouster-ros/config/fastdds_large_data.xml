@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Fast DDS profile applied to the ouster-ros driver processes by the launch
+  files when Fast DDS (rmw_fastrtps_cpp, the default RMW) is in use; other
+  RMWs ignore it.
+
+  Fast DDS delivers messages between processes on the same host through a
+  shared memory segment owned by the publishing participant, 512 KB by
+  default. A 1024x128 point cloud is ~6.3 MB, so with the default segment the
+  publisher keeps recycling buffers that subscribers haven't read yet and most
+  clouds are lost (2-3 Hz received out of 10 Hz on a best effort subscriber).
+  The segment below holds several clouds in flight. Only the publishing side
+  needs it, subscribers can keep the Fast DDS defaults.
+
+  The transports are otherwise the Fast DDS defaults: shared memory for local
+  subscribers and UDPv4 for remote ones.
+-->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <profiles>
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>ouster_shm</transport_id>
+        <type>SHM</type>
+        <!-- 64 MB, enough for ~10 clouds of 1024x128 or ~5 of 2048x128 -->
+        <segment_size>67108864</segment_size>
+      </transport_descriptor>
+      <transport_descriptor>
+        <transport_id>ouster_udp</transport_id>
+        <type>UDPv4</type>
+      </transport_descriptor>
+    </transport_descriptors>
+    <participant profile_name="ouster_large_data" is_default_profile="true">
+      <rtps>
+        <useBuiltinTransports>false</useBuiltinTransports>
+        <userTransports>
+          <transport_id>ouster_shm</transport_id>
+          <transport_id>ouster_udp</transport_id>
+        </userTransports>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>

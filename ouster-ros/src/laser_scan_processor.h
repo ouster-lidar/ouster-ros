@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * @file laser_scan_processor.h
- * @brief takes in a lidar scan object and produces a LaserScan message
+ * @brief takes in a lidar frame object and produces a LaserScan message
  */
 
 #pragma once
@@ -46,11 +46,11 @@ class LaserScanProcessor {
     }
 
    private:
-    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t,
                  const rclcpp::Time& msg_ts) {
         for (size_t i = 0; i < scan_msgs.size(); ++i) {
             *scan_msgs[i] =
-                lidar_scan_to_laser_scan_msg(lidar_scan, msg_ts, frame, ld_mode,
+                lidar_frame_to_laser_scan_msg(lidar_frame, msg_ts, frame, ld_mode,
                                              ring_, nan_is_inf_, pixel_shift_by_row, i);
         }
 
@@ -58,16 +58,16 @@ class LaserScanProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
+    static LidarFrameProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame, uint16_t ring,
                                      bool nan_is_inf,
                                      PostProcessingFn func) {
         auto handler =
             std::make_shared<LaserScanProcessor>(info, frame, ring, nan_is_inf, func);
 
-        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
-            handler->process(lidar_scan, scan_ts, msg_ts);
+            handler->process(lidar_frame, scan_ts, msg_ts);
         };
     }
 

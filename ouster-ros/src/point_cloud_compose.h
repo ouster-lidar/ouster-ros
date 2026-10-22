@@ -41,28 +41,28 @@ struct TypeSelector<ChanFieldType::UINT64> {
 
 /**
  * @brief constructs a suitable tuple at compile time that can store a reference
- * to all the fields of a specific LidarScan object (without conversion)
+ * to all the fields of a specific LidarFrame object (without conversion)
  * according to the information specificed by the ChanFieldTable.
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table>
-constexpr auto make_lidar_scan_tuple() {
+constexpr auto make_lidar_frame_tuple() {
     if constexpr (Index < N) {
         using ElementType = typename TypeSelector<Table[Index].second>::type;
         return std::tuple_cat(
             std::make_tuple(static_cast<const ElementType*>(0)),
-            std::move(make_lidar_scan_tuple<Index + 1, N, Table>()));
+            std::move(make_lidar_frame_tuple<Index + 1, N, Table>()));
     } else {
         return std::make_tuple();
     }
 }
 
 /**
- * @brief maps the fields of a LidarScan object to the elements of the supplied
+ * @brief maps the fields of a LidarFrame object to the elements of the supplied
  * tuple in the same order.
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table,
           typename Tuple>
-void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarScan& ls) {
+void map_lidar_frame_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarFrame& ls) {
     static_assert(
         std::tuple_size_v<Tuple> == N,
         "target tuple size has a different size from the channel field table");
@@ -73,38 +73,38 @@ void map_lidar_scan_fields_to_tuple(Tuple& tp, const ouster::sdk::core::LidarSca
         static_assert(std::is_same_v<ElementType, FieldType>,
                       "tuple element, field element types mismatch!");
         std::get<Index>(tp) = ls.field<FieldType>(Table[Index].first).data();
-        map_lidar_scan_fields_to_tuple<Index + 1, N, Table>(tp, ls);
+        map_lidar_frame_fields_to_tuple<Index + 1, N, Table>(tp, ls);
     }
 }
 
 /**
  * @brief constructs a suitable tuple at compile time that can store a reference
- * to all the fields of a specific LidarScan object (without conversion)
+ * to all the fields of a specific LidarFrame object (without conversion)
  * according to the information specificed by the ChanFieldTable and directly
- * maps the fields of the supplied LidarScan to the constructed tuple before
+ * maps the fields of the supplied LidarFrame to the constructed tuple before
  * returning.
- * @param[in] ls LidarScan
+ * @param[in] ls LidarFrame
  */
 template <std::size_t Index, std::size_t N, const ChanFieldTable<N>& Table>
-constexpr auto make_lidar_scan_tuple(const ouster::sdk::core::LidarScan& ls) {
-    auto tp = make_lidar_scan_tuple<0, N, Table>();
-    map_lidar_scan_fields_to_tuple<0, N, Table>(tp, ls);
+constexpr auto make_lidar_frame_tuple(const ouster::sdk::core::LidarFrame& ls) {
+    auto tp = make_lidar_frame_tuple<0, N, Table>();
+    map_lidar_frame_fields_to_tuple<0, N, Table>(tp, ls);
     return tp;
 }
 
 /**
- * @brief copies field values from LidarScan fields combined as a tuple into the
+ * @brief copies field values from LidarFrame fields combined as a tuple into the
  * the corresponding elements of the input point pt.
  * @param[out] pt point to copy values into.
- * @param[in] tp tuple containing arrays to copy LidarScan field values from.
+ * @param[in] tp tuple containing arrays to copy LidarFrame field values from.
  * @param[in] idx index of the point to be copied.
  * @remark this method is to be used mainly with sensor native point types.
  */
 template <std::size_t Index, typename PointT, typename Tuple>
-void copy_lidar_scan_fields_to_point(PointT& pt, const Tuple& tp, int idx) {
+void copy_lidar_frame_fields_to_point(PointT& pt, const Tuple& tp, int idx) {
     if constexpr (Index < std::tuple_size_v<Tuple>) {
         point::get<5 + Index>(pt) = std::get<Index>(tp)[idx];
-        copy_lidar_scan_fields_to_point<Index + 1>(pt, tp, idx);
+        copy_lidar_frame_fields_to_point<Index + 1>(pt, tp, idx);
     } else {
         unused_variable(pt);
         unused_variable(tp);
@@ -120,11 +120,11 @@ template <std::size_t N, const ChanFieldTable<N>& PROFILE, typename PointT,
           typename PointS>
 void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
                      const ouster::sdk::core::PointCloudXYZf& points, uint64_t scan_ts,
-                     const ouster::sdk::core::LidarScan& ls,
+                     const ouster::sdk::core::LidarFrame& ls,
                      const std::vector<int>& pixel_shift_by_row,
                      bool organized = false, bool destagger = true,
                      int rows_step = 1) {
-    auto ls_tuple = make_lidar_scan_tuple<0, N, PROFILE>(ls);
+    auto ls_tuple = make_lidar_frame_tuple<0, N, PROFILE>(ls);
     auto timestamp = ls.timestamp();
 
     if (!organized) cloud.clear();
@@ -179,7 +179,7 @@ void scan_to_cloud_f(ouster_ros::Cloud<PointT>& cloud, PointS& staging_point,
             // case of pcl::PointXYZ or pcl::PointXYZI.
             pt.t = static_cast<uint32_t>(ts);
             pt.ring = static_cast<uint16_t>(u);
-            copy_lidar_scan_fields_to_point<0>(pt, ls_tuple, src_idx);
+            copy_lidar_frame_fields_to_point<0>(pt, ls_tuple, src_idx);
             // only perform point transform operation when PointT, and PointS
             // don't match
             CondBinaryOp<!std::is_same_v<PointT, PointS>>::run(

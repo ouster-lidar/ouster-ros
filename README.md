@@ -28,13 +28,14 @@
       - [Recording Mode](#recording-mode)
       - [Replay Mode](#replay-mode)
         - [PCAP Replay Mode](#pcap-replay-mode)
-      - [Multicast Mode (experimental)](#multicast-mode-experimental)
+      - [Multicast Mode](#multicast-mode)
     - [Invoking Services](#invoking-services)
       - [GetMetadata](#getmetadata)
       - [GetConfig](#getconfig)
       - [SetConfig](#setconfig)
       - [Reset](#reset)
     - [Driver Parameters](#driver-parameters)
+    - [Zone Monitoring](#zone-monitoring)
   - [License](#license)
 
 
@@ -45,7 +46,8 @@ Upon launch the driver will configure and connect to the selected sensor device,
 driver will handle incoming IMU and lidar packets, decode lidar frames and publish corresponding ROS
 messages on the topics of `/ouster/imu` and `/ouster/points`. In the case the used sensor supports
 dual return and it was configured to use this capability, then another topic will published under the
-name `/ouster/points2` which corresponds to the second point cloud.
+name `/ouster/points2` which corresponds to the second point cloud. Sensors that are configured for
+[zone monitoring](#zone-monitoring) additionally publish the state of their zones on `/ouster/zone`.
 
 
 ## Supported Devices
@@ -220,6 +222,16 @@ ros2 launch ouster_ros record.launch.xml    \
     metadata:=<json file name>              # optional
 ```
 
+To record from a sensor that is streaming over multicast, pass the same **udp_dest** group used
+by the main node and leave **mtp_main** at its default (**false**). In this case the recorder does
+not configure the sensor, it only adopts the sensor's active configuration, so the main node
+(see [Multicast Mode](#multicast-mode)) must already be running:
+```bash
+ros2 launch ouster_ros record.launch.xml    \
+    sensor_hostname:=<sensor host name>     \
+    udp_dest:=<multicast group ip (ipv4)>
+```
+
 #### Replay Mode
 > Note
 > As of package version 8.1, specifiying metadata file is optional if the bag file being replayed
@@ -240,35 +252,36 @@ ros2 launch ouster_ros replay_pcap.launch.xml   \
     metadata:=<json file name>              # required
 ```
 
-#### Multicast Mode (experimental)
+#### Multicast Mode
 The multicast launch mode supports configuring the sensor to broadcast lidar packets from the same
-sensor (live) to multiple active clients. You initiate this mode by using `sensor_mtp.launch.xml`
+sensor (live) to multiple active clients. You initiate this mode by using `sensor.launch.xml`
 file to start the node. You will need to specify a valid multicast group for the **udp_dest**
 argument which the sensor is going to broadcast data to it. You will also need to set **mtp_main**
 argument to **true**, this is need to configure the sensor with the specified **udp_dest** and any
-other sensor settings. You can control on which ip (IP4 only) you wish to receive the data on this
-machine from the multicast group using the **mtp_dest** argument as follows:
+other sensor settings. The data is received on the interface of this machine that routes to the sensor.
 ```bash
-roslaunch ouster_ros sensor_mtp.launch.xml  \
+ros2 launch ouster_ros sensor.launch.xml   \
     sensor_hostname:=<sensor host name>     \
     udp_dest:=<multicast group ip (ipv4)>   \
-    mtp_main:=true                          \
-    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+    mtp_main:=true
 ```
 Using a different machine that belongs to the same netwok subnet, you can start another instance of
 the client to start receiving sensor messages through the multicast group as shown below (note that
-**mtp_main** is set to **false**):
+**mtp_main** is left **false**):
 ```bash
-roslaunch ouster_ros sensor_mtp.launch.xml  \
+ros2 launch ouster_ros sensor.launch.xml   \
     sensor_hostname:=<sensor host name>     \
-    udp_dest:=<multicast group ip (ipv4)>   \
-    mtp_main:=false                         \
-    mtp_dest:=<client ip to receive data>   # mtp_dest is optional
+    udp_dest:=<multicast group ip (ipv4)>
 ```
 
-> **Note:** 
-> In both cases the **mtp_dest** is optional and if left unset the client will utilize the first
-available interface.
+> **Note:**
+> Only one node should be started with **mtp_main:=true**. All other clients (including the
+recorder, see [Recording Mode](#recording-mode)) must be started after it, since they rely on the
+configuration it applied to the sensor.
+
+> **Note:**
+> For advanced setups you can override the receiving interface by setting **mtp_dest** to the IP
+(IP4 only) of the local interface; when unset, the interface routing to the sensor is used.
 
 ### Invoking Services
 To execute any of the following service, first you need to open a new terminal
@@ -329,6 +342,64 @@ Other notable parameters include:
 
 This is not a comprehenisve list of all the parameters that the driver supports
 for more detailed list please refer to the `config/driver_params.yaml` file.
+
+### Zone Monitoring
+Sensors that are configured with a zone set and one of the zone monitoring lidar
+profiles (`RNG15_RFL8_NIR8_ZONE16` or `RNG19_RFL8_SIG16_NIR16_ZONE16`) emit a zone
+monitoring (ZM) packet per frame on a dedicated UDP port. The driver receives these
+packets, republishes them unparsed on `/ouster/zone_packets` and publishes the
+decoded state as an `ouster_sensor_msgs/msg/ZoneStatus` message on `/ouster/zone`:
+
+```bash
+ros2 topic echo /ouster/zone
+```
+
+Every message carries the measurement timestamp, the hash of the live zone set and
+the state of all 16 zone monitoring slots. Configured zones have `live` set to true,
+the remaining slots are empty; `trigger_status` tells whether a zone alert is
+currently asserted, and `count`/`min_range`/`max_range`/`mean_range` report what the
+sensor detected inside the zone. Refer to `ouster-sensor-msgs/msg/ZoneState.msg` for
+the full field list.
+
+Zone monitoring processing is controlled by the `ZONE` flag of the `proc_mask`
+parameter and is a no-op on sensors that don't stream zone data. The zone monitoring
+port can be selected through the `zone_port` parameter; when left at -1 (default)
+the driver uses the port the sensor is already configured with, while 0 disables the
+zone monitoring stream. Zone monitoring packets are received through the same
+`SensorPacketSource` as the lidar and imu packets.
+
+A zone set (the zone geometry and trigger configuration) can be uploaded and applied
+to a live sensor at startup via the `zone_monitor_config_file` parameter, which takes
+a path to a zone monitor configuration zip file (as produced by the Ouster SDK's
+`ZoneSet::save`/zone monitoring examples). On startup the driver pushes the zip to
+the sensor, applies it as the active configuration, and reinitializes the sensor so
+the new zones take effect; requires sensor FW3.2+.
+
+Which of the zone set's configured zones are currently active can be switched at
+runtime, without reconfiguring the zone set or reinitializing the sensor, via the
+`ouster_sensor_msgs/srv/SetZoneMonitorLiveIds` service on `/ouster/set_zone_monitor_live_ids`:
+
+```bash
+ros2 service call /ouster/set_zone_monitor_live_ids \
+  ouster_sensor_msgs/srv/SetZoneMonitorLiveIds "{zone_ids: [0, 2]}"
+```
+
+`zone_ids` lists the zones (by id, from the uploaded zone set) to make live; any
+configured zone whose id is omitted is made inactive. The response reports
+`success`, the `live_ids` read back from the sensor after the switch, and an error
+`message` on failure. Requires sensor FW3.2+.
+
+When the sensor metadata carries a zone set (the STL geometry describing each
+zone's shape), the driver also renders that geometry as
+`visualization_msgs/msg/MarkerArray` markers on `/ouster/zone_markers`, one
+translucent mesh plus a text label per configured zone, positioned in the
+`sensor_frame` tf frame. Marker color tracks the live zone status on every
+update: green while clear, red while a zone's alert is asserted, and orange if
+the zone reports an error flag (missing data, low confidence, or an obscured
+view). The text label shows the zone's name (or id, if unlabeled), its current
+trigger state, and its live point count. Both `config/viz.rviz` and
+`config/viz-reliable.rviz` include a `MarkerArray` display already pointed at
+this topic.
 
 For further detailed instructions about the driver refer to the [main guide](./docs/index.rst)
 

@@ -1,0 +1,13 @@
+# Switches the sensor's active (live) zone monitoring zones.
+#
+# All zones in the sensor's zone set whose id is not present in zone_ids are
+# made not live; this does not change the zone set's geometry/configuration,
+# only which of its already-configured zones are currently active. Requires
+# sensor FW3.2+.
+
+uint8[] zone_ids  # ids of the zones to make live
+---
+bool success
+uint8[] live_ids  # live zone ids read back from the sensor after the switch,
+                  # empty when success is false
+string message    # empty on success, error details otherwise

@@ -9,9 +9,12 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PacketMsg.msg"
   "msg/Telemetry.msg"
+  "msg/ZoneState.msg"
+  "msg/ZoneStatus.msg"
   "srv/GetConfig.srv"
   "srv/SetConfig.srv"
   "srv/GetMetadata.srv"
+  "srv/SetZoneMonitorLiveIds.srv"
   DEPENDENCIES std_msgs)
 
 ament_export_dependencies(rosidl_default_runtime)

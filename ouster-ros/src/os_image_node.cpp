@@ -6,7 +6,8 @@
  * @brief A node to decode range, near ir and signal images from ouster
  * point cloud
  *
- * Publishes ~/range_image, ~/nearir_image, and ~/signal_image.  Please bear
+ * Publishes ~/range_image, ~/nearir_image, ~/signal_image, ~/reflec_image and
+ * ~/window_image (when the sensor provides the WINDOW field).  Please bear
  * in mind that there is rounding/clamping to display 8 bit images. For computer
  * vision applications, use higher bit depth values in /os_cloud_node/points
  */
@@ -100,6 +101,11 @@ class OusterImage : public OusterProcessingNodeBase {
                 create_publisher<sensor_msgs::msg::Image>(it->second,
                                                             selected_qos);
         }
+        if (impl::has_window_field(info)) {
+            image_pubs[ChanField::WINDOW] =
+                create_publisher<sensor_msgs::msg::Image>("window_image",
+                                                          selected_qos);
+        }
 
         auto min_scan_valid_columns_ratio = get_parameter("min_scan_valid_columns_ratio").as_double();
         if (min_scan_valid_columns_ratio < 0.0f || min_scan_valid_columns_ratio > 1.0f) {
@@ -109,7 +115,7 @@ class OusterImage : public OusterProcessingNodeBase {
 
         auto mask_path = get_parameter("mask_path").as_string();
 
-        std::vector<LidarScanProcessor> processors {
+        std::vector<LidarFrameProcessor> processors {
             ImageProcessor::create(
                 info, "os_lidar", /*TODO: tf_bcast.point_cloud_frame_id()*/
                 mask_path,
@@ -131,10 +137,9 @@ class OusterImage : public OusterProcessingNodeBase {
                     if (lidar_packet_handler) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
-                        LidarPacket lidar_packet(msg->buf.size());
-                        lidar_packet.format = packet_format;
+                        LidarPacket lidar_packet(packet_format);
                         lidar_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
-                        memcpy(lidar_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        lidar_packet.buf.assign(msg->buf.begin(), msg->buf.end());
                         lidar_packet_handler(lidar_packet);
                     }
                 });

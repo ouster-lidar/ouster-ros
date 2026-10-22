@@ -6,9 +6,9 @@ ouster/os_driver:
     # udp_dest[optional]: hostname or multicast group IP where the sensor will
     # send UDP data packets.
     udp_dest: ''
-    # mtp_dest[optional]: hostname IP address for receiving data packets via
-    # multicast, by default it is INADDR_ANY, so packets will be received on
-    # first available network interface.
+    # mtp_dest[optional]: advanced override, IP address of the local interface
+    # for receiving multicast data packets. By default the interface that
+    # routes to the sensor is used.
     mtp_dest: ''
     # mtp_main[optional]: if true, then configure and reinit the sensor,
     # otherwise start client with active configuration of sensor
@@ -23,7 +23,7 @@ ouster/os_driver:
     # - TIME_FROM_SYNC_PULSE_IN
     # - TIME_FROM_PTP_1588
     # - TIME_FROM_ROS_TIME: This option uses the time of reception of first
-    #                       packet of a LidarScan as the timestamp of the IMU,
+    #                       packet of a LidarFrame as the timestamp of the IMU,
     #                       PointCloud2 and LaserScan messages.
     timestamp_mode: ''
     # multipurpose_io_mode[optional]: multipurpose IO / time sync mode;
@@ -70,14 +70,21 @@ ouster/os_driver:
     # metadata[optional]: path to save metadata file to, if left empty a file
     # with the sensor hostname or ip will be created in ~/.ros folder.
     metadata: ''
-    # lidar_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first available port number will be
-    # assigned.
-    lidar_port: 0
-    # imu_port[optional]: port value should be in the range [0, 65535]. If you
-    # use 0 as the port value then the first available port number will be
-    # assigned.
-    imu_port: 0
+    # zone_monitor_config_file[optional]: path to a zone monitor configuration
+    # zip file to upload and apply to the sensor on startup (requires FW3.2+).
+    zone_monitor_config_file: ''
+    # lidar_port[optional]: port value should be in the range [0, 65535]. A value of
+    # 0 disables lidar data, set to -1 to leave the sensor port unchanged (default).
+    lidar_port: -1
+    # imu_port[optional]: port value should be in the range [0, 65535]. A value of
+    # 0 disables imu data, set to -1 to leave the sensor port unchanged (default).
+    imu_port: -1
+    # zone_port[optional]: port on which the sensor should send zone monitoring
+    # data, value should be in the range [0, 65535]. A value of 0 disables zone
+    # monitoring data, set to -1 to leave the sensor port unchanged (default).
+    # Only relevant when the selected udp_profile_lidar carries zone monitoring
+    # data (RNG15_RFL8_NIR8_ZONE16 or RNG19_RFL8_SIG16_NIR16_ZONE16).
+    zone_port: -1
     # sensor_frame[optional]: name to use when referring to the sensor frame.
     sensor_frame: os_sensor
     # lidar_frame[optional]: name to use when referring to the lidar frame.
@@ -92,11 +99,12 @@ ouster/os_driver:
     # broadcast the TF transforms for the imu/sensor/lidar frames. Prevent the
     # driver from broadcasting TF transforms by setting this parameter to False.
     pub_static_tf: true
-    # proc_mask[optional]: use any combination of the 6 flags IMG, PCL, IMU, SCAN
-    # RAW and TLM to enable or disable their respective messages.
-    proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM
+    # proc_mask[optional]: use any combination of the 7 flags IMG, PCL, IMU, SCAN
+    # RAW, TLM and ZONE to enable or disable their respective messages. The ZONE
+    # flag has an effect only when zone monitoring is configured on the sensor.
+    proc_mask: IMU|PCL|SCAN|IMG|RAW|TLM|ZONE
     # scan_ring[optional]: use this parameter in conjunction with the SCAN flag
-    # to select which beam of the LidarScan to use when producing the LaserScan
+    # to select which beam of the LidarFrame to use when producing the LaserScan
     # message. Choose a value the range [0, sensor_beams_count).
     scan_ring: 0
     # nan_is_inf[optional]: if true, laserscans with NaN values will
@@ -183,7 +191,7 @@ ouster/os_driver:
     # v_reduction[optional]: vertical beam reduction; available options: {1, 2, 4, 8, 16}.
     v_reduction: 1
     # min_scan_valid_columns_ratio[optional]: The minimum ratio of valid columns for
-    # processing the LidarScan [0, 1]. default is 0%
+    # processing the LidarFrame [0, 1]. default is 0%
     min_scan_valid_columns_ratio: 0.0
     # mask_path[optional]: path to an image file that will be used to mask parts of the
     # pointcloud.

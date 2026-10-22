@@ -12,7 +12,7 @@ from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
                             RegisterEventHandler, EmitEvent, LogInfo)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, EnvironmentVariable
 from launch.events import matches_action
 from launch_ros.events.lifecycle import ChangeState
 from launch_ros.event_handlers import OnStateTransition
@@ -43,6 +43,21 @@ def generate_launch_description():
     os_driver_name_arg = DeclareLaunchArgument(
         'os_driver_name', default_value='os_driver')
 
+    # With its default shared memory segment Fast DDS drops most point clouds
+    # sent to local subscribers, see the comments in the profile. A profile
+    # already set in the environment takes precedence. Ignored by other RMWs.
+    default_fastdds_profile = \
+        Path(ouster_ros_pkg_dir) / 'config' / 'fastdds_large_data.xml'
+    fastdds_profile = LaunchConfiguration('fastdds_profile')
+    fastdds_profile_arg = DeclareLaunchArgument(
+        'fastdds_profile',
+        default_value=EnvironmentVariable(
+            'FASTDDS_DEFAULT_PROFILES_FILE',
+            default_value=EnvironmentVariable(
+                'FASTRTPS_DEFAULT_PROFILES_FILE',
+                default_value=str(default_fastdds_profile))),
+        description='Fast DDS XML profile to use for the driver process.')
+
     os_driver = LifecycleNode(
         package='ouster_ros',
         executable='os_driver',
@@ -50,6 +65,9 @@ def generate_launch_description():
         namespace=ouster_ns,
         parameters=[params_file],
         output='screen',
+        # Fast DDS 3.x reads the first variable, 2.x the second
+        additional_env={'FASTDDS_DEFAULT_PROFILES_FILE': fastdds_profile,
+                        'FASTRTPS_DEFAULT_PROFILES_FILE': fastdds_profile},
     )
 
     sensor_configure_event = EmitEvent(
@@ -97,6 +115,7 @@ def generate_launch_description():
         ouster_ns_arg,
         rviz_enable_arg,
         os_driver_name_arg,
+        fastdds_profile_arg,
         rviz_launch,
         os_driver,
         sensor_configure_event,

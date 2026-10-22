@@ -12,8 +12,8 @@
 #define PCL_NO_PRECOMPILE
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <ouster/lidar_scan.h>
-#include <ouster/types.h>
+#include <ouster/core/lidar_frame.h>
+#include <ouster/core/types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <opencv2/opencv.hpp>
@@ -21,12 +21,15 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "ouster_sensor_msgs/msg/packet_msg.hpp"
 #include "ouster_sensor_msgs/msg/telemetry.hpp"
+#include "ouster_sensor_msgs/msg/zone_status.hpp"
 #include "ouster_ros/os_point.h"
 
 namespace ouster_ros {
@@ -54,9 +57,9 @@ size_t get_beams_count(const ouster::sdk::core::SensorInfo& info);
  */
 std::string topic_for_return(const std::string& topic_base, int return_idx);
 
-/** Computes lidar packet count per LidarScan (per column_azimuth)
+/** Computes lidar packet count per LidarFrame (per column_azimuth)
  * @param[in] info sensor_info
- * @return number of raw packets required to hold a LidarScan
+ * @return number of raw packets required to hold a LidarFrame
 */
 size_t lidar_packets_per_frame(const ouster::sdk::core::SensorInfo& info);
 
@@ -90,7 +93,7 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
 
 /**
  * Convert transformation matrix returned by sensor to ROS transform
- * @param[in] ls lidar scan object
+ * @param[in] ls lidar frame object
  * @param[in] timestamp value to set as the timestamp of the generated
  * @param[in] frame the parent frame of the generated laser scan message
  * @param[in] lidar_mode lidar mode (width x frequency)
@@ -100,8 +103,8 @@ geometry_msgs::msg::TransformStamped transform_to_tf_msg(
  * @param[in] return_index index of return desired starting at 0
  * @return ROS message suitable for publishing as a LaserScan
  */
-sensor_msgs::msg::LaserScan lidar_scan_to_laser_scan_msg(
-    const ouster::sdk::core::LidarScan& ls,
+sensor_msgs::msg::LaserScan lidar_frame_to_laser_scan_msg(
+    const ouster::sdk::core::LidarFrame& ls,
     const rclcpp::Time& timestamp,
     const std::string &frame,
     const ouster::sdk::core::LidarMode lidar_mode,
@@ -121,6 +124,31 @@ ouster_sensor_msgs::msg::Telemetry lidar_packet_to_telemetry_msg(
     const rclcpp::Time& timestamp,
     const ouster::sdk::core::PacketFormat& pf);
 
+/**
+ * Collect the labels of the zones defined by the zone set of the sensor, if
+ * the sensor metadata carries one
+ * @param[in] info sensor_info
+ * @return a map of zone id to the label assigned to that zone; empty when the
+ * metadata doesn't carry a zone set
+ */
+std::map<uint8_t, std::string> get_zone_labels(
+    const ouster::sdk::core::SensorInfo& info);
+
+/**
+ * Parse a ZonePacket and generate the ZoneStatus message
+ * @param[in] zone_packet zone monitoring packet to parse the zone states from
+ * @param[in] frame the frame to set in the resulting ROS message
+ * @param[in] timestamp the timestamp to give the resulting ROS message
+ * @param[in] zone_labels zone id to zone label map, as returned by
+ * get_zone_labels
+ * @return ROS message with fields populated from the packet
+ */
+ouster_sensor_msgs::msg::ZoneStatus zone_packet_to_zone_status_msg(
+    const ouster::sdk::core::ZonePacket& zone_packet,
+    const std::string& frame,
+    const rclcpp::Time& timestamp,
+    const std::map<uint8_t, std::string>& zone_labels);
+
 namespace impl {
 
 std::string scan_return(const std::string& input_field, bool second);
@@ -135,13 +163,27 @@ struct read_and_cast {
 
 template <typename T>
 inline ouster::sdk::core::img_t<T> get_or_fill_zero(const std::string& field,
-                                 const ouster::sdk::core::LidarScan& ls) {
+                                 const ouster::sdk::core::LidarFrame& ls) {
     if (!ls.has_field(field)) {
         return ouster::sdk::core::img_t<T>::Zero(ls.h, ls.w);
     }
     ouster::sdk::core::img_t<T> result{ls.h, ls.w};
     ouster::sdk::core::impl::visit_field(ls, field, read_and_cast(), result);
     return result;
+}
+
+/**
+ * @brief whether LidarFrame objects built from this SensorInfo carry the WINDOW
+ * field. This depends on both the lidar udp profile and the firmware version
+ * (FW 3.1 and older don't send it), so ask ouster-sdk instead of duplicating
+ * its rules; it is the single source of truth for WINDOW availability.
+ */
+inline bool has_window_field(const ouster::sdk::core::SensorInfo& info) {
+    const auto field_types = ouster::sdk::core::get_field_types(info);
+    return std::any_of(field_types.begin(), field_types.end(),
+                       [](const auto& ft) {
+                           return ft.name == ouster::sdk::core::ChanField::WINDOW;
+                       });
 }
 
 /**

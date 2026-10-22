@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * @file point_cloud_producer.h
- * @brief takes in a lidar scan object and produces a PointCloud2 message
+ * @brief takes in a lidar frame object and produces a PointCloud2 message
  */
 
 #pragma once
@@ -14,9 +14,13 @@
 #include "ouster_ros/os_ros.h"
 // clang-format on
 
-#include <sensor_msgs/image_encodings.hpp>
+#include <algorithm>
 
-#include "ouster/image_processing.h"
+#include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
+#include "ouster/core/image_processing.h"
+#include "lidar_packet_handler.h"
 
 namespace ouster_ros {
 
@@ -64,6 +68,13 @@ class ImageProcessor {
             image_msgs[ChanField::RGB] = std::make_shared<sensor_msgs::msg::Image>();
             init_image_msg_rgb(*image_msgs[ChanField::RGB], H, W, frame);
         }
+
+        has_window_ = impl::has_window_field(info);
+
+        if (has_window_) {
+            image_msgs[ChanField::WINDOW] = std::make_shared<sensor_msgs::msg::Image>();
+            init_image_msg_mono8(*image_msgs[ChanField::WINDOW], H, W, frame);
+        }
     }
 
    private:
@@ -81,6 +92,17 @@ class ImageProcessor {
         msg.header.frame_id = frame;
     }
 
+    // WINDOW is a uint8 field, publish it as is (no rescaling) in a MONO8 image
+    static void init_image_msg_mono8(sensor_msgs::msg::Image& msg, size_t H,
+                                     size_t W, const std::string& frame) {
+        msg.width = W;
+        msg.height = H;
+        msg.step = W * sizeof(uint8_t);
+        msg.encoding = sensor_msgs::image_encodings::MONO8;
+        msg.data.resize(W * H * sizeof(uint8_t));
+        msg.header.frame_id = frame;
+    }
+
     static void init_image_msg_rgb(sensor_msgs::msg::Image& msg, size_t H, size_t W,
                                    const std::string& frame) {
         msg.width = W;
@@ -92,36 +114,59 @@ class ImageProcessor {
     }
 
    private:
-    void process(const ouster::sdk::core::LidarScan& lidar_scan, uint64_t,
+    void process(const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t,
                  const rclcpp::Time& msg_ts) {
-        process_return(lidar_scan, 0);
-        if (info_.num_returns() == 2) process_return(lidar_scan, 1);
+        process_return(lidar_frame, 0);
+        if (info_.num_returns() == 2) process_return(lidar_frame, 1);
+        if (has_window_) process_window(lidar_frame);
         for (auto it = image_msgs.begin(); it != image_msgs.end(); ++it) {
             it->second->header.stamp = msg_ts;
         }
         if (post_processing_fn) post_processing_fn(image_msgs);
     }
 
+    // The window blockage value is published as is (no auto exposure applied
+    // and no rescaling) since its absolute 8-bit value is what matters.
+    void process_window(const ouster::sdk::core::LidarFrame& lidar_frame) {
+        const uint32_t H = info_.format.pixels_per_column;
+        const uint32_t W = info_.format.columns_per_frame;
+        const auto& px_offset = info_.format.pixel_shift_by_row;
+        const uint8_t* wd = lidar_frame.field<uint8_t>(ChanField::WINDOW).data();
+        auto window_msg = image_msgs[ChanField::WINDOW];
+        auto window_image_map = Eigen::Map<ouster::sdk::core::img_t<uint8_t>>(
+            window_msg->data.data(), H, W);
+
+        for (size_t u = 0; u < H; u++) {
+            for (size_t v = 0; v < W; v++) {
+                const size_t vv = (v + W - px_offset[u]) % W;
+                window_image_map(u, v) = wd[u * W + vv];
+            }
+        }
+
+        if (mask.size() != 0)
+            window_image_map = window_image_map * mask.cast<uint8_t>();
+    }
+
     // TODO: this functin could be benefit of some refactor
-    void process_return(const ouster::sdk::core::LidarScan& lidar_scan, int return_index) {
+    void process_return(const ouster::sdk::core::LidarFrame& lidar_frame, int return_index) {
         const bool first = return_index == 0;
 
         // across supported lidar profiles range is always 32-bit
         auto range_channel = first ? ChanField::RANGE : ChanField::RANGE2;
         ouster::sdk::core::img_t<uint32_t> range =
-            lidar_scan.field<uint32_t>(range_channel);
+            lidar_frame.field<uint32_t>(range_channel);
 
         ouster::sdk::core::img_t<uint16_t> reflectivity = impl::get_or_fill_zero<uint16_t>(
             impl::scan_return(ChanField::REFLECTIVITY, !first),
-            lidar_scan);
+            lidar_frame);
 
         ouster::sdk::core::img_t<uint32_t> signal = impl::get_or_fill_zero<uint32_t>(
-            impl::scan_return(ChanField::SIGNAL, !first), lidar_scan);
+            impl::scan_return(ChanField::SIGNAL, !first), lidar_frame);
 
         // TODO: note that near_ir will be processed twice for DUAL return
         // sensor
         ouster::sdk::core::img_t<uint16_t> near_ir = impl::get_or_fill_zero<uint16_t>(
-            impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_scan);
+            impl::scan_return(ouster::sdk::core::ChanField::NEAR_IR, !first), lidar_frame);
 
         uint32_t H = info_.format.pixels_per_column;
         uint32_t W = info_.format.columns_per_frame;
@@ -169,13 +214,13 @@ class ImageProcessor {
         if (process_rgb) {
             ouster::sdk::core::img_t<uint8_t> r_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::R_U8,
-                                                lidar_scan);
+                                                lidar_frame);
             ouster::sdk::core::img_t<uint8_t> g_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::G_U8,
-                                                lidar_scan);
+                                                lidar_frame);
             ouster::sdk::core::img_t<uint8_t> b_data =
                 impl::get_or_fill_zero<uint8_t>(ouster::sdk::core::ChanField::B_U8,
-                                                lidar_scan);
+                                                lidar_frame);
 
             auto rgb_msg = image_msgs[ChanField::RGB];
             auto rgb_image_map =
@@ -253,14 +298,14 @@ class ImageProcessor {
     }
 
    public:
-    static LidarScanProcessor create(const ouster::sdk::core::SensorInfo& info,
+    static LidarFrameProcessor create(const ouster::sdk::core::SensorInfo& info,
                                      const std::string& frame,
                                      const std::string& mask_path,
                                      PostProcessingFn func) {
         auto handler = std::make_shared<ImageProcessor>(info, frame, mask_path, func);
-        return [handler](const ouster::sdk::core::LidarScan& lidar_scan, uint64_t scan_ts,
+        return [handler](const ouster::sdk::core::LidarFrame& lidar_frame, uint64_t scan_ts,
                          const rclcpp::Time& msg_ts) {
-            handler->process(lidar_scan, scan_ts, msg_ts);
+            handler->process(lidar_frame, scan_ts, msg_ts);
         };
     }
 
@@ -275,6 +320,7 @@ class ImageProcessor {
 
     ouster::sdk::core::img_t<pixel_type> mask;
     bool has_rgb_ = false;
+    bool has_window_ = false;
 };
 
 }  // namespace ouster_ros

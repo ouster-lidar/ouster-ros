@@ -19,7 +19,7 @@
 
 #include "ouster_sensor_msgs/srv/get_metadata.hpp"
 
-#include <ouster/types.h>
+#include <ouster/core/types.h>
 
 namespace ouster_ros {
 
