@@ -26,12 +26,14 @@
 using ouster_sensor_msgs::msg::PacketMsg;
 using ouster_sensor_msgs::srv::GetConfig;
 using ouster_sensor_msgs::srv::SetConfig;
+using ouster_sensor_msgs::srv::SetZoneMonitorLiveIds;
 
 using std::to_string;
 using namespace std::chrono_literals;
 
 using ouster::sdk::core::ImuPacket;
 using ouster::sdk::core::LidarPacket;
+using ouster::sdk::core::ZonePacket;
 using ouster::sdk::core::UDPProfileLidar;
 using ouster::sdk::core::UDPProfileIMU;
 using ouster::sdk::core::LidarMode;
@@ -81,6 +83,7 @@ void OusterSensor::declare_parameters() {
     declare_parameter("sensor_hostname", "");
     declare_parameter("lidar_ip", "");      // community driver param
     declare_parameter("metadata", "");
+    declare_parameter("zone_monitor_config_file", "");
     declare_parameter("udp_dest", "");
     declare_parameter("computer_ip", "");   // community driver param
     declare_parameter("mtp_dest", "");
@@ -88,6 +91,7 @@ void OusterSensor::declare_parameters() {
     // -1: unspecified (keep sensor's current port), 0: disable the stream
     declare_parameter("lidar_port", -1);
     declare_parameter("imu_port", -1);
+    declare_parameter("zone_port", -1);
     declare_parameter("lidar_mode", "");
     declare_parameter("timestamp_mode", "");
     declare_parameter("udp_profile_lidar", "");
@@ -142,6 +146,14 @@ bool OusterSensor::start() {
         // Only reset udp_dest if auto_udp was allowed on startup
         if (auto_udp_allowed) config.udp_dest.reset();
         if (!configure_sensor(sensor_hostname, config))
+            return false;
+    }
+
+    auto zone_monitor_config_file =
+        get_parameter("zone_monitor_config_file").as_string();
+    if (is_arg_set(zone_monitor_config_file)) {
+        if (!upload_zone_monitor_config(sensor_hostname,
+                                        zone_monitor_config_file))
             return false;
     }
 
@@ -455,6 +467,39 @@ void OusterSensor::create_set_config_service() {
     RCLCPP_INFO(get_logger(), "set_config service created");
 }
 
+void OusterSensor::create_set_zone_monitor_live_ids_service() {
+    set_zone_monitor_live_ids_srv = create_service<SetZoneMonitorLiveIds>(
+        "set_zone_monitor_live_ids",
+        [this](const std::shared_ptr<SetZoneMonitorLiveIds::Request> request,
+               std::shared_ptr<SetZoneMonitorLiveIds::Response> response) {
+            response->success = false;
+            response->live_ids.clear();
+            response->message = "";
+
+            try {
+                auto http_client =
+                    ouster::sdk::sensor::SensorHttp::create(sensor_hostname);
+                http_client->set_zone_monitor_live_ids(request->zone_ids);
+                response->live_ids = http_client->get_zone_monitor_live_ids();
+                response->success = true;
+                RCLCPP_INFO_STREAM(
+                    get_logger(),
+                    "zone monitor live zones switched successfully, "
+                    "live zone count: " << response->live_ids.size());
+            } catch (const std::exception& e) {
+                response->message = e.what();
+                RCLCPP_ERROR_STREAM(
+                    get_logger(),
+                    "failed to switch zone monitor live zones, details: "
+                        << e.what());
+            }
+
+            return response->success;
+        });
+
+    RCLCPP_INFO(get_logger(), "set_zone_monitor_live_ids service created");
+}
+
 std::unique_ptr<ouster::sdk::sensor::SensorPacketSource>
 OusterSensor::create_sensor_packet_source(const std::string& hostname,
                                    const SensorConfig& config) {
@@ -477,6 +522,15 @@ OusterSensor::create_sensor_packet_source(const std::string& hostname,
     const int imu_port = sensor_info.config.udp_port_imu.value_or(0);
     RCLCPP_INFO_STREAM(get_logger(),
                        "Using ports: " << lidar_port << "/" << imu_port);
+    // SensorPacketSource also binds the zone monitoring port reported by the
+    // sensor metadata, zone monitoring packets are received alongside lidar
+    // and imu packets
+    if (sensor_info.format.zone_monitoring_enabled &&
+        sensor_info.config.udp_port_zm.value_or(0) != 0) {
+        RCLCPP_INFO_STREAM(get_logger(),
+                           "Using zone monitoring port: "
+                               << sensor_info.config.udp_port_zm.value());
+    }
     if (lidar_port == 0 && imu_port == 0) {
         auto error_msg =
             "Both lidar and imu ports are set to 0 (disabled) on the sensor, "
@@ -502,10 +556,15 @@ OusterSensor::create_sensor_packet_source(const std::string& hostname,
         auto interface_address = is_arg_set(mtp_dest)
                                      ? mtp_dest
                                      : resolve_interface_to_sensor(hostname);
-        if (is_arg_set(interface_address))
+        if (is_arg_set(interface_address)) {
             join_multicast_group_on_interface(*source, udp_dest,
                                               interface_address);
-        else
+            auto udp_dest_zm = sensor_info.config.udp_dest_zm.value_or("");
+            if (udp_dest_zm != udp_dest &&
+                ouster::sdk::sensor::in_multicast(udp_dest_zm))
+                join_multicast_group_on_interface(*source, udp_dest_zm,
+                                                  interface_address);
+        } else
             RCLCPP_WARN(get_logger(),
                         "Could not determine the interface routing to the "
                         "sensor, will receive multicast data on the default "
@@ -609,6 +668,31 @@ void OusterSensor::parse_udp_dest_and_ports(SensorConfig& config) {
 
     parse_udp_port("lidar_port", config.udp_port_lidar);
     parse_udp_port("imu_port", config.udp_port_imu);
+}
+
+namespace {
+bool is_zone_monitoring_profile(UDPProfileLidar profile) {
+    return profile == UDPProfileLidar::RNG15_RFL8_NIR8_ZONE16 ||
+           profile == UDPProfileLidar::RNG19_RFL8_SIG16_NIR16_ZONE16;
+}
+}  // namespace
+
+void OusterSensor::parse_zone_dest_and_port(SensorConfig& config) {
+    // only forward the zone monitoring settings to the sensor when zone
+    // monitoring was actually asked for, either through a lidar profile that
+    // carries zone data or by explicitly picking a zone port. sensors that
+    // don't support the feature have no use for these config params.
+    bool zone_profile_requested =
+        config.udp_profile_lidar &&
+        is_zone_monitoring_profile(config.udp_profile_lidar.value());
+    bool zone_port_requested = get_parameter("zone_port").as_int() != -1;
+    if (!zone_profile_requested && !zone_port_requested) return;
+
+    // a zone port of -1 leaves the sensor on the zone monitoring port it is
+    // already configured with, 0 disables the zone monitoring stream
+    parse_udp_port("zone_port", config.udp_port_zm);
+
+    if (config.udp_dest) config.udp_dest_zm = config.udp_dest;
 }
 
 void OusterSensor::parse_udp_profile_lidar(SensorConfig& config) {
@@ -950,6 +1034,7 @@ SensorConfig OusterSensor::parse_config_from_ros_parameters() {
     SensorConfig config;
     parse_udp_dest_and_ports(config);
     parse_udp_profile_lidar(config);
+    parse_zone_dest_and_port(config);
     parse_columns_per_packet(config);
     parse_udp_profile_imu_and_settings(config);
     parse_lidar_mode(config);
@@ -1045,6 +1130,39 @@ bool OusterSensor::configure_sensor(
     return true;
 }
 
+bool OusterSensor::upload_zone_monitor_config(const std::string& hostname,
+                                              const std::string& zip_file) {
+    auto zip_bytes = impl::read_binary_file(zip_file);
+    if (zip_bytes.empty()) {
+        RCLCPP_ERROR_STREAM(
+            get_logger(),
+            "failed to read zone monitor configuration file: " << zip_file);
+        return false;
+    }
+
+    try {
+        auto http_client = ouster::sdk::sensor::SensorHttp::create(hostname);
+        RCLCPP_INFO_STREAM(get_logger(),
+                           "Uploading zone monitor configuration from "
+                               << zip_file << " to sensor " << hostname
+                               << "...");
+        http_client->set_zone_monitor_config_zip(zip_bytes);
+        http_client->apply_zone_monitor_staged_config_to_active();
+        http_client->reinitialize();
+        RCLCPP_INFO(get_logger(),
+                    "zone monitor configuration uploaded and applied "
+                    "successfully");
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR_STREAM(
+            get_logger(),
+            "failed to upload zone monitor configuration, details: "
+                << e.what());
+        return false;
+    }
+
+    return true;
+}
+
 // fill in values that could not be parsed from metadata
 void OusterSensor::populate_metadata_defaults(
     SensorInfo& info) {
@@ -1080,6 +1198,7 @@ void OusterSensor::create_services() {
     create_get_metadata_service();
     create_get_config_service();
     create_set_config_service();
+    create_set_zone_monitor_live_ids_service();
 }
 
 void OusterSensor::create_publishers() {
@@ -1095,6 +1214,18 @@ void OusterSensor::create_publishers() {
     imu_packet_pub = create_publisher<PacketMsg>(
         "imu_packets",
         rclcpp::QoS(selected_qos).keep_last(info.format.imu_packets_per_frame));
+    if (zone_monitoring_enabled())
+        zone_packet_pub = create_publisher<PacketMsg>(
+            "zone_packets", rclcpp::QoS(selected_qos).keep_last(1));
+    else
+        RCLCPP_INFO(get_logger(),
+                    "zone monitoring is not enabled on the sensor, "
+                    "no zone packets will be published");
+}
+
+bool OusterSensor::zone_monitoring_enabled() const {
+    return info.format.zone_monitoring_enabled &&
+           info.config.udp_port_zm.value_or(0) != 0;
 }
 
 void OusterSensor::allocate_buffers() {
@@ -1104,6 +1235,8 @@ void OusterSensor::allocate_buffers() {
     lidar_packet_msg.buf.resize(pf.lidar_packet_size);
     imu_packet = std::make_unique<ImuPacket>(packet_format);
     imu_packet_msg.buf.resize(pf.imu_packet_size);
+    zone_packet = std::make_unique<ZonePacket>(packet_format);
+    zone_packet_msg.buf.resize(pf.zone_packet_size);
 }
 
 bool OusterSensor::init_id_changed(const PacketFormat& pf,
@@ -1188,10 +1321,37 @@ void OusterSensor::handle_imu_packet(const ImuPacket& imu_packet) {
     on_imu_packet_msg(imu_packet);
 }
 
+void OusterSensor::read_zone_packet(ouster::sdk::core::Packet& packet,
+                                    const PacketFormat& pf) {
+    // drop zone packets that the metadata doesn't account for
+    if (!zone_monitoring_enabled()) return;
+
+    if (packet.buf.size() == pf.zone_packet_size) {
+        read_zone_packet_errors = 0;
+        std::swap(zone_packet->buf, packet.buf);
+        zone_packet->host_timestamp = packet.host_timestamp;
+        handle_zone_packet(*zone_packet);
+    } else {
+        if (++read_zone_packet_errors > max_read_zone_packet_errors) {
+            RCLCPP_ERROR(
+                get_logger(),
+                "maximum number of allowed zone packet errors (unexpected "
+                "packet size) reached, reactivating...");
+            read_zone_packet_errors = 0;
+            reactivate_sensor(true);
+        }
+    }
+}
+
+void OusterSensor::handle_zone_packet(const ZonePacket& zone_packet) {
+    on_zone_packet_msg(zone_packet);
+}
+
 void OusterSensor::cleanup() {
     sensor_source.reset();
     lidar_packet_pub.reset();
     imu_packet_pub.reset();
+    zone_packet_pub.reset();
     get_metadata_srv.reset();
     get_config_srv.reset();
     set_config_srv.reset();
@@ -1232,8 +1392,10 @@ void OusterSensor::connection_loop(ouster::sdk::sensor::SensorPacketSource& sour
         case ouster::sdk::core::PacketType::Imu:
             read_imu_packet(packet, pf);
             break;
+        case ouster::sdk::core::PacketType::Zone:
+            read_zone_packet(packet, pf);
+            break;
         default:
-            // TODO[UN]: handle zone monitor packets by the driver
             break;
     }
 }
@@ -1269,6 +1431,12 @@ void OusterSensor::on_imu_packet_msg(const ImuPacket&) {
     static_cast<std::vector<uint8_t>&>(imu_packet_msg.buf)
         .swap(imu_packet->buf);
     imu_packet_pub->publish(imu_packet_msg);
+}
+
+void OusterSensor::on_zone_packet_msg(const ZonePacket&) {
+    static_cast<std::vector<uint8_t>&>(zone_packet_msg.buf)
+        .swap(zone_packet->buf);
+    zone_packet_pub->publish(zone_packet_msg);
 }
 
 }  // namespace ouster_ros
