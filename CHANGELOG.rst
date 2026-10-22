@@ -20,11 +20,7 @@ Changelog
 * [BUGFIX] Add support for firmware versions prior to 3.2 by handling missing WINDOW field in point cloud profiles.
 * Add support for ``WINDOW`` field image processing, publishing.
   - Update RVIZ to include the ``WINDOW`` image.
-* Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
-* [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
-  - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
 * Consume raw sensor zone monitoring (ZM) packets.
-  - ``os_sensor`` receives ZM packets through the same ``SensorPacketSource`` used for lidar and imu packets.
   - New ``zone_port`` parameter which follows the same convention as ``lidar_port`` and ``imu_port``: ``-1`` (default)
     keeps the port currently set on the sensor and ``0`` disables the zone monitoring stream.
 * Publish the raw sensor zone monitoring (ZM) packets on the topic ``/ouster/zone_packets`` when ``RAW`` ``proc_mask`` is set.
@@ -41,6 +37,9 @@ Changelog
 * Add the ``set_zone_monitor_live_ids`` service (``ouster_sensor_msgs/srv/SetZoneMonitorLiveIds``) to switch which
   zones of the sensor's zone set are currently active/live at runtime, without reconfiguring the zone set or
   reinitializing the sensor (FW3.2+).
+* Improve ``scan_to_cloud_f`` efficiency by avoiding the modulo in a tight loop.
+* [BREAKING]: Changed the default value for invalid measurements from ``0.0`` to ``NaN`` in the published LaserScan message.
+  - Added parameter ``nan_is_inf`` to allow users to choose between ``NaN`` or ``Inf`` for invalid measurements in the LaserScan message.
 
 ouster_ros v0.15.2
 ==================
