@@ -275,8 +275,7 @@ class ZoneMarkerHandlerRecordingTest : public ::testing::Test {
         ASSERT_GT(packet_size, 0U);
         ASSERT_EQ(blob.size() % packet_size, 0U);
         for (size_t offset = 0; offset < blob.size(); offset += packet_size) {
-            ZonePacket packet(static_cast<int>(packet_size));
-            packet.format = packet_format;
+            ZonePacket packet(packet_format);
             std::memcpy(packet.buf.data(), blob.data() + offset, packet_size);
             packets.push_back(std::move(packet));
         }
