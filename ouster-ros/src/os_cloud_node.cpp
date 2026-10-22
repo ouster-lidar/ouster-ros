@@ -144,10 +144,9 @@ class OusterCloud : public OusterProcessingNodeBase {
                     [this](const PacketMsg::ConstSharedPtr msg) {
                         // TODO[UN]: this is not ideal since we can't reuse the msg buffer
                         // Need to redefine the Packet object and allow use of array_views
-                        ZonePacket zone_packet(msg->buf.size());
-                        zone_packet.format = packet_format;
+                        ZonePacket zone_packet(packet_format);
                         zone_packet.host_timestamp = static_cast<uint64_t>(now().nanoseconds());
-                        memcpy(zone_packet.buf.data(), msg->buf.data(), msg->buf.size());
+                        zone_packet.buf.assign(msg->buf.begin(), msg->buf.end());
                         auto zone_status = zone_packet_handler(zone_packet);
                         zone_pub->publish(zone_status);
                         zone_marker_pub->publish(zone_marker_handler(zone_status));
