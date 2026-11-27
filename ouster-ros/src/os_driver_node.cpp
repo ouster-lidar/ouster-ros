@@ -270,9 +270,9 @@ class OusterDriver : public OusterSensor {
         imu_packet_handler = nullptr;
         lidar_packet_handler = nullptr;
         imu_pub.reset();
-        for (auto p : lidar_pubs) p.reset();
-        for (auto p : scan_pubs) p.reset();
-        for (auto p : image_pubs) p.second.reset();
+        for (auto &p : lidar_pubs) p.reset();
+        for (auto &p : scan_pubs) p.reset();
+        for (auto &p : image_pubs) p.second.reset();
         OusterSensor::cleanup();
     }
 
