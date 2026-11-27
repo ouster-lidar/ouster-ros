@@ -1134,6 +1134,7 @@ void OusterSensor::cleanup() {
     sensor_client.reset();
     lidar_packet_pub.reset();
     imu_packet_pub.reset();
+    metadata_pub.reset();
     get_metadata_srv.reset();
     get_config_srv.reset();
     set_config_srv.reset();
